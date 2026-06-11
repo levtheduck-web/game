@@ -1,0 +1,2592 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Spaceship — with AI Co-pilot</title>
+<style>
+  :root {
+    --bg: #05060d; --panel: #0e1322cc; --border: #1d2a4a;
+    --text: #e6edf3; --muted: #8b97c4; --hp: #00d4a0; --danger: #ff6b6b;
+    --accent: #7c5cff; --warn: #ffb86b;
+  }
+  * { box-sizing: border-box; user-select: none; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  canvas { display: block; position: fixed; inset: 0; cursor: crosshair; }
+  .hud { position: fixed; top: 14px; left: 14px; display: flex; gap: 10px; align-items: center; pointer-events: none; }
+  .hud .bar { width: 220px; height: 14px; background: #0a1024; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .hud .bar > div { height: 100%; background: linear-gradient(90deg, var(--hp), var(--accent)); transition: width 0.15s; }
+  .hud .label { color: var(--muted); font-size: 12px; }
+  .hud .stat { background: var(--panel); padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .hud .mute-btn { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 14px; cursor: pointer; pointer-events: auto; color: var(--text); }
+  .hud .mute-btn:hover { border-color: var(--accent); }
+
+  .copilot {
+    position: fixed; bottom: 14px; left: 14px; max-width: 340px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; backdrop-filter: blur(6px);
+  }
+  .copilot h3 { margin: 0 0 6px; font-size: 13px; color: var(--accent); display: flex; align-items: center; gap: 6px; }
+  .copilot .face { width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #00d4a0); display: grid; place-items: center; font-size: 13px; }
+  .copilot .line { font-size: 13px; min-height: 36px; color: var(--text); }
+  .copilot .line.warn { color: var(--warn); }
+  .copilot .line.danger { color: var(--danger); }
+  .copilot .toggles { margin-top: 8px; display: flex; gap: 6px; }
+  .copilot .toggle { font-size: 11px; padding: 4px 9px; background: #0a1024; border: 1px solid var(--border); border-radius: 999px; cursor: pointer; pointer-events: auto; color: var(--muted); }
+  .copilot .toggle.on { background: linear-gradient(135deg, var(--accent), #00d4a0); border: none; color: white; }
+
+  .legend { position: fixed; top: 14px; right: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: var(--muted); }
+  .legend b { color: var(--text); }
+  .legend .row { display: flex; gap: 10px; }
+
+  .minimap {
+    position: fixed; bottom: 14px; right: 14px;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: #05060d;
+    border: 3px solid var(--border);
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(124, 92, 255, 0.15), 0 4px 14px rgba(0,0,0,0.4);
+  }
+  .minimap canvas { display: block; width: 100%; height: 100%; }
+  .minimap .compass {
+    position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
+    color: var(--accent); font-size: 11px; font-weight: 700;
+    background: var(--panel); padding: 1px 6px; border-radius: 4px;
+    pointer-events: none;
+  }
+
+
+
+  .dockPrompt { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--accent); border-radius: 8px; padding: 8px 16px; font-size: 14px; display: none; z-index: 4; }
+  .dockPrompt.show { display: block; }
+  .dockPrompt b { color: var(--accent); }
+
+  .dockScreen { position: fixed; inset: 0; display: none; place-items: center; background: rgba(5,6,13,0.88); z-index: 6; }
+  .dockScreen.show { display: grid; }
+  .dockScreen .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 26px 30px; max-width: 440px; }
+  .dockScreen .planetGfx { width: 100px; height: 100px; border-radius: 50%; margin: 0 auto 12px; box-shadow: 0 0 60px currentColor; }
+  .dockScreen h2 { margin: 0 0 4px; text-align: center; }
+  .dockScreen .biome { color: var(--muted); text-align: center; margin-bottom: 14px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .dockScreen .upgradeName { color: var(--accent); font-weight: 600; margin-bottom: 6px; font-size: 15px; }
+  .dockScreen .upgradeDesc { color: var(--text); font-size: 13px; margin-bottom: 18px; line-height: 1.5; }
+  .dockScreen .alreadyTaken { color: var(--hp); font-size: 13px; margin-bottom: 14px; }
+  .dockScreen .actions { display: flex; gap: 10px; flex-direction: column; }
+  .dockScreen button { padding: 11px; background: #0a1024; color: var(--text); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font: inherit; font-size: 14px; }
+  .dockScreen button:hover:not(:disabled) { border-color: var(--accent); }
+  .dockScreen button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .dockScreen .take { background: linear-gradient(135deg, var(--accent), var(--hp)); border: none; font-weight: 600; }
+  .dockScreen .depart { background: transparent; color: var(--muted); }
+
+  .gameover { position: fixed; inset: 0; display: none; place-items: center; background: rgba(5,6,13,0.85); z-index: 5; }
+  .gameover.show { display: grid; }
+  .gameover .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 26px 32px; text-align: center; max-width: 360px; }
+  .gameover h2 { margin: 0 0 8px; color: var(--danger); }
+  .gameover p { color: var(--muted); margin: 6px 0; }
+  .gameover button { margin-top: 14px; padding: 10px 22px; background: linear-gradient(135deg, var(--accent), var(--hp)); color: white; border: none; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 600; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div class="hud">
+  <div class="label">HULL</div>
+  <div class="bar"><div id="hpBar" style="width:100%"></div></div>
+  <div class="stat" id="scoreStat">0 kills</div>
+  <div class="stat" id="sectorStat">Sector 1</div>
+  <div class="stat" id="galaxyStat">🌌 Andromeda Reach</div>
+  <div class="stat" id="warpStat" style="color:#00d4a0">⚡ WARP READY</div>
+  <button class="mute-btn" id="setMusicBtn" title="Set YouTube music URL">🎵</button>
+  <button class="mute-btn" id="muteBtn" title="Toggle music (M)">🔊</button>
+</div>
+
+<!-- Hidden YouTube player streams audio only (1×1px, off-screen) -->
+<div id="ytplayer-container" style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;pointer-events:none;overflow:hidden">
+  <div id="ytplayer"></div>
+</div>
+
+<div class="legend">
+  <div class="row"><b>W</b> thrust · <b>S</b> brake · <b>Shift</b> warp</div>
+  <div class="row"><b>A / D</b> rotate · <b>Space</b> fire</div>
+  <div class="row"><b>R</b> restart</div>
+</div>
+
+<div class="copilot">
+  <h3><span class="face">🤖</span> CO-PILOT <span id="coName" style="color:var(--muted); font-weight:400; margin-left:auto; font-size:11px"></span></h3>
+  <div class="line" id="coLine">Systems nominal. Awaiting hostiles.</div>
+  <div class="toggles">
+    <div class="toggle on" id="tShields" title="AI manages shields (slow regen)">🛡 Shields: AI</div>
+    <div class="toggle on" id="tTargets" title="AI highlights strongest threat">🎯 Target lock</div>
+    <div class="toggle" id="tEngines" title="AI thrusts toward the locked target">⚙ Engines: AI</div>
+  </div>
+</div>
+
+<div class="minimap">
+  <canvas id="minimap" width="180" height="180"></canvas>
+  <div class="compass">N</div>
+</div>
+
+<div class="dockPrompt" id="dockPrompt">Press <b>E</b> to dock at <b id="dockPromptName"></b></div>
+
+<div class="dockScreen" id="dockScreen">
+  <div class="card">
+    <div class="planetGfx" id="dockGfx"></div>
+    <h2 id="dockName">Planet</h2>
+    <div class="biome" id="dockBiome">biome</div>
+    <div class="upgradeName" id="dockUpName"></div>
+    <div class="upgradeDesc" id="dockUpDesc"></div>
+    <div class="alreadyTaken" id="dockAlready" style="display:none">✓ Upgrade already installed.</div>
+    <div class="actions">
+      <button id="actTake" class="take">⚡ Install Upgrade</button>
+      <button id="actDepart" class="depart">↑ Depart (E)</button>
+    </div>
+  </div>
+</div>
+
+<div class="gameover" id="gameover">
+  <div class="card">
+    <h2>SHIP DESTROYED</h2>
+    <p id="goSummary">You scored 0 kills before being vented to space.</p>
+    <p style="color:var(--accent)" id="goLine">— Co-pilot</p>
+    <button id="goRestart">RESTART (R)</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── State ─────────────────────────────────────────────────────────────
+const STAR_COUNT_FAR = 220, STAR_COUNT_NEAR = 70;
+const KEYS = {};
+window.addEventListener('keydown', e => {
+  KEYS[e.code] = true;
+  if (e.code === 'KeyR') restart();
+  if (e.code === 'Space') e.preventDefault();
+  if (e.code === 'KeyE') tryDockOrDepart();
+});
+window.addEventListener('keyup', e => { KEYS[e.code] = false; });
+
+let player, enemies, bullets, particles, stars, score, sector, gameOver, lastTime, coState, planets, docked, upgradesTaken, pickups, shake, anomalies, shockwaves, mergerTimer, mergerWarning;
+let sessionGen = 0; // bumped on each restart; pending hyperjump callbacks check this to no-op if stale
+let sunEaten = false; // true if the player (as a mega black hole) swallowed the current milky way's central object
+
+// Hierarchy: UNIVERSES → galaxies → milkyWays → (sun + planets that orbit it)
+const _S = (name, r, color, hot) => ({ name, x: 0, y: 0, r, color, hot });
+const _P = (name, orbitRadius, orbitAngle, orbitSpeed, r, color, biome, upgrade, upgradeName, upgradeDesc) =>
+  ({ name, orbitRadius, orbitAngle, orbitSpeed, r, color, biome, upgrade, upgradeName, upgradeDesc, x: 0, y: 0 });
+const UNIVERSES = [
+  {
+    name: 'Local Universe',
+    galaxies: [
+      {
+        name: 'Andromeda Cluster',
+        milkyWays: [
+          {
+            name: 'Andromeda Reach',
+            sun: _S('Andromeda Sun', 400, '#ffd54d', '#ffeb88'),
+            planets: [
+              _P('Helios Prime', 8000,  0.2, 0.025, 90,  '#ffb86b', 'desert', 'hull',
+                  'Heat-Resistant Plating', '+25 max HULL.'),
+              _P('Vega Station', 14000, 1.8, 0.018, 70,  '#7c5cff', 'orbital habitat', 'warpCap',
+                  'Warp Capacitor', '+150 max warp charge.'),
+              _P('Nereus',       21000, 3.4, 0.013, 100, '#00d4a0', 'ocean', 'shields',
+                  'Reinforced Shield Array', '+50 max SHIELD, +6/s regen.'),
+              _P('Krylo',        28000, 5.0, 0.009, 110, '#ff6b6b', 'volcanic', 'fireRate',
+                  'Plasma Cannon Retrofit', '+50% fire rate.'),
+            ],
+          },
+          {
+            name: 'Frontier Belt',
+            sun: _S('Frontier Sun', 280, '#a8d8ff', '#ddedff'),
+            planets: [
+              _P('Bastion',       7500,  0.5, 0.027, 80,  '#8b97c4', 'fortified moon', 'damage',
+                  'Military Munitions', '+50% bullet damage.'),
+              _P('Vellam',        13500, 2.0, 0.018, 95,  '#c47cff', 'crystalline', 'warpSpeed',
+                  'Crystal-Tuned Warp Drive', '+50% warp speed + regen.'),
+              _P('Calix Outpost', 20500, 3.7, 0.013, 90,  '#ffd56b', 'mining colony', 'hullBig',
+                  'Reactive Armor', '+50 max HULL.'),
+              _P('Pyranthe',      27500, 5.4, 0.010, 110, '#ff5b5b', 'jungle pirate', 'damageBig',
+                  'Pirate Cannons', '+75% bullet damage.'),
+            ],
+          },
+        ],
+      },
+      {
+        name: 'Pegasus Spur',
+        milkyWays: [
+          {
+            name: 'Pegasus Hub',
+            sun: _S('Pegasi Sun', 500, '#ff8b5b', '#ffb088'),
+            planets: [
+              _P('Orisa-7',        9000,  0.7, 0.024, 80,  '#5cd6ff', 'frozen lab', 'shieldsBig',
+                  'Cryo Regenerator', '+100 max shield + 10/s regen.'),
+              _P('Helga\'s Drift', 16000, 2.3, 0.017, 100, '#a0ff7c', 'asteroid belt', 'warpCapBig',
+                  'Drift Capacitor', '+300 max warp charge.'),
+              _P('Mirrorhaven',    23000, 4.1, 0.012, 95,  '#e6edf3', 'mirror city', 'fireRateBig',
+                  'Quantum Cyclers', '+75% fire rate.'),
+              _P('Tarsis',         30000, 5.8, 0.009, 85,  '#ff9bd6', 'salvage market', 'lifesteal',
+                  'Vampire Coils', '+3 HP per kill.'),
+            ],
+          },
+          {
+            name: 'Lyra Drift',
+            sun: _S('Lyra Sun', 350, '#6ba8ff', '#aacfff'),
+            planets: [
+              _P('Orion\'s Anvil', 8000,  0.4, 0.026, 95,  '#ffaa44', 'forge world', 'bulletRange',
+                  'Long-Range Optics', '+50% bullet range.'),
+              _P('Vega\'s Crown',  15000, 2.0, 0.018, 100, '#5cffd6', 'starlit reef', 'dmgResist',
+                  'Refractive Plating', '-20% incoming damage.'),
+              _P('Magnetic Hub',   22000, 3.6, 0.013, 80,  '#ffd956', 'magnetar', 'magnet',
+                  'Pickup Magnet', 'Pickups drift toward you.'),
+              _P('Polaris',        29000, 5.3, 0.009, 75,  '#dddddd', 'polar beacon', 'pickupRate',
+                  'Drop Beacon', 'Enemies always drop pickups.'),
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Outer Universe',
+    galaxies: [
+      {
+        name: 'Void Reaches',
+        milkyWays: [
+          {
+            name: 'Aphelion Edge',
+            sun: _S('Void Sun', 700, '#7c5cff', '#c47cff'),
+            planets: [
+              _P('Aphelion',       10000, 0.3, 0.022, 70,  '#c47cff', 'singularity', 'warpMega',
+                  'Void Warp Core', '+500 max warp + 2× regen.'),
+              _P('Null Station',   17000, 2.0, 0.016, 60,  '#7c5cff', 'shipwreck', 'damageMega',
+                  'Forbidden Munitions', '+100% bullet damage.'),
+              _P('The Last Light', 24000, 3.7, 0.012, 130, '#ffb86b', 'dying star', 'hullMega',
+                  'Stellar Plating', '+100 max HULL.'),
+              _P('Echoes',         31000, 5.4, 0.009, 85,  '#aabbff', 'haunted drift', 'pierce',
+                  'Phase Rounds', 'Bullets pierce through 1 extra enemy.'),
+            ],
+          },
+          {
+            name: 'Phoenix Drift',
+            sun: _S('Phoenix Sun', 500, '#ff6b1a', '#ffaa44'),
+            planets: [
+              _P('Embertail',  9000,  0.6, 0.024, 90,  '#ff6b1a', 'ember storm', 'crit',
+                  'Critical Targeting', '+25% chance of 3× damage hits.'),
+              _P('Lupus',      16000, 2.2, 0.017, 100, '#aa4ad6', 'wolf nebula', 'dmgResistBig',
+                  'Wolfhide Armor', '-30% incoming damage.'),
+              _P('Pyre',       23000, 3.9, 0.012, 75,  '#ff447a', 'firepit', 'shieldsMega',
+                  'Pyrocell Plating', '+200 max shield + 16/s regen.'),
+              _P('Flarewatch', 30000, 5.5, 0.009, 95,  '#ffcc44', 'flare ring', 'fireRateUltra',
+                  'Solar Cyclers', '+200% fire rate.'),
+            ],
+          },
+        ],
+      },
+      {
+        name: 'Hydra Sweep',
+        milkyWays: [
+          {
+            name: 'Hydra Veil',
+            sun: _S('Hydra Sun', 380, '#3cf08a', '#88ffba'),
+            planets: [
+              _P('Snake Reef',     8500,  0.5, 0.025, 110, '#3cf08a', 'kelp rings', 'hullMega2',
+                  'Sevenfold Hull', '+150 max HULL.'),
+              _P('Hydra\'s Eye',   15500, 2.1, 0.017, 95,  '#ffcc44', 'storm-eye', 'bulletSpeed',
+                  'Railgun Sleeve', '+50% bullet speed.'),
+              _P('Coilstead',      22500, 3.8, 0.012, 75,  '#7ca0ff', 'spire chain', 'warpUltra',
+                  'Coilcore Drive', '+1000 max warp + 3× regen.'),
+              _P('Serpent\'s Eye', 29500, 5.5, 0.009, 100, '#aaffaa', 'serpent ring', 'multiShot',
+                  'Twin-Barrel Mount', 'Fire 2 bullets at once.'),
+            ],
+          },
+          {
+            name: 'Crescent Arc',
+            sun: _S('Crescent Sun', 250, '#bbe6ff', '#ddf0ff'),
+            planets: [
+              _P('Moonshade', 7500,  0.4, 0.026, 85,  '#aabbcc', 'twilight crater', 'dmgResistUltra',
+                  'Phase Plating', '-40% incoming damage.'),
+              _P('Frostfall', 14500, 2.0, 0.018, 95,  '#aaeeff', 'frozen world', 'shieldsBig',
+                  'Cryo Layer', '+100 max shield + 10/s regen.'),
+              _P('Tideglass', 21500, 3.6, 0.013, 110, '#88ddee', 'glass tides', 'warpCapBig',
+                  'Tide Capacitor', '+300 max warp charge.'),
+              _P('Arcwell',   28500, 5.3, 0.010, 85,  '#ddddff', 'arc well', 'accel',
+                  'Boost Manifold', '+50% thrust acceleration.'),
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Deep Universe',
+    galaxies: [
+      {
+        name: 'Cygnus Spiral',
+        milkyWays: [
+          {
+            name: 'Cygnus Heart',
+            sun: _S('Cygnus Sun', 800, '#5cd6ff', '#aaeeff'),
+            planets: [
+              _P('Centerstone',  11000, 0.3, 0.020, 130, '#5cd6ff', 'galactic core', 'warpUltra',
+                  'Singularity Core', '+1000 max warp + 3× regen.'),
+              _P('Black Hub',    18000, 2.0, 0.015, 70,  '#7c5cff', 'event horizon', 'fireRateUltra',
+                  'Tachyon Cyclers', '+200% fire rate.'),
+              _P('Singularity',  25000, 3.7, 0.011, 90,  '#ff447a', 'singularity', 'damageUltra',
+                  'Antimatter Rounds', '+200% bullet damage.'),
+              _P('Twilight',     32000, 5.4, 0.008, 100, '#c47cff', 'last twilight', 'pierce',
+                  'Penetrator Rounds', 'Bullets pierce through 1 extra enemy.'),
+            ],
+          },
+          {
+            name: 'Far Reach',
+            sun: _S('Reach Sun', 350, '#ff6b6b', '#ff9988'),
+            planets: [
+              _P('Whisper',     9000,  0.5, 0.024, 85,  '#aaffff', 'ghost station', 'dmgResistUltra',
+                  'Phase Plating', '-40% incoming damage.'),
+              _P('Outpost-99',  16000, 2.1, 0.017, 95,  '#ff447a', 'last frontier', 'damageUltra',
+                  'Antimatter Rounds', '+200% bullet damage.'),
+              _P('Vortex',      23000, 3.8, 0.012, 105, '#7ca0ff', 'vortex', 'bulletSpeed',
+                  'Mach Sleeve', '+50% bullet speed.'),
+              _P('Nightfall',   30000, 5.5, 0.009, 95,  '#444466', 'eclipse world', 'hullMega2',
+                  'Eclipse Plating', '+150 max HULL.'),
+            ],
+          },
+        ],
+      },
+      {
+        name: 'Cassiopeia Drift',
+        milkyWays: [
+          {
+            name: 'Cassiopeia Pearl',
+            sun: _S('Cassiopeia Sun', 550, '#ff88cc', '#ffaadd'),
+            planets: [
+              _P('The Pearl',   9500,  0.4, 0.024, 110, '#ffd6f0', 'pearl nebula', 'lifestealBig',
+                  'Soul Reaver', '+8 HP per kill.'),
+              _P('Riftrim',     16500, 2.0, 0.017, 105, '#d6ffaa', 'rift edge', 'bulletRangeBig',
+                  'Tachyon Sights', '+100% bullet range.'),
+              _P('Lighthouse',  23500, 3.7, 0.012, 75,  '#ffeeaa', 'lighthouse', 'fireRateUltra',
+                  'Beacon Cyclers', '+200% fire rate.'),
+              _P('Crown Drift', 30500, 5.4, 0.009, 100, '#ffaadd', 'gem belt', 'shieldsMega',
+                  'Crown Plating', '+200 max shield + 16/s regen.'),
+            ],
+          },
+          {
+            name: 'Endrim',
+            sun: _S('Endrim Star', 1000, '#ffffff', '#ffffff'),
+            planets: [
+              _P('Endsong',  12000, 0.5, 0.019, 140, '#ffffff', 'wellspring', 'endsong',
+                  'ENDSONG', '+200 HP, +300 SHIELD, +5× DAMAGE, +5 LIFESTEAL.'),
+              _P('Ashveil',  19000, 2.1, 0.014, 95,  '#aaaaaa', 'ash veil', 'dmgResistUltra',
+                  'Ash Plating', '-40% incoming damage.'),
+              _P('Lastpoint', 26000, 3.7, 0.011, 85,  '#7c5cff', 'last point', 'warpUltra',
+                  'Endcore Drive', '+1000 max warp + 3× regen.'),
+              _P('Trueblood', 33000, 5.3, 0.008, 100, '#ff447a', 'blood ring', 'lifestealBig',
+                  'Trueblood Coils', '+8 HP per kill.'),
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  // ── The Omniverse — only reachable via a 12.5-second warp hold.
+  // Each milky way has a CENTRAL BLACK HOLE; planets orbit it.
+  // Anomalies are 3× as dense and stellar mergers fire every ~10 seconds.
+  {
+    name: 'The Omniverse',
+    galaxies: [
+      {
+        name: 'Chaos Spiral',
+        milkyWays: [
+          {
+            name: 'Void Heart',
+            intensity: 3,
+            mergerInterval: 10,
+            sun: { name: 'Void Sphere', x: 0, y: 0, r: 500, color: '#000000', hot: '#7c5cff', type: 'blackhole', pullRange: 2500 },
+            planets: [
+              _P('Endpoint',  9000,  0.3, 0.026, 90,  '#7c5cff', 'edge of nothing', 'warpOmni',
+                  'Omniverse Drive',    '+2000 max warp + 5× regen.'),
+              _P('Final',     16000, 1.9, 0.018, 100, '#ff447a', 'last station', 'hullOmni',
+                  'Final Plating',      '+500 max HULL.'),
+              _P('Maw',       23000, 3.6, 0.013, 85,  '#ff6b1a', 'event horizon', 'damageOmni',
+                  'Maw Cannons',        '+400% bullet damage.'),
+              _P('Ash',       30000, 5.3, 0.009, 105, '#aaaaaa', 'ash ring', 'shieldsOmni',
+                  'Ash Plating',        '+500 max shield + 30/s regen.'),
+            ],
+          },
+          {
+            name: 'Annihilation Arc',
+            intensity: 3,
+            mergerInterval: 10,
+            sun: { name: 'Annihilator', x: 0, y: 0, r: 700, color: '#000000', hot: '#ff6b1a', type: 'blackhole', pullRange: 3000 },
+            planets: [
+              _P('Rest',       10000, 0.4, 0.024, 95,  '#ffd6f0', 'rest stop', 'lifestealOmni',
+                  'Rest Coils',          '+20 HP per kill.'),
+              _P('Quiet',      17000, 2.0, 0.017, 80,  '#aaffff', 'quiet world', 'critOmni',
+                  'Quiet Targeting',     '+50% crit chance (cap 100%).'),
+              _P('Truth',      24000, 3.7, 0.012, 100, '#5cffd6', 'truthstone', 'pierceOmni',
+                  'Truth Rounds',        'Bullets pierce through 5 enemies.'),
+              _P('Beginning',  31000, 5.4, 0.009, 120, '#ffffff', 'beginning', 'fireRateOmni',
+                  'Beginning Cyclers',   '+400% fire rate.'),
+            ],
+          },
+        ],
+      },
+    ],
+  },
+];
+const OMNIVERSE_INDEX = UNIVERSES.length - 1;
+const NORMAL_UNIVERSES = UNIVERSES.length - 1; // universes cycled by tier-2 jumps
+let currentUniverse = 0, currentGalaxy = 0, currentMilkyWay = 0;
+function curMilkyWay() { return UNIVERSES[currentUniverse].galaxies[currentGalaxy].milkyWays[currentMilkyWay]; }
+function locationLabel() {
+  const u = UNIVERSES[currentUniverse], g = u.galaxies[currentGalaxy], m = g.milkyWays[currentMilkyWay];
+  return `🌌 ${m.name} · ${g.name} · ${u.name}`;
+}
+
+// Update planet positions based on their orbits around the milky way's sun.
+// When the sun is eaten by the mega-BH player, planets freeze in place.
+function updatePlanetOrbits(dt) {
+  if (sunEaten) return;
+  const sun = curMilkyWay().sun;
+  for (const p of planets) {
+    p.orbitAngle += p.orbitSpeed * dt;
+    p.x = sun.x + Math.cos(p.orbitAngle) * p.orbitRadius;
+    p.y = sun.y + Math.sin(p.orbitAngle) * p.orbitRadius;
+  }
+}
+
+// Roll the merger timer; when it fires, pick a black hole + a sun and START A WARNING.
+// After the warning countdown, the actual shockwave triggers (see updateMergerWarning).
+function updateMergerTimer(dt) {
+  if (shockwaves.length > 0 || mergerWarning) return; // one event at a time
+  mergerTimer -= dt;
+  if (mergerTimer > 0) return;
+  const blackholes = anomalies.filter(a => a.type === 'blackhole');
+  // Only rogue stars merge — the main sun anchors the planets' orbits
+  const rogues = anomalies.filter(a => a.type === 'rogueStar');
+  if (blackholes.length === 0 || rogues.length === 0) {
+    const mi = curMilkyWay().mergerInterval;
+    mergerTimer = mi ? rand(Math.max(2, mi - 2), mi + 2) : rand(60, 120);
+    return;
+  }
+  const bh = blackholes[Math.floor(Math.random() * blackholes.length)];
+  const st = rogues[Math.floor(Math.random() * rogues.length)];
+  mergerWarning = {
+    x: (bh.x + st.x) / 2, y: (bh.y + st.y) / 2,
+    age: 0, maxAge: 15,  // 15-second slow buildup
+    bh, st,
+    // Capture starting positions and radii so we can interpolate the merger animation
+    bhX0: bh.x, bhY0: bh.y, bhR0: bh.r, bhPullR0: bh.pullRange,
+    stX0: st.x, stY0: st.y, stR0: st.r,
+  };
+  coState.cooldown = 0; say('mergerWarn', {}, 'danger');
+  shake = Math.max(shake, 10);
+}
+
+// Tick the warning. The black hole and rogue star draw toward each other,
+// grow larger, and when they meet, the shockwave fires and they're consumed.
+function updateMergerWarning(dt) {
+  if (!mergerWarning) return;
+  const w = mergerWarning;
+  w.age += dt;
+  const t = Math.min(1, w.age / w.maxAge);
+  const e = t * t * (3 - 2 * t); // smoothstep
+  // Slide each anomaly toward the midpoint
+  w.bh.x = w.bhX0 + (w.x - w.bhX0) * e;
+  w.bh.y = w.bhY0 + (w.y - w.bhY0) * e;
+  w.st.x = w.stX0 + (w.x - w.stX0) * e;
+  w.st.y = w.stY0 + (w.y - w.stY0) * e;
+  // And grow them DRAMATICALLY as mass piles up
+  w.bh.r = w.bhR0 * (1 + e * 5);            // up to 6×
+  w.bh.pullRange = w.bhPullR0 * (1 + e * 1.5); // pull range grows too
+  w.st.r = w.stR0 * (1 + e * 4);            // up to 5×
+  // Constant gentle shake during the approach, climbing as they close in
+  shake = Math.max(shake, 4 + e * 12);
+  if (w.age >= w.maxAge) {
+    shockwaves.push({
+      x: w.x, y: w.y, r: 0, prevR: 0, maxR: 80000, age: 0, maxAge: 4.5,
+      sourceX: w.bh.x, sourceY: w.bh.y, starX: w.st.x, starY: w.st.y,
+      flashAge: 0,
+    });
+    shake = Math.max(shake, 50);
+    coState.cooldown = 0; say('merger', {}, 'danger');
+    // The merger consumed both objects — remove them from the world.
+    const ibh = anomalies.indexOf(w.bh);
+    if (ibh >= 0) anomalies.splice(ibh, 1);
+    const ist = anomalies.indexOf(w.st);
+    if (ist >= 0) anomalies.splice(ist, 1);
+    mergerWarning = null;
+    const mi = curMilkyWay().mergerInterval;
+    mergerTimer = mi ? rand(Math.max(2, mi - 2), mi + 2) : rand(60, 150);
+  }
+}
+
+function updateShockwaves(dt) {
+  for (let i = shockwaves.length - 1; i >= 0; i--) {
+    const s = shockwaves[i];
+    s.age += dt;
+    s.flashAge += dt;
+    s.prevR = s.r;
+    // Quick growth at first, decelerating
+    const t = s.age / s.maxAge;
+    s.r = s.maxR * Math.sqrt(t);
+    // Did the wave just sweep past the player?
+    const d = Math.hypot(player.x - s.x, player.y - s.y);
+    if (s.prevR < d && s.r >= d && !player.ftlFlingTimer) {
+      // Throw player faster than light in a random direction for 3 seconds
+      const angle = Math.random() * Math.PI * 2;
+      player.vx = Math.cos(angle) * 120000;
+      player.vy = Math.sin(angle) * 120000;
+      player.ftlFlingTimer = 3;
+      // End any active warp — the shockwave overrides everything
+      player.warpActive = false;
+      player.warpHoldTime = 0;
+      shake = Math.max(shake, 50);
+      coState.cooldown = 0; say('flung', {}, 'warn');
+    }
+    if (s.age >= s.maxAge) shockwaves.splice(i, 1);
+  }
+}
+
+// Returns 0–1 — how strongly the nearest black hole is bending space here.
+// 0 = no influence (outside pull range), 1 = right at the event horizon.
+// Even light slows under a black hole's gravity, so this scales WARP too.
+function blackHoleInfluence() {
+  let strongest = 0;
+  for (const a of anomalies) {
+    if (a.type !== 'blackhole') continue;
+    const d = Math.hypot(a.x - player.x, a.y - player.y);
+    if (d >= a.pullRange) continue;
+    const t = 1 - Math.max(0, (d - a.r) / Math.max(1, a.pullRange - a.r));
+    if (t > strongest) strongest = t;
+  }
+  // Also the central object, if it happens to be a black hole (omniverse) and not eaten
+  const c = curMilkyWay().sun;
+  if (!sunEaten && c.type === 'blackhole') {
+    const pr = c.pullRange || 1500;
+    const d = Math.hypot(c.x - player.x, c.y - player.y);
+    if (d < pr) {
+      const t = 1 - Math.max(0, (d - c.r) / Math.max(1, pr - c.r));
+      if (t > strongest) strongest = t;
+    }
+  }
+  return Math.min(1, Math.max(0, strongest));
+}
+
+// Central object (sun OR black hole) collision + pull
+function updateSunCollision(dt) {
+  if (sunEaten) return;
+  const c = curMilkyWay().sun;
+  const dx = c.x - player.x, dy = c.y - player.y;
+  const d = Math.hypot(dx, dy);
+  if (c.type === 'blackhole') {
+    // Pull like a regular black hole
+    const pullR = c.pullRange || 1500;
+    if (d > 0 && d < pullR) {
+      const pull = 1500 * (1 - d / pullR);
+      player.vx += (dx / d) * pull * dt;
+      player.vy += (dy / d) * pull * dt;
+    }
+    if (d < c.r) {
+      player.hp -= 80 * dt * player.dmgTakenMul;
+      shake = Math.max(shake, 18);
+      if (player.hp <= 0 && !gameOver) endGame();
+    }
+  } else {
+    if (d < c.r + 12) {
+      player.hp -= 80 * dt * player.dmgTakenMul;
+      shake = Math.max(shake, 16);
+      const ux = dx / (d || 1), uy = dy / (d || 1);
+      player.vx -= ux * 400 * dt;
+      player.vy -= uy * 400 * dt;
+      if (player.hp <= 0 && !gameOver) endGame();
+    }
+  }
+}
+
+// ── Anomaly generation (seeded by milky way name so layout is stable) ──
+function generateAnomalies(mw) {
+  let seed = 0;
+  for (let i = 0; i < mw.name.length; i++) seed = (seed * 31 + mw.name.charCodeAt(i)) & 0x7fffffff;
+  const rng = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  const list = [];
+
+  // Helper: keep away from sun, orbits, and spawn point
+  const sunRef = mw.sun;
+  const outerOrbit = mw.planets.length ? Math.max(...mw.planets.map(p => p.orbitRadius)) : 0;
+  const farFromKeyPoints = (x, y, minD) => {
+    // Avoid spawn area
+    if (Math.hypot(x - (sunRef.x + sunRef.r + 1500), y - sunRef.y) < 1500) return false;
+    // Avoid the sun and the orbital disk
+    const distFromSun = Math.hypot(x - sunRef.x, y - sunRef.y);
+    if (distFromSun < sunRef.r + minD) return false;
+    if (distFromSun < outerOrbit + 1200) return false;
+    return true;
+  };
+  const placeAway = (range, minD, tries = 16) => {
+    for (let t = 0; t < tries; t++) {
+      const x = (rng() - 0.5) * range, y = (rng() - 0.5) * range;
+      if (farFromKeyPoints(x, y, minD)) return [x, y];
+    }
+    return [(rng() - 0.5) * range, (rng() - 0.5) * range];
+  };
+
+  const intensity = mw.intensity || 1;
+  // 2-3 black holes, spread across the milky way (×intensity in chaotic regions)
+  const bhCount = Math.floor((2 + Math.floor(rng() * 2)) * intensity);
+  for (let i = 0; i < bhCount; i++) {
+    const [x, y] = placeAway(180000, 2000);
+    list.push({ type: 'blackhole', x, y, r: 80 + rng() * 80, pullRange: 1400 + rng() * 600 });
+  }
+  // 2-4 rogue stars (more in chaos)
+  const rogueCount = Math.floor((2 + Math.floor(rng() * 3)) * intensity);
+  const ROGUE_COLORS = [['#ffd54d','#ffeb88'], ['#ff8b5b','#ffb088'], ['#6ba8ff','#aacfff'], ['#ff6b6b','#ff9988'], ['#aaeeff','#ddf6ff']];
+  for (let i = 0; i < rogueCount; i++) {
+    const [x, y] = placeAway(180000, 1600);
+    const [c, h] = ROGUE_COLORS[Math.floor(rng() * ROGUE_COLORS.length)];
+    list.push({ type: 'rogueStar', x, y, r: 140 + rng() * 160, color: c, hot: h, pulse: rng() * Math.PI * 2 });
+  }
+  // 1–3 wormhole pairs (more in chaos)
+  const whPairs = Math.floor((1 + Math.floor(rng() * 3)) * intensity);
+  for (let i = 0; i < whPairs; i++) {
+    const [x1, y1] = placeAway(160000, 600);
+    const [x2, y2] = placeAway(160000, 600);
+    const phase = rng() * Math.PI * 2;
+    list.push({ type: 'wormhole', x: x1, y: y1, r: 40, destX: x2, destY: y2, phase });
+    list.push({ type: 'wormhole', x: x2, y: y2, r: 40, destX: x1, destY: y1, phase: phase + Math.PI });
+  }
+  // 2–4 asteroid clusters (more in chaos)
+  const clusters = Math.floor((2 + Math.floor(rng() * 3)) * intensity);
+  for (let i = 0; i < clusters; i++) {
+    const [cx, cy] = placeAway(160000, 400);
+    const count = 5 + Math.floor(rng() * 6);
+    for (let j = 0; j < count; j++) {
+      list.push({
+        type: 'asteroid',
+        x: cx + (rng() - 0.5) * 900,
+        y: cy + (rng() - 0.5) * 900,
+        r: 14 + rng() * 22,
+        hp: 30, maxHp: 30,
+        rot: rng() * Math.PI * 2,
+        rotSpeed: (rng() - 0.5) * 0.4,
+      });
+    }
+  }
+  // 1–2 nebulas
+  const NEBULA_COLORS = ['#5cd6ff', '#c47cff', '#ff5b5b', '#3cf08a', '#ffd66b', '#7c5cff'];
+  const nebulas = 1 + Math.floor(rng() * 2);
+  for (let i = 0; i < nebulas; i++) {
+    list.push({
+      type: 'nebula',
+      x: (rng() - 0.5) * 80000, y: (rng() - 0.5) * 80000,
+      r: 1500 + rng() * 1200,
+      color: NEBULA_COLORS[Math.floor(rng() * NEBULA_COLORS.length)],
+    });
+  }
+  return list;
+}
+
+function applyUpgrade(key) {
+  switch (key) {
+    case 'hull':       player.maxHp += 25; player.hp = player.maxHp; break;
+    case 'warpCap':    player.maxWarpCharge += 150; player.warpCharge = player.maxWarpCharge; break;
+    case 'shields':    player.maxShield += 50; player.shield = player.maxShield; player.shieldRegen += 6; break;
+    case 'fireRate':   player.fireRateMul *= 1.5; break;
+    case 'damage':     player.dmgMul *= 1.5; break;
+    case 'warpSpeed':  player.warpSpeedMul *= 1.5; player.warpRegenMul *= 1.5; break;
+    // Galaxy 2 — The Frontier
+    case 'hullBig':       player.maxHp += 50; player.hp = player.maxHp; break;
+    case 'warpCapBig':    player.maxWarpCharge += 300; player.warpCharge = player.maxWarpCharge; break;
+    case 'shieldsBig':    player.maxShield += 100; player.shield = player.maxShield; player.shieldRegen += 10; break;
+    case 'fireRateBig':   player.fireRateMul *= 1.75; break;
+    case 'damageBig':     player.dmgMul *= 1.75; break;
+    // Galaxy — The Void (Outer Universe)
+    case 'warpMega':   player.maxWarpCharge += 500; player.warpCharge = player.maxWarpCharge; player.warpRegenMul *= 2; break;
+    case 'damageMega': player.dmgMul *= 2; break;
+    case 'hullMega':   player.maxHp += 100; player.hp = player.maxHp; break;
+    // Pegasus Spur
+    case 'lifesteal':    player.lifesteal += 3; break;
+    case 'bulletRange':  player.bulletRangeMul *= 1.5; break;
+    case 'dmgResist':    player.dmgTakenMul *= 0.8; break;
+    case 'magnet':       player.magnetRange = Math.max(player.magnetRange, 350); break;
+    // Phoenix Arm
+    case 'crit':         player.critChance = Math.min(1, player.critChance + 0.25); break;
+    case 'dmgResistBig': player.dmgTakenMul *= 0.7; break;
+    // Hydra Sweep
+    case 'shieldsMega':  player.maxShield += 200; player.shield = player.maxShield; player.shieldRegen += 16; break;
+    case 'hullMega2':    player.maxHp += 150; player.hp = player.maxHp; break;
+    case 'bulletSpeed':  player.bulletSpeedMul *= 1.5; break;
+    // Cygnus Spiral (Deep Universe)
+    case 'warpUltra':       player.maxWarpCharge += 1000; player.warpCharge = player.maxWarpCharge; player.warpRegenMul *= 3; break;
+    case 'fireRateUltra':   player.fireRateMul *= 3; break;
+    case 'dmgResistUltra':  player.dmgTakenMul *= 0.6; break;
+    case 'damageUltra':     player.dmgMul *= 3; break;
+    // Cassiopeia Drift
+    case 'lifestealBig':    player.lifesteal += 8; break;
+    case 'bulletRangeBig':  player.bulletRangeMul *= 2; break;
+    case 'endsong':         player.maxHp += 200; player.hp = player.maxHp;
+                            player.maxShield += 300; player.shield = player.maxShield;
+                            player.dmgMul *= 5; player.lifesteal += 5; break;
+    // New mechanic-style upgrades for the expanded planets
+    case 'pierce':          player.bulletPierce += 1; break;
+    case 'multiShot':       player.multiShot = true; break;
+    case 'accel':           player.thrustMul *= 1.5; break;
+    case 'pickupRate':      player.pickupRate = 1.0; break;
+    // Omniverse-tier upgrades
+    case 'warpOmni':        player.maxWarpCharge += 2000; player.warpCharge = player.maxWarpCharge; player.warpRegenMul *= 5; break;
+    case 'hullOmni':        player.maxHp += 500; player.hp = player.maxHp; break;
+    case 'damageOmni':      player.dmgMul *= 5; break;
+    case 'shieldsOmni':     player.maxShield += 500; player.shield = player.maxShield; player.shieldRegen += 30; break;
+    case 'lifestealOmni':   player.lifesteal += 20; break;
+    case 'critOmni':        player.critChance = Math.min(1, player.critChance + 0.5); break;
+    case 'pierceOmni':      player.bulletPierce += 5; break;
+    case 'fireRateOmni':    player.fireRateMul *= 5; break;
+  }
+}
+
+const DOCK_RANGE = 200;
+
+function rand(a, b) { return a + Math.random() * (b - a); }
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function dist2(a, b) { const dx = a.x-b.x, dy = a.y-b.y; return dx*dx+dy*dy; }
+
+const STAR_TILE = 2400;
+function makeStars() {
+  stars = [];
+  for (let i = 0; i < STAR_COUNT_FAR; i++) stars.push({ x: rand(0, STAR_TILE), y: rand(0, STAR_TILE), r: rand(0.4, 1.0), p: 0.3 });
+  for (let i = 0; i < STAR_COUNT_NEAR; i++) stars.push({ x: rand(0, STAR_TILE), y: rand(0, STAR_TILE), r: rand(0.8, 1.8), p: 0.7 });
+}
+
+function restart() {
+  sessionGen++;
+  player = {
+    x: 0, y: 0, vx: 0, vy: 0, a: 0,
+    hp: 120, maxHp: 120, shield: 80, maxShield: 80, fireCool: 0,
+    warpActive: false,
+    warpCharge: 300, maxWarpCharge: 300,  // 1 unit = 1 ms of warp; full bar = 3 seconds
+    shiftWasDown: false,
+    // Upgrade multipliers (1 = base)
+    shieldRegen: 14, fireRateMul: 1, dmgMul: 1, warpSpeedMul: 1, warpRegenMul: 1,
+    // New mechanic upgrades — multiplicative defaults of 1, additive defaults of 0
+    bulletRangeMul: 1, bulletSpeedMul: 1, dmgTakenMul: 1,
+    lifesteal: 0, critChance: 0, magnetRange: 0,
+    bulletPierce: 0, multiShot: false, thrustMul: 1, pickupRate: 0.7,
+    hyperjumping: false, ftlFlingTimer: 0,
+    // Black hole transformation: starts during 25s+ warp; mega BH mode after merger
+    transformationLevel: 0,  // 0..1 visual transformation while warping
+    megaBHTimer: 0,          // seconds remaining in mega-BH mode
+  };
+  docked = null;
+  upgradesTaken = new Set();
+  pickups = [];
+  shake = 0;
+  shockwaves = [];
+  mergerWarning = null;
+  sunEaten = false;
+  mergerTimer = rand(45, 90); // first merger occurs in 45-90 seconds
+  enemies = [];
+  bullets = [];
+  particles = [];
+  score = 0;
+  sector = 1;
+  gameOver = false;
+  lastTime = performance.now();
+  coState = {
+    line: 'Systems nominal. Awaiting hostiles.',
+    cls: '',
+    cooldown: 1.5,
+    spokeKey: null,
+    shieldsAI: true,
+    targetsAI: true,
+    enginesAI: false,
+    spawnTimer: 5,
+    threatLast: 0,
+    target: null,
+    // Banter
+    quietTimer: 0,
+    sinceBanter: 25,
+    // Milestones
+    firstKillDone: false,
+    tenKillsDone: false,
+    killTimes: [],
+    inCombat: false,
+    untouchedTimer: 0,
+    untouchedSpoken: false,
+  };
+  makeStars();
+  currentUniverse = 0; currentGalaxy = 0; currentMilkyWay = 0;
+  planets = curMilkyWay().planets.map(p => ({...p}));
+  // initial planet positions from orbits
+  const sun0 = curMilkyWay().sun;
+  for (const p of planets) {
+    p.x = sun0.x + Math.cos(p.orbitAngle) * p.orbitRadius;
+    p.y = sun0.y + Math.sin(p.orbitAngle) * p.orbitRadius;
+  }
+  // Spawn player outside the sun, in the gap before the innermost orbit
+  // Safely outside the central's hazard zone (event horizon + pull range)
+  const safeOff0 = Math.max(sun0.r, sun0.pullRange || 0) + 1500;
+  player.x = sun0.x + safeOff0; player.y = sun0.y;
+  anomalies = generateAnomalies(curMilkyWay());
+  document.getElementById('galaxyStat').textContent = locationLabel();
+  // ── Pre-collected speed upgrades — every planet that grants warp speed,
+  // warp duration, bullet speed, or thrust acceleration is auto-installed.
+  const speedUpgradeStacks = [
+    'warpSpeed',                                    // Vellam
+    'warpCap',                                      // Vega Station
+    'warpCapBig', 'warpCapBig',                     // Helga's Drift, Tideglass
+    'warpMega',                                     // Aphelion
+    'warpUltra', 'warpUltra', 'warpUltra',          // Coilstead, Centerstone, Lastpoint
+    'warpOmni',                                     // Endpoint
+    'bulletSpeed', 'bulletSpeed',                   // Hydra's Eye, Vortex
+    'accel',                                        // Arcwell
+  ];
+  for (const k of speedUpgradeStacks) { applyUpgrade(k); upgradesTaken.add(k); }
+  updateHUD();
+  document.getElementById('gameover').classList.remove('show');
+  document.getElementById('dockScreen').classList.remove('show');
+  document.getElementById('dockPrompt').classList.remove('show');
+}
+
+const CO_LINES = {
+  idle: [
+    'All quiet on the scan.',
+    'Sensors clean.',
+    'You\'re doing great.',
+    'Just say the word.',
+    'I\'ll keep my eyes peeled.',
+  ],
+  contact: [
+    'Contact, bearing %DIR%! Eyes up.',
+    'Hostile incoming from the %DIR%.',
+    'Got one — %DIR%, %DIST%m out.',
+    'Heads up — %DIR% side.',
+  ],
+  closeThreat: [
+    'They\'re ON us — break right!',
+    'Too close! Engage now!',
+    'I can\'t take many more hits like that.',
+  ],
+  killShot: [
+    'Splash one!',
+    'Nice shooting!',
+    'Scratch one bandit.',
+    'Boom. Next.',
+  ],
+  lowHp: [
+    'We\'re bleeding atmosphere — pull back!',
+    'Hull integrity critical!',
+    'Disengage, disengage!',
+  ],
+  shieldsCharge: [
+    'Routing power to shields.',
+    'Shields online.',
+  ],
+  enginesCharge: [
+    'Engines on auto. Just point me where to go.',
+    'I\'ll handle the throttle.',
+    'Hands off the engines? Bold move.',
+    'Manual control returned to you.',
+  ],
+  warp: [
+    'HOLD ON!',
+    'Warp engaged!',
+    'Past light speed — punching it!',
+    'Faster than light — I love this part.',
+    'See you on the other side.',
+  ],
+  warpReady: [
+    'Warp core charged.',
+    'Light drive online.',
+  ],
+  warpDrained: [
+    'Warp core drained!',
+    'Out of charge!',
+    'Drives are cold.',
+  ],
+  pickupHp:     [ 'Hull patched.', 'Nice grab — back to full.', 'Sealing the breach.' ],
+  pickupShield: [ 'Shields topped off.', 'Surge collected.', 'That\'s a fresh barrier.' ],
+  pickupWarp:   [ 'Warp cell — drives recharged.', 'Free fuel. I\'ll take it.' ],
+  pickupDmg:    [ 'Overcharge online. Make it count.', 'Doubled output for ten seconds!' ],
+  jumpMilkyWay: [ 'Hyperjumping to the next milky way!', 'Tearing through to the next system!' ],
+  jumpGalaxy:   [ 'Galactic jump — see you on the far side!', 'Punching through to the next galaxy!' ],
+  jumpUniverse: [ 'UNIVERSAL JUMP — hold ON!', 'Tearing the universe seam — brace!' ],
+  jumpOmniverse:[ 'OMNIVERSE BREACH — captain, are you SURE?', 'Crossing the bounds of reality — hold ON!', 'There\'s nothing past this. We\'re going there anyway.' ],
+  transforming: [ 'Captain — the hull is becoming a SINGULARITY!', 'We\'re collapsing — mass is going off the scale!', 'I think we\'re turning into a black hole. That\'s probably bad.' ],
+  megaMerger:   [ 'WE MERGED. We\'re a MEGA black hole. Eat everything!', 'Singularity stable — we\'re consuming reality!', 'Black hole mode online. Charge at them.' ],
+  megaEnd:      [ 'Coming back to mortal form. That was unreal.', 'Decoupling from the singularity. Hull restored.', 'I miss being a black hole already.' ],
+  arrived:      [ 'Arrived: %N%. Different sky.', 'Welcome to %N%. Try not to die here.', '%N%. Same captain, new bullets.' ],
+  wormhole:     [ 'Wormhole! That was disorienting.', 'Hold the lunch — wormhole transit.', 'Spat out the other side. New coordinates.' ],
+  blackholeWarn:[ 'Black hole — pull detected. Hard astern!', 'That gravity well will eat the ship!', 'Stay clear of the singularity!' ],
+  warpSlowed:   [ 'Light is bending — warp can\'t outrun a black hole!', 'Gravity well dragging the warp drive. Pull out!' ],
+  mergerWarn:   [ 'Stellar merger detected — coordinates marked on map. Clear the area!', 'Black hole and a sun on collision course — get out of the blast zone!', 'Merger imminent — see the marker. Move!' ],
+  merger:       [ 'STELLAR MERGER — shockwave released!', 'Shockwave incoming — brace for impact!', 'It\'s happening — the shockwave is rolling out!' ],
+  flung:        [ 'The shockwave caught us — we\'re past light speed!', 'No control! We\'re being thrown clear!', 'HANG ON — beyond light speed!' ],
+  flungEnd:     [ 'Coming back to normal space.', 'Brakes engaged. That was a ride.', 'Hull intact — somehow.' ],
+  banter: [
+    'You ever wonder what\'s out there past Vellam?',
+    'I had a dream I was a toaster. Weird.',
+    'My processors say turn around. My gut says forward. I don\'t have a gut.',
+    'Did you skip lunch again, or are we calling that "tactical"?',
+    'Twelve seconds without a hostile. I\'m getting nervous.',
+    'I\'ve been compiling jokes. Want one? Why did the AI cross the road. Optimal path.',
+    'You\'ve been making the same evasion move. Just an observation.',
+    'Sometimes I think the stars are just static.',
+    'Boring out here. Tell me about your day.',
+    'I\'m proud of you, captain. Quietly. Don\'t make it weird.',
+  ],
+  milestone: {
+    firstKill:  [ 'First blood. Good shot, captain.', 'That\'s one. Many more to go.' ],
+    streak:     [ 'Three in five seconds. Showoff.', 'Hot streak. Keep it up.', 'You\'re cooking.' ],
+    sector:     [ 'Crossed into Sector %N%. Things get nastier from here.', 'Sector %N%. Stay sharp.' ],
+    untouched:  [ 'You haven\'t taken a hit in a while. Don\'t jinx it.', 'Clean fight so far. Stay loose.' ],
+    tenKills:   [ 'Ten down. That\'s officially a kill streak.', 'Ten. I\'m starting to like the odds.' ],
+  },
+};
+
+function say(category, replace = {}, cls = '') {
+  if (coState.cooldown > 0) return;                                  // still mid-sentence; don't overwrite
+  if (coState.spokeKey === category && Math.random() < 0.5) return; // avoid spamming the same line
+  // Support dotted keys for nested categories (e.g. "milestone.firstKill")
+  let arr;
+  if (category.includes('.')) {
+    const [k1, k2] = category.split('.');
+    arr = CO_LINES[k1] && CO_LINES[k1][k2];
+  } else {
+    arr = CO_LINES[category];
+  }
+  if (!arr) return;
+  let line = arr[Math.floor(Math.random() * arr.length)];
+  for (const k of Object.keys(replace)) line = line.replace('%' + k + '%', replace[k]);
+  coState.line = line;
+  coState.cls = cls;
+  coState.cooldown = 2.5;
+  coState.spokeKey = category;
+  document.getElementById('coLine').textContent = line;
+  document.getElementById('coLine').className = 'line ' + cls;
+}
+
+function bearing(from, to) {
+  // Angle to target relative to the ship's heading, normalised to (-π, π].
+  const dx = to.x - from.x, dy = to.y - from.y;
+  let rel = Math.atan2(dy, dx) - from.a;
+  rel = ((rel + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+  if (rel > -Math.PI/4 && rel <= Math.PI/4)        return 'bow';        // forward
+  if (rel > Math.PI/4 && rel <= 3*Math.PI/4)       return 'starboard';  // right
+  if (rel > -3*Math.PI/4 && rel <= -Math.PI/4)     return 'port';       // left
+  return 'aft';                                                          // behind
+}
+
+function triggerHyperjump(tier) {
+  player.hyperjumping = tier;  // 0 = milky way, 1 = galaxy, 2 = universe, 3 = omniverse
+  player.warpActive = false;
+  player.warpHoldTime = 0;
+  shake = Math.max(shake, 20 + tier * 12);
+  const sayKey = tier === 3 ? 'jumpOmniverse' : tier === 2 ? 'jumpUniverse' : tier === 1 ? 'jumpGalaxy' : 'jumpMilkyWay';
+  coState.cooldown = 0; say(sayKey, {}, 'warn');
+  const gen = sessionGen;
+  setTimeout(() => { if (gen === sessionGen) doHyperjump(tier); }, 800 + tier * 350);
+}
+
+function doHyperjump(tier) {
+  if (tier === 3) {
+    // Pure omniverse jump — always lands at the omniverse's first milky way
+    currentUniverse = OMNIVERSE_INDEX;
+    currentGalaxy = 0; currentMilkyWay = 0;
+  } else if (tier === 2) {
+    // Universe jump cycles through normal universes only — omniverse needs 12.5s
+    currentUniverse = (currentUniverse + 1) % NORMAL_UNIVERSES;
+    if (currentUniverse === OMNIVERSE_INDEX) currentUniverse = 0;
+    currentGalaxy = 0; currentMilkyWay = 0;
+  } else if (tier === 1) {
+    const galaxies = UNIVERSES[currentUniverse].galaxies;
+    currentGalaxy = (currentGalaxy + 1) % galaxies.length;
+    currentMilkyWay = 0;
+  } else {
+    const milkyWays = UNIVERSES[currentUniverse].galaxies[currentGalaxy].milkyWays;
+    currentMilkyWay = (currentMilkyWay + 1) % milkyWays.length;
+  }
+  planets = curMilkyWay().planets.map(p => ({...p}));
+  const sunJ = curMilkyWay().sun;
+  for (const p of planets) {
+    p.x = sunJ.x + Math.cos(p.orbitAngle) * p.orbitRadius;
+    p.y = sunJ.y + Math.sin(p.orbitAngle) * p.orbitRadius;
+  }
+  anomalies = generateAnomalies(curMilkyWay());
+  enemies = [];
+  bullets = [];
+  pickups = [];
+  particles = [];
+  shockwaves = [];
+  mergerWarning = null;
+  sunEaten = false;
+  // fresh merger timer in the new milky way (faster cadence in chaotic zones)
+  { const mi = curMilkyWay().mergerInterval; mergerTimer = mi ? rand(Math.max(2, mi - 2), mi + 2) : rand(45, 90); }
+  const safeOffJ = Math.max(sunJ.r, sunJ.pullRange || 0) + 1500;
+  player.x = sunJ.x + safeOffJ; player.y = sunJ.y;
+  player.vx = 0; player.vy = 0;
+  player.warpCharge = player.maxWarpCharge;
+  player.hyperjumping = false;
+  player.ftlFlingTimer = 0;
+  player.wormholeCool = 0;
+  player.megaBHTimer = 0;
+  player.transformationLevel = 0;
+  document.getElementById('galaxyStat').textContent = locationLabel();
+  const target = tier === 2 ? UNIVERSES[currentUniverse].name
+               : tier === 1 ? UNIVERSES[currentUniverse].galaxies[currentGalaxy].name
+                            : curMilkyWay().name;
+  coState.cooldown = 0; say('arrived', { N: target }, 'warn');
+}
+
+// Find a sun, rogue star, or black hole in the player's forward cone within range.
+// Used when the player is transforming. Returns the nearest valid candidate.
+const MERGER_DETECT_RANGE = 50000;     // up from 15000
+const MERGER_CONE = 1.2;               // up from 0.5 rad (~69° each side)
+function findTransformMergerTarget() {
+  const candidates = [];
+  candidates.push(curMilkyWay().sun);
+  for (const a of anomalies) {
+    if (a.type === 'blackhole' || a.type === 'rogueStar') candidates.push(a);
+  }
+  let best = null, bestD = Infinity;
+  for (const t of candidates) {
+    const dx = t.x - player.x, dy = t.y - player.y;
+    const d = Math.hypot(dx, dy);
+    if (d > MERGER_DETECT_RANGE || d < (t.r || 100)) continue;
+    let diff = Math.atan2(dy, dx) - player.a;
+    diff = ((diff + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+    if (Math.abs(diff) > MERGER_CONE) continue;
+    if (d < bestD) { bestD = d; best = t; }
+  }
+  return best;
+}
+
+function triggerMegaBHMerger(target) {
+  player.megaBHTimer = 60;
+  player.transformationLevel = 1;
+  player.warpActive = false;
+  player.warpHoldTime = 0;
+  player.x = target.x; player.y = target.y;
+  player.vx = 0; player.vy = 0;
+  // If the target is the central sun and not a black hole, leave it (orbits depend on it).
+  // Otherwise the merger consumes it.
+  const c = curMilkyWay().sun;
+  if (target !== c) {
+    const ai = anomalies.indexOf(target);
+    if (ai >= 0) anomalies.splice(ai, 1);
+  }
+  shake = Math.max(shake, 60);
+  coState.cooldown = 0; say('megaMerger', {}, 'warn');
+}
+
+function updateMegaBH(dt) {
+  if (player.megaBHTimer <= 0) return;
+  player.megaBHTimer = Math.max(0, player.megaBHTimer - dt);
+  if (player.megaBHTimer === 0) {
+    player.transformationLevel = 0;
+    coState.cooldown = 0; say('megaEnd');
+    return;
+  }
+  const RADIUS = 600;
+  const PULL_RANGE = 5000;
+
+  // Player steers and thrusts as a much more agile mega-BH
+  if (KEYS['KeyA']) player.a -= 3.0 * dt;
+  if (KEYS['KeyD']) player.a += 3.0 * dt;
+  if (KEYS['KeyW']) {
+    player.vx += Math.cos(player.a) * 1500 * dt;
+    player.vy += Math.sin(player.a) * 1500 * dt;
+  }
+  // Mild damping so brakes still work
+  player.vx *= (1 - 0.25 * dt);
+  player.vy *= (1 - 0.25 * dt);
+  const sp = Math.hypot(player.vx, player.vy);
+  const MAX = 2000;
+  if (sp > MAX) { player.vx *= MAX / sp; player.vy *= MAX / sp; }
+  player.x += player.vx * dt;
+  player.y += player.vy * dt;
+
+  // Pull, then swallow enemies
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    const dx = player.x - e.x, dy = player.y - e.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 0 && d < PULL_RANGE) {
+      const pull = 2200 * (1 - d / PULL_RANGE);
+      e.vx += (dx / d) * pull * dt;
+      e.vy += (dy / d) * pull * dt;
+    }
+    if (d < RADIUS) {
+      for (let k = 0; k < 18; k++) {
+        const lf = rand(0.3, 0.7);
+        particles.push({ x: e.x, y: e.y, vx: rand(-220, 220), vy: rand(-220, 220), life: lf, max: lf, color: k%2 ? '#ff6b1a' : '#7c5cff', r: rand(2, 3) });
+      }
+      enemies.splice(i, 1);
+      score++;
+      shake = Math.max(shake, 8);
+    }
+  }
+  // Eat incoming enemy bullets
+  for (const b of bullets) {
+    if (b.friendly) continue;
+    const dx = player.x - b.x, dy = player.y - b.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 0 && d < PULL_RANGE) {
+      const pull = 900 * (1 - d / PULL_RANGE);
+      b.vx += (dx / d) * pull * dt;
+      b.vy += (dy / d) * pull * dt;
+    }
+    if (d < RADIUS) b.life = 0;
+  }
+  // Eat PLANETS on contact
+  for (let i = planets.length - 1; i >= 0; i--) {
+    const p = planets[i];
+    const dx = player.x - p.x, dy = player.y - p.y;
+    const d = Math.hypot(dx, dy);
+    if (d < RADIUS + p.r) {
+      for (let k = 0; k < 40; k++) {
+        const lf = rand(0.4, 1.0);
+        particles.push({ x: p.x, y: p.y, vx: rand(-360, 360), vy: rand(-360, 360), life: lf, max: lf, color: p.color, r: rand(2, 4.5) });
+      }
+      planets.splice(i, 1);
+      shake = Math.max(shake, 18);
+    }
+  }
+  // Eat THE CENTRAL SUN / BLACK HOLE
+  if (!sunEaten) {
+    const c = curMilkyWay().sun;
+    const dx = player.x - c.x, dy = player.y - c.y;
+    if (Math.hypot(dx, dy) < RADIUS + c.r) {
+      for (let k = 0; k < 80; k++) {
+        const lf = rand(0.6, 1.4);
+        particles.push({ x: c.x, y: c.y, vx: rand(-500, 500), vy: rand(-500, 500), life: lf, max: lf, color: k%2 ? (c.hot || c.color) : c.color, r: rand(2, 5) });
+      }
+      sunEaten = true;
+      shake = Math.max(shake, 50);
+    }
+  }
+  // Eat ANOMALIES (black holes, rogue stars, asteroids)
+  for (let i = anomalies.length - 1; i >= 0; i--) {
+    const a = anomalies[i];
+    if (a.type === 'nebula' || a.type === 'wormhole') continue;
+    const dx = player.x - a.x, dy = player.y - a.y;
+    const d = Math.hypot(dx, dy);
+    const ar = a.r || 50;
+    if (d < RADIUS + ar) {
+      const palette = a.type === 'blackhole' ? '#7c5cff'
+                    : a.type === 'rogueStar' ? (a.hot || a.color || '#ffd54d')
+                                              : '#aaaaaa';
+      const count = a.type === 'blackhole' ? 60 : 30;
+      for (let k = 0; k < count; k++) {
+        const lf = rand(0.4, 1.0);
+        particles.push({ x: a.x, y: a.y, vx: rand(-340, 340), vy: rand(-340, 340), life: lf, max: lf, color: palette, r: rand(2, 4) });
+      }
+      anomalies.splice(i, 1);
+      shake = Math.max(shake, a.type === 'blackhole' ? 30 : 14);
+    }
+  }
+  // Eat pickups
+  for (let i = pickups.length - 1; i >= 0; i--) {
+    const p = pickups[i];
+    if (Math.hypot(player.x - p.x, player.y - p.y) < RADIUS) pickups.splice(i, 1);
+  }
+  updateHUD();
+}
+
+function nearestPlanet() {
+  let best = null, bestD = Infinity;
+  for (const p of planets) {
+    const d = Math.hypot(p.x - player.x, p.y - player.y) - p.r;
+    if (d < bestD) { bestD = d; best = p; }
+  }
+  return { planet: best, d: bestD };
+}
+
+function tryDockOrDepart() {
+  if (docked) { departPlanet(); return; }
+  if (gameOver) return;
+  const { planet, d } = nearestPlanet();
+  if (planet && d < DOCK_RANGE) dockAt(planet);
+}
+
+function dockAt(p) {
+  // Can't dock mid-fling or mid-hyperjump — the panel would steal state at the wrong moment
+  if (player.ftlFlingTimer > 0) return;
+  if (player.hyperjumping !== false) return;
+  docked = p;
+  player.vx = 0; player.vy = 0;
+  player.warpActive = false;
+  player.warpHoldTime = 0;
+  document.getElementById('dockName').textContent = p.name;
+  document.getElementById('dockBiome').textContent = p.biome;
+  document.getElementById('dockUpName').textContent = p.upgradeName;
+  document.getElementById('dockUpDesc').textContent = p.upgradeDesc;
+  const gfx = document.getElementById('dockGfx');
+  gfx.style.background = `radial-gradient(circle at 35% 35%, ${p.color}, #000 95%)`;
+  gfx.style.color = p.color;
+  const taken = upgradesTaken.has(p.upgrade);
+  document.getElementById('dockAlready').style.display = taken ? 'block' : 'none';
+  const takeBtn = document.getElementById('actTake');
+  takeBtn.disabled = taken;
+  takeBtn.textContent = taken ? '✓ Already Installed' : '⚡ Install Upgrade';
+  document.getElementById('dockScreen').classList.add('show');
+  document.getElementById('dockPrompt').classList.remove('show');
+  coState.cooldown = 0;
+  coState.line = `Docked at ${p.name}.`;
+  document.getElementById('coLine').textContent = coState.line;
+}
+
+function takeUpgrade() {
+  if (!docked) return;
+  if (upgradesTaken.has(docked.upgrade)) return;
+  applyUpgrade(docked.upgrade);
+  upgradesTaken.add(docked.upgrade);
+  document.getElementById('dockAlready').style.display = 'block';
+  const takeBtn = document.getElementById('actTake');
+  takeBtn.disabled = true;
+  takeBtn.textContent = '✓ Installed';
+  updateHUD();
+}
+
+function departPlanet() {
+  if (!docked) return;
+  // Nudge ship outward so we don't immediately re-trigger the dock prompt
+  const dx = player.x - docked.x, dy = player.y - docked.y;
+  const d = Math.hypot(dx, dy) || 1;
+  player.x = docked.x + (dx/d) * (docked.r + DOCK_RANGE + 40);
+  player.y = docked.y + (dy/d) * (docked.r + DOCK_RANGE + 40);
+  docked = null;
+  document.getElementById('dockScreen').classList.remove('show');
+}
+
+// ── Power-ups ─────────────────────────────────────────────────────────
+const PICKUPS = {
+  hp:     { color: '#ff6b6b', icon: '♥', name: 'Hull Patch',  desc: '+30 HP' },
+  shield: { color: '#00d4a0', icon: '◇', name: 'Shield Surge', desc: 'Shield full' },
+  warp:   { color: '#7c5cff', icon: '⚡', name: 'Warp Cell',    desc: 'Warp full' },
+  dmg:    { color: '#ffb86b', icon: '✦', name: 'Overcharge',   desc: '2x dmg / 10s' },
+};
+function spawnPickup(x, y) {
+  // Enemy drop chance — boosted by Polaris's "pickupRate" upgrade
+  if (Math.random() > player.pickupRate) return;
+  // Bias toward whatever stat is lowest
+  const needs = [
+    ['hp',     player.maxHp - player.hp],
+    ['shield', player.maxShield - player.shield],
+    ['warp',   player.maxWarpCharge - player.warpCharge],
+    ['dmg',    20], // always somewhat tempting
+  ];
+  const total = needs.reduce((s,[,w]) => s + Math.max(5, w), 0);
+  let r = Math.random() * total;
+  let type = 'hp';
+  for (const [t, w] of needs) { r -= Math.max(5, w); if (r <= 0) { type = t; break; } }
+  pickups.push({ x, y, vx: rand(-20,20), vy: rand(-20,20), type, life: 18, bob: rand(0, Math.PI*2) });
+}
+function applyPickup(p) {
+  if (p.type === 'hp')     { player.hp = Math.min(player.maxHp, player.hp + 30); say('pickupHp'); }
+  if (p.type === 'shield') { player.shield = player.maxShield; say('pickupShield'); }
+  if (p.type === 'warp')   { player.warpCharge = player.maxWarpCharge; say('pickupWarp'); }
+  if (p.type === 'dmg')    { player.dmgBoostTimer = 10; say('pickupDmg'); }
+  // Sparkle
+  for (let k = 0; k < 10; k++) {
+    const lf = rand(0.3, 0.6);
+    particles.push({ x: p.x, y: p.y, vx: rand(-160,160), vy: rand(-160,160), life: lf, max: lf, color: PICKUPS[p.type].color, r: rand(1.6, 2.8) });
+  }
+  updateHUD();
+}
+function updateAnomalies(dt) {
+  for (let i = anomalies.length - 1; i >= 0; i--) {
+    const a = anomalies[i];
+    if (a.type === 'rogueStar') {
+      a.pulse += dt * 1.8;
+      continue;
+    }
+    if (a.type === 'blackhole') {
+      // Pull player
+      const dx = a.x - player.x, dy = a.y - player.y;
+      const d = Math.hypot(dx, dy);
+      if (d > 0 && d < a.pullRange) {
+        const pull = 1200 * (1 - d / a.pullRange);
+        player.vx += (dx / d) * pull * dt;
+        player.vy += (dy / d) * pull * dt;
+      }
+      if (d < a.r) {
+        player.hp -= 60 * dt * player.dmgTakenMul;
+        shake = Math.max(shake, 12);
+        if (player.hp <= 0 && !gameOver) endGame();
+      }
+      // Pull bullets
+      for (const b of bullets) {
+        const bd = Math.hypot(a.x - b.x, a.y - b.y);
+        if (bd > 0 && bd < a.pullRange) {
+          const pl = 500 * (1 - bd / a.pullRange);
+          b.vx += ((a.x - b.x) / bd) * pl * dt;
+          b.vy += ((a.y - b.y) / bd) * pl * dt;
+        }
+        if (bd < a.r) b.life = 0;
+      }
+      // Eat pickups
+      for (const p of pickups) {
+        if (Math.hypot(a.x - p.x, a.y - p.y) < a.r) p.life = 0;
+      }
+    } else if (a.type === 'wormhole') {
+      a.phase += dt * 2;
+      if ((player.wormholeCool || 0) > 0) continue;
+      const dx = a.x - player.x, dy = a.y - player.y;
+      if (Math.hypot(dx, dy) < a.r + 14) {
+        // Kick the player a bit past the destination in the direction they were moving,
+        // so they exit the destination wormhole instead of immediately re-triggering it.
+        const sp = Math.hypot(player.vx, player.vy);
+        const ux = sp > 1 ? player.vx / sp : Math.cos(player.a);
+        const uy = sp > 1 ? player.vy / sp : Math.sin(player.a);
+        const exitOffset = a.r + 30;
+        player.x = a.destX + ux * exitOffset;
+        player.y = a.destY + uy * exitOffset;
+        player.vx *= 0.4; player.vy *= 0.4;
+        player.wormholeCool = 1.0; // 1 second of immunity to all wormholes
+        shake = Math.max(shake, 14);
+        for (let k = 0; k < 16; k++) {
+          particles.push({
+            x: a.destX + rand(-20, 20), y: a.destY + rand(-20, 20),
+            vx: rand(-160, 160), vy: rand(-160, 160),
+            life: 0.45, max: 0.45, color: '#c47cff', r: rand(1.6, 3),
+          });
+        }
+        coState.cooldown = 0; say('wormhole', {}, 'warn');
+      }
+    } else if (a.type === 'asteroid') {
+      a.rot += a.rotSpeed * dt;
+      // Player collision: small damage + bounce
+      const dx = a.x - player.x, dy = a.y - player.y;
+      const cd = Math.hypot(dx, dy);
+      if (cd < a.r + 12) {
+        player.hp -= 8 * player.dmgTakenMul;
+        shake = Math.max(shake, 8);
+        const d = cd || 1;
+        player.vx -= (dx / d) * 100;
+        player.vy -= (dy / d) * 100;
+        a.hp -= 25;
+        if (player.hp <= 0 && !gameOver) endGame();
+      }
+      // Bullet collision (friendly only — enemy shots pass through)
+      for (let bi = bullets.length - 1; bi >= 0; bi--) {
+        const b = bullets[bi];
+        if (!b.friendly) continue;
+        if (Math.hypot(b.x - a.x, b.y - a.y) < a.r) {
+          a.hp -= 12 * player.dmgMul;
+          bullets.splice(bi, 1);
+          for (let k = 0; k < 4; k++) particles.push({ x: b.x, y: b.y, vx: rand(-100,100), vy: rand(-100,100), life: 0.25, max: 0.25, color: '#bbbbbb', r: 1.6 });
+          break;
+        }
+      }
+      if (a.hp <= 0) {
+        if (Math.random() < 0.45) spawnPickup(a.x, a.y);
+        for (let k = 0; k < 14; k++) {
+          const lf = rand(0.3, 0.6);
+          particles.push({ x: a.x, y: a.y, vx: rand(-180,180), vy: rand(-180,180), life: lf, max: lf, color: '#aaaaaa', r: rand(1.4, 3) });
+        }
+        anomalies.splice(i, 1);
+      }
+    }
+  }
+}
+
+function updatePickups(dt) {
+  for (let i = pickups.length - 1; i >= 0; i--) {
+    const p = pickups[i];
+    // Magnet: attract pickups within range to the player
+    if (player.magnetRange > 0) {
+      const dxp = player.x - p.x, dyp = player.y - p.y;
+      const dp = Math.hypot(dxp, dyp);
+      if (dp > 0 && dp < player.magnetRange) {
+        const pull = 320 * (1 - dp / player.magnetRange);
+        p.vx += (dxp / dp) * pull * dt;
+        p.vy += (dyp / dp) * pull * dt;
+      }
+    }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= 0.95; p.vy *= 0.95;
+    p.life -= dt;
+    p.bob += dt * 3;
+    if (p.life <= 0) { pickups.splice(i, 1); continue; }
+    const dx = p.x - player.x, dy = p.y - player.y;
+    if (dx*dx + dy*dy < 28*28) { applyPickup(p); pickups.splice(i, 1); }
+  }
+}
+
+// kind: 'gunship' (default), 'scout' (fast/weak), 'heavy' (slow/tough/big shots)
+function spawnEnemy() {
+  const angle = rand(0, Math.PI * 2);
+  const d = 700 + rand(0, 400);
+  const r = Math.random();
+  let kind;
+  if (r < 0.35) kind = 'scout';
+  else if (r < 0.85) kind = 'gunship';
+  else kind = 'heavy';
+  const baseHp = 30 + sector * 6;
+  const profile = {
+    scout:   { hp: baseHp * 0.5, speed: 110 + sector * 10, fireDelay: [0.5, 1.2], bulletSp: 480, color: '#ff9b6b', size: 0.7 },
+    gunship: { hp: baseHp,        speed: 60  + sector * 8,  fireDelay: [1.2, 2.6], bulletSp: 420, color: '#ff6b6b', size: 1.0 },
+    heavy:   { hp: baseHp * 2.2,  speed: 35  + sector * 4,  fireDelay: [2.0, 3.4], bulletSp: 360, color: '#c94545', size: 1.5 },
+  }[kind];
+  enemies.push({
+    x: player.x + Math.cos(angle) * d,
+    y: player.y + Math.sin(angle) * d,
+    vx: 0, vy: 0, a: 0,
+    kind,
+    hp: profile.hp, maxHp: profile.hp,
+    fireCool: rand(...profile.fireDelay),
+    fireDelay: profile.fireDelay,
+    speed: profile.speed,
+    bulletSp: profile.bulletSp,
+    color: profile.color,
+    size: profile.size,
+  });
+}
+
+function updatePlayer(dt) {
+  if (gameOver) return;
+
+  // Mega black hole mode handles its own movement and "shooting" (swallowing).
+  if (player.megaBHTimer > 0) {
+    if (player.wormholeCool > 0) player.wormholeCool = Math.max(0, player.wormholeCool - dt);
+    return;
+  }
+
+  if (player.dmgBoostTimer > 0) player.dmgBoostTimer = Math.max(0, player.dmgBoostTimer - dt);
+  if (player.wormholeCool > 0) player.wormholeCool = Math.max(0, player.wormholeCool - dt);
+
+  // FTL fling: shockwave knocked us through space. No controls, no drag, super speed for 3s.
+  if (player.ftlFlingTimer > 0) {
+    player.ftlFlingTimer = Math.max(0, player.ftlFlingTimer - dt);
+    player.x += player.vx * dt;
+    player.y += player.vy * dt;
+    // Particle stream
+    for (let k = 0; k < 4; k++) {
+      const sp = Math.hypot(player.vx, player.vy) || 1;
+      particles.push({
+        x: player.x - (player.vx / sp) * 16,
+        y: player.y - (player.vy / sp) * 16,
+        vx: -player.vx * 0.01 + rand(-60, 60),
+        vy: -player.vy * 0.01 + rand(-60, 60),
+        life: 0.4, max: 0.4, color: Math.random() < 0.5 ? '#ff6b6b' : '#7c5cff', r: rand(1.8, 3),
+      });
+    }
+    if (player.ftlFlingTimer === 0) {
+      // Brake hard back to normal speed
+      const sp = Math.hypot(player.vx, player.vy);
+      if (sp > 380) { player.vx *= 380 / sp; player.vy *= 380 / sp; }
+      coState.cooldown = 0; say('flungEnd');
+    }
+    return; // skip the rest of updatePlayer
+  }
+
+  // Warp drive: chargeable afterburner.
+  //   - charge regens at 25/sec when warp is OFF
+  //   - drains at 100/sec while warp is ON (so a full 300 bar = 3 seconds)
+  //   - re-engaging requires releasing Shift AND having ≥ 60 charge
+  const shiftDown = KEYS['ShiftLeft'] || KEYS['ShiftRight'];
+  const shiftJustPressed = shiftDown && !player.shiftWasDown;
+  player.shiftWasDown = shiftDown;
+
+  if (shiftJustPressed && !player.warpActive && player.warpCharge >= 60) {
+    player.warpActive = true;
+    player.warpHoldTime = 0;
+    // Instant burst on engage — but black holes drag the burst down too
+    const burstScale = 1 - 0.9 * blackHoleInfluence();
+    player.vx += Math.cos(player.a) * 25000 * burstScale;
+    player.vy += Math.sin(player.a) * 25000 * burstScale;
+    shake = Math.max(shake, 14);
+    coState.cooldown = 0;
+    say(burstScale < 0.6 ? 'warpSlowed' : 'warp', {}, 'warn');
+  }
+  if (player.warpActive) {
+    if (!shiftDown || player.warpCharge <= 0) {
+      const drained = player.warpCharge <= 0;
+      const heldFor = player.warpHoldTime;
+      player.warpActive = false;
+      player.warpHoldTime = 0;
+      // Hyperjump tier from how long Shift was held.
+      let tier = -1;
+      if (heldFor >= 12.5)     tier = 3;  // omniverse
+      else if (heldFor >= 6.5) tier = 2;  // universe
+      else if (heldFor >= 4.5) tier = 1;  // galaxy
+      else if (heldFor >= 2.5) tier = 0;  // milky way
+      if (tier >= 0 && !player.hyperjumping) {
+        triggerHyperjump(tier);
+      } else if (drained) {
+        coState.cooldown = 0; say('warpDrained');
+      }
+    } else {
+      player.warpCharge = Math.max(0, player.warpCharge - 100 * dt);
+      player.warpHoldTime += dt;
+      // Past 15 seconds, the player starts collapsing into a black hole.
+      // The transformation fully completes by 22s; we check for mergers continuously.
+      if (player.warpHoldTime >= 15) {
+        const lvl = Math.min(1, (player.warpHoldTime - 15) / 7);
+        if (player.transformationLevel < lvl) {
+          if (lvl > 0.05 && player.transformationLevel <= 0.05) {
+            coState.cooldown = 0; say('transforming', {}, 'danger');
+          }
+          player.transformationLevel = lvl;
+        }
+        const target = findTransformMergerTarget();
+        if (target) triggerMegaBHMerger(target);
+      }
+    }
+  }
+  // Decay transformation when not warping
+  if (!player.warpActive && player.megaBHTimer === 0 && player.transformationLevel > 0) {
+    player.transformationLevel = Math.max(0, player.transformationLevel - 0.5 * dt);
+  }
+  if (!player.warpActive) {
+    const wasLow = player.warpCharge < 60;
+    player.warpCharge = Math.min(player.maxWarpCharge, player.warpCharge + 25 * dt * player.warpRegenMul);
+    if (wasLow && player.warpCharge >= 60) say('warpReady');
+  }
+
+  // Rotation is slower during warp so you can't make hairpin turns at light speed.
+  const turnRate = player.warpActive ? 1.0 : 3.4;
+  if (KEYS['KeyA']) player.a -= turnRate * dt;
+  if (KEYS['KeyD']) player.a += turnRate * dt;
+  // Black hole gravity bends space — even thrust and warp slow down inside its pull.
+  const bhInf = blackHoleInfluence();
+  const bhSlowdown = 1 - 0.9 * bhInf;  // up to 90% reduction at event horizon
+  const thrustAccel = (player.warpActive ? 40000 : (300 * player.thrustMul)) * bhSlowdown;
+  const brakeMul = 1.4;
+  // AI engines: if a target is locked and engines are on AI, thrust toward it
+  // (but only at ~70% accel so the player can still override with W).
+  const aiThrusting = coState.enginesAI && coState.target && !KEYS['KeyW'] && !KEYS['KeyS'];
+  if (aiThrusting) {
+    const t = coState.target;
+    const dx = t.x - player.x, dy = t.y - player.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 200) {  // don't ram them; ease off when close
+      const ux = dx / d, uy = dy / d;
+      player.vx += ux * thrustAccel * 0.7 * dt;
+      player.vy += uy * thrustAccel * 0.7 * dt;
+      if (Math.random() < 0.5) {
+        particles.push({
+          x: player.x - ux * 14, y: player.y - uy * 14,
+          vx: -ux * 120 + rand(-30, 30), vy: -uy * 120 + rand(-30, 30),
+          life: 0.3, max: 0.3, color: '#7c5cff', r: 2.0
+        });
+      }
+    }
+  }
+  if (KEYS['KeyW']) {
+    player.vx += Math.cos(player.a) * thrustAccel * dt;
+    player.vy += Math.sin(player.a) * thrustAccel * dt;
+    if (Math.random() < 0.6) {
+      particles.push({
+        x: player.x - Math.cos(player.a) * 14,
+        y: player.y - Math.sin(player.a) * 14,
+        vx: -Math.cos(player.a) * 120 + rand(-30, 30),
+        vy: -Math.sin(player.a) * 120 + rand(-30, 30),
+        life: 0.3, max: 0.3, color: '#ffb86b', r: 2.2
+      });
+    }
+  }
+  // Drag (very mild — space, but enough that you can stop with brake).
+  // Skip drag during warp so the boost doesn't immediately bleed off.
+  if (!player.warpActive) {
+    const drag = KEYS['KeyS'] ? brakeMul : 0.05;
+    player.vx -= player.vx * drag * dt * 1.6;
+    player.vy -= player.vy * drag * dt * 1.6;
+  }
+  const sp = Math.hypot(player.vx, player.vy);
+  // Max speed under black hole influence: even light bends.
+  const MAX_SP = (player.warpActive ? 80000 * player.warpSpeedMul : 380) * bhSlowdown;
+  if (sp > MAX_SP) { player.vx *= MAX_SP / sp; player.vy *= MAX_SP / sp; }
+  player.x += player.vx * dt;
+  player.y += player.vy * dt;
+
+  // Warp exhaust trail — denser bright stream during warp
+  if (player.warpActive) {
+    for (let k = 0; k < 4; k++) {
+      particles.push({
+        x: player.x - Math.cos(player.a) * (12 + Math.random()*10),
+        y: player.y - Math.sin(player.a) * (12 + Math.random()*10),
+        vx: -Math.cos(player.a) * 300 + rand(-60, 60),
+        vy: -Math.sin(player.a) * 300 + rand(-60, 60),
+        life: 0.4, max: 0.4,
+        color: Math.random() < 0.5 ? '#7c5cff' : '#00d4a0', r: rand(1.6, 3.0),
+      });
+    }
+  }
+
+  // Fire
+  player.fireCool -= dt;
+  if (KEYS['Space'] && player.fireCool <= 0) {
+    const bsp = 700 * player.bulletSpeedMul;
+    const offsets = player.multiShot ? [-0.08, 0.08] : [0];
+    for (const off of offsets) {
+      const ang = player.a + off;
+      bullets.push({
+        x: player.x + Math.cos(ang) * 16, y: player.y + Math.sin(ang) * 16,
+        vx: Math.cos(ang) * bsp + player.vx,
+        vy: Math.sin(ang) * bsp + player.vy,
+        life: 1.5 * player.bulletRangeMul, friendly: true,
+        pierce: player.bulletPierce, hit: new Set(),
+      });
+    }
+    player.fireCool = 0.18 / player.fireRateMul;
+  }
+
+  // Shield regen if AI managing
+  if (coState.shieldsAI) {
+    player.shield = clamp(player.shield + player.shieldRegen * dt, 0, player.maxShield);
+  }
+}
+
+function updateEnemies(dt) {
+  for (const e of enemies) {
+    const dx = player.x - e.x, dy = player.y - e.y;
+    const d = Math.hypot(dx, dy);
+    const targetA = Math.atan2(dy, dx);
+    // Steer toward player
+    let dA = targetA - e.a;
+    while (dA > Math.PI) dA -= Math.PI*2;
+    while (dA < -Math.PI) dA += Math.PI*2;
+    e.a += clamp(dA, -2.2*dt, 2.2*dt);
+
+    // Thrust if not too close
+    if (d > 220) {
+      e.vx += Math.cos(e.a) * e.speed * dt * 1.6;
+      e.vy += Math.sin(e.a) * e.speed * dt * 1.6;
+    } else {
+      // Strafe
+      e.vx += Math.cos(e.a + Math.PI/2) * 40 * dt;
+      e.vy += Math.sin(e.a + Math.PI/2) * 40 * dt;
+    }
+    // Cap speed
+    const sp = Math.hypot(e.vx, e.vy);
+    if (sp > 180) { e.vx *= 180/sp; e.vy *= 180/sp; }
+    e.x += e.vx * dt;
+    e.y += e.vy * dt;
+
+    // Fire
+    e.fireCool -= dt;
+    if (e.fireCool <= 0 && d < 700 && Math.abs(dA) < 0.4) {
+      const sp = e.bulletSp || 420;
+      // Heavy fires a 3-shot spread
+      const shots = e.kind === 'heavy' ? [-0.18, 0.18] : [0];
+      for (const off of shots) {
+        const ang = e.a + off;
+        bullets.push({
+          x: e.x + Math.cos(ang) * 14, y: e.y + Math.sin(ang) * 14,
+          vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+          life: 2.0, friendly: false,
+        });
+      }
+      e.fireCool = rand(...(e.fireDelay || [1.2, 2.6]));
+    }
+  }
+}
+
+function updateBullets(dt) {
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    b.life -= dt;
+    if (b.life <= 0) { bullets.splice(i, 1); continue; }
+    // Collisions
+    if (b.friendly) {
+      for (let j = enemies.length - 1; j >= 0; j--) {
+        const e = enemies[j];
+        if (b.hit && b.hit.has(e)) continue; // pierced bullets don't double-hit the same enemy
+        const dx = b.x - e.x, dy = b.y - e.y;
+        if (dx*dx + dy*dy < 18*18) {
+          const dmgBoost = (player.dmgBoostTimer || 0) > 0 ? 2 : 1;
+          const crit = Math.random() < player.critChance ? 3 : 1;
+          e.hp -= 12 * player.dmgMul * dmgBoost * crit;
+          if (crit > 1) {
+            for (let k = 0; k < 8; k++) particles.push({
+              x: b.x, y: b.y, vx: rand(-200,200), vy: rand(-200,200),
+              life: 0.35, max: 0.35, color: '#ffe066', r: 2.4
+            });
+          }
+          if (b.pierce > 0) {
+            b.pierce -= 1;
+            b.hit.add(e);
+          } else {
+            bullets.splice(i, 1);
+          }
+          for (let k = 0; k < 4; k++) particles.push({ x: b.x, y: b.y, vx: rand(-100,100), vy: rand(-100,100), life: 0.25, max: 0.25, color: '#ffd56b', r: 1.6 });
+          if (e.hp <= 0) {
+            for (let k = 0; k < 22; k++) {
+              const lf = rand(0.4, 0.9);
+              particles.push({ x: e.x, y: e.y, vx: rand(-260,260), vy: rand(-260,260), life: lf, max: lf, color: k%2?'#ff6b6b':'#ffb86b', r: rand(1.6,3.2) });
+            }
+            spawnPickup(e.x, e.y);
+            if (player.lifesteal > 0) {
+              player.hp = Math.min(player.maxHp, player.hp + player.lifesteal);
+              updateHUD();
+            }
+            shake = Math.max(shake, 6);
+            enemies.splice(j, 1);
+            score++;
+            // Milestone announcements take priority over generic killShot
+            const now = performance.now() / 1000;
+            coState.killTimes.push(now);
+            coState.killTimes = coState.killTimes.filter(t => now - t <= 5);
+            let milestoneSaid = false;
+            if (!coState.firstKillDone) {
+              coState.firstKillDone = true;
+              coState.cooldown = 0; say('milestone.firstKill'); milestoneSaid = true;
+            } else if (coState.killTimes.length >= 3) {
+              coState.cooldown = 0; say('milestone.streak'); milestoneSaid = true;
+              coState.killTimes = []; // require a fresh build-up
+            } else if (score === 10 && !coState.tenKillsDone) {
+              coState.tenKillsDone = true;
+              coState.cooldown = 0; say('milestone.tenKills'); milestoneSaid = true;
+            }
+            if (!milestoneSaid) say('killShot');
+            if (score % 5 === 0) {
+              sector++;
+              document.getElementById('sectorStat').textContent = 'Sector ' + sector;
+              coState.cooldown = 0; say('milestone.sector', { N: sector });
+            }
+          }
+          break;
+        }
+      }
+    } else {
+      const dx = b.x - player.x, dy = b.y - player.y;
+      if (dx*dx + dy*dy < 16*16) {
+        let dmg = 8 * player.dmgTakenMul;
+        if (player.shield > 0) {
+          const absorbed = Math.min(player.shield, dmg);
+          player.shield -= absorbed;
+          dmg -= absorbed;
+        }
+        player.hp -= dmg;
+        bullets.splice(i, 1);
+        for (let k = 0; k < 6; k++) particles.push({ x: b.x, y: b.y, vx: rand(-140,140), vy: rand(-140,140), life: 0.3, max: 0.3, color: '#ff8aa6', r: 2 });
+        coState.untouchedTimer = 0;
+        coState.untouchedSpoken = false;
+        shake = Math.max(shake, 10);
+        updateHUD();
+        if (player.hp < 30) say('lowHp', {}, 'danger');
+        if (player.hp <= 0 && !gameOver) endGame();
+      }
+    }
+  }
+}
+
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= 0.96; p.vy *= 0.96;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function updateCopilot(dt) {
+  coState.cooldown -= dt;
+  coState.sinceBanter += dt;
+  // Spawn timer
+  coState.spawnTimer -= dt;
+  if (coState.spawnTimer <= 0) {
+    spawnEnemy();
+    coState.spawnTimer = Math.max(5, 14 - sector * 0.4);
+  }
+  // Threat assessment
+  let nearest = null, nearestD = Infinity;
+  for (const e of enemies) {
+    const d = dist2(e, player);
+    if (d < nearestD) { nearestD = d; nearest = e; }
+  }
+  coState.target = coState.targetsAI ? nearest : null;
+  const combatRange = 700;
+  const inCombat = nearest && Math.sqrt(nearestD) < combatRange;
+  if (inCombat) {
+    coState.untouchedTimer += dt;
+    if (coState.untouchedTimer > 12 && !coState.untouchedSpoken && coState.cooldown <= 0) {
+      say('milestone.untouched');
+      coState.untouchedSpoken = true;
+    }
+    coState.quietTimer = 0;
+  } else {
+    coState.quietTimer += dt;
+    coState.untouchedTimer = 0;
+    coState.untouchedSpoken = false;
+  }
+  // Black hole proximity warning
+  for (const a of anomalies) {
+    if (a.type !== 'blackhole') continue;
+    const bd = Math.hypot(a.x - player.x, a.y - player.y);
+    if (bd < a.pullRange * 0.7 && coState.cooldown <= 0) {
+      say('blackholeWarn', {}, 'danger');
+      break;
+    }
+  }
+  if (nearest) {
+    const nd = Math.sqrt(nearestD);
+    if (nd < 220 && coState.cooldown <= 0) say('closeThreat', {}, 'danger');
+    else if (nd > 350 && coState.cooldown <= 0 && nd - coState.threatLast > 200) {
+      say('contact', { DIR: bearing(player, nearest), DIST: Math.round(nd) }, 'warn');
+      coState.threatLast = nd;
+    }
+  } else {
+    coState.threatLast = 0;
+    // Prefer banter over generic idle if quiet long enough
+    if (coState.quietTimer > 12 && coState.sinceBanter > 25 && coState.cooldown <= 0) {
+      say('banter');
+      coState.sinceBanter = 0;
+    } else if (coState.cooldown <= 0) {
+      say('idle');
+    }
+  }
+}
+
+function endGame() {
+  gameOver = true;
+  document.getElementById('goSummary').textContent = `You scored ${score} kills before being vented to space.`;
+  const co = (score < 3) ? 'We never had a chance, captain. — Co-pilot' :
+             (score < 10) ? 'You held the line. We\'ll get them next run. — Co-pilot' :
+             'A good run. They\'ll write songs about us. — Co-pilot';
+  document.getElementById('goLine').textContent = '— ' + co.replace(' — Co-pilot', '');
+  document.getElementById('gameover').classList.add('show');
+}
+
+function updateHUD() {
+  const hp = clamp(player.hp / player.maxHp, 0, 1);
+  document.getElementById('hpBar').style.width = (hp * 100) + '%';
+  document.getElementById('scoreStat').textContent = score + ' kills';
+  const ws = document.getElementById('warpStat');
+  const pct = Math.round((player.warpCharge / player.maxWarpCharge) * 100);
+  const secs = (player.warpCharge / 100).toFixed(1);
+  if (player.megaBHTimer > 0) {
+    ws.textContent = `🕳 MEGA BLACK HOLE — ${player.megaBHTimer.toFixed(1)}s`;
+    ws.style.color = '#c47cff';
+    return;
+  }
+  if (player.warpActive) {
+    const h = player.warpHoldTime || 0;
+    let jumpHint = '';
+    if (h >= 12.5)     jumpHint = ' · → OMNIVERSE';
+    else if (h >= 6.5)  jumpHint = ' · → UNIVERSE';
+    else if (h >= 4.5)  jumpHint = ' · → GALAXY';
+    else if (h >= 2.5)  jumpHint = ' · → MILKY WAY';
+    const inf = blackHoleInfluence();
+    const bhTag = inf > 0.1 ? ` · ⚠ ${Math.round((1 - 0.9 * inf) * 100)}% drive` : '';
+    ws.textContent = `⚡ WARP — ${secs}s left${jumpHint}${bhTag}`;
+    ws.style.color = inf > 0.3 ? '#ff6b6b' : (h >= 12.5 ? '#ff447a' : h >= 6.5 ? '#c47cff' : h >= 4.5 ? '#7c5cff' : h >= 2.5 ? '#00d4a0' : '#ffb86b');
+  } else if (player.warpCharge < 60) {
+    ws.textContent = `⚡ ${pct}% (charging)`;
+    ws.style.color = '#8b97c4';
+  } else {
+    ws.textContent = `⚡ ${pct}% — ${secs}s ready`;
+    ws.style.color = '#00d4a0';
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────────────
+function render() {
+  ctx.fillStyle = '#05060d';
+  ctx.fillRect(0, 0, W, H);
+
+  // Camera centered on player, with screen shake offset
+  const shx = shake ? rand(-shake, shake) : 0;
+  const shy = shake ? rand(-shake, shake) : 0;
+  const camX = player.x - W/2 + shx, camY = player.y - H/2 + shy;
+  // Stars (parallax based on layer p). Tile size must exceed the viewport
+  // so the wrap-around seam is never visible inside the visible area.
+  const tile = Math.max(STAR_TILE, W + 200, H + 200);
+  // During warp, draw stars as streaks along the player's velocity vector.
+  const streak = player.warpActive ? 30 + 0.08 * Math.hypot(player.vx, player.vy) : 0;
+  const streakA = streak ? Math.atan2(player.vy, player.vx) : 0;
+  const streakDX = streak ? -Math.cos(streakA) * streak : 0;
+  const streakDY = streak ? -Math.sin(streakA) * streak : 0;
+  for (const s of stars) {
+    const sx = ((s.x - camX * s.p) % tile + tile) % tile - tile/2 + W/2;
+    const sy = ((s.y - camY * s.p) % tile + tile) % tile - tile/2 + H/2;
+    if (streak) {
+      ctx.strokeStyle = s.p > 0.5 ? '#cdd6ff' : '#5663a8';
+      ctx.lineWidth = s.r;
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + streakDX, sy + streakDY); ctx.stroke();
+    } else {
+      ctx.fillStyle = s.p > 0.5 ? '#aab3e0' : '#3a4880';
+      ctx.fillRect(sx, sy, s.r, s.r);
+    }
+  }
+
+  // While the player is a mega black hole, zoom the camera out so the whole
+  // black hole + its pull range are visible at once.
+  const zoom = player.megaBHTimer > 0 ? 0.32 : 1;
+  ctx.save();
+  if (zoom !== 1) {
+    ctx.translate(W/2 + shx, H/2 + shy);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-player.x, -player.y);
+  } else {
+    ctx.translate(-camX, -camY);
+  }
+
+  // Nebulas — soft colored clouds, drawn before everything
+  for (const a of anomalies) {
+    if (a.type !== 'nebula') continue;
+    const grad = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, a.r);
+    grad.addColorStop(0, a.color + '55');
+    grad.addColorStop(0.5, a.color + '22');
+    grad.addColorStop(1, a.color + '00');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Asteroids
+  for (const a of anomalies) {
+    if (a.type !== 'asteroid') continue;
+    ctx.save();
+    ctx.translate(a.x, a.y);
+    ctx.rotate(a.rot);
+    ctx.fillStyle = '#7c8aa8';
+    ctx.beginPath();
+    const pts = 7;
+    for (let k = 0; k < pts; k++) {
+      const ang = (k / pts) * Math.PI * 2;
+      const rad = a.r * (0.75 + ((k * 13) % 7) / 22);
+      const x = Math.cos(ang) * rad, y = Math.sin(ang) * rad;
+      if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    // Tiny crater darks
+    ctx.fillStyle = '#4a5577';
+    ctx.beginPath(); ctx.arc(-a.r*0.2, -a.r*0.1, a.r*0.2, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // Wormholes — swirling rings
+  for (const a of anomalies) {
+    if (a.type !== 'wormhole') continue;
+    for (let k = 0; k < 5; k++) {
+      ctx.strokeStyle = `rgba(196, 124, 255, ${0.55 - k * 0.08})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const start = a.phase + k * 0.7;
+      ctx.arc(a.x, a.y, a.r - k * 5, start, start + 1.6);
+      ctx.stroke();
+    }
+    // Center glow
+    const wg = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, a.r);
+    wg.addColorStop(0, 'rgba(196,124,255,0.5)');
+    wg.addColorStop(1, 'rgba(196,124,255,0)');
+    ctx.fillStyle = wg;
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Central object — sun (most milky ways) or BLACK HOLE (omniverse)
+  if (!sunEaten) {
+    const c = curMilkyWay().sun;
+    if (c.type === 'blackhole') {
+      // Pull-range halo
+      const pr = c.pullRange || 1500;
+      const halo = ctx.createRadialGradient(c.x, c.y, c.r * 1.3, c.x, c.y, pr);
+      halo.addColorStop(0, 'rgba(124,92,255,0.28)');
+      halo.addColorStop(1, 'rgba(124,92,255,0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath(); ctx.arc(c.x, c.y, pr, 0, Math.PI*2); ctx.fill();
+      // Accretion disks
+      ctx.strokeStyle = c.hot || '#ffaa44';
+      ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r * 1.35, 0, Math.PI*2); ctx.stroke();
+      ctx.strokeStyle = '#ff7c2c';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r * 1.65, 0, Math.PI*2); ctx.stroke();
+      // Event horizon
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
+    } else {
+      const corona = ctx.createRadialGradient(c.x, c.y, c.r, c.x, c.y, c.r * 3);
+      corona.addColorStop(0, c.color + 'cc');
+      corona.addColorStop(0.5, c.color + '44');
+      corona.addColorStop(1, c.color + '00');
+      ctx.fillStyle = corona;
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r * 3, 0, Math.PI*2); ctx.fill();
+      const body = ctx.createRadialGradient(c.x - c.r*0.3, c.y - c.r*0.3, c.r*0.1, c.x, c.y, c.r);
+      body.addColorStop(0, c.hot || c.color);
+      body.addColorStop(0.7, c.color);
+      body.addColorStop(1, '#000');
+      ctx.fillStyle = body;
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
+    }
+    // Name + orbit rings (same for both)
+    ctx.fillStyle = c.hot || '#fff';
+    ctx.font = 'bold 14px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(c.name, c.x, c.y + c.r + 24);
+    ctx.strokeStyle = '#1d2a4a';
+    ctx.lineWidth = 1;
+    for (const p of planets) {
+      ctx.beginPath(); ctx.arc(c.x, c.y, p.orbitRadius, 0, Math.PI*2); ctx.stroke();
+    }
+  }
+
+  // Planets
+  for (const p of planets) {
+    const halo = ctx.createRadialGradient(p.x, p.y, p.r * 0.7, p.x, p.y, p.r * 1.6);
+    halo.addColorStop(0, p.color + '88');
+    halo.addColorStop(1, p.color + '00');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 1.6, 0, Math.PI*2); ctx.fill();
+    const body = ctx.createRadialGradient(p.x - p.r*0.4, p.y - p.r*0.4, p.r*0.1, p.x, p.y, p.r);
+    body.addColorStop(0, p.color);
+    body.addColorStop(1, '#000');
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#e6edf3';
+    ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.name, p.x, p.y + p.r + 18);
+  }
+
+  // Particles
+  for (const p of particles) {
+    ctx.globalAlpha = p.life / p.max;
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Bullets
+  for (const b of bullets) {
+    ctx.strokeStyle = b.friendly ? '#7c5cff' : '#ff6b6b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(b.x - b.vx*0.012, b.y - b.vy*0.012);
+    ctx.stroke();
+  }
+
+  // Pickups
+  for (const p of pickups) {
+    const info = PICKUPS[p.type];
+    const pulse = 1 + 0.15 * Math.sin(p.bob);
+    const alpha = p.life < 3 ? Math.max(0.3, p.life / 3) : 1;
+    ctx.globalAlpha = alpha;
+    // Halo
+    const halo = ctx.createRadialGradient(p.x, p.y, 4, p.x, p.y, 22 * pulse);
+    halo.addColorStop(0, info.color + 'cc');
+    halo.addColorStop(1, info.color + '00');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 22 * pulse, 0, Math.PI*2); ctx.fill();
+    // Icon
+    ctx.fillStyle = info.color;
+    ctx.font = `bold ${Math.round(16 * pulse)}px -apple-system, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(info.icon, p.x, p.y);
+    ctx.globalAlpha = 1;
+  }
+
+  // Enemies
+  for (const e of enemies) {
+    drawShip(e.x, e.y, e.a, e.color || '#ff6b6b', '#5a1230', e.size || 1);
+    const hp = e.hp / e.maxHp;
+    const w = 36 * (e.size || 1);
+    ctx.fillStyle = '#0a1024';
+    ctx.fillRect(e.x - w/2, e.y - 28 * (e.size || 1), w, 4);
+    ctx.fillStyle = e.color || '#ff6b6b';
+    ctx.fillRect(e.x - w/2, e.y - 28 * (e.size || 1), w * hp, 4);
+  }
+
+  // Target lock
+  if (coState.target && coState.targetsAI && enemies.includes(coState.target)) {
+    const t = coState.target;
+    ctx.strokeStyle = '#ffb86b'; ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.arc(t.x, t.y, 28, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Merger warning — show predicted location with pulsing ring before the shockwave fires
+  if (mergerWarning) {
+    const w = mergerWarning;
+    const t = w.age / w.maxAge;            // 0 → 1
+    const pulse = 0.5 + 0.5 * Math.sin(w.age * 8);
+    // Ring radius grows as countdown approaches zero (collapsing inward)
+    const ringR = 1200 + (1 - t) * 1600 + pulse * 200;
+    const a = 0.4 + 0.5 * pulse;
+    ctx.strokeStyle = `rgba(255, 80, 80, ${a})`;
+    ctx.lineWidth = 4;
+    ctx.setLineDash([20, 12]);
+    ctx.beginPath(); ctx.arc(w.x, w.y, ringR, 0, Math.PI*2); ctx.stroke();
+    // Inner red core glow
+    const core = ctx.createRadialGradient(w.x, w.y, 0, w.x, w.y, 600);
+    core.addColorStop(0, `rgba(255, 80, 80, ${0.3 + 0.2 * pulse})`);
+    core.addColorStop(1, 'rgba(255, 80, 80, 0)');
+    ctx.fillStyle = core;
+    ctx.beginPath(); ctx.arc(w.x, w.y, 600, 0, Math.PI*2); ctx.fill();
+    // Crosshair lines pointing at the danger
+    ctx.strokeStyle = `rgba(255, 120, 120, ${a})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([]);
+    const cw = 80;
+    ctx.beginPath();
+    ctx.moveTo(w.x - cw, w.y); ctx.lineTo(w.x + cw, w.y);
+    ctx.moveTo(w.x, w.y - cw); ctx.lineTo(w.x, w.y + cw);
+    ctx.stroke();
+    // Countdown text
+    const secsLeft = Math.max(0, w.maxAge - w.age);
+    ctx.fillStyle = '#ff6b6b';
+    ctx.font = 'bold 18px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚠ MERGER ' + secsLeft.toFixed(1) + 's', w.x, w.y - cw - 14);
+    ctx.setLineDash([]);
+  }
+
+  // Shockwaves — expanding rings + initial flash at merger point
+  for (const s of shockwaves) {
+    // Bright flash at the origin for the first ~0.6s
+    if (s.flashAge < 0.6) {
+      const a = 1 - s.flashAge / 0.6;
+      const flash = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, 3000);
+      flash.addColorStop(0, `rgba(255,255,255,${a * 0.9})`);
+      flash.addColorStop(0.4, `rgba(255,200,120,${a * 0.5})`);
+      flash.addColorStop(1, 'rgba(255,200,120,0)');
+      ctx.fillStyle = flash;
+      ctx.beginPath(); ctx.arc(s.x, s.y, 3000, 0, Math.PI*2); ctx.fill();
+    }
+    // The ring itself
+    const lifeT = s.age / s.maxAge;
+    const ringA = 1 - lifeT;
+    ctx.strokeStyle = `rgba(255, 184, 107, ${ringA})`;
+    ctx.lineWidth = 14;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.stroke();
+    // Inner secondary ring
+    ctx.strokeStyle = `rgba(255, 107, 107, ${ringA * 0.7})`;
+    ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 0.92, 0, Math.PI*2); ctx.stroke();
+  }
+
+  // Rogue stars — small bright suns, no planets (pulse advanced in updateAnomalies)
+  for (const a of anomalies) {
+    if (a.type !== 'rogueStar') continue;
+    const flicker = 1 + 0.05 * Math.sin(a.pulse);
+    const corona = ctx.createRadialGradient(a.x, a.y, a.r, a.x, a.y, a.r * 2.6);
+    corona.addColorStop(0, a.color + '99');
+    corona.addColorStop(1, a.color + '00');
+    ctx.fillStyle = corona;
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.r * 2.6 * flicker, 0, Math.PI*2); ctx.fill();
+    const body = ctx.createRadialGradient(a.x - a.r*0.3, a.y - a.r*0.3, a.r*0.1, a.x, a.y, a.r);
+    body.addColorStop(0, a.hot || a.color);
+    body.addColorStop(1, '#000');
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.r * flicker, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Black holes (drawn on top of most things — they should look dramatic)
+  for (const a of anomalies) {
+    if (a.type !== 'blackhole') continue;
+    // Faint pull-range halo
+    const halo = ctx.createRadialGradient(a.x, a.y, a.r * 1.4, a.x, a.y, a.pullRange);
+    halo.addColorStop(0, 'rgba(124,92,255,0.18)');
+    halo.addColorStop(1, 'rgba(124,92,255,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.pullRange, 0, Math.PI*2); ctx.fill();
+    // Accretion disk
+    ctx.strokeStyle = '#ffaa44';
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.r * 1.45, 0, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = '#ff7c2c';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.r * 1.75, 0, Math.PI*2); ctx.stroke();
+    // Event horizon (pitch black)
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Player rendering: ship, transforming ship, or full mega black hole
+  if (player.megaBHTimer > 0) {
+    // MEGA BLACK HOLE form
+    const R = 600;
+    const PR = 5000;
+    const halo = ctx.createRadialGradient(player.x, player.y, R, player.x, player.y, PR);
+    halo.addColorStop(0, 'rgba(124, 92, 255, 0.35)');
+    halo.addColorStop(1, 'rgba(124, 92, 255, 0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(player.x, player.y, PR, 0, Math.PI*2); ctx.fill();
+    // Accretion disks
+    ctx.strokeStyle = '#ffaa44';
+    ctx.lineWidth = 14;
+    ctx.beginPath(); ctx.arc(player.x, player.y, R * 1.3, 0, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = '#ff6b1a';
+    ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(player.x, player.y, R * 1.6, 0, Math.PI*2); ctx.stroke();
+    // Event horizon
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(player.x, player.y, R, 0, Math.PI*2); ctx.fill();
+  } else {
+    // Merger target highlight — while transforming, show the nearest valid target
+    if (player.transformationLevel > 0.05 && player.warpActive) {
+      const t = findTransformMergerTarget();
+      if (t) {
+        // Glowing ring around the target
+        ctx.strokeStyle = `rgba(255, 100, 100, ${0.5 + 0.3 * Math.sin(performance.now() / 100)})`;
+        ctx.lineWidth = 4;
+        ctx.setLineDash([10, 6]);
+        ctx.beginPath(); ctx.arc(t.x, t.y, (t.r || 100) + 60, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+        // Line from player to target
+        ctx.strokeStyle = 'rgba(255, 100, 100, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(t.x, t.y);
+        ctx.stroke();
+        // Label
+        ctx.fillStyle = '#ff6b6b';
+        ctx.font = 'bold 14px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('▶ MERGER TARGET', t.x, t.y - (t.r || 100) - 30);
+      }
+    }
+    // Transformation aura — grows around the ship as it collapses
+    if (player.transformationLevel > 0) {
+      const lvl = player.transformationLevel;
+      const auraR = 40 + lvl * 110;
+      const aura = ctx.createRadialGradient(player.x, player.y, auraR * 0.35, player.x, player.y, auraR);
+      aura.addColorStop(0, `rgba(0, 0, 0, ${0.8 * lvl})`);
+      aura.addColorStop(0.6, `rgba(124, 92, 255, ${0.35 * lvl})`);
+      aura.addColorStop(1, 'rgba(124, 92, 255, 0)');
+      ctx.fillStyle = aura;
+      ctx.beginPath(); ctx.arc(player.x, player.y, auraR, 0, Math.PI*2); ctx.fill();
+      // Crackling accretion ring
+      ctx.strokeStyle = `rgba(255, 170, 68, ${0.6 * lvl})`;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath(); ctx.arc(player.x, player.y, auraR * 0.7, 0, Math.PI*2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    drawShip(player.x, player.y, player.a, '#7c5cff', '#1d164a');
+    if (player.shield > 0) {
+      ctx.strokeStyle = `rgba(0, 212, 160, ${0.3 + 0.5 * (player.shield/player.maxShield)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(player.x, player.y, 20, 0, Math.PI*2); ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+
+  // Hyperjump flash overlay
+  if (player && player.hyperjumping !== false && player.hyperjumping !== undefined) {
+    const tier = typeof player.hyperjumping === 'number' ? player.hyperjumping : 0;
+    const alpha = 0.7 + tier * 0.1;
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+// GTA-style minimap: round, rotates so player always faces up.
+const mmCanvas = document.getElementById('minimap');
+const mmCtx = mmCanvas.getContext('2d');
+const MM_SIZE = 180, MM_RANGE = 30000;
+(function setupMinimapDPR() {
+  const dpr = window.devicePixelRatio || 1;
+  mmCanvas.width = MM_SIZE * dpr;
+  mmCanvas.height = MM_SIZE * dpr;
+  mmCanvas.style.width = MM_SIZE + 'px';
+  mmCanvas.style.height = MM_SIZE + 'px';
+  mmCtx.scale(dpr, dpr);
+})();
+function renderMinimap() {
+  mmCtx.fillStyle = '#05060d';
+  mmCtx.fillRect(0, 0, MM_SIZE, MM_SIZE);
+  const half = MM_SIZE/2;
+  const scale = half / MM_RANGE;
+  mmCtx.save();
+  mmCtx.translate(half, half);
+  mmCtx.rotate(-player.a - Math.PI/2);
+  mmCtx.strokeStyle = '#1d2a4a';
+  mmCtx.lineWidth = 1;
+  for (let i = 1; i <= 2; i++) {
+    mmCtx.beginPath(); mmCtx.arc(0, 0, half * i/3, 0, Math.PI*2); mmCtx.stroke();
+  }
+  // Sun
+  {
+    const sun = curMilkyWay().sun;
+    const wx = (sun.x - player.x) * scale;
+    const wy = (sun.y - player.y) * scale;
+    if (Math.hypot(wx, wy) < half + 6) {
+      const sg = mmCtx.createRadialGradient(wx, wy, 1, wx, wy, 9);
+      sg.addColorStop(0, sun.hot || sun.color);
+      sg.addColorStop(1, sun.color + '00');
+      mmCtx.fillStyle = sg;
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, 9, 0, Math.PI*2); mmCtx.fill();
+      mmCtx.fillStyle = sun.color;
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, 4, 0, Math.PI*2); mmCtx.fill();
+    }
+  }
+  for (const p of planets) {
+    const wx = (p.x - player.x) * scale;
+    const wy = (p.y - player.y) * scale;
+    const d = Math.hypot(wx, wy);
+    if (d > half - 6) {
+      const f = (half - 8) / d;
+      const ex = wx * f, ey = wy * f;
+      mmCtx.fillStyle = p.color;
+      mmCtx.beginPath(); mmCtx.arc(ex, ey, 4, 0, Math.PI*2); mmCtx.fill();
+    } else {
+      mmCtx.fillStyle = p.color;
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, Math.max(4, p.r * scale * 0.5), 0, Math.PI*2); mmCtx.fill();
+    }
+  }
+  // Merger warning marker — clamped to the minimap edge if off-map
+  if (mergerWarning) {
+    const w = mergerWarning;
+    const pulse = 0.5 + 0.5 * Math.sin(w.age * 8);
+    let dx = (w.x - player.x) * scale;
+    let dy = (w.y - player.y) * scale;
+    const maxR = half - 4;
+    let edge = false;
+    const m = Math.max(Math.abs(dx), Math.abs(dy));
+    if (m > maxR) { dx = dx * maxR / m; dy = dy * maxR / m; edge = true; }
+    mmCtx.fillStyle = `rgba(255, 80, 80, ${0.5 + 0.5 * pulse})`;
+    mmCtx.beginPath(); mmCtx.arc(dx, dy, edge ? 4 : 5 + pulse * 2, 0, Math.PI*2); mmCtx.fill();
+    mmCtx.strokeStyle = '#ff6b6b';
+    mmCtx.lineWidth = 1.2;
+    mmCtx.beginPath(); mmCtx.arc(dx, dy, 7 + pulse * 3, 0, Math.PI*2); mmCtx.stroke();
+    if (edge) {
+      // Arrow pointing in the direction
+      const a = Math.atan2(dy, dx);
+      mmCtx.strokeStyle = '#ff6b6b'; mmCtx.lineWidth = 1.5;
+      mmCtx.beginPath();
+      mmCtx.moveTo(dx + Math.cos(a)*5, dy + Math.sin(a)*5);
+      mmCtx.lineTo(dx + Math.cos(a+2.6)*10, dy + Math.sin(a+2.6)*10);
+      mmCtx.moveTo(dx + Math.cos(a)*5, dy + Math.sin(a)*5);
+      mmCtx.lineTo(dx + Math.cos(a-2.6)*10, dy + Math.sin(a-2.6)*10);
+      mmCtx.stroke();
+    }
+  }
+
+  // Anomalies (black holes + wormholes — asteroids and nebulas omitted for clarity)
+  for (const a of anomalies) {
+    if (a.type === 'asteroid' || a.type === 'nebula') continue;
+    const wx = (a.x - player.x) * scale;
+    const wy = (a.y - player.y) * scale;
+    if (Math.hypot(wx, wy) > half - 4) continue;
+    if (a.type === 'blackhole') {
+      mmCtx.fillStyle = '#000';
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, 4, 0, Math.PI*2); mmCtx.fill();
+      mmCtx.strokeStyle = '#ffaa44'; mmCtx.lineWidth = 1;
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, 5.5, 0, Math.PI*2); mmCtx.stroke();
+    } else if (a.type === 'wormhole') {
+      mmCtx.strokeStyle = '#c47cff'; mmCtx.lineWidth = 1.5;
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, 3.5, 0, Math.PI*2); mmCtx.stroke();
+    }
+  }
+  mmCtx.fillStyle = '#ff6b6b';
+  for (const e of enemies) {
+    const wx = (e.x - player.x) * scale;
+    const wy = (e.y - player.y) * scale;
+    if (Math.hypot(wx, wy) > half - 4) continue;
+    mmCtx.fillRect(wx - 1.5, wy - 1.5, 3, 3);
+  }
+  mmCtx.restore();
+  mmCtx.fillStyle = '#7c5cff';
+  mmCtx.beginPath();
+  mmCtx.moveTo(half, half - 8);
+  mmCtx.lineTo(half + 5, half + 5);
+  mmCtx.lineTo(half - 5, half + 5);
+  mmCtx.closePath();
+  mmCtx.fill();
+}
+
+function drawShip(x, y, a, color, dark, size = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(a);
+  ctx.scale(size, size);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(16, 0);
+  ctx.lineTo(-10, 10);
+  ctx.lineTo(-6, 0);
+  ctx.lineTo(-10, -10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = dark;
+  ctx.beginPath();
+  ctx.arc(2, 0, 3.5, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// ── Main loop ─────────────────────────────────────────────────────────
+function loop(t) {
+  const dt = Math.min(0.05, (t - lastTime) / 1000);
+  lastTime = t;
+  if (!gameOver && !docked) {
+    updatePlanetOrbits(dt);
+    updateSunCollision(dt);
+    updateMergerTimer(dt);
+    updateMergerWarning(dt);
+    updateShockwaves(dt);
+    updateMegaBH(dt);
+    updatePlayer(dt);
+    updateEnemies(dt);
+    updateBullets(dt);
+    updateAnomalies(dt);
+    updatePickups(dt);
+    updateParticles(dt);
+    updateCopilot(dt);
+    updateDockPrompt();
+    updateHUD();
+  } else if (!docked) {
+    updateParticles(dt);
+  }
+  if (shake > 0) shake = Math.max(0, shake - 30 * dt);
+  render();
+  renderMinimap();
+  requestAnimationFrame(loop);
+}
+
+function updateDockPrompt() {
+  const { planet, d } = nearestPlanet();
+  const el = document.getElementById('dockPrompt');
+  if (planet && d < DOCK_RANGE) {
+    document.getElementById('dockPromptName').textContent = planet.name;
+    el.classList.add('show');
+  } else {
+    el.classList.remove('show');
+  }
+}
+
+// Toggle buttons
+document.getElementById('tShields').onclick = () => {
+  coState.shieldsAI = !coState.shieldsAI;
+  document.getElementById('tShields').classList.toggle('on', coState.shieldsAI);
+  say('shieldsCharge');
+};
+document.getElementById('tTargets').onclick = () => {
+  coState.targetsAI = !coState.targetsAI;
+  document.getElementById('tTargets').classList.toggle('on', coState.targetsAI);
+};
+document.getElementById('tEngines').onclick = () => {
+  coState.enginesAI = !coState.enginesAI;
+  document.getElementById('tEngines').classList.toggle('on', coState.enginesAI);
+  coState.cooldown = 0; // let the announce land immediately
+  say('enginesCharge');
+};
+document.getElementById('goRestart').onclick = restart;
+document.getElementById('actTake').onclick = takeUpgrade;
+document.getElementById('actDepart').onclick = departPlanet;
+
+// ── Music (YouTube embed) ─────────────────────────────────────────────
+// User pastes a YouTube URL once; we store the video ID and stream the
+// audio through an invisible YouTube IFrame player.
+const muteBtn = document.getElementById('muteBtn');
+const setMusicBtn = document.getElementById('setMusicBtn');
+
+let ytPlayer = null;
+let ytReady = false;
+let bgmMuted = localStorage.getItem('hb_muted') === '1';
+let bgmStarted = false;
+muteBtn.textContent = bgmMuted ? '🔇' : '🔊';
+
+function parseYtId(input) {
+  const s = (input || '').trim();
+  if (!s) return null;
+  if (/^[\w-]{11}$/.test(s)) return s; // bare ID
+  const m = s.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([\w-]{11})/);
+  return m ? m[1] : null;
+}
+
+function loadYtAPI() {
+  if (window.YT && window.YT.Player) return Promise.resolve();
+  return new Promise(res => {
+    const prevReady = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { if (prevReady) prevReady(); res(); };
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+  });
+}
+
+async function initYtPlayer(videoId) {
+  await loadYtAPI();
+  if (ytPlayer) {
+    ytPlayer.loadVideoById(videoId);
+    if (bgmMuted) ytPlayer.mute(); else ytPlayer.unMute();
+    return;
+  }
+  ytPlayer = new YT.Player('ytplayer', {
+    height: '1', width: '1',
+    videoId,
+    playerVars: { autoplay: 0, controls: 0, loop: 1, playlist: videoId, modestbranding: 1, rel: 0 },
+    events: {
+      onReady: (e) => {
+        ytReady = true;
+        e.target.setVolume(40);
+        if (bgmMuted) e.target.mute(); else e.target.unMute();
+        if (bgmStarted) e.target.playVideo();
+      },
+      onStateChange: (e) => {
+        if (e.data === YT.PlayerState.ENDED) e.target.playVideo();
+      },
+      onError: () => { /* video unavailable / embedding blocked */ },
+    },
+  });
+}
+
+function startBgmIfNeeded() {
+  if (bgmStarted) return;
+  bgmStarted = true;
+  if (ytReady && ytPlayer) ytPlayer.playVideo();
+}
+function toggleMute() {
+  bgmMuted = !bgmMuted;
+  localStorage.setItem('hb_muted', bgmMuted ? '1' : '0');
+  muteBtn.textContent = bgmMuted ? '🔇' : '🔊';
+  if (ytPlayer && ytReady) { if (bgmMuted) ytPlayer.mute(); else ytPlayer.unMute(); }
+}
+function promptForMusic() {
+  const cur = localStorage.getItem('hb_yt_id') || '';
+  const input = prompt(
+    'Paste a YouTube URL or video ID:\n(Examples: https://youtu.be/dQw4w9WgXcQ  or  dQw4w9WgXcQ)',
+    cur
+  );
+  if (input === null) return;
+  const id = parseYtId(input);
+  if (!id) { alert('Couldn\'t recognize that as a YouTube URL.'); return; }
+  localStorage.setItem('hb_yt_id', id);
+  initYtPlayer(id);
+  bgmStarted = true;
+}
+
+muteBtn.addEventListener('click', toggleMute);
+setMusicBtn.addEventListener('click', promptForMusic);
+
+// First keypress or click starts the music if a URL is already saved.
+window.addEventListener('keydown', (e) => {
+  startBgmIfNeeded();
+  if (e.code === 'KeyM') toggleMute();
+}, { passive: true });
+window.addEventListener('pointerdown', startBgmIfNeeded, { passive: true });
+
+// Auto-load any previously saved track on page load.
+const savedYtId = localStorage.getItem('hb_yt_id');
+if (savedYtId) initYtPlayer(savedYtId);
+
+restart();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

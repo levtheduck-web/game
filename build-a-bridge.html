@@ -1,0 +1,966 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Build a Bridge</title>
+<style>
+:root{
+  --bg:#0d2a4a;
+  --grid:#163a63;
+  --grid-major:#1f4a7a;
+  --ink:#dde9f4;
+  --accent:#7dd3fc;
+  --warn:#fbbf24;
+  --bad:#ef4444;
+  --good:#4ade80;
+  --panel:rgba(8,22,40,.85);
+  --border:#3b82f6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'Courier New',monospace;overflow:hidden}
+#app{position:relative;width:100vw;height:100vh}
+canvas{display:block;width:100%;height:100%;cursor:crosshair}
+canvas.testing{cursor:default}
+#topbar{
+  position:absolute;top:0;left:0;right:0;
+  padding:10px 16px;
+  display:flex;gap:18px;align-items:center;
+  background:var(--panel);
+  border-bottom:1px solid var(--border);
+  font-size:11px;letter-spacing:2px;
+  z-index:10;
+}
+#title{font-size:13px;font-weight:bold;color:var(--accent);letter-spacing:4px}
+.stat{display:flex;flex-direction:column;gap:1px}
+.stat-label{font-size:8px;color:#94a3b8;letter-spacing:2px}
+.stat-val{font-size:13px;font-weight:bold;color:var(--ink)}
+.stat-val.bad{color:var(--bad)}
+.stat-val.warn{color:var(--warn)}
+.spacer{flex:1}
+button{
+  font-family:inherit;font-size:11px;letter-spacing:2px;font-weight:bold;
+  padding:8px 14px;cursor:pointer;border-radius:3px;
+  background:transparent;color:var(--accent);border:1px solid var(--accent);
+  transition:all .1s;
+}
+button:hover:not(:disabled){background:var(--accent);color:#0a1a30}
+button:disabled{opacity:.3;cursor:default}
+button.primary{background:var(--good);color:#062a14;border-color:var(--good)}
+button.primary:hover:not(:disabled){background:#22c55e;color:#fff}
+button.danger{background:transparent;color:var(--bad);border-color:var(--bad)}
+button.danger:hover:not(:disabled){background:var(--bad);color:#fff}
+#hint{
+  position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+  background:var(--panel);
+  border:1px solid var(--border);
+  padding:8px 16px;border-radius:4px;
+  font-size:10px;color:#cbd5e1;letter-spacing:2px;
+  z-index:10;pointer-events:none;
+  white-space:nowrap;
+}
+#toast{
+  position:absolute;top:60px;left:50%;transform:translateX(-50%);
+  background:var(--panel);border:1px solid var(--warn);
+  padding:8px 16px;border-radius:4px;
+  font-size:11px;color:var(--warn);letter-spacing:2px;
+  z-index:11;opacity:0;transition:opacity .3s;
+  pointer-events:none;
+}
+#toast.show{opacity:1}
+.kbd{
+  display:inline-block;padding:1px 5px;
+  border:1px solid #64748b;border-radius:2px;
+  font-size:9px;color:#cbd5e1;background:#0a1a30;
+  margin:0 2px;
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div id="title">◢ BUILD A BRIDGE</div>
+    <div class="stat"><div class="stat-label">BEAMS</div><div class="stat-val" id="beam-count">0</div></div>
+    <div class="stat"><div class="stat-label">BUDGET</div><div class="stat-val" id="budget">$200</div></div>
+    <div class="stat"><div class="stat-label">LEVEL</div><div class="stat-val" id="level">1</div></div>
+    <div class="spacer"></div>
+    <button id="undo-btn" onclick="undo()">UNDO</button>
+    <button id="reset-btn" class="danger" onclick="resetLevel()">RESET</button>
+    <button id="test-btn" class="primary" onclick="toggleTest()">▶ TEST</button>
+  </div>
+  <canvas id="map"></canvas>
+  <div id="hint">Drag from a <span style="color:var(--accent)">●</span> anchor to draw a beam. Each beam costs $10. Connect both sides, then hit TEST.</div>
+  <div id="toast"></div>
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const GRAVITY = 1100;          // px/s² (heavier world — bridges must be engineered)
+const TIMESTEP = 1/60;         // physics step (s)
+const CONSTRAINT_PASSES = 8;   // lower = more visible flex; beams behave more like real steel under load
+const DAMPING = 0.99;
+const BEAM_BREAK_RATIO = 1.12; // beam breaks if stretched past restLength * ratio (was 1.18 — too forgiving)
+const BEAM_COST = 10;
+const SNAP_DIST = 22;          // pixels: snap drag endpoint to existing node
+const NODE_HIT_RADIUS = 14;
+const ANCHOR_RADIUS = 7;
+const NODE_RADIUS = 5;
+
+// ── Canvas / state ────────────────────────────────────────────────────────────
+const canvas = document.getElementById('map');
+const ctx = canvas.getContext('2d');
+let W=0, H=0;
+function resize(){
+  W = canvas.width = canvas.clientWidth;
+  H = canvas.height = canvas.clientHeight;
+}
+window.addEventListener('resize', resize);
+
+let nodes = [];      // {x, y, ox, oy, fixed, ground}
+let beams = [];      // {a, b, rest, broken, stress}
+let vehicle = null;  // active test vehicle
+let mode = 'BUILD';  // 'BUILD' | 'TEST' | 'WIN' | 'FAIL'
+let level = 1;
+let history = [];    // undo stack of {nodes, beams}
+let toastTimer = null;
+
+// Drag state
+let dragFrom = null; // node we started dragging from
+let dragX=0, dragY=0;
+let hoverNode = null;
+
+// ── Levels ────────────────────────────────────────────────────────────────────
+// Each level: gap geometry + budget. Anchor nodes are spawned automatically.
+const LEVELS = [
+  {budget:300, leftEnd:0.32, rightStart:0.68, leftH:0.62, rightH:0.62, vehicle:'car'},
+  {budget:400, leftEnd:0.25, rightStart:0.75, leftH:0.55, rightH:0.70, vehicle:'car'},
+  {budget:520, leftEnd:0.20, rightStart:0.80, leftH:0.58, rightH:0.58, vehicle:'truck'},
+  {budget:450, leftEnd:0.22, rightStart:0.72, leftH:0.50, rightH:0.78, vehicle:'truck'},
+  {budget:700, leftEnd:0.15, rightStart:0.85, leftH:0.60, rightH:0.60, vehicle:'truck'},
+];
+
+let levelDef = null;
+let groundLeft=0, groundRight=0, groundLeftY=0, groundRightY=0;
+
+function loadLevel(n){
+  level = Math.min(n, LEVELS.length);
+  levelDef = LEVELS[level-1];
+  nodes = [];
+  beams = [];
+  vehicle = null;
+  history = [];
+  mode = 'BUILD';
+  // Build the ground anchors. Several nodes on each cliff edge so the player
+  // has options for where to anchor the bridge.
+  resize();
+  groundLeft   = Math.floor(W * levelDef.leftEnd);
+  groundRight  = Math.floor(W * levelDef.rightStart);
+  groundLeftY  = Math.floor(H * levelDef.leftH);
+  groundRightY = Math.floor(H * levelDef.rightH);
+  // Left cliff: 3 anchor points near the edge
+  for (let i=0; i<3; i++) {
+    const x = groundLeft - i*32;
+    addAnchor(x, groundLeftY);
+  }
+  // Right cliff: 3 anchor points near the edge
+  for (let i=0; i<3; i++) {
+    const x = groundRight + i*32;
+    addAnchor(x, groundRightY);
+  }
+  document.getElementById('level').textContent = level;
+  updateBudgetUI();
+  document.getElementById('canvas')?.classList.remove('testing');
+  canvas.classList.remove('testing');
+  setHint('Drag from a anchor to draw a beam. Each beam costs $10. Connect both sides, then hit TEST.');
+}
+
+function addAnchor(x,y){
+  const n = {x, y, ox:x, oy:y, fixed:true, ground:true};
+  nodes.push(n);
+  return n;
+}
+function addNode(x,y){
+  const n = {x, y, ox:x, oy:y, fixed:false, ground:false};
+  nodes.push(n);
+  return n;
+}
+function addBeam(a,b){
+  // No duplicates
+  if (a===b) return null;
+  for (const beam of beams) {
+    if ((beam.a===a&&beam.b===b)||(beam.a===b&&beam.b===a)) return null;
+  }
+  const dx=a.x-b.x, dy=a.y-b.y;
+  const rest = Math.hypot(dx,dy);
+  const beam = {a, b, rest, broken:false, stress:0};
+  beams.push(beam);
+  return beam;
+}
+
+function budgetSpent(){
+  return beams.filter(b=>!b.broken).length * BEAM_COST;
+}
+function budgetRemaining(){
+  return levelDef.budget - budgetSpent();
+}
+function updateBudgetUI(){
+  document.getElementById('beam-count').textContent = beams.filter(b=>!b.broken).length;
+  const rem = budgetRemaining();
+  const el = document.getElementById('budget');
+  el.textContent = '$'+rem;
+  el.className = 'stat-val' + (rem<=0?' bad':(rem<=30?' warn':''));
+}
+
+// ── Snapshots for undo ────────────────────────────────────────────────────────
+function snapshot(){
+  history.push({
+    nodes: nodes.map(n=>({...n})),
+    beams: beams.map(b=>({rest:b.rest, ai:nodes.indexOf(b.a), bi:nodes.indexOf(b.b)})),
+  });
+  if (history.length > 60) history.shift();
+}
+function undo(){
+  if (mode!=='BUILD') return;
+  const s = history.pop();
+  if (!s) return;
+  nodes = s.nodes.map(n=>({...n, ox:n.x, oy:n.y}));
+  beams = s.beams.map(b=>({a:nodes[b.ai], b:nodes[b.bi], rest:b.rest, broken:false, stress:0}));
+  updateBudgetUI();
+}
+
+// ── Input ─────────────────────────────────────────────────────────────────────
+function pos(e){
+  const r=canvas.getBoundingClientRect();
+  const t=e.touches?.[0]||e.changedTouches?.[0]||e;
+  return {x:t.clientX-r.left, y:t.clientY-r.top};
+}
+function nodeAt(x,y,r=NODE_HIT_RADIUS){
+  let best=null, bestD=r;
+  for (const n of nodes) {
+    const d = Math.hypot(n.x-x, n.y-y);
+    if (d < bestD) { best=n; bestD=d; }
+  }
+  return best;
+}
+canvas.addEventListener('mousedown', onDown);
+canvas.addEventListener('mousemove', onMove);
+canvas.addEventListener('mouseup', onUp);
+canvas.addEventListener('touchstart', e=>{onDown(e); e.preventDefault();}, {passive:false});
+canvas.addEventListener('touchmove',  e=>{onMove(e); e.preventDefault();}, {passive:false});
+canvas.addEventListener('touchend',   e=>{onUp(e);   e.preventDefault();}, {passive:false});
+
+function onDown(e){
+  if (mode!=='BUILD') return;
+  const {x,y} = pos(e);
+  const n = nodeAt(x,y);
+  if (n) {
+    dragFrom = n;
+    dragX = x; dragY = y;
+  } else {
+    dragFrom = null;
+  }
+}
+function onMove(e){
+  const {x,y} = pos(e);
+  dragX = x; dragY = y;
+  if (mode==='BUILD') hoverNode = nodeAt(x,y);
+}
+function onUp(e){
+  if (mode!=='BUILD' || !dragFrom) { dragFrom=null; return; }
+  const {x,y} = pos(e);
+  if (budgetRemaining() < BEAM_COST) {
+    toast('OUT OF BUDGET');
+    dragFrom = null;
+    return;
+  }
+  // Decide endpoint: snap to existing node, or create free node (if drop is in
+  // open air — not on the ground).
+  let end = nodeAt(x, y, SNAP_DIST);
+  if (!end) {
+    // Reject if dropped below the ground line of either cliff (no underground)
+    if (isInGround(x,y)) {
+      toast('CAN’T BUILD INTO GROUND');
+      dragFrom = null;
+      return;
+    }
+    end = addNode(x, y);
+  }
+  if (end === dragFrom) { dragFrom = null; return; }
+  snapshot();
+  const made = addBeam(dragFrom, end);
+  if (!made) {
+    // Duplicate — roll back any node we just created
+    if (!end.ground && beams.every(b=>b.a!==end&&b.b!==end)) {
+      nodes = nodes.filter(n=>n!==end);
+    }
+    history.pop();
+  } else {
+    updateBudgetUI();
+  }
+  dragFrom = null;
+}
+
+function isInGround(x,y){
+  // Left cliff: anything with x < groundLeft and y > groundLeftY is dirt
+  if (x < groundLeft && y > groundLeftY) return true;
+  if (x > groundRight && y > groundRightY) return true;
+  return false;
+}
+
+// ── TEST mode ─────────────────────────────────────────────────────────────────
+function toggleTest(){
+  if (mode==='BUILD') startTest();
+  else if (mode==='TEST'||mode==='WIN'||mode==='FAIL') endTest();
+}
+function startTest(){
+  // Sanity: at least one beam required
+  if (beams.length===0) { toast('BUILD A BRIDGE FIRST'); return; }
+  mode = 'TEST';
+  canvas.classList.add('testing');
+  document.getElementById('test-btn').textContent = '■ STOP';
+  document.getElementById('test-btn').classList.remove('primary');
+  document.getElementById('test-btn').classList.add('danger');
+  document.getElementById('undo-btn').disabled = true;
+  document.getElementById('reset-btn').disabled = true;
+  // Snapshot all node/beam state so we can restore on STOP
+  preTestState = {
+    nodes: nodes.map(n=>({...n})),
+    beams: beams.map(b=>({rest:b.rest, ai:nodes.indexOf(b.a), bi:nodes.indexOf(b.b)})),
+  };
+  spawnVehicle();
+  setHint('Vehicle is crossing — let physics decide. Hit STOP to keep building.');
+}
+function endTest(){
+  mode = 'BUILD';
+  canvas.classList.remove('testing');
+  document.getElementById('test-btn').textContent = '▶ TEST';
+  document.getElementById('test-btn').classList.add('primary');
+  document.getElementById('test-btn').classList.remove('danger');
+  document.getElementById('undo-btn').disabled = false;
+  document.getElementById('reset-btn').disabled = false;
+  // Restore exact pre-test state (any broken beams get repaired)
+  if (preTestState) {
+    nodes = preTestState.nodes.map(n=>({...n, ox:n.x, oy:n.y}));
+    beams = preTestState.beams.map(b=>({a:nodes[b.ai], b:nodes[b.bi], rest:b.rest, broken:false, stress:0}));
+  }
+  vehicle = null;
+  updateBudgetUI();
+  setHint('Drag from a anchor to draw a beam. Each beam costs $10. Connect both sides, then hit TEST.');
+}
+let preTestState = null;
+
+function spawnVehicle(){
+  // Vehicle is a verlet box (4 corners) + 2 wheel nodes. Wheels touch ground.
+  // Body width / height vary by vehicle type — "truck" is heavier.
+  const isTruck = levelDef.vehicle === 'truck';
+  const bw = isTruck ? 90 : 64;
+  const bh = isTruck ? 26 : 20;
+  // Bigger wheels so the vehicle actually rolls over a planked deck instead of
+  // pinching between beams. Also looks like an actual car.
+  const wheelR = isTruck ? 22 : 17;
+  // Heavier vehicles so a single straight beam will visibly sag and snap. A
+  // bridge needs triangulation / support struts to carry the load. Tuned so a
+  // well-engineered triangulated truss carries the load while a flat span sags.
+  const massMult = isTruck ? 1.5 : 1.0;
+  // Spawn just to the left of the left-cliff edge, on top of the ground
+  const startX = groundLeft - bw/2 - 30;
+  // Body center sits so the bottom of the WHEEL (hub + wheelR) just touches
+  // the ground — was off by wheelR before, so the wheels were spawning half-
+  // buried in the cliff top and the vehicle bounced/drifted weirdly.
+  const startY = groundLeftY - bh/2 - 2*wheelR - 2;
+  // 4 body corners + 2 wheel hubs
+  const mkP = (x,y) => ({x, y, ox:x, oy:y, fixed:false});
+  const tl = mkP(startX-bw/2, startY-bh/2);
+  const tr = mkP(startX+bw/2, startY-bh/2);
+  const bl = mkP(startX-bw/2, startY+bh/2);
+  const br = mkP(startX+bw/2, startY+bh/2);
+  const wlHub = mkP(startX-bw/2+wheelR*0.6, startY+bh/2+wheelR);
+  const wrHub = mkP(startX+bw/2-wheelR*0.6, startY+bh/2+wheelR);
+  // Wheel rim nodes (12 around each hub) for smoother ground contact and
+  // less faceted look at the bigger wheel size.
+  const RIM_SEGMENTS = 12;
+  const mkWheel = (hub) => {
+    const rim = [];
+    for (let i=0; i<RIM_SEGMENTS; i++) {
+      const a = (i/RIM_SEGMENTS)*Math.PI*2;
+      rim.push(mkP(hub.x + Math.cos(a)*wheelR, hub.y + Math.sin(a)*wheelR));
+    }
+    return rim;
+  };
+  const wlRim = mkWheel(wlHub);
+  const wrRim = mkWheel(wrHub);
+
+  // Body constraints (rigid box with diagonals)
+  const conns = [
+    [tl,tr],[tr,br],[br,bl],[bl,tl],[tl,br],[tr,bl],
+    // Wheel hubs to nearest body corner (steel struts)
+    [bl,wlHub],[br,wrHub],[tl,wlHub],[tr,wrHub],
+  ];
+  // Wheel rims: each rim node to hub + to neighbor + to opposite rim
+  const wheelConns = [];
+  [[wlHub,wlRim],[wrHub,wrRim]].forEach(([hub, rim])=>{
+    for (let i=0; i<rim.length; i++) {
+      wheelConns.push([hub, rim[i]]);
+      wheelConns.push([rim[i], rim[(i+1)%rim.length]]);
+      wheelConns.push([rim[i], rim[(i+rim.length/2)%rim.length]]); // diameter
+    }
+  });
+
+  vehicle = {
+    isTruck,
+    massMult,
+    wheelR,
+    body: [tl,tr,bl,br],
+    wheelHubs: [wlHub, wrHub],
+    wheelRims: [wlRim, wrRim],
+    allNodes: [tl,tr,bl,br,wlHub,wrHub,...wlRim,...wrRim],
+    constraints: [...conns, ...wheelConns].map(([a,b])=>({a,b,rest:Math.hypot(a.x-b.x,a.y-b.y)})),
+    driveForce: 0,  // applied to wheel hubs each step
+  };
+}
+
+// ── Physics ───────────────────────────────────────────────────────────────────
+function stepPhysics(dt){
+  if (mode!=='TEST') return;
+  // Vehicle drive — two parts:
+  // 1. Spin the wheels visually (rotational torque on rim nodes)
+  // 2. Push the body+hubs forward when grounded (the actual drive force)
+  // I tried rotational-torque-only with friction; the constraint solver
+  // damped it heavily and the vehicle barely moved. Direct hub push works.
+  if (vehicle) {
+    // 1) Visual spin: clockwise in screen coords (y-down) = rolling right.
+    //    For a point at hub-relative offset (dx,dy), the CCW math rotation
+    //    tangent (-dy, dx) is the CW visual tangent (because y is flipped).
+    const torque = vehicle.isTruck ? 90 : 110;
+    for (let i=0; i<2; i++) {
+      const hub = vehicle.wheelHubs[i];
+      const rim = vehicle.wheelRims[i];
+      const per = torque * dt / rim.length;
+      for (const r of rim) {
+        const dx = r.x - hub.x, dy = r.y - hub.y;
+        const tx = -dy, ty = dx;
+        const len = Math.hypot(tx,ty)||1;
+        r.ox -= (tx/len) * per;
+        r.oy -= (ty/len) * per;
+      }
+    }
+    // 2) Drive: detect any wheel-ground or wheel-beam contact, then push the
+    //    body + hubs forward. Tuned empirically (per /tmp/bridge-test.js).
+    let grounded = false;
+    outer: for (const rim of vehicle.wheelRims) {
+      for (const r of rim) {
+        if ((r.x < groundLeft && r.y > groundLeftY - 3) ||
+            (r.x > groundRight && r.y > groundRightY - 3)) { grounded = true; break outer; }
+        for (const beam of beams) {
+          if (beam.broken) continue;
+          const dx = beam.b.x-beam.a.x, dy = beam.b.y-beam.a.y;
+          const ln2 = dx*dx+dy*dy;
+          if (ln2 < 0.0001) continue;
+          let t = ((r.x-beam.a.x)*dx + (r.y-beam.a.y)*dy) / ln2;
+          t = Math.max(0, Math.min(1, t));
+          const px = beam.a.x + dx*t, py = beam.a.y + dy*t;
+          if (Math.hypot(r.x-px, r.y-py) < 8) { grounded = true; break outer; }
+        }
+      }
+    }
+    if (grounded) {
+      const boost = vehicle.isTruck ? 0.04 : 0.05; // per-step ox shift on every body+hub node
+      for (const n of vehicle.body) n.ox -= boost;
+      for (const h of vehicle.wheelHubs) h.ox -= boost;
+    }
+  }
+
+  // Verlet integrate all free nodes (bridge + vehicle)
+  for (const n of nodes) {
+    if (n.fixed) continue;
+    const vx = (n.x - n.ox) * DAMPING;
+    const vy = (n.y - n.oy) * DAMPING;
+    n.ox = n.x; n.oy = n.y;
+    n.x += vx;
+    n.y += vy + GRAVITY * dt * dt;
+  }
+  if (vehicle) {
+    for (const n of vehicle.allNodes) {
+      const vx = (n.x - n.ox) * DAMPING;
+      const vy = (n.y - n.oy) * DAMPING;
+      n.ox = n.x; n.oy = n.y;
+      n.x += vx;
+      n.y += vy + GRAVITY * dt * dt * vehicle.massMult;
+    }
+  }
+
+  // Constraint relaxation: multiple passes per frame for stiffness
+  for (let pass=0; pass<CONSTRAINT_PASSES; pass++) {
+    // Bridge beams
+    const isLastPass = (pass === CONSTRAINT_PASSES-1);
+    for (const beam of beams) {
+      if (beam.broken) continue;
+      const a=beam.a, b=beam.b;
+      const dx=b.x-a.x, dy=b.y-a.y;
+      const dist = Math.hypot(dx,dy) || 0.0001;
+      const diff = (dist - beam.rest) / dist;
+      // Track current stress (last pass only — the first passes overshoot
+      // before constraint relaxation pulls beams back). Otherwise transient
+      // overshoots from a heavy step would shred beams spuriously.
+      const ratio = dist / beam.rest;
+      if (isLastPass) {
+        beam.stress = ratio;
+        if (ratio > BEAM_BREAK_RATIO) {
+          beam.broken = true;
+          continue;
+        }
+      }
+      const offX = dx * 0.5 * diff;
+      const offY = dy * 0.5 * diff;
+      if (!a.fixed) { a.x += offX; a.y += offY; }
+      if (!b.fixed) { b.x -= offX; b.y -= offY; }
+      // If one side is fixed, the free side absorbs both halves of the correction
+      if (a.fixed && !b.fixed) { b.x -= dx*diff; b.y -= dy*diff; }
+      if (b.fixed && !a.fixed) { a.x += dx*diff; a.y += dy*diff; }
+    }
+    // Vehicle constraints
+    if (vehicle) {
+      for (const c of vehicle.constraints) {
+        const a=c.a, b=c.b;
+        const dx=b.x-a.x, dy=b.y-a.y;
+        const dist = Math.hypot(dx,dy) || 0.0001;
+        const diff = (dist - c.rest) / dist;
+        const offX = dx * 0.5 * diff;
+        const offY = dy * 0.5 * diff;
+        a.x += offX; a.y += offY;
+        b.x -= offX; b.y -= offY;
+      }
+    }
+    // Collisions between vehicle nodes and bridge beams (treat beam as line seg)
+    if (vehicle) {
+      for (const n of vehicle.allNodes) {
+        for (const beam of beams) {
+          if (beam.broken) continue;
+          collideNodeBeam(n, beam);
+        }
+        // Ground collision
+        collideNodeGround(n);
+      }
+    }
+  }
+
+  // Win/lose checks (run once per frame after physics)
+  if (vehicle) {
+    const hubX = (vehicle.wheelHubs[0].x + vehicle.wheelHubs[1].x) / 2;
+    const hubY = (vehicle.wheelHubs[0].y + vehicle.wheelHubs[1].y) / 2;
+    // WIN: crossed onto the right cliff
+    if (hubX > groundRight + 40 && hubY < groundRightY + 30) {
+      mode = 'WIN';
+      toast('★ BRIDGE HOLDS — LEVEL CLEAR');
+      setHint('Press NEXT to continue, or STOP to keep building.');
+      setTimeout(()=>{
+        document.getElementById('test-btn').textContent = level<LEVELS.length ? '▶ NEXT LEVEL' : '▶ RESTART';
+        document.getElementById('test-btn').onclick = ()=>{
+          if (level<LEVELS.length) loadLevel(level+1);
+          else loadLevel(1);
+          document.getElementById('test-btn').onclick = toggleTest;
+        };
+      }, 200);
+    }
+    // FAIL: dropped off the bottom
+    if (hubY > H + 80) {
+      mode = 'FAIL';
+      toast('✖ VEHICLE FELL — TRY AGAIN');
+      setHint('Hit STOP to fix the bridge.');
+    }
+  }
+}
+
+// Friction coefficient at ground/beam contact: 0 = ice (rim slides freely,
+// drive can't grip), 1 = perfect static friction (rim sticks → wheel rolls).
+// ~0.5 lets the vehicle drive forward while still allowing some slip on slopes.
+const CONTACT_FRICTION = 0.5;
+
+function collideNodeGround(n){
+  // Left cliff top
+  if (n.x < groundLeft && n.y > groundLeftY) {
+    n.y = groundLeftY;
+    // Horizontal friction: shift ox toward x to bleed off horizontal velocity.
+    // Without this the wheel rim slides on ice — drive force just translates
+    // the body, the wheel doesn't actually roll, and the system feels off.
+    n.ox += (n.x - n.ox) * CONTACT_FRICTION;
+  }
+  // Right cliff
+  if (n.x > groundRight && n.y > groundRightY) {
+    n.y = groundRightY;
+    n.ox += (n.x - n.ox) * CONTACT_FRICTION;
+  }
+}
+
+function collideNodeBeam(n, beam){
+  const a=beam.a, b=beam.b;
+  const dx=b.x-a.x, dy=b.y-a.y;
+  const len2 = dx*dx+dy*dy;
+  if (len2 < 0.0001) return;
+  let t = ((n.x-a.x)*dx + (n.y-a.y)*dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const px = a.x + dx*t, py = a.y + dy*t;
+  const ndx = n.x - px, ndy = n.y - py;
+  const ndist = Math.hypot(ndx, ndy) || 0.0001;
+  const beamHalfWidth = 3;
+  const nodeR = 3;
+  const minDist = beamHalfWidth + nodeR;
+  if (ndist < minDist) {
+    const push = (minDist - ndist) / ndist;
+    // Move node out, push beam endpoints slightly (split by t)
+    const dxp = ndx * push;
+    const dyp = ndy * push;
+    n.x += dxp * 0.6;
+    n.y += dyp * 0.6;
+    if (!a.fixed) { a.x -= dxp * 0.2 * (1-t); a.y -= dyp * 0.2 * (1-t); }
+    if (!b.fixed) { b.x -= dxp * 0.2 * t;     b.y -= dyp * 0.2 * t; }
+    // Friction along beam direction: bleed off the velocity component parallel
+    // to the beam so the wheel rim grips the deck instead of skating across it.
+    const blen = Math.sqrt(len2);
+    const bx = dx/blen, by = dy/blen;
+    const vxx = n.x - n.ox, vyy = n.y - n.oy;
+    const tangVel = vxx*bx + vyy*by;
+    n.ox += bx * tangVel * CONTACT_FRICTION;
+    n.oy += by * tangVel * CONTACT_FRICTION;
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function drawGrid(){
+  ctx.fillStyle = '#0d2a4a';
+  ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle = '#163a63';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x=0; x<W; x+=20) { ctx.moveTo(x,0); ctx.lineTo(x,H); }
+  for (let y=0; y<H; y+=20) { ctx.moveTo(0,y); ctx.lineTo(W,y); }
+  ctx.stroke();
+  // Major grid
+  ctx.strokeStyle = '#1f4a7a';
+  ctx.beginPath();
+  for (let x=0; x<W; x+=100) { ctx.moveTo(x,0); ctx.lineTo(x,H); }
+  for (let y=0; y<H; y+=100) { ctx.moveTo(0,y); ctx.lineTo(W,y); }
+  ctx.stroke();
+}
+
+function drawGround(){
+  // Left cliff fill
+  ctx.fillStyle = '#1a3a5f';
+  ctx.fillRect(0, groundLeftY, groundLeft, H-groundLeftY);
+  ctx.fillRect(groundRight, groundRightY, W-groundRight, H-groundRightY);
+  // Cliff edges (cyan top line)
+  ctx.strokeStyle = '#60a5fa';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, groundLeftY); ctx.lineTo(groundLeft, groundLeftY);
+  ctx.lineTo(groundLeft, H);
+  ctx.moveTo(groundRight, H); ctx.lineTo(groundRight, groundRightY);
+  ctx.lineTo(W, groundRightY);
+  ctx.stroke();
+  // Gap dashed line (target path)
+  ctx.setLineDash([6,6]);
+  ctx.strokeStyle = 'rgba(125,211,252,0.3)';
+  ctx.beginPath();
+  ctx.moveTo(groundLeft, groundLeftY);
+  ctx.lineTo(groundRight, groundRightY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawBeams(){
+  for (const beam of beams) {
+    if (beam.broken) {
+      ctx.strokeStyle = 'rgba(239,68,68,0.25)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(beam.a.x, beam.a.y);
+      ctx.lineTo(beam.b.x, beam.b.y);
+      ctx.stroke();
+      continue;
+    }
+    // Color by stress
+    const s = beam.stress; // 1.0 = relaxed, near BEAM_BREAK_RATIO = about to break
+    const stressNorm = Math.max(0, Math.min(1, (s-1) / (BEAM_BREAK_RATIO-1)));
+    const color = stressNorm < 0.4
+      ? `rgb(${Math.round(125+stressNorm*130)},${Math.round(211-stressNorm*100)},${Math.round(252-stressNorm*200)})` // cyan → yellow
+      : `rgb(${Math.round(239)},${Math.round(170-stressNorm*100)},${Math.round(70-stressNorm*70)})`; // orange → red
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(beam.a.x, beam.a.y);
+    ctx.lineTo(beam.b.x, beam.b.y);
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+}
+
+function drawNodes(){
+  for (const n of nodes) {
+    if (n.ground) {
+      ctx.fillStyle = '#7dd3fc';
+      ctx.strokeStyle = '#0a1a30';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, ANCHOR_RADIUS, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#dde9f4';
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, NODE_RADIUS, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawHover(){
+  if (mode!=='BUILD') return;
+  if (dragFrom) {
+    // Ghost beam line from origin to current cursor / snap target
+    const snap = nodeAt(dragX, dragY, SNAP_DIST);
+    const ex = snap ? snap.x : dragX;
+    const ey = snap ? snap.y : dragY;
+    const okBudget = budgetRemaining() >= BEAM_COST;
+    ctx.setLineDash([4,4]);
+    ctx.strokeStyle = okBudget ? '#7dd3fc' : '#ef4444';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(dragFrom.x, dragFrom.y);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (snap && snap!==dragFrom) {
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(snap.x, snap.y, NODE_HIT_RADIUS, 0, Math.PI*2);
+      ctx.stroke();
+    }
+  } else if (hoverNode) {
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(hoverNode.x, hoverNode.y, NODE_HIT_RADIUS, 0, Math.PI*2);
+    ctx.stroke();
+  }
+}
+
+function drawVehicle(){
+  if (!vehicle) return;
+  const [tl,tr,bl,br] = vehicle.body;
+  // Compute the local orientation from the physics box so the car silhouette
+  // tilts/rolls with the chassis instead of staying upright on a slope.
+  const tMid = {x:(tl.x+tr.x)/2, y:(tl.y+tr.y)/2};
+  const bMid = {x:(bl.x+br.x)/2, y:(bl.y+br.y)/2};
+  // Forward unit vector (front of car points along +forward)
+  const fx = tr.x-tl.x, fy = tr.y-tl.y;
+  const fLen = Math.hypot(fx,fy)||1;
+  const fnx = fx/fLen, fny = fy/fLen;
+  // Up unit vector (roof points along +up)
+  const ux = tMid.x-bMid.x, uy = tMid.y-bMid.y;
+  const uLen = Math.hypot(ux,uy)||1;
+  const unx = ux/uLen, uny = uy/uLen;
+
+  const bodyColor = vehicle.isTruck ? '#fbbf24' : '#4ade80';
+  const cabinColor = vehicle.isTruck ? '#facc15' : '#22c55e';
+  const outline = '#0a1a30';
+  const windowColor = '#7dd3fc';
+
+  // Lower body (chassis) — the verlet box
+  ctx.fillStyle = bodyColor;
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(tl.x, tl.y);
+  ctx.lineTo(tr.x, tr.y);
+  ctx.lineTo(br.x, br.y);
+  ctx.lineTo(bl.x, bl.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Cabin sits on top of the chassis, narrower and shifted toward the back.
+  // For a "car" shape: cabin spans from ~25% to ~75% of the top, taller than
+  // the chassis. For a "truck": cabin only at the front 35%, tall, with a
+  // flat cargo bed behind it.
+  const cabinH = vehicle.isTruck ? fLen*0.42 : fLen*0.36;
+  let frontPct, backPct;
+  if (vehicle.isTruck) {
+    // Cab is the front portion (right side as the truck drives right)
+    backPct = 0.45; frontPct = 0.92;
+  } else {
+    backPct = 0.18; frontPct = 0.78;
+  }
+  const cabBL = {
+    x: tl.x + fnx*fLen*backPct,
+    y: tl.y + fny*fLen*backPct,
+  };
+  const cabBR = {
+    x: tl.x + fnx*fLen*frontPct,
+    y: tl.y + fny*fLen*frontPct,
+  };
+  // Slant the roof back a touch so the windshield isn't a perfect vertical
+  // wall (front-of-cab roof is set back by ~12% of its length).
+  const roofSlant = fLen*0.10;
+  const cabTL = {
+    x: cabBL.x + unx*cabinH,
+    y: cabBL.y + uny*cabinH,
+  };
+  const cabTR = {
+    x: cabBR.x - fnx*roofSlant + unx*cabinH,
+    y: cabBR.y - fny*roofSlant + uny*cabinH,
+  };
+  // Cabin fill
+  ctx.fillStyle = cabinColor;
+  ctx.strokeStyle = outline;
+  ctx.beginPath();
+  ctx.moveTo(cabBL.x, cabBL.y);
+  ctx.lineTo(cabTL.x, cabTL.y);
+  ctx.lineTo(cabTR.x, cabTR.y);
+  ctx.lineTo(cabBR.x, cabBR.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // Windshield — a tinted parallelogram inset from cabin corners
+  const inset = 0.18;
+  const wsBL = {
+    x: cabBL.x + fnx*fLen*0.04 + unx*cabinH*inset,
+    y: cabBL.y + fny*fLen*0.04 + uny*cabinH*inset,
+  };
+  const wsTL = {
+    x: cabTL.x + fnx*fLen*0.04 - unx*cabinH*0.18,
+    y: cabTL.y + fny*fLen*0.04 - uny*cabinH*0.18,
+  };
+  const wsTR = {
+    x: cabTR.x - fnx*fLen*0.04 - unx*cabinH*0.18,
+    y: cabTR.y - fny*fLen*0.04 - uny*cabinH*0.18,
+  };
+  const wsBR = {
+    x: cabBR.x - fnx*fLen*0.04 + unx*cabinH*inset,
+    y: cabBR.y - fny*fLen*0.04 + uny*cabinH*inset,
+  };
+  ctx.fillStyle = windowColor;
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(wsBL.x, wsBL.y);
+  ctx.lineTo(wsTL.x, wsTL.y);
+  ctx.lineTo(wsTR.x, wsTR.y);
+  ctx.lineTo(wsBR.x, wsBR.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // Headlight — small yellow circle at front of chassis
+  const headX = tr.x*0.35 + br.x*0.65;
+  const headY = tr.y*0.35 + br.y*0.65;
+  const headR = Math.max(2, fLen*0.04);
+  ctx.fillStyle = '#fef3c7';
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(headX, headY, headR, 0, Math.PI*2);
+  ctx.fill();
+  ctx.stroke();
+  // Tail light (red) at rear of chassis
+  const tailX = tl.x*0.35 + bl.x*0.65;
+  const tailY = tl.y*0.35 + bl.y*0.65;
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath();
+  ctx.arc(tailX, tailY, headR*0.8, 0, Math.PI*2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Wheels with hubcap + spokes
+  for (let i=0; i<2; i++) {
+    const hub = vehicle.wheelHubs[i];
+    const rim = vehicle.wheelRims[i];
+    // Tire (dark outer)
+    ctx.fillStyle = '#1e293b';
+    ctx.strokeStyle = '#0a1a30';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(rim[0].x, rim[0].y);
+    for (let j=1; j<rim.length; j++) ctx.lineTo(rim[j].x, rim[j].y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // Hubcap — silver disc covering inner ~60% of the tire
+    const hubR = Math.hypot(rim[0].x-hub.x, rim[0].y-hub.y) * 0.6;
+    ctx.fillStyle = '#cbd5e1';
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(hub.x, hub.y, hubR, 0, Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+    // Spokes — 4 lines from hub to hubcap edge, oriented with wheel rotation.
+    // We derive rotation from where rim[0] is relative to the hub so spokes
+    // visibly spin as the wheel turns.
+    const rotA = Math.atan2(rim[0].y-hub.y, rim[0].x-hub.x);
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 2;
+    for (let s=0; s<4; s++) {
+      const a = rotA + s*Math.PI/2;
+      ctx.beginPath();
+      ctx.moveTo(hub.x, hub.y);
+      ctx.lineTo(hub.x + Math.cos(a)*hubR*0.85, hub.y + Math.sin(a)*hubR*0.85);
+      ctx.stroke();
+    }
+    // Hub center dot
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(hub.x, hub.y, 2.5, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function render(){
+  drawGrid();
+  drawGround();
+  drawBeams();
+  drawHover();
+  drawNodes();
+  drawVehicle();
+}
+
+// ── Main loop ─────────────────────────────────────────────────────────────────
+let lastTime = 0;
+function loop(t){
+  const dt = lastTime ? Math.min((t-lastTime)/1000, 0.05) : TIMESTEP;
+  lastTime = t;
+  if (mode==='TEST') {
+    // Run physics at fixed substeps for stability regardless of frame rate
+    let acc = dt;
+    while (acc > 0) {
+      const step = Math.min(acc, TIMESTEP);
+      stepPhysics(step);
+      acc -= step;
+    }
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function setHint(s){
+  document.getElementById('hint').innerHTML = s;
+}
+function toast(s){
+  const el = document.getElementById('toast');
+  el.textContent = s;
+  el.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('show'), 1800);
+}
+function resetLevel(){
+  if (mode!=='BUILD') return;
+  loadLevel(level);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+resize();
+loadLevel(1);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

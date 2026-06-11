@@ -1,0 +1,1469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Untamed</title>
+<style>
+  *{box-sizing:border-box;}
+  :root{ --glass:rgba(14,28,20,0.72); --line:rgba(120,200,140,0.22); --accent:#9be08a; --gold:#ffe08a; }
+  html,body{margin:0;height:100%;background:#06100b;overflow:hidden;color:#e8f0e0;
+    font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;user-select:none;-webkit-font-smoothing:antialiased;}
+  canvas{position:fixed;inset:0;display:block;}
+  .glass{background:var(--glass);border:1px solid var(--line);border-radius:12px;
+    box-shadow:0 8px 30px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
+    -webkit-backdrop-filter:blur(10px) saturate(1.2); backdrop-filter:blur(10px) saturate(1.2);}
+  /* top bar */
+  #top{position:fixed;top:8px;left:8px;right:8px;height:48px;z-index:13;display:flex;align-items:center;gap:10px;
+    padding:0 14px;background:linear-gradient(180deg,rgba(20,40,28,0.8),rgba(10,22,15,0.78));
+    border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 26px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.07);
+    -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);}
+  #top .b{font-weight:700;letter-spacing:.3px;display:inline-flex;align-items:center;gap:5px;
+    background:rgba(255,255,255,0.05);padding:5px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);}
+  #top .cash{color:var(--gold);font-size:16px;text-shadow:0 0 12px rgba(255,224,138,0.4);} #top .date{color:#9cc3d6;}
+  #top .stars{color:#ffd34d;letter-spacing:1px;}
+  #top button{background:linear-gradient(180deg,#2a4a30,#1c3422);color:#dff0d8;border:1px solid #3a6040;border-radius:8px;
+    padding:7px 13px;cursor:pointer;font:inherit;font-weight:600;transition:transform .08s, background .15s, box-shadow .15s;}
+  #top button:hover{background:linear-gradient(180deg,#34602f,#23472a);transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.4);}
+  #top button:active{transform:translateY(0);}
+  #top .sp.on{background:linear-gradient(180deg,#4f8a2f,#3a6b22);color:#fff;border-color:#6fae54;box-shadow:0 0 14px rgba(111,174,84,.45);}
+  #top #tUpgrade{opacity:.72;}
+  #top #tUpgrade.ready{opacity:1;background:linear-gradient(180deg,#d3aa3c,#9a7a1e);border-color:#ffe08a;color:#1a1408;box-shadow:0 0 16px rgba(255,224,138,.6);}
+  #top #tUpgrade.ready:hover{background:linear-gradient(180deg,#e6bb45,#b08a22);}
+  #top .spacer{flex:1;}
+  /* collapsible menu-bar of bookmarks */
+  .mwrap{position:relative;display:inline-flex;}
+  .menu{position:absolute;top:calc(100% + 10px);right:0;z-index:50;display:none;flex-direction:column;gap:6px;padding:8px;min-width:190px;}
+  .menu.open{display:flex;animation:menuIn .14s ease;}
+  @keyframes menuIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+  .menu button{width:100%;text-align:left;background:linear-gradient(180deg,#2a4a30,#1c3422);color:#dff0d8;border:1px solid #3a6040;border-radius:8px;
+    padding:9px 12px;cursor:pointer;font:inherit;font-weight:600;transition:background .15s,transform .08s;}
+  .menu button:hover{background:linear-gradient(180deg,#34602f,#23472a);transform:translateX(2px);}
+  #top .mtog.on{background:linear-gradient(180deg,#4f8a2f,#3a6b22);color:#fff;border-color:#6fae54;box-shadow:0 0 12px rgba(111,174,84,.45);}
+  #parkInfo{display:none;gap:8px;align-items:center;}
+  /* build palette */
+  #palette{position:fixed;left:10px;top:66px;z-index:9;width:172px;padding:10px;display:none;max-height:calc(100vh - 140px);overflow:auto;}
+  #palette h4{margin:0 0 9px;color:var(--accent);font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:.9;}
+  .tool{display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid rgba(255,255,255,0.06);border-radius:9px;margin-bottom:6px;cursor:pointer;
+    background:rgba(255,255,255,0.02);transition:transform .08s, border-color .15s, background .15s;}
+  .tool:hover{border-color:#4f8a2f;background:rgba(40,70,40,0.5);transform:translateX(2px);}
+  .tool.sel{border-color:var(--accent);background:linear-gradient(90deg,rgba(40,80,44,0.7),rgba(30,58,38,0.5));box-shadow:0 0 12px rgba(155,224,138,.25);}
+  .tool .em{font-size:19px;width:24px;text-align:center;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));} .tool .nm{flex:1;font-weight:600;} .tool .ct{color:var(--gold);font-size:11px;font-weight:700;}
+  /* goals + log */
+  #goals{position:fixed;right:10px;top:66px;z-index:9;width:234px;padding:12px;display:none;pointer-events:none;}
+  #goals h4{margin:0 0 9px;color:var(--accent);font-size:11px;letter-spacing:2px;text-transform:uppercase;}
+  .goal{font-size:12px;padding:7px 9px;border-radius:8px;margin-bottom:5px;color:#a9c69a;border:1px solid transparent;}
+  .goal.done{color:#7ee08a;text-decoration:line-through;opacity:.65;}
+  .goal.cur{background:linear-gradient(90deg,rgba(22,50,32,0.9),rgba(16,38,24,0.6));color:#dff;border-color:rgba(126,224,138,.3);box-shadow:0 0 10px rgba(0,0,0,.3);}
+  #log{position:fixed;right:10px;bottom:10px;z-index:9;width:320px;max-height:160px;overflow:hidden;font-size:12px;color:#bfeede;text-shadow:0 1px 3px #000;pointer-events:none;}
+  #log div{margin-bottom:3px;background:rgba(8,18,12,0.5);padding:3px 8px;border-radius:7px;display:inline-block;border:1px solid rgba(120,200,140,0.12);}
+  #tip{position:fixed;left:10px;bottom:10px;z-index:9;max-width:320px;color:#bfe6a8;font-size:12px;text-shadow:0 1px 3px #000;pointer-events:none;
+    background:rgba(8,18,12,0.5);padding:6px 10px;border-radius:8px;border:1px solid rgba(120,200,140,0.12);}
+  #tip:empty{display:none;}
+  /* modal */
+  #modal{position:fixed;inset:0;z-index:20;display:none;background:rgba(0,0,0,0.55);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);}
+  #modal .m{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(460px,92vw);
+    background:linear-gradient(180deg,#143226,#0c1c14);border:1px solid #6fae54;border-radius:16px;padding:22px;
+    box-shadow:0 24px 70px rgba(0,0,0,.6), 0 0 40px rgba(111,174,84,.18), inset 0 1px 0 rgba(255,255,255,.08);}
+  #modal h3{margin:0 0 8px;color:var(--gold);font-size:20px;} #modal p{color:#cfe6c0;line-height:1.5;}
+  #modal button{background:linear-gradient(180deg,#7cbf5e,#5a9440);color:#0b1410;border:none;border-radius:9px;padding:10px 20px;font:inherit;font-weight:800;cursor:pointer;margin-top:14px;box-shadow:0 6px 16px rgba(0,0,0,.4);}
+  #modal button:hover{filter:brightness(1.08);}
+  /* hover card on map */
+  #hover{position:fixed;z-index:11;pointer-events:none;display:none;max-width:250px;padding:10px 13px;
+    background:rgba(10,22,15,0.92);border:1px solid #4f8a2f;border-radius:11px;box-shadow:0 12px 34px rgba(0,0,0,.55);
+    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);}
+  #hover .n{color:var(--gold);font-weight:800;font-size:14px;} #hover .t{color:#9cc3d6;font-size:11px;text-transform:uppercase;letter-spacing:1px;} #hover .d{color:#cfe0d4;font-size:12px;margin-top:5px;line-height:1.4;}
+  /* start screen */
+  #start{position:fixed;inset:0;z-index:30;display:grid;place-items:center;text-align:center;overflow:hidden;
+    background:
+      radial-gradient(120% 80% at 50% 86%, rgba(255,214,150,0.5), rgba(255,214,150,0) 38%),
+      radial-gradient(90% 60% at 50% 70%, rgba(255,150,90,0.18), rgba(255,150,90,0) 60%),
+      linear-gradient(180deg,#081726 0%,#103440 42%,#23564f 64%,#5c7048 88%,#7a8a52 100%);}
+  #start::before{content:'';position:absolute;left:0;right:0;bottom:0;height:46%;opacity:.75;
+    background:linear-gradient(180deg,#1f4438,#16352b);
+    clip-path:polygon(0 100%,0 62%,9% 42%,18% 60%,28% 30%,38% 56%,50% 24%,60% 54%,72% 34%,82% 58%,92% 40%,100% 56%,100% 100%);}
+  #start::after{content:'';position:absolute;left:0;right:0;bottom:0;height:34%;
+    background:linear-gradient(180deg,#102218,#070f0a);
+    clip-path:polygon(0 100%,0 70%,12% 44%,22% 66%,34% 36%,46% 64%,58% 40%,70% 66%,82% 42%,92% 62%,100% 48%,100% 100%);}
+  #start>div{position:relative;z-index:2;padding:0 20px;animation:floatup 1.2s cubic-bezier(.2,.8,.2,1);}
+  #start h1{font-size:min(7vw,52px);margin:0;color:#fff;letter-spacing:1px;font-weight:900;
+    text-shadow:0 2px 0 #2a5a2a,0 0 30px rgba(155,224,138,.55),0 8px 40px rgba(0,0,0,.6);}
+  #start .by{color:#e6f0d8;margin:14px auto 26px;max-width:580px;line-height:1.6;font-size:15px;text-shadow:0 1px 8px rgba(0,0,0,.5);}
+  #start button{background:linear-gradient(180deg,#8fd06a,#5fa040);color:#08200c;border:none;padding:15px 34px;
+    font:900 18px -apple-system,sans-serif;border-radius:12px;cursor:pointer;letter-spacing:.5px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 26px rgba(143,208,106,.5);animation:pulse 2.2s ease-in-out infinite;}
+  #start button:hover{filter:brightness(1.1);transform:translateY(-2px);}
+  @keyframes floatup{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes pulse{0%,100%{box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 22px rgba(143,208,106,.45);}50%{box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 40px rgba(143,208,106,.85);}}
+  ::-webkit-scrollbar{width:8px;}::-webkit-scrollbar-thumb{background:rgba(120,200,140,.25);border-radius:8px;}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="top">
+  <span class="b cash">$<span id="tCash">0</span></span>
+  <span class="b date" id="tDate">Spring · Year 1</span>
+  <button class="sp on" id="tSpeed">▶ 1×</button>
+  <span class="spacer"></span>
+  <span id="parkInfo">
+    <span class="b" id="tName">—</span>
+    <span class="stars" id="tStars">—</span>
+    <span class="b">👥 <span id="tVis">0</span>/mo</span>
+    <span class="b">🌿 <span id="tCon">0</span>%</span>
+    <span style="color:#8fc">🏞️ <span id="tAcres">0</span> ac</span>
+    <span class="b" id="tHealth" style="color:#9be08a">🛣 100%</span>
+    <span class="b" id="tDesig" style="color:#ffd9a0">🏅 State Park</span>
+    <button id="tUpgrade" style="display:none">⬆ Promote</button>
+  </span>
+  <div class="mwrap"><button class="mtog" id="mtView">🧭 View</button>
+    <div class="glass menu" id="menuView">
+      <button id="tMap">🗺️ U.S. Map</button>
+      <button id="tVisit">🚶 Visit the Park</button>
+      <button id="tCenter">🎯 Center on Wonder</button>
+    </div></div>
+  <div class="mwrap"><button class="mtog" id="mtGame">💾 Game</button>
+    <div class="glass menu" id="menuGame">
+      <button id="tSave">💾 Save Game</button>
+      <button id="tLoad">📂 Load Game</button>
+      <button id="tNew">🆕 New Game</button>
+    </div></div>
+  <div class="mwrap"><button class="mtog" id="mtOptions">⚙️ Options</button>
+    <div class="glass menu" id="menuOptions">
+      <button id="tSound">🔊 Sound: On</button>
+      <button id="tGoals">🎯 Goals: Shown</button>
+    </div></div>
+  <div class="mwrap"><button class="mtog" id="mtHelp">❓ Help</button>
+    <div class="glass menu" id="menuHelp">
+      <button id="tHelp">📖 How to Play</button>
+      <button id="tControls">🎮 Controls</button>
+    </div></div>
+</div>
+
+<div id="palette" class="glass"><h4>🛠 Build</h4><div id="tools"></div></div>
+<div id="goals" class="glass"><h4>🎯 Goals</h4><div id="goalList"></div></div>
+<div id="log"></div>
+<div id="tip"></div>
+<div id="hover"><div class="n" id="hvN"></div><div class="t" id="hvT"></div><div class="d" id="hvD"></div></div>
+
+<div id="modal"><div class="m"><h3 id="mT"></h3><p id="mP"></p><button id="mB">OK</button></div></div>
+
+<div id="start"><div>
+  <h1>🏞️ UNTAMED</h1>
+  <div class="by">Found and grow national parks across America. Where you settle matters — every wonder has its own biome, wildlife, climate, and crowds. Discover the wild, balance tourism against conservation, expand your land, and build a network of parks.</div>
+  <button id="startBtn">▶ OPEN THE MAP</button>
+  <button id="contBtn" style="display:none;margin-left:10px;background:linear-gradient(180deg,#caa23a,#9a7a1e);color:#1a1408;">▶ CONTINUE SAVED GAME</button>
+</div></div>
+
+<script>
+const _gid=document.getElementById.bind(document), _els={}; const $=id=>_els[id]||(_els[id]=_gid(id));   // memoized element lookup
+const cv=$('cv'); let ctx=cv.getContext('2d'); const screenCtx=ctx;
+let W,H,DPR=Math.min(2,devicePixelRatio||1);
+function resize(){ W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';screenCtx.setTransform(DPR,0,0,DPR,0,0); if(view==='park'&&current) clampCam(); }
+addEventListener('resize',resize);   // initial resize() call is deferred until state exists (see below)
+
+// ── Global state ──
+let cash=18000, month=0, shownCash=18000;      // month 0 = Spring Y1; shownCash tweens for an animated counter
+const SEASONS=['Spring','Summer','Fall','Winter'], SEASON_MULT=[1.0,1.55,0.9,0.4];
+let view='map';                                 // 'map' | 'park'
+let goalsHidden=false;                          // Options ▸ Goals toggle
+let mapZoom=1, mapPanX=0, mapPanY=0;            // national-map camera (drag to pan, scroll to zoom)
+let parks=[], current=null, speed=1, acc=0;
+resize();                                       // safe now that view/current are initialized
+const season=()=>SEASONS[month%4], seasonMult=()=>SEASON_MULT[month%4], year=()=>1+((month/4)|0);
+
+// ── Wonders across the U.S. (normalized x:0..1 W→E, y:0..1 N→S) ──
+const WONDERS=[
+ // ── Lower 48 (placed by real lat/lon) ──
+ {n:'Acadia',b:'coast',ap:80,e:'🌊',lat:44.35,lon:-68.21,r:'48',d:'Granite coast where mountains meet the Atlantic, Maine.'},
+ {n:'Arches',b:'desert',ap:82,e:'🌉',lat:38.73,lon:-109.59,r:'48',d:'Over 2,000 natural sandstone arches, Utah.'},
+ {n:'Badlands',b:'prairie',ap:72,e:'🪨',lat:43.86,lon:-102.34,r:'48',d:'Striped buttes and fossil beds on the SD prairie.'},
+ {n:'Big Bend',b:'desert',ap:68,e:'🏜️',lat:29.25,lon:-103.25,r:'48',d:'Desert mountains where the Rio Grande bends, Texas.'},
+ {n:'Biscayne',b:'coast',ap:62,e:'🐠',lat:25.49,lon:-80.21,r:'48',d:'Mostly underwater — reefs and mangroves off Miami.'},
+ {n:'Black Canyon of the Gunnison',b:'canyon',ap:70,e:'🧱',lat:38.57,lon:-107.72,r:'48',d:'A narrow, dizzyingly steep Colorado gorge.'},
+ {n:'Bryce Canyon',b:'canyon',ap:86,e:'🧱',lat:37.57,lon:-112.18,r:'48',d:'Forests of orange hoodoo spires, Utah.'},
+ {n:'Canyonlands',b:'desert',ap:78,e:'🏜️',lat:38.33,lon:-109.86,r:'48',d:'Mesas carved by the Colorado & Green rivers, Utah.'},
+ {n:'Capitol Reef',b:'desert',ap:72,e:'🪨',lat:38.37,lon:-111.27,r:'48',d:'A 100-mile wrinkle in the Earth, Utah.'},
+ {n:'Carlsbad Caverns',b:'cave',ap:78,e:'🦇',lat:32.17,lon:-104.44,r:'48',d:'Vast underground chambers & a bat flight, New Mexico.'},
+ {n:'Channel Islands',b:'coast',ap:68,e:'🦭',lat:34.01,lon:-119.42,r:'48',d:'Wild islands off California — a "Galápagos."'},
+ {n:'Congaree',b:'wetland',ap:60,e:'🌳',lat:33.78,lon:-80.78,r:'48',d:'Old-growth bottomland forest of giant trees, SC.'},
+ {n:'Crater Lake',b:'volcano',ap:84,e:'🌋',lat:42.94,lon:-122.10,r:'48',d:'The deepest U.S. lake, in a collapsed Oregon volcano.'},
+ {n:'Cuyahoga Valley',b:'forest',ap:62,e:'🚂',lat:41.26,lon:-81.55,r:'48',d:'Waterfalls, forest and a scenic railway, Ohio.'},
+ {n:'Death Valley',b:'desert',ap:78,e:'🏜️',lat:36.51,lon:-117.08,r:'48',d:'The hottest, driest, lowest place in North America.'},
+ {n:'Dry Tortugas',b:'coast',ap:64,e:'🏝️',lat:24.63,lon:-82.87,r:'48',d:'A remote island fort & reefs past the Florida Keys.'},
+ {n:'Everglades',b:'wetland',ap:80,e:'🐊',lat:25.29,lon:-80.90,r:'48',d:'A vast "river of grass" full of gators, Florida.'},
+ {n:'Gateway Arch',b:'prairie',ap:60,e:'🏛️',lat:38.62,lon:-90.18,r:'48',d:'The 630-ft arch on the St. Louis riverfront.'},
+ {n:'Glacier',b:'glacier',ap:90,e:'🏔️',lat:48.70,lon:-113.80,r:'48',d:'Carved peaks and glaciers on the Montana border.'},
+ {n:'Grand Canyon',b:'canyon',ap:98,e:'🏜️',lat:36.06,lon:-112.14,r:'48',d:'A mile-deep canyon carved by the Colorado, Arizona.'},
+ {n:'Grand Teton',b:'mountain',ap:88,e:'🏔️',lat:43.79,lon:-110.68,r:'48',d:'Jagged peaks rising straight from a Wyoming valley.'},
+ {n:'Great Basin',b:'mountain',ap:64,e:'⛰️',lat:38.98,lon:-114.30,r:'48',d:'Ancient bristlecone pines under a Nevada peak.'},
+ {n:'Great Sand Dunes',b:'dunes',ap:74,e:'🏜️',lat:37.79,lon:-105.59,r:'48',d:'The tallest dunes in North America, Colorado.'},
+ {n:'Great Smoky Mountains',b:'forest',ap:92,e:'🌫️',lat:35.68,lon:-83.53,r:'48',d:'Misty Appalachian ridges — the busiest U.S. park.'},
+ {n:'Guadalupe Mountains',b:'desert',ap:62,e:'⛰️',lat:31.92,lon:-104.87,r:'48',d:'A fossil reef and the highest peak in Texas.'},
+ {n:'Hot Springs',b:'forest',ap:60,e:'♨️',lat:34.51,lon:-93.05,r:'48',d:'Historic thermal bathhouses in the Arkansas hills.'},
+ {n:'Indiana Dunes',b:'dunes',ap:60,e:'🏖️',lat:41.65,lon:-87.06,r:'48',d:'Lakeshore dunes and beaches on Lake Michigan.'},
+ {n:'Isle Royale',b:'forest',ap:60,e:'🐺',lat:48.01,lon:-88.55,r:'48',d:'A remote wolf-and-moose island in Lake Superior.'},
+ {n:'Joshua Tree',b:'desert',ap:80,e:'🌵',lat:33.79,lon:-115.90,r:'48',d:'Twisting Joshua trees where two CA deserts meet.'},
+ {n:'Kings Canyon',b:'mountain',ap:74,e:'🏔️',lat:36.80,lon:-118.55,r:'48',d:'A deep glacial canyon and giant sequoias, California.'},
+ {n:'Lassen Volcanic',b:'volcano',ap:68,e:'🌋',lat:40.49,lon:-121.51,r:'48',d:'Bubbling mudpots and a young volcano, California.'},
+ {n:'Mammoth Cave',b:'cave',ap:76,e:'🦇',lat:37.18,lon:-86.10,r:'48',d:'The longest known cave system on Earth, Kentucky.'},
+ {n:'Mesa Verde',b:'desert',ap:74,e:'🏚️',lat:37.23,lon:-108.46,r:'48',d:'Ancestral Puebloan cliff dwellings, Colorado.'},
+ {n:'Mount Rainier',b:'glacier',ap:86,e:'🌋',lat:46.85,lon:-121.75,r:'48',d:'A glacier-clad volcano over Washington.'},
+ {n:'New River Gorge',b:'canyon',ap:72,e:'🌉',lat:38.07,lon:-81.08,r:'48',d:'A deep, rafting-famous river canyon, West Virginia.'},
+ {n:'North Cascades',b:'glacier',ap:74,e:'🏔️',lat:48.77,lon:-121.30,r:'48',d:'Hundreds of jagged peaks and glaciers, Washington.'},
+ {n:'Olympic',b:'forest',ap:86,e:'🌧️',lat:47.80,lon:-123.60,r:'48',d:'Rainforest, glaciers and wild coast, Washington.'},
+ {n:'Petrified Forest',b:'desert',ap:64,e:'🪵',lat:35.07,lon:-109.78,r:'48',d:'Rainbow badlands and fossilized logs, Arizona.'},
+ {n:'Pinnacles',b:'mountain',ap:62,e:'🦅',lat:36.49,lon:-121.16,r:'48',d:'Volcanic spires and condors, central California.'},
+ {n:'Redwood',b:'forest',ap:84,e:'🌲',lat:41.21,lon:-124.00,r:'48',d:'The tallest trees on Earth in coastal CA fog.'},
+ {n:'Rocky Mountain',b:'mountain',ap:88,e:'⛰️',lat:40.34,lon:-105.68,r:'48',d:'Alpine tundra above the treeline, Colorado.'},
+ {n:'Saguaro',b:'desert',ap:70,e:'🌵',lat:32.25,lon:-110.50,r:'48',d:'Forests of giant saguaro cactus near Tucson, Arizona.'},
+ {n:'Sequoia',b:'forest',ap:84,e:'🌲',lat:36.43,lon:-118.68,r:'48',d:'Home to the largest trees on Earth, California.'},
+ {n:'Shenandoah',b:'forest',ap:74,e:'🍂',lat:38.53,lon:-78.35,r:'48',d:'Blue Ridge vistas along Skyline Drive, Virginia.'},
+ {n:'Theodore Roosevelt',b:'prairie',ap:66,e:'🦬',lat:46.98,lon:-103.54,r:'48',d:'Badlands and bison in the North Dakota grasslands.'},
+ {n:'Voyageurs',b:'forest',ap:62,e:'🛶',lat:48.50,lon:-92.88,r:'48',d:'A water world of interconnected lakes, Minnesota.'},
+ {n:'White Sands',b:'dunes',ap:76,e:'🏜️',lat:32.78,lon:-106.17,r:'48',d:'Rolling dunes of brilliant white gypsum, New Mexico.'},
+ {n:'Wind Cave',b:'cave',ap:64,e:'🦇',lat:43.57,lon:-103.48,r:'48',d:'A maze cave under the prairie & bison, South Dakota.'},
+ {n:'Yellowstone',b:'geyser',ap:96,e:'♨️',lat:44.43,lon:-110.59,r:'48',d:'Geysers, hot springs and wildlife — the first park.'},
+ {n:'Yosemite',b:'mountain',ap:94,e:'🏔️',lat:37.83,lon:-119.50,r:'48',d:'Towering granite cliffs and waterfalls, California.'},
+ {n:'Zion',b:'canyon',ap:90,e:'🧱',lat:37.30,lon:-113.05,r:'48',d:'Sheer red sandstone cliffs and slot canyons, Utah.'},
+ // ── Alaska ──
+ {n:'Denali',b:'mountain',ap:90,e:'🏔️',lat:63.07,lon:-151.00,r:'ak',d:'North America’s tallest peak (20,310 ft) and tundra.'},
+ {n:'Gates of the Arctic',b:'mountain',ap:64,e:'🏔️',lat:67.78,lon:-153.30,r:'ak',d:'Trail-less Arctic wilderness above the Brooks Range.'},
+ {n:'Glacier Bay',b:'glacier',ap:80,e:'🧊',lat:58.50,lon:-137.00,r:'ak',d:'Tidewater glaciers calving into the sea.'},
+ {n:'Katmai',b:'volcano',ap:78,e:'🐻',lat:58.50,lon:-155.00,r:'ak',d:'Brown bears fishing for salmon at Brooks Falls.'},
+ {n:'Kenai Fjords',b:'glacier',ap:76,e:'🧊',lat:59.92,lon:-149.65,r:'ak',d:'Glaciers spilling from an icefield into fjords.'},
+ {n:'Kobuk Valley',b:'dunes',ap:56,e:'🏜️',lat:67.55,lon:-159.28,r:'ak',d:'Arctic sand dunes and a great caribou migration.'},
+ {n:'Lake Clark',b:'mountain',ap:66,e:'🏔️',lat:60.97,lon:-153.42,r:'ak',d:'Volcanoes, lakes and bears, reachable only by plane.'},
+ {n:'Wrangell-St. Elias',b:'glacier',ap:78,e:'🏔️',lat:61.00,lon:-142.00,r:'ak',d:'The largest U.S. park — bigger than Switzerland.'},
+ // ── Hawaii ──
+ {n:'Hawaii Volcanoes',b:'volcano',ap:88,e:'🌋',lat:19.43,lon:-155.29,r:'hi',d:'Active lava and Kīlauea on the Big Island.'},
+ {n:'Haleakalā',b:'volcano',ap:80,e:'🌋',lat:20.72,lon:-156.17,r:'hi',d:'A vast dormant volcano summit above the clouds, Maui.'},
+ // ── Territories ──
+ {n:'American Samoa',b:'coast',ap:64,e:'🏝️',lat:-14.25,lon:-170.68,r:'terr',d:'Rainforest and reefs across remote Pacific islands.'},
+ {n:'Virgin Islands',b:'coast',ap:70,e:'🏝️',lat:18.34,lon:-64.73,r:'terr',d:'Turquoise Caribbean bays and reefs on St. John.'},
+];
+
+// ── Biome palettes & obstacles ──
+const BIOME={
+ geyser:{g:'#5c7a44',o:'#a9c2c9',oem:'♨',obF:.10,wonder:'♨️'},
+ canyon:{g:'#b07a4a',o:'#7a4a28',oem:'',obF:.16,wonder:'🏜️'},
+ mountain:{g:'#6e8a5a',o:'#9aa0a8',oem:'',obF:.14,wonder:'🏔️'},
+ forest:{g:'#3c6b3a',o:'#244a22',oem:'🌲',obF:.30,wonder:'🌲'},
+ wetland:{g:'#4a7a52',o:'#2e6b6a',oem:'',obF:.30,wonder:'🐊'},
+ coast:{g:'#7a8a5a',o:'#2e6b8a',oem:'',obF:.22,wonder:'🌊'},
+ volcano:{g:'#5a6a4a',o:'#3a3a3a',oem:'',obF:.14,wonder:'🌋'},
+ cave:{g:'#6a7a4a',o:'#4a4438',oem:'',obF:.12,wonder:'🦇'},
+ desert:{g:'#c9aa66',o:'#8a6a3a',oem:'🌵',obF:.10,wonder:'🌵'},
+ glacier:{g:'#8aa0a0',o:'#dff',oem:'',obF:.18,wonder:'🏔️'},
+ prairie:{g:'#b9a85a',o:'#8a7a3a',oem:'🌾',obF:.08,wonder:'🌾'},
+ dunes:{g:'#e0c88a',o:'#c9aa66',oem:'',obF:.10,wonder:'🏜️'},
+};
+
+// ── Buildings ──
+const B={
+ 1:{key:'entrance',name:'Entrance',cost:200,up:4,em:'🚪',edge:true,desc:'Visitors enter here. Build on the park edge.'},
+ 2:{key:'road',name:'Road',cost:30,up:1,em:'🛣️',paint:true,desc:'Carries cars from the entrance to attractions.'},
+ 3:{key:'trail',name:'Trail',cost:12,up:1,em:'🥾',paint:true,desc:'Footpath. Cheaper & gentler than roads, but costs upkeep to keep open.'},
+ 4:{key:'parking',name:'Parking Lot',cost:300,up:8,em:'🅿️',cap:250,desc:'+250 visitor capacity.'},
+ 5:{key:'center',name:'Visitor Center',cost:1200,up:28,em:'🏛️',appeal:12,sat:.12,desc:'Big appeal & satisfaction boost.'},
+ 6:{key:'restroom',name:'Restroom',cost:240,up:6,em:'🚻',sat:.08,desc:'Happier visitors.'},
+ 7:{key:'camp',name:'Campground',cost:600,up:14,em:'🏕️',cap:160,rev:.25,desc:'Capacity + camping fees.'},
+ 8:{key:'lodge',name:'Lodge',cost:2500,up:55,em:'🏨',cap:320,rev:.6,appeal:6,desc:'Huge capacity + lodging revenue.'},
+ 9:{key:'ranger',name:'Ranger Station',cost:900,up:18,em:'👮',con:6,desc:'Protects the park; mitigates disasters.'},
+ 10:{key:'restore',name:'Restore Nature',cost:150,up:0,em:'🌿',con:4,desc:'Replant a plot — raises conservation.'},
+ 11:{key:'restaurant',name:'Restaurant',cost:1400,up:32,em:'🍽️',rev:.45,sat:.1,desc:'Dining — strong revenue & happier visitors.'},
+ 12:{key:'giftshop',name:'Gift Shop',cost:700,up:16,em:'🛍️',rev:.3,desc:'Souvenir sales — extra revenue per visitor.'},
+ 13:{key:'picnic',name:'Picnic Area',cost:180,up:3,em:'🧺',sat:.06,desc:'A cheap satisfaction boost.'},
+ 14:{key:'overlook',name:'Scenic Overlook',cost:500,up:6,em:'🔭',appeal:9,desc:'A viewpoint — big appeal. Build near a wonder.'},
+ 16:{key:'depot',name:'Maintenance Depot',cost:1100,up:20,em:'🚧',desc:'Crews slow road & trail wear across the whole park.'},
+ 98:{key:'repair',name:'Repair',cost:8,up:0,em:'🔧',paint:true,desc:'Drag over worn roads & trails to restore them to full condition.'},
+ 99:{key:'bulldoze',name:'Bulldoze',cost:0,up:0,em:'🧨',desc:'Remove a building (no refund).'},
+};
+const BUILD_ORDER=[1,2,3,4,6,13,5,14,7,8,11,12,9,16,10,98,99];
+// ── Park designations: grow from a state park up to a World Heritage Site ──
+const DESIGS=[
+ {n:'State Park',          mult:1.0, grant:0,     stipend:0,    req:null},
+ {n:'National Park',       mult:1.3, grant:9000,  stipend:150,  req:{rating:3,   con:50}},
+ {n:'National Preserve',   mult:1.6, grant:24000, stipend:400,  req:{rating:4,   con:65, acres:30000}},
+ {n:'World Heritage Site', mult:2.1, grant:60000, stipend:1000, req:{rating:4.5, con:80, acres:60000}},
+];
+// what's needed to promote a park to its next designation, and the act of promoting
+function upgradeInfo(p){ const next=DESIGS[(p.desig||0)+1]; if(!next) return null;
+  const r=next.req, miss=[];
+  if(p.stats.rating   < r.rating) miss.push(r.rating+'★ rating (now '+p.stats.rating.toFixed(1)+')');
+  if(p.stats.conservation < r.con) miss.push(r.con+'% conservation (now '+Math.round(p.stats.conservation)+')');
+  if(r.acres && acres(p) < r.acres) miss.push(r.acres.toLocaleString()+' acres (now '+acres(p).toLocaleString()+')');
+  return {next, miss, ok:miss.length===0}; }
+function doUpgrade(p){ const info=upgradeInfo(p); if(!info||!info.ok) return;
+  p.desig++; const d=DESIGS[p.desig]; cash+=d.grant; p.name=p.wonder.n+' '+d.n;
+  sfx('cash'); floatText(W/2,H*0.42,'⬆ '+d.n+'  +$'+d.grant.toLocaleString(),'#ffe08a');
+  event('⬆ '+p.wonder.n+' is now a '+d.n+'!','Designated a '+d.n+': +$'+d.grant.toLocaleString()+' grant, +$'+d.stipend+'/mo federal stipend, and ×'+d.mult+' visitor revenue from here on.');
+  updateTop(); }
+// ── Region-specific disasters by biome: [emoji, name, verb, mitigating building] ──
+const DISASTERS={
+ forest:['🔥','Wildfire','swept through','ranger'], mountain:['🔥','Wildfire','threatened','ranger'], geyser:['🔥','Wildfire','crept toward','ranger'],
+ wetland:['🌊','Flood','swamped','ranger'], coast:['🌊','Storm Surge','battered','ranger'],
+ desert:['☀️','Drought','scorched','restore'], dunes:['🏜️','Sandstorm','buried','ranger'],
+ glacier:['🏔️','Avalanche','roared down on','ranger'], volcano:['🌋','Eruption Scare','forced evacuation of','ranger'],
+ prairie:['🌪️','Tornado','tore through','ranger'], cave:['🪨','Cave-in','collapsed part of','ranger'], canyon:['⛏️','Rockfall','crashed into','ranger']};
+
+// ── Real signature landmarks per park: [name, emoji, appeal bonus, visual kind] ──
+const LANDMARKS={
+ 'Yellowstone':[['Old Faithful','♨️',10,'geyser'],['Grand Prismatic Spring','🌈',9,'spring'],['Lower Falls','💦',7,'falls'],['Lamar Valley','🦬',6,'meadow']],
+ 'Grand Canyon':[['South Rim','🌄',10,'canyon'],['Bright Angel Trail','🥾',7,'road'],['Colorado River','🛶',7,'water']],
+ 'Yosemite':[['Half Dome','⛰️',10,'peak'],['El Capitan','🧗',9,'peak'],['Yosemite Falls','💦',8,'falls'],['Glacier Point','🌅',7,'canyon']],
+ 'Zion':[['The Narrows','🏞️',9,'canyon'],['Angels Landing','🧗',8,'peak'],['Emerald Pools','💧',6,'spring']],
+ 'Grand Teton':[['Teton Range','🏔️',9,'peak'],['Jenny Lake','🛶',7,'water'],['Snake River','🌊',6,'water']],
+ 'Glacier':[['Going-to-the-Sun Road','🚗',9,'road'],['Lake McDonald','🛶',7,'water'],['Grinnell Glacier','🧊',8,'glacier']],
+ 'Rocky Mountain':[['Trail Ridge Road','🚗',8,'road'],['Bear Lake','🛶',7,'water'],['Longs Peak','🏔️',8,'peak']],
+ 'Great Smoky Mountains':[['Clingmans Dome','🌫️',8,'peak'],['Cades Cove','🦌',7,'meadow'],['Newfound Gap','🛣️',6,'road']],
+ 'Everglades':[['Anhinga Trail','🐊',8,'meadow'],['Shark Valley','🦩',7,'meadow'],['Ten Thousand Islands','🛶',6,'water']],
+ 'Acadia':[['Cadillac Mountain','🌅',9,'peak'],['Jordan Pond','🛶',7,'water'],['Thunder Hole','🌊',6,'water']],
+ 'Arches':[['Delicate Arch','🌉',10,'arch'],['Landscape Arch','🌉',8,'arch'],['Devils Garden','🏜️',6,'rock']],
+ 'Bryce Canyon':[['Bryce Amphitheater','🧱',9,'canyon'],['Thor\'s Hammer','🔨',7,'rock'],['Sunrise Point','🌅',6,'canyon']],
+ 'Sequoia':[['General Sherman','🌲',10,'tree'],['Moro Rock','🪨',7,'peak'],['Giant Forest','🌲',7,'tree']],
+ 'Olympic':[['Hoh Rain Forest','🌧️',9,'tree'],['Hurricane Ridge','🏔️',8,'peak'],['Rialto Beach','🌊',7,'water']],
+ 'Death Valley':[['Badwater Basin','🧂',9,'dunes'],['Zabriskie Point','🌄',8,'canyon'],['Mesquite Dunes','🏜️',6,'dunes']],
+ 'Joshua Tree':[['Cholla Cactus Garden','🌵',8,'cactus'],['Keys View','🌄',7,'canyon'],['Skull Rock','💀',6,'rock']],
+ 'Hawaii Volcanoes':[['Kīlauea Caldera','🌋',10,'lava'],['Halema\'uma\'u','🔥',8,'lava'],['Thurston Lava Tube','🕳️',6,'cave']],
+ 'Denali':[['Mount Denali','🏔️',10,'peak'],['Wonder Lake','🛶',7,'water'],['Savage River','🌊',5,'water']],
+ 'Mount Rainier':[['Paradise','🌸',9,'meadow'],['Sunrise','🌄',7,'meadow'],['Emmons Glacier','🧊',7,'glacier']],
+ 'Carlsbad Caverns':[['The Big Room','🕳️',9,'cave'],['Bat Flight','🦇',7,'cave']],
+ 'Mammoth Cave':[['Frozen Niagara','🧊',8,'cave'],['Historic Entrance','🕳️',6,'cave']],
+ 'Redwood':[['Tall Trees Grove','🌲',9,'tree'],['Fern Canyon','🌿',7,'tree']],
+ 'Crater Lake':[['Wizard Island','🏝️',9,'water'],['Rim Drive','🚗',7,'road']],
+ 'Saguaro':[['Signal Hill','🪨',7,'rock'],['Cactus Forest','🌵',7,'cactus']],
+ 'Badlands':[['The Door Trail','🪨',7,'canyon'],['Fossil Exhibit','🦴',6,'rock']],
+ 'Hot Springs':[['Bathhouse Row','♨️',8,'spring']],
+ 'Great Sand Dunes':[['Star Dune','🏜️',9,'dunes'],['Medano Creek','💧',6,'water']],
+ 'White Sands':[['Dune Field','🏜️',9,'dunes'],['Alkali Flat','🧂',6,'dunes']],
+ 'Mesa Verde':[['Cliff Palace','🏚️',9,'cave'],['Balcony House','🪜',7,'cave']],
+ 'Shenandoah':[['Skyline Drive','🚗',8,'road'],['Old Rag','🪨',7,'peak']],
+ 'Wind Cave':[['Boxwork Formations','🪨',7,'cave']],
+ 'Haleakalā':[['Summit Crater','🌋',9,'lava'],['Sliding Sands','🏜️',6,'dunes']],
+ 'Canyonlands':[['Mesa Arch','🌉',9,'arch'],['Island in the Sky','🏜️',7,'canyon']],
+ 'Kenai Fjords':[['Exit Glacier','🧊',9,'glacier'],['Aialik Bay','🌊',7,'water']],
+ 'Capitol Reef':[['Waterpocket Fold','🪨',7,'canyon'],['Hickman Bridge','🌉',6,'arch']],
+};
+// biome → visual kind for each park's central wonder
+const WKIND={geyser:'geyser',canyon:'canyon',mountain:'peak',forest:'tree',wetland:'water',coast:'water',volcano:'lava',cave:'cave',desert:'dunes',glacier:'glacier',prairie:'meadow',dunes:'dunes'};
+// generic natural wonders used to fill each park up to 20 (real signatures come first)
+const GENERIC=[
+ ['Hidden Falls','💦',5,'falls'],['Mirror Lake','🛶',5,'water'],['Eagle Peak','🏔️',6,'peak'],['Wildflower Meadow','🌼',4,'meadow'],
+ ['Crystal Cave','🦇',5,'cave'],['Painted Canyon','🧱',5,'canyon'],['Aspen Grove','🌲',4,'tree'],['Raven Rock','🪨',4,'rock'],
+ ['Emerald Lake','🛶',5,'water'],['Sunset Ridge','🌄',5,'peak'],['Echo Valley','🌾',4,'meadow'],['Twin Falls','💦',6,'falls'],
+ ['Lost Lagoon','💧',4,'water'],['Cedar Grove','🌲',4,'tree'],['Misty Gorge','🏞️',5,'canyon'],['Alpine Lake','🛶',5,'water'],
+ ['Bear Bluff','🪨',4,'rock'],['Granite Dome','⛰️',6,'peak'],['Fox Meadow','🌼',4,'meadow'],['Thunder Falls','💦',6,'falls'],
+ ['Hidden Arch','🌉',5,'arch'],['Frost Cave','🦇',5,'cave'],['Cliff Overlook','🌄',5,'canyon'],['Otter Pond','💧',4,'water'],
+ ['Silver Falls','💦',5,'falls'],['Blue Lagoon','🛶',5,'water'],['Hawk Ridge','🏔️',6,'peak'],['Sunflower Field','🌼',4,'meadow'],
+ ['Bat Grotto','🦇',5,'cave'],['Red Mesa','🧱',5,'canyon'],['Pine Hollow','🌲',4,'tree'],['Boulder Field','🪨',4,'rock'],
+ ['Glass Lake','🛶',5,'water'],['Vista Point','🌄',6,'peak'],['Marble Arch','🌉',6,'arch'],['Quiet Cove','💧',4,'water'],
+ ['Cougar Cliff','🪨',5,'rock'],['Birch Grove','🌲',4,'tree'],['Rainbow Falls','💦',6,'falls'],['Heron Marsh','🌾',4,'meadow']];
+// ── Park factory ──
+const PG=2280, PH=1560;                              // park grid (~3.56M tiles); explore by panning
+const ti=(x,y)=>y*PG+x;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+// small seeded PRNG so a whole park's terrain & wildlife can be regenerated from one number (for saves)
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+// roaming wildlife each biome supports (drawn from FAUNA); falls back to DEFAULT_FAUNA
+const DEFAULT_FAUNA=['deer','deer','elk','elk','bear','wolf','fox','rabbit','hawk','eagle','bison','coyote'];
+const BIOME_FAUNA={
+ desert:['coyote','coyote','fox','rabbit','rabbit','hawk','hawk','bighorn','deer','eagle'],
+ dunes:['coyote','rabbit','rabbit','fox','hawk','bighorn','deer'],
+ mountain:['elk','elk','bighorn','bighorn','deer','bear','wolf','hawk','eagle','fox','rabbit','coyote'],
+ glacier:['bighorn','bighorn','wolf','fox','elk','hawk','eagle','rabbit'],
+ forest:['deer','deer','elk','bear','bear','wolf','fox','raccoon','raccoon','rabbit','hawk','eagle','moose'],
+ wetland:['moose','moose','deer','deer','raccoon','fox','eagle','hawk','rabbit'],
+ coast:['deer','fox','eagle','eagle','hawk','rabbit','raccoon'],
+ prairie:['bison','bison','bison','coyote','coyote','elk','deer','hawk','eagle','rabbit','fox'],
+ geyser:['bison','bison','elk','elk','wolf','bear','coyote','deer','eagle','hawk','fox'],
+ volcano:['deer','fox','hawk','eagle','rabbit','coyote','bighorn'],
+ canyon:['bighorn','bighorn','coyote','fox','hawk','hawk','eagle','rabbit','deer'],
+ cave:['bear','fox','raccoon','deer','hawk','rabbit','coyote'],
+};
+function makePark(wonder,seed){
+  seed = (seed===undefined? (Math.random()*2147483647)|0 : seed)|0;
+  const R=mulberry32(seed>>>0);
+  const bm=BIOME[wonder.b];
+  const ground=new Int8Array(PG*PH), owned=new Uint8Array(PG*PH), build=new Int8Array(PG*PH);
+  const wx=PG>>1, wy=PH>>1;
+  // terrain obstacles across the whole wilderness
+  for(let i=0;i<PG*PH;i++){ if(R()<bm.obF) ground[i]=1; }
+  // coast/wetland water
+  if(wonder.b==='coast'){ for(let y=0;y<PH;y++)for(let x=0;x<10;x++) ground[ti(x,y)]= (x<7||R()<.5)?2:0; }
+  if(wonder.b==='wetland'){ for(let i=0;i<PG*PH;i++) if(R()<.20) ground[i]=2; }
+  // 2–3 winding rivers snake through the park (cross them with a Trail/boardwalk)
+  if(wonder.b!=='desert'&&wonder.b!=='dunes'){ const nRiv=2+Math.floor(R()*2);
+    for(let rN=0;rN<nRiv;rN++){ let rx=20+Math.floor(R()*(PG-40)); const wdt=2+Math.floor(R()*2);
+      for(let ry=0;ry<PH;ry++){ for(let w=-wdt;w<=wdt;w++){ const cxx=clamp(rx+w,0,PG-1); ground[ti(cxx,ry)]=2; }
+        rx=clamp(rx+Math.round((R()-0.5)*2.6),3,PG-4); } } }
+  // scattered lakes — elliptical water bodies (kept away from your starting area)
+  if(wonder.b!=='desert'){ const nLake=8+Math.floor(R()*7);
+    for(let l=0;l<nLake;l++){ const lcx=40+Math.floor(R()*(PG-80)), lcy=40+Math.floor(R()*(PH-80));
+      if(Math.abs(lcx-(PG>>1))<55 && Math.abs(lcy-(PH>>1))<55) continue;
+      const rax=10+Math.floor(R()*26), ray=7+Math.floor(R()*18);
+      for(let dy=-ray;dy<=ray;dy++)for(let dx=-rax;dx<=rax;dx++){ if((dx*dx)/(rax*rax)+(dy*dy)/(ray*ray)<=1){ const tx=lcx+dx,ty=lcy+dy; if(tx>=0&&ty>=0&&tx<PG&&ty<PH) ground[ti(tx,ty)]=2; } } } }
+  // clear a plaza around the wonder
+  for(let y=-3;y<=3;y++)for(let x=-3;x<=3;x++){ const tx=wx+x,ty=wy+y; if(tx>=0&&ty>=0&&tx<PG&&ty<PH) ground[ti(tx,ty)]=0; }
+  ground[ti(wx,wy)]=3;                                 // the wonder tile
+  // guaranteed clear approach corridor so the park is always connectable from the start
+  for(let x=wx-9;x<wx;x++) if(x>=0) ground[ti(x,wy)]=0;
+  // initial owned parcel (small — there's a vast park to explore & expand into)
+  let ownedCount=0;
+  for(let y=wy-7;y<=wy+7;y++)for(let x=wx-9;x<=wx+9;x++) if(x>=0&&y>=0&&x<PG&&y<PH){ owned[ti(x,y)]=1; ownedCount++; }
+  // ── 30 natural wonders per park; the outer 18 are spread far across the map ──
+  const pool=(LANDMARKS[wonder.n]||[]).map(L=>({n:L[0],e:L[1],ap:L[2],kind:L[3]}));
+  const off=wonder.n.length*3;
+  for(let gi=0; pool.length<30; gi++){ const G=GENERIC[(off+gi)%GENERIC.length]; pool.push({n:G[0],e:G[1],ap:G[2],kind:G[3]}); }
+  const landmarks=[]; const GA=2.39996323;                         // golden-angle spiral = even spacing
+  pool.forEach((L,k)=>{ const r=17+k*8, ang=k*GA+off;              // spiral scaled to the map size
+    const lx=clamp(Math.round(wx+Math.cos(ang)*r),6,PG-7), ly=clamp(Math.round(wy+Math.sin(ang)*r),6,PH-7);
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++) ground[ti(lx+dx,ly+dy)]=4;             // 3×3 protected wonder (bigger)
+    for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){ const j=ti(clamp(lx+dx,0,PG-1),clamp(ly+dy,0,PH-1)); if(ground[j]===1||ground[j]===2) ground[j]=0; } // clearable approach
+    landmarks.push({x:lx,y:ly,n:L.n,e:L.e,ap:L.ap,kind:L.kind,found:false}); });
+  // spawn lots of roaming, biome-appropriate wildlife around the wonder (so you actually see them)
+  const animals=[], kinds=BIOME_FAUNA[wonder.b]||DEFAULT_FAUNA, N=70+Math.floor(R()*26);
+  for(let k=0;k<N;k++){ const ty=kinds[Math.floor(R()*kinds.length)], ang=R()*6.28, rad=20+R()*420;
+    const ax=clamp(Math.round(wx+Math.cos(ang)*rad),3,PG-4), ay=clamp(Math.round(wy+Math.sin(ang)*rad),3,PH-4);
+    if(ground[ti(ax,ay)]===2 && !FAUNA[ty].fly) continue;
+    animals.push({type:ty, x:ax+0.5, y:ay+0.5, dir:R()*6.28, spd:FAUNA[ty].spd*(0.6+R()*0.6), tt:R()*3}); }
+  return { name:wonder.n+' '+DESIGS[0].n, desig:0, seed:seed>>>0, wonder, bm, ground, owned, build, wx, wy, landmarks, animals, ownedCount,
+    cond:new Map(),                              // tile index → road/trail condition 0..100
+    bounds:{x0:Math.max(0,wx-9),y0:Math.max(0,wy-7),x1:Math.min(PG-1,wx+9),y1:Math.min(PH-1,wy+7)},
+    stats:{visitors:0,rating:0,conservation:80,rev:0,up:0}, opened:false, _conn:false, _broken:0,
+    _counts:emptyCounts(), _up:0, entrances:new Set(), roads:new Set(), roadArr:[], cars:[],
+    goals:freshGoals(), goalIdx:0 };
+}
+// a natural wonder is discovered when a path (road/trail/entrance) is built next to it
+function checkDiscoveries(p){ let found=false;
+  for(const L of p.landmarks){ if(L.found) continue; let hit=false;
+    for(let dy=-2;dy<=2&&!hit;dy++)for(let dx=-2;dx<=2;dx++){ const nx=L.x+dx,ny=L.y+dy;   // reach the edge of the big 3×3 wonder
+      if(nx<0||ny<0||nx>=PG||ny>=PH) continue; const id=p.build[ti(nx,ny)];
+      if(id&&(B[id].key==='road'||B[id].key==='trail'||B[id].key==='entrance')){ L.found=true; found=true; hit=true;
+        toast('🔭 Discovered '+L.e+' '+L.n+'!  (+'+L.ap+' appeal)'); sfx('cash'); puff(L.x+0.5,L.y+0.5,'spark'); break; } }
+  }
+  return found; }
+function freshGoals(){ return [
+  {id:'open',t:'Open the park: connect the wonder to an Entrance by road or trail',done:false,grant:1500},
+  {id:'v500',t:'Draw 500 visitors in a month',done:false,grant:2500},
+  {id:'s3',t:'Reach a 3★ park rating',done:false,grant:4000},
+  {id:'acres',t:'Protect 30,000 acres (buy land)',done:false,grant:5000},
+  {id:'s5',t:'Reach 5★ with conservation above 70%',done:false,grant:9000},
+  {id:'second',t:'Found a second national park',done:false,grant:6000},
+]; }
+
+// ── Sim ──
+function emptyCounts(){ const c={}; for(const k in B) c[B[k].key]=0; c._trail=0; c._road=0; return c; }
+function countB(p){ return p._counts; }
+// place/remove a build tile and keep counts, upkeep & the entrance list current — O(1), no grid scan
+function setBuild(p,i,newId){ const old=p.build[i]; if(old===newId) return;
+  if(old){ const b=B[old]; p._counts[b.key]--; p._up-=b.up; if(b.key==='trail'){p._counts._trail--; p.cond.delete(i);} if(b.key==='road'){p._counts._road--; p.roads.delete(i); const rix=p.roadArr.indexOf(i); if(rix>=0) p.roadArr.splice(rix,1); p.cond.delete(i);} if(b.key==='entrance')p.entrances.delete(i); }
+  p.build[i]=newId;
+  if(newId){ const b=B[newId]; p._counts[b.key]++; p._up+=b.up; if(b.key==='trail'){p._counts._trail++; p.cond.set(i,100);} if(b.key==='road'){p._counts._road++; p.roads.add(i); p.roadArr.push(i); p.cond.set(i,100);} if(b.key==='entrance')p.entrances.add(i); } }
+// ── Cars that drive along the road network ──
+const CARCOLS=['#d4493a','#3f7fc8','#dcd2bc','#46974a','#dfe3e8','#e89030','#9a5ec8'];
+function carHop(p,gx,gy,fx,fy){ const o=[]; for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=gx+dx,ny=gy+dy; if(nx<0||ny<0||nx>=PG||ny>=PH)continue; const ci=ny*PG+nx, id=p.build[ci]; if(id&&(B[id].key==='entrance'||(B[id].key==='road'&&(p.cond.get(ci)??100)>0))){ if(nx===fx&&ny===fy)continue; o.push([nx,ny]); } }
+  if(!o.length && fx>=0){ const id=p.build[fy*PG+fx]; if(id) o.push([fx,fy]); }           // dead end: turn around
+  return o.length? o[Math.floor((gx*7+gy*13+o.length*3)+ (p.cars.length))%o.length] : null; }
+function randRoad(p){ for(let g=0;g<8;g++){ const i=p.roadArr[(p.roadArr.length*0.999*Math.random())|0]; if(i!==undefined&&p.roads.has(i)) return i; } return -1; }
+function updateCars(p,dt){ if(!p.roadArr) return; dt=Math.min(dt,0.05);
+  const target=Math.min(28, Math.floor(p.roads.size/7));
+  let guard=0;
+  while(p.cars.length<target && guard++<6){ const i=randRoad(p); if(i<0)break; const gx=i%PG, gy=(i/PG)|0, nb=carHop(p,gx,gy,-1,-1); if(!nb)continue;
+    p.cars.push({gx,gy,fx:gx,fy:gy,tx:nb[0],ty:nb[1],px:gx,py:gy,t:0,spd:0.9+Math.random()*0.9,col:CARCOLS[(p.cars.length+gx)%CARCOLS.length]}); }
+  if(p.cars.length>target) p.cars.length=target;
+  for(const car of p.cars){ car.t+=dt*car.spd;
+    if(car.t>=1){ car.t-=1; const px=car.gx, py=car.gy; car.gx=car.tx; car.gy=car.ty; const nb=carHop(p,car.gx,car.gy,px,py);
+      if(nb){ car.tx=nb[0]; car.ty=nb[1]; } else { const i=randRoad(p); if(i>=0){ car.gx=i%PG; car.gy=(i/PG)|0; car.tx=car.gx; car.ty=car.gy; } } }
+    car.px=car.gx+(car.tx-car.gx)*car.t; car.py=car.gy+(car.ty-car.gy)*car.t; } }
+function drawCars(p,x0,y0,x1,y1){ if(!p.cars) return;
+  for(const car of p.cars){ if(car.px<x0-1||car.px>x1+1||car.py<y0-1||car.py>y1+1) continue;
+    const cx=camX+car.px*TS+TS/2, cy=camY+car.py*TS+TS/2, horiz=Math.abs(car.tx-car.gx)>=Math.abs(car.ty-car.gy);
+    const w=horiz?TS*0.52:TS*0.32, h=horiz?TS*0.32:TS*0.52;
+    ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(cx-w/2+1,cy-h/2+2,w,h);
+    ctx.fillStyle=car.col; ctx.fillRect(cx-w/2,cy-h/2,w,h);
+    ctx.fillStyle='rgba(180,220,255,0.85)'; if(horiz) ctx.fillRect(cx+w*0.06,cy-h/2+1,w*0.3,h-2); else ctx.fillRect(cx-w/2+1,cy+h*0.06,w-2,h*0.3); } }
+// connectivity: BFS only over actual path tiles (sparse Set), seeded from the tracked entrance list
+function connected(p){ if(!p.entrances||p.entrances.size===0) return false;
+  const seen=new Set(), q=[]; for(const e of p.entrances){ q.push(e); seen.add(e); }
+  const walkOK=(idx)=>{ const id=p.build[idx]; if(!id) return false; const k=B[id].key;
+    if(k==='entrance') return true; if(k==='road'||k==='trail') return (p.cond.get(idx)??100)>0; return false; };
+  let gd=0;
+  while(q.length && gd++<400000){ const idx=q.pop(), x=idx%PG, y=(idx/PG)|0;
+    if(Math.abs(x-p.wx)+Math.abs(y-p.wy)<=1) return true;
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=x+dx,ny=y+dy; if(nx<0||ny<0||nx>=PG||ny>=PH)continue; const ni=ny*PG+nx; if(seen.has(ni))continue; if(walkOK(ni)){ seen.add(ni); q.push(ni); } } }
+  return false; }
+function acres(p){ return p.ownedCount*50; }   // O(1) — scanning 1.2M tiles every frame would lag
+function tickPark(p){
+  const c=p._counts||countB(p), conn=p._conn, sm=seasonMult(), st=p.stats.rating;
+  let foundBonus=0; for(const L of p.landmarks) if(L.found) foundBonus+=L.ap;   // only discovered wonders add appeal
+  const conPen = p.stats.conservation<35 ? (p.stats.conservation<20?0.45:0.78) : 1;
+  const appeal = ((p.wonder.ap + (conn?foundBonus:0))*(conn?1:0.12) + c.center*B[5].appeal + c.lodge*B[8].appeal + c.overlook*B[14].appeal) * conPen;
+  const cap = 120 + c.parking*250 + c.camp*160 + c.lodge*320;
+  let sat = 0.45 + c.restroom*B[6].sat + c.center*B[5].sat + c.restaurant*B[11].sat + c.picnic*B[13].sat;
+  const demand = appeal*sm*(0.5+0.5*st/5)*11;
+  let vis = Math.min(demand,cap);
+  if(vis>cap*0.9) sat-=0.18;
+  sat=clamp(sat,0,1);
+  const dz = DESIGS[p.desig||0];
+  const rev = Math.round((vis*8 + c.lodge*vis*B[8].rev + c.camp*vis*B[7].rev + c.restaurant*vis*B[11].rev + c.giftshop*vis*B[12].rev) * dz.mult);
+  const up = p._up||0;
+  p.stats.visitors=Math.round(vis); p.stats.rev=rev; p.stats.up=up;
+  const protect = c.ranger*6 + c.restore*4 + c._trail*0.03 + 3;
+  p.stats.conservation = clamp(p.stats.conservation + protect - vis*0.006, 0, 100);
+  const variety = clamp((c.center+c.restroom+c.camp+c.parking+c.ranger+c.restaurant+c.giftshop+c.overlook+c.picnic)/8,0,1);
+  const rating = (appeal/100)*1.4 + (conn?1.2:0) + sat*1.2 + (p.stats.conservation/100)*0.9 + variety*0.3;
+  p.stats.rating = clamp(Math.round(rating*10)/10,0,5);
+  return rev - up + dz.stipend;
+}
+// roads & trails wear down each month — heavy traffic & winter erode them faster; a Maintenance Depot slows it
+function decayPaths(p){ if(!p.cond||p.cond.size===0){ p._broken=0; return; }
+  const c=p._counts, vis=p.stats.visitors||0;
+  const wear=(0.6 + vis*0.0014)*(season()==='Winter'?1.8:1)/(1+(c.depot||0)*0.8);
+  let broken=0; for(const [i,cv] of p.cond){ const nv=Math.max(0,cv-wear); p.cond.set(i,nv); if(nv<=0) broken++; }
+  if(broken>(p._broken||0)) toast('🛠 '+p.name+': '+broken+' path tile(s) have crumbled — use the 🔧 Repair tool before visitors are cut off!');
+  p._broken=broken; }
+function advanceMonth(){
+  let net=0; for(const p of parks){ decayPaths(p); p._conn=connected(p); net+=tickPark(p); } cash+=net;
+  if(parks.length && net!==0) floatText(96,64,(net>0?'+$':'−$')+Math.abs(net).toLocaleString(),net>=0?'#9be08a':'#ff8a8a');
+  checkGoals();
+  for(const p of parks){ const info=upgradeInfo(p), ok=!!(info&&info.ok);   // one-time nudge when a park first qualifies to promote
+    if(ok&&!p._promoReady){ toast('⬆ '+p.wonder.n+' qualifies as a '+info.next.n+' — hit the glowing Promote button!'); sfx('cash'); }
+    p._promoReady=ok; }
+  if(month>0 && month%4===0) maybeEvent();          // ~once a year
+  month++; updateTop();
+}
+function maybeEvent(){
+  if(!parks.length||Math.random()<0.45) return;
+  const p=parks[Math.floor(Math.random()*parks.length)], c=countB(p), roll=Math.random();
+  if(roll<0.35){ const [em,nm,verb,mit]=DISASTERS[p.wonder.b]||['⚠️','Disaster','struck','ranger'];
+    const crew = mit==='ranger'?'ranger crews':'restoration plots', bldg = mit==='ranger'?'Ranger Station':'Restore Nature plots';
+    if(c[mit]>0){ event(em+' '+nm+' near '+p.name, 'A '+nm.toLowerCase()+' '+verb+' '+p.name+', but your '+crew+' kept it in check. Conservation held steady.'); }
+    else { p.stats.conservation=clamp(p.stats.conservation-25,0,100); const loss=Math.round(cash*0.06); cash-=loss; sfx('bad');
+      event(em+' '+nm+'!', 'A '+nm.toLowerCase()+' '+verb+' '+p.name+' with no '+bldg+' to mitigate it — $'+loss.toLocaleString()+' in damage and lost conservation. Build '+(mit==='ranger'?'ranger stations':'restoration plots')+'!'); } }
+  else if(roll<0.6){ const g=2000+Math.floor(Math.random()*4000); cash+=g; sfx('cash'); event('🏛️ Federal Grant','Congress approved $'+g+' for the National Park Service.'); }
+  else if(roll<0.8){ event('📈 Record Season!','Great weather brought a surge of visitors to '+p.name+' this season.'); /* handled by season mult naturally; small cash bump */ cash+=Math.round(p.stats.rev*0.5); }
+  else if(p.stats.conservation<45){ p.stats.conservation=clamp(p.stats.conservation-8,0,100); event('⚠️ Loved to Death',p.name+' is overcrowded and the wonder is degrading. Add trails, ranger stations & restoration plots.'); }
+}
+function checkGoals(){
+  for(const p of parks){ const g=p.goals[p.goalIdx]; if(!g) continue; let ok=false;
+    if(g.id==='open') ok=p._conn;
+    else if(g.id==='v500') ok=p.stats.visitors>=500;
+    else if(g.id==='s3') ok=p.stats.rating>=3;
+    else if(g.id==='acres') ok=acres(p)>=30000;
+    else if(g.id==='s5') ok=p.stats.rating>=5 && p.stats.conservation>=70;
+    else if(g.id==='second') ok=parks.length>=2;
+    if(ok){ g.done=true; cash+=g.grant; toast('🎉 Goal complete: '+g.t+'  +$'+g.grant); sfx('goal'); floatText(W/2,H*0.4,'🎉 +$'+g.grant.toLocaleString(),'#ffe08a'); p.goalIdx++; if(g.id==='open'){ p.opened=true; } } }
+  renderGoals();
+}
+
+// ── UI helpers ──
+const logEl=$('log'); const logs=[];
+function toast(m){ logs.unshift(m); if(logs.length>6) logs.pop(); logEl.innerHTML=logs.map(l=>'<div>'+l+'</div>').join(''); }
+const modal=$('modal');
+function event(t,p){ $('mT').textContent=t; $('mP').textContent=p; modal.style.display='block'; running=false; acc=0; updateSpeedBtn(); toast(t); }
+$('mB').onclick=()=>{ modal.style.display='none'; running=true; acc=0; updateSpeedBtn(); };
+// ── Polish: synthesized sound effects (no assets), floating text & cursor feedback ──
+let actx=null, sfxOn=true, _lastBlip=0;
+function audioCtx(){ if(actx) return actx; try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ actx=null; } return actx; }
+function resumeAudio(){ const a=audioCtx(); if(a&&a.state==='suspended') a.resume(); }
+function blip(freq,dur,type,vol){ const a=audioCtx(); if(!a||!sfxOn) return;
+  const now=a.currentTime; if(now-_lastBlip<0.035) return; _lastBlip=now;        // throttle so drags don't buzz
+  const o=a.createOscillator(), g=a.createGain(); o.type=type||'sine'; o.frequency.value=freq;
+  o.connect(g); g.connect(a.destination);
+  g.gain.setValueAtTime(0.0001,now); g.gain.exponentialRampToValueAtTime(vol||0.05,now+0.01); g.gain.exponentialRampToValueAtTime(0.0001,now+(dur||0.12));
+  o.start(now); o.stop(now+(dur||0.12)+0.02); }
+function sfx(name){ if(!sfxOn||!audioCtx()) return;
+  if(name==='build') blip(420,0.09,'square',0.045);
+  else if(name==='trail') blip(300,0.08,'triangle',0.04);
+  else if(name==='repair') blip(560,0.09,'sine',0.045);
+  else if(name==='cash'){ blip(660,0.08,'sine',0.05); setTimeout(()=>blip(880,0.11,'sine',0.05),70); }
+  else if(name==='goal'){ blip(523,0.12,'sine',0.06); setTimeout(()=>blip(659,0.12,'sine',0.06),110); setTimeout(()=>blip(784,0.18,'sine',0.06),220); }
+  else if(name==='bad') blip(130,0.35,'sawtooth',0.06);
+  else if(name==='click') blip(340,0.05,'square',0.03);
+  else if(name==='step') blip(170,0.05,'sine',0.022); }
+// floating "+$" style text, in screen space, drawn on top of everything
+let floaters=[];
+function floatText(x,y,txt,col){ floaters.push({x,y,txt,col:col||'#ffe08a',born:performance.now()}); if(floaters.length>40) floaters.shift(); }
+function drawFloaters(){ if(!floaters.length) return; const now=performance.now();
+  floaters=floaters.filter(f=>now-f.born<1500);
+  ctx.save(); ctx.textAlign='center'; ctx.font='bold 15px monospace';
+  for(const f of floaters){ const e=(now-f.born)/1500, yy=f.y-e*46; ctx.globalAlpha=Math.max(0,1-e);
+    ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillText(f.txt,f.x+1,yy+1); ctx.fillStyle=f.col; ctx.fillText(f.txt,f.x,yy); }
+  ctx.globalAlpha=1; ctx.textAlign='left'; ctx.restore(); }
+function updateCursor(){ if(typeof cv==='undefined') return;
+  if(view==='map'){ cv.style.cursor= mapDrag?'grabbing':'grab'; return; }
+  if(panning){ cv.style.cursor='grabbing'; return; }
+  cv.style.cursor = (tool||landMode)?'crosshair':'grab'; }
+function updateTop(){
+  $('tDate').textContent=season()+' · Year '+year();   // cash is tweened each frame in the loop
+  $('parkInfo').style.display = (view==='park'&&current)?'flex':'none';
+  if(view==='park'&&current){ const p=current; $('tName').textContent=p.name;
+    $('tStars').textContent='★'.repeat(Math.round(p.stats.rating))+'☆'.repeat(5-Math.round(p.stats.rating))+' '+p.stats.rating.toFixed(1);
+    $('tVis').textContent=p.stats.visitors.toLocaleString();
+    $('tCon').textContent=Math.round(p.stats.conservation);
+    $('tAcres').textContent=acres(p).toLocaleString();
+    $('tDesig').textContent='🏅 '+DESIGS[p.desig||0].n;
+    let sum=0,cnt=0; for(const v of p.cond.values()){ sum+=v; cnt++; }
+    const hp=cnt?Math.round(sum/cnt):100, he=$('tHealth');
+    he.textContent='🛣 '+hp+'%'; he.style.color = hp>=70?'#9be08a':hp>=40?'#ffd34d':'#ff6b6b';
+    const ub=$('tUpgrade'), info=upgradeInfo(p);
+    if(!info){ ub.style.display='none'; }
+    else { ub.style.display='inline-block';
+      ub.textContent = info.ok ? '⬆ Promote to '+info.next.n+'  +$'+info.next.grant.toLocaleString() : '🔒 '+info.next.n;
+      ub.className = info.ok ? 'ready' : ''; } }
+  $('palette').style.display=(view==='park'&&!visitMode)?'block':'none';
+  $('goals').style.display=(view==='park'&&!goalsHidden)?'block':'none';
+  const vb=$('tVisit'); vb.style.display=(view==='park'&&current)?'':'none'; vb.textContent=visitMode?'🏗 Back to Building':'🚶 Visit the Park';
+  updateCursor();
+}
+function renderGoals(){ if(!current){return;} const el=$('goalList');
+  el.innerHTML=current.goals.map((g,i)=>'<div class="goal '+(g.done?'done':i===current.goalIdx?'cur':'')+'">'+(g.done?'✔ ':i===current.goalIdx?'▶ ':'○ ')+g.t+' <span style="color:#ffe08a">(+$'+g.grant+')</span></div>').join(''); }
+
+// ── Build palette ──
+let tool=null;
+function renderPalette(){ const el=$('tools'); el.innerHTML='';
+  for(const id of BUILD_ORDER){ const b=B[id]; const d=document.createElement('div'); d.className='tool'+(tool===id?' sel':'');
+    d.innerHTML='<span class="em">'+b.em+'</span><span class="nm">'+b.name+'</span>'+(b.cost?'<span class="ct">$'+b.cost+'</span>':'');
+    d.onclick=()=>{ tool= tool===id?null:id; landMode=false; sfx('click'); renderPalette(); showTip(b.desc); }; el.appendChild(d); }
+  const lm=document.createElement('div'); lm.className='tool'+(landMode?' sel':''); lm.innerHTML='<span class="em">🟩</span><span class="nm">Buy Land</span><span class="ct">expand</span>';
+  lm.onclick=()=>{ landMode=!landMode; tool=null; sfx('click'); renderPalette(); showTip('Buy Land: click for a 3×3 chunk, or hold & drag across wild land to expand fast.'); }; el.appendChild(lm);
+  updateCursor();
+}
+let landMode=false;
+function showTip(t){ $('tip').textContent=t||''; }
+
+// ── Camera (park view) — the park is huge, so we pan & zoom over it ──
+let camX=0,camY=0,TS=22;
+const TOPB=66;                                       // space reserved for the top HUD bar
+function clampCam(){ const mw=PG*TS, mh=PH*TS, vh=H-TOPB;   // keep the park filling the view — never show empty void
+  if(mw<=W) camX=(W-mw)/2; else camX=clamp(camX, W-mw, 0);
+  if(mh<=vh) camY=TOPB+(vh-mh)/2; else camY=clamp(camY, H-mh, TOPB); }
+function centerOn(gx,gy){ camX=W/2-(gx+0.5)*TS; camY=(TOPB+H)/2-(gy+0.5)*TS; clampCam(); }
+function fitPark(){ TS=22; centerOn(current.wx,current.wy); }
+function miniRect(){ const w=Math.min(230,W*0.18), s=w/PG; return {x:W/2-w/2, y:H-PH*s-12, w, h:PH*s, s}; }
+// brief coloured outline feedback when you build / can't build
+let flashes=[];
+function flashAt(x,y,col){ flashes.push({x,y,col,until:performance.now()+650}); if(flashes.length>50) flashes.shift(); }
+// particles — world-space grid coords. kinds: dust (build), spark (discovery), repair, debris (bulldoze)
+let particles=[];
+function puff(gx,gy,kind){ const n= kind==='debris'?11:kind==='spark'?9:6;
+  for(let i=0;i<n;i++){ const a=Math.random()*6.28, sp=0.4+Math.random()*1.3;
+    particles.push({x:gx,y:gy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-0.5,life:0,max:0.45+Math.random()*0.45,kind}); }
+  if(particles.length>500) particles.splice(0,particles.length-500); }
+function updateParticles(dt){ if(!particles.length) return;
+  for(const q of particles){ q.life+=dt; q.x+=q.vx*dt*2.6; q.y+=q.vy*dt*2.6; q.vy+=dt*2.4; }
+  particles=particles.filter(q=>q.life<q.max); }
+function drawParticles(x0,y0,x1,y1){ if(!particles.length) return;
+  for(const q of particles){ if(q.x<x0-1||q.x>x1+1||q.y<y0-1||q.y>y1+1) continue;
+    const e=q.life/q.max, sx=camX+q.x*TS, sy=camY+q.y*TS, r=Math.max(1,TS*0.13)*(1-e*0.5);
+    ctx.globalAlpha=Math.max(0,1-e);
+    ctx.fillStyle = q.kind==='spark'?'#ffe08a':q.kind==='repair'?'#7ee0ff':q.kind==='debris'?'#9a8a6a':'#cdb893';
+    ctx.beginPath(); ctx.arc(sx,sy,r,0,7); ctx.fill(); }
+  ctx.globalAlpha=1; }
+// quick screen fade when changing views / founding a park
+let trans=0;
+function startTransition(){ trans=1; }
+function drawTransition(dt){ if(trans<=0) return; trans=Math.max(0,trans-dt*2.4);
+  ctx.save(); ctx.globalAlpha=Math.min(1,trans)*0.9; ctx.fillStyle='#06100b'; ctx.fillRect(0,0,W,H); ctx.restore(); }
+function drawPausePill(){ const w=210,h=26,x=W/2-w/2,y=TOPB+10, pu=0.6+0.4*Math.sin(performance.now()/300);
+  ctx.save(); ctx.globalAlpha=pu; ctx.fillStyle='rgba(8,18,12,0.88)'; ctx.strokeStyle='rgba(255,211,77,0.85)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(x,y,w,h,8); else ctx.rect(x,y,w,h); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#ffd34d'; ctx.font='bold 13px monospace'; ctx.textAlign='center'; ctx.fillText('⏸  PAUSED — press ▶ to resume',W/2,y+17); ctx.textAlign='left'; ctx.restore(); }
+// seasonal + time-of-day ambient flourishes over the visible park (cheap, procedural — no state)
+function drawAmbience(t,vx,vy,vw,vh,seas,sun){ if(vw<=0||vh<=0) return;
+  const W2=Math.max(1,vw), H2=Math.max(1,vh);
+  ctx.save(); ctx.beginPath(); ctx.rect(vx,vy,vw,vh); ctx.clip();
+  if(seas===2){ const cols=['#d2691e','#c0392b','#e0a020','#a0522d'];     // FALL — drifting leaves on the wind
+    for(let k=0;k<46;k++){ const sp=12+(k%5)*6, lx=vx+((k*131+t*sp)%(W2+40))-20,
+      ly=vy+((k*97+t*sp*0.6+Math.sin(t*1.3+k)*18)%(H2+40))-20, r=2+(k%3);
+      ctx.save(); ctx.translate(lx,ly); ctx.rotate(t*1.2+k); ctx.globalAlpha=0.75; ctx.fillStyle=cols[k%cols.length];
+      ctx.fillRect(-r,-r*0.5,r*2,r); ctx.restore(); } ctx.globalAlpha=1; }
+  if(seas===0){ for(let k=0;k<40;k++){ const sp=8+(k%4)*4,                 // SPRING — soft drifting petals
+      px=vx+((k*149+t*sp)%(W2+30))-15, py=vy+((k*71+Math.sin(t*0.9+k)*22+t*3)%(H2+30))-15;
+      ctx.fillStyle='rgba(255,235,245,0.5)'; ctx.beginPath(); ctx.arc(px,py,1.5+(k%2),0,7); ctx.fill(); } }
+  if(sun<0.12){ const dens=sun<-0.1?46:26;                                // DUSK/NIGHT — fireflies
+    for(let k=0;k<dens;k++){ const bx=vx+((k*0.6180339887)%1)*W2, by=vy+((k*0.7548776662)%1)*H2,
+      fx=bx+Math.sin(t*0.7+k*1.7)*26, fy=by+Math.cos(t*0.6+k*2.1)*20,
+      pulse=0.35+0.65*Math.pow(Math.max(0,Math.sin(t*3+k*1.3)),2);
+      const gl=ctx.createRadialGradient(fx,fy,0,fx,fy,6); gl.addColorStop(0,'rgba(210,255,140,'+(0.9*pulse).toFixed(2)+')'); gl.addColorStop(1,'rgba(210,255,140,0)');
+      ctx.fillStyle=gl; ctx.beginPath(); ctx.arc(fx,fy,6,0,7); ctx.fill();
+      ctx.fillStyle='rgba(235,255,170,'+(0.95*pulse).toFixed(2)+')'; ctx.fillRect(fx-0.8,fy-0.8,1.6,1.6); } }
+  ctx.restore();
+  if(sun<-0.1){ const k=Math.min(1,(-sun-0.1)/0.6), mx2=W*0.84, my2=TOPB+58;   // MOON — soft ambient light orb at night
+    const gl=ctx.createRadialGradient(mx2,my2,0,mx2,my2,130); gl.addColorStop(0,'rgba(200,220,255,'+(0.16*k).toFixed(3)+')'); gl.addColorStop(1,'rgba(200,220,255,0)');
+    ctx.fillStyle=gl; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='rgba(236,242,255,'+(0.55*k).toFixed(2)+')'; ctx.beginPath(); ctx.arc(mx2,my2,15,0,7); ctx.fill();
+    ctx.fillStyle='rgba(205,215,240,'+(0.5*k).toFixed(2)+')'; ctx.beginPath(); ctx.arc(mx2+5,my2-4,4,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(mx2-4,my2+5,3,0,7); ctx.fill(); }  // craters
+}
+
+// ── Input ──
+let mx=0,my=0,down=false,panning=false,panSX=0,panSY=0,panCX=0,panCY=0;
+let mapDrag=false,mapDownX=0,mapDownY=0,mapPX0=0,mapPY0=0,mapMoved=0;
+let dragGX=-1,dragGY=-1,parkEdited=false;
+const keys={};
+addEventListener('keydown',e=>{ const k=e.key.toLowerCase(); keys[k]=true; if(['arrowup','arrowdown','arrowleft','arrowright'].includes(k))e.preventDefault();
+  if(k==='escape'&&visitMode) exitVisit(); });
+addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
+// apply fn to every cell along the line from (x0,y0)→(x1,y1) so fast drags leave no gaps
+function lineApply(x0,y0,x1,y1,fn){ if(x0<0){ fn(x1,y1); return; }
+  let dx=Math.abs(x1-x0), dy=Math.abs(y1-y0), sx=x0<x1?1:-1, sy=y0<y1?1:-1, err=dx-dy, x=x0,y=y0,gd=0;
+  while(gd++<5000){ fn(x,y); if(x===x1&&y===y1)break; const e2=2*err; if(e2>-dy){err-=dy;x+=sx;} if(e2<dx){err+=dx;y+=sy;} } }
+// listen on the window (not just the canvas) so a drag continues even over the side panels
+addEventListener('mousemove',e=>{ mx=e.clientX; my=e.clientY;
+  if(mapDrag){ mapPanX=mapPX0+(mx-mapDownX); mapPanY=mapPY0+(my-mapDownY); mapMoved=Math.max(mapMoved,Math.hypot(mx-mapDownX,my-mapDownY)); clampMapPan(); }
+  else if(panning){ camX=panCX+(mx-panSX); camY=panCY+(my-panSY); clampCam(); }
+  else if(down&&view==='park'){ const g=gridAt(mx,my);
+    if(g){ if(landMode){ lineApply(dragGX,dragGY,g[0],g[1],buyBrush); parkEdited=true; }
+           else if(tool&&B[tool].paint){ lineApply(dragGX,dragGY,g[0],g[1],paintBrush); parkEdited=true; }
+           dragGX=g[0]; dragGY=g[1]; } }
+  onHover(); });
+cv.addEventListener('mousedown',e=>{ if(visitMode&&view==='park') return;   // touring: no building/panning by mouse
+  down=true;
+  if(view==='map'){ mapDrag=true; mapDownX=mx; mapDownY=my; mapPX0=mapPanX; mapPY0=mapPanY; mapMoved=0; cv.style.cursor='grabbing'; return; }
+  const mm=miniRect();
+  if(mx>=mm.x&&mx<=mm.x+mm.w&&my>=mm.y&&my<=mm.y+mm.h){ centerOn((mx-mm.x)/mm.s,(my-mm.y)/mm.s); return; }  // click minimap to jump
+  if(!tool && !landMode){ panning=true; panSX=mx; panSY=my; panCX=camX; panCY=camY; cv.style.cursor='grabbing'; return; }
+  const g=gridAt(mx,my); dragGX=g?g[0]:-1; dragGY=g?g[1]:-1; parkEdited=true; parkClick(mx,my); });
+addEventListener('mouseup',()=>{ if(mapDrag){ if(mapMoved<5) mapClick(mx,my); mapDrag=false; }  // a click (not a drag) founds a park
+  if(parkEdited && current){ checkDiscoveries(current); current._conn=connected(current); parkEdited=false; }  // recompute once, after the drag
+  down=false; panning=false; dragGX=dragGY=-1; updateCursor(); });
+cv.addEventListener('wheel',e=>{ e.preventDefault();
+  if(view==='map'){ const old=mapZoom; mapZoom=clamp(mapZoom*(e.deltaY<0?1.12:0.893),1,6);
+    const cx=W/2, cy=(TOPB+H)/2, r=mapZoom/old;
+    mapPanX = mx - cx - (mx - cx - mapPanX)*r; mapPanY = my - cy - (my - cy - mapPanY)*r; clampMapPan(); return; }
+  const old=TS; TS=clamp(TS+(e.deltaY<0?2:-2),2,40); const k=TS/old;
+  camX=mx-(mx-camX)*k; camY=my-(my-camY)*k; clampCam(); },{passive:false});
+function gridAt(px,py){ const gx=Math.floor((px-camX)/TS), gy=Math.floor((py-camY)/TS); return (gx<0||gy<0||gx>=PG||gy>=PH)?null:[gx,gy]; }
+
+function mapClick(px,py){ const wd=hoveredWonder(px,py); if(!wd) return;
+  if(parks.find(p=>p.wonder===wd)){ // already founded -> open it
+    current=parks.find(p=>p.wonder===wd); view='park'; fitPark(); renderPalette(); renderGoals(); updateTop(); startTransition(); return; }
+  const cost = parks.length===0?0:Math.round(6000*(1+parks.length*0.5));
+  if(cash<cost){ toast('Need $'+cost+' to found a new park.'); return; }
+  cash-=cost; const p=makePark(wd); parks.push(p); current=p; view='park'; fitPark(); renderPalette(); renderGoals(); updateTop(); startTransition(); sfx('cash');
+  toast('🏞️ Founded '+p.name+(cost?'  (-$'+cost+')':'  (free — your first park!)'));
+}
+function parkClick(px,py){ const g=gridAt(px,py); if(!g) return; const [x,y]=g, i=ti(x,y), p=current;
+  if(landMode){ buyParcel(x,y); return; }
+  if(!tool){ toast('Pick a tool from the BUILD menu (left), then click your land.'); return; }
+  const b=B[tool];
+  if(tool===99){ if(p.build[i]){ setBuild(p,i,0); flashAt(x,y,'#ff6b6b'); puff(x+0.5,y+0.5,'debris'); sfx('click'); } return; }   // bulldoze
+  if(tool===98){ paintBrush(x,y); return; }                                             // repair worn paths (brush)
+  if(!p.owned[i]){ toast('🟩 You don\'t own that land yet — use Buy Land first.'); flashAt(x,y,'#ff6b6b'); return; }
+  if(p.ground[i]===3){ toast('That\'s the wonder itself — build around it!'); flashAt(x,y,'#ff6b6b'); return; }
+  if(p.ground[i]===4){ const L=p.landmarks.find(l=>l.x===x&&l.y===y); toast('🌟 '+(L?L.n:'A protected landmark')+' — a real feature; build trails & roads up to it!'); flashAt(x,y,'#ffd34d'); return; }
+  if(p.ground[i]===2&&b.key!=='trail'){ toast('💧 That\'s water — only a Trail (boardwalk) can cross it.'); flashAt(x,y,'#ff6b6b'); return; }
+  if(b.edge){ const edge = x<=1||y<=1||x>=PG-2||y>=PH-2 || !p.owned[ti(x-1,y)]||!p.owned[ti(x+1,y)]||!p.owned[ti(x,y-1)]||!p.owned[ti(x,y+1)];
+    if(!edge){ toast('🚪 Put the Entrance on the park\'s outer edge (beside wild land).'); flashAt(x,y,'#ffd34d'); return; } }
+  if(p.build[i]===tool) return;
+  if(cash<b.cost){ toast('Not enough cash — '+b.name+' costs $'+b.cost+'.'); flashAt(x,y,'#ff6b6b'); return; }
+  if(b.paint){ sfx(b.key==='trail'?'trail':b.key==='repair'?'repair':'build'); paintBrush(x,y); return; }   // road/trail/repair brush
+  if(p.ground[i]===1) p.ground[i]=0;          // building clears rough terrain (site prep)
+  cash-=b.cost; setBuild(p,i,tool); flashAt(x,y,'#9be08a'); puff(x+0.5,y+0.5,'dust'); sfx('build'); updateTop();   // discovery/connection recomputed on mouseup
+}
+// place a road/trail tile by grid coords (used for the click and for continuous dragging — no per-tile BFS)
+function paintTile(x,y){ if(!tool||!B[tool].paint) return; const p=current; if(x<0||y<0||x>=PG||y>=PH) return; const i=ti(x,y);
+  if(B[tool].key==='repair'){ repairTile(p,i,x,y); return; }
+  if(!p.owned[i]||p.ground[i]===3||p.ground[i]===4||p.build[i]) return;   // empty tiles only — never paint over a building
+  if(p.ground[i]===2&&B[tool].key!=='trail') return;       // water needs a trail/boardwalk
+  if(cash<B[tool].cost) return;
+  if(p.ground[i]===1) p.ground[i]=0;                        // clear rough terrain as you draw
+  cash-=B[tool].cost; setBuild(p,i,tool); flashAt(x,y,'#9be08a'); if(Math.random()<0.4) puff(x+0.5,y+0.5,'dust'); updateTop(); }
+// restore a worn road/trail tile to full condition for a small fee (silent on no-op so brush drags don't spam)
+function repairTile(p,i,x,y){ const id=p.build[i]; if(!id||!(B[id].key==='road'||B[id].key==='trail')) return;
+  const cv=p.cond.get(i); if(cv===undefined||cv>=99.5) return;
+  const cost=B[98].cost; if(cash<cost) return;
+  cash-=cost; p.cond.set(i,100); flashAt(x,y,'#7ee0ff'); puff(x+0.5,y+0.5,'repair'); sfx('repair'); updateTop(); }
+// paint a road/trail BRUSH — grows the more you're zoomed out (like Buy Land)
+function paintBrush(cx,cy){ const r=landBrush(); if(r<=0){ paintTile(cx,cy); return; }
+  for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){ if(dx*dx+dy*dy<=r*r+r) paintTile(cx+dx,cy+dy); } }
+function parcelCost(p){ return Math.round(60*(1+acres(p)/40000)); }   // price per single tile
+// buy one tile. returns true if bought (silent on failure so brush dragging doesn't spam).
+function buyAt(x,y){ const p=current, i=ti(x,y); if(x<0||y<0||x>=PG||y>=PH||p.owned[i]) return false;
+  let adj=false; for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=x+dx,ny=y+dy; if(nx>=0&&ny>=0&&nx<PG&&ny<PH&&p.owned[ti(nx,ny)]){adj=true;break;} }
+  if(!adj) return false;
+  const cost=parcelCost(p); if(cash<cost) return false;
+  cash-=cost; p.owned[i]=1; p.ownedCount++; const b=p.bounds; if(x<b.x0)b.x0=x; if(x>b.x1)b.x1=x; if(y<b.y0)b.y0=y; if(y>b.y1)b.y1=y;
+  flashAt(x,y,'#9be08a'); updateTop(); return true; }
+// the more you're zoomed OUT, the wider the land brush (and the more you spend per drag)
+function landBrush(){ return clamp(Math.round((27-TS)/4),0,8); }   // grows as you zoom out (min TS 4 → big brush)
+function buyBrush(cx,cy){ const r=landBrush(); if(cash<parcelCost(current)){ toast('Not enough cash to buy more land.'); return; }
+  if(r<=0){ buyAt(cx,cy); return; }
+  for(let pass=0;pass<2;pass++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){ if(dx*dx+dy*dy<=r*r+r) buyAt(cx+dx,cy+dy); } }
+// single click on land: buy a chunk (also scaled by zoom)
+function buyParcel(x,y){ const p=current; if(p.owned[ti(x,y)]){ toast('You already own that — drag outward to claim more.'); return; }
+  const before=acres(p); buyBrush(x,y);
+  if(acres(p)===before){ if(cash<parcelCost(p)) toast('Not enough cash to buy land.'); else toast('Buy land next to your park, then drag to expand fast.'); }
+}
+
+// ── Hover (map) ──
+function hoveredWonder(px,py){ let best=null,bd=14;
+  for(const w of WONDERS){ const p=proj(w), s=applyView(p.x,p.y), d=Math.hypot(px-s.x,py-s.y); if(d<bd){bd=d;best=w;} } return best; }
+function onHover(){ const hv=$('hover');
+  if(view!=='map'){ hv.style.display='none'; return; }
+  const w=hoveredWonder(mx,my); if(!w){ hv.style.display='none'; return; }
+  hv.style.display='block'; hv.style.left=(mx+14)+'px'; hv.style.top=(my+10)+'px';
+  const founded=parks.find(p=>p.wonder===w);
+  $('hvN').textContent=w.e+' '+w.n+(founded?'  ✔ founded':'');
+  $('hvT').textContent='📍 '+stateOf(w)+' · '+w.b.charAt(0).toUpperCase()+w.b.slice(1)+' · appeal '+w.ap;
+  $('hvD').textContent= founded? 'Click to manage this park.' : w.d+'  ('+(parks.length===0?'FREE to found':'$'+Math.round(6000*(1+parks.length*0.5))+' to found')+')';
+}
+
+// ── Map geometry: realistic lower-48 outline (traced from real coast/border, [lat,lon]) ──
+const US_BORDER=[
+ [48.4,-124.7],[46.3,-124.1],[43.3,-124.4],[40.4,-124.4],[38.3,-123.0],[36.6,-121.9],[34.45,-120.5],
+ [34.0,-118.5],[32.5,-117.1],[32.7,-114.7],[31.33,-111.07],[31.78,-106.5],[29.8,-102.8],[29.3,-101.0],
+ [26.0,-97.1],[27.8,-97.4],[29.7,-93.8],[29.2,-90.0],[30.2,-88.1],[30.4,-87.2],[29.7,-84.9],[30.1,-83.6],
+ [28.0,-82.8],[25.8,-81.3],[25.2,-80.4],[26.7,-80.0],[29.0,-81.0],[30.7,-81.4],[32.1,-80.8],[33.9,-77.9],
+ [34.7,-76.5],[35.2,-75.5],[36.9,-76.0],[38.0,-75.2],[38.9,-74.9],[40.5,-74.0],[41.1,-72.0],[41.25,-70.0],
+ [42.6,-70.6],[43.7,-70.2],[44.8,-67.0],[47.3,-69.2],[45.0,-71.5],[45.0,-74.7],[44.1,-76.5],[43.3,-79.1],
+ [41.7,-83.4],[42.3,-83.0],[43.9,-82.5],[44.3,-83.4],[45.7,-84.5],[46.5,-84.3],[46.8,-89.5],[47.8,-90.6],
+ [48.1,-92.5],[48.6,-93.5],[49.0,-95.2],[49.0,-104.0],[49.0,-114.0],[49.0,-123.0],[48.4,-124.7]];
+// state centroids for geographic reference: [lat, lon, abbr, full name]
+const STATES=[
+ [32.8,-86.8,'AL','Alabama'],[34.3,-111.7,'AZ','Arizona'],[34.9,-92.4,'AR','Arkansas'],[37.2,-119.4,'CA','California'],
+ [39.0,-105.6,'CO','Colorado'],[41.6,-72.7,'CT','Connecticut'],[39.0,-75.5,'DE','Delaware'],[28.6,-82.4,'FL','Florida'],
+ [32.6,-83.4,'GA','Georgia'],[44.2,-114.5,'ID','Idaho'],[40.0,-89.2,'IL','Illinois'],[39.9,-86.3,'IN','Indiana'],
+ [42.0,-93.5,'IA','Iowa'],[38.5,-98.4,'KS','Kansas'],[37.5,-85.3,'KY','Kentucky'],[31.0,-92.0,'LA','Louisiana'],
+ [45.4,-69.2,'ME','Maine'],[39.0,-76.7,'MD','Maryland'],[42.3,-71.8,'MA','Massachusetts'],[44.3,-85.4,'MI','Michigan'],
+ [46.3,-94.3,'MN','Minnesota'],[32.7,-89.7,'MS','Mississippi'],[38.4,-92.5,'MO','Missouri'],[47.0,-109.6,'MT','Montana'],
+ [41.5,-99.8,'NE','Nebraska'],[39.3,-116.6,'NV','Nevada'],[43.7,-71.6,'NH','New Hampshire'],[40.2,-74.7,'NJ','New Jersey'],
+ [34.4,-106.1,'NM','New Mexico'],[42.9,-75.5,'NY','New York'],[35.5,-79.4,'NC','North Carolina'],[47.5,-100.5,'ND','North Dakota'],
+ [40.3,-82.8,'OH','Ohio'],[35.6,-97.5,'OK','Oklahoma'],[43.9,-120.6,'OR','Oregon'],[40.9,-77.8,'PA','Pennsylvania'],
+ [41.7,-71.5,'RI','Rhode Island'],[33.9,-80.9,'SC','South Carolina'],[44.4,-100.3,'SD','South Dakota'],[35.9,-86.4,'TN','Tennessee'],
+ [31.4,-99.4,'TX','Texas'],[39.3,-111.7,'UT','Utah'],[44.1,-72.7,'VT','Vermont'],[37.5,-78.8,'VA','Virginia'],
+ [47.4,-120.5,'WA','Washington'],[38.6,-80.6,'WV','West Virginia'],[44.6,-89.9,'WI','Wisconsin'],[43.0,-107.6,'WY','Wyoming']];
+// explicit state for parks that straddle a border (nearest-centroid gets these wrong)
+const PARK_STATE={'Yellowstone':'Wyoming','Grand Teton':'Wyoming','Isle Royale':'Michigan','Guadalupe Mountains':'Texas',
+ 'Great Smoky Mountains':'Tennessee & North Carolina','Death Valley':'California','Kings Canyon':'California','Sequoia':'California',
+ 'Joshua Tree':'California','Lassen Volcanic':'California','Redwood':'California','Gateway Arch':'Missouri'};
+// which state (or region) a park sits in — override first, else nearest centroid for the lower 48
+function stateOf(w){ if(PARK_STATE[w.n]) return PARK_STATE[w.n];
+  if(w.r==='ak') return 'Alaska'; if(w.r==='hi') return 'Hawaii'; if(w.r==='terr') return 'U.S. Territory';
+  let best='', bd=1e9; for(const s of STATES){ const d=(s[0]-w.lat)**2+((s[1]-w.lon)*0.78)**2; if(d<bd){bd=d;best=s[3];} } return best; }
+// simplified state outlines [abbr,[[lat,lon]...]] — drawn as borders over the landmass
+const STATE_SHAPES=[
+ ['WA',[[49,-124.7],[49,-117.0],[45.9,-116.9],[45.7,-121.0],[46.3,-124.0]]],
+ ['OR',[[46.3,-124.0],[45.7,-121.0],[45.9,-116.9],[44.3,-117.0],[42,-117.0],[42,-124.4]]],
+ ['CA',[[42,-124.4],[42,-120],[39,-120],[35,-114.6],[34.3,-114.1],[32.6,-114.5],[32.5,-117.1],[34.4,-120.5],[40.4,-124.4]]],
+ ['NV',[[42,-120],[42,-114.04],[36,-114.05],[35,-114.6],[39,-120]]],
+ ['ID',[[49,-117.0],[49,-116.05],[47,-115.7],[44.5,-111.05],[42,-111.05],[42,-117],[45.9,-116.9]]],
+ ['MT',[[49,-116.05],[49,-104.05],[45,-104.05],[45,-111.05],[44.5,-111.05],[47,-115.7]]],
+ ['WY',[[45,-111.05],[45,-104.05],[41,-104.05],[41,-111.05]]],
+ ['UT',[[42,-114.04],[42,-111.05],[41,-111.05],[41,-109.05],[37,-109.05],[37,-114.05]]],
+ ['CO',[[41,-109.05],[41,-102.05],[37,-102.05],[37,-109.05]]],
+ ['AZ',[[37,-114.05],[37,-109.05],[31.33,-109.05],[31.33,-111.07],[32.5,-114.8],[34.3,-114.1],[36.1,-114.6]]],
+ ['NM',[[37,-109.05],[37,-103.0],[32,-103.0],[31.78,-106.6],[31.33,-108.2],[31.33,-109.05]]],
+ ['ND',[[49,-104.05],[49,-97.0],[45.94,-96.6],[45.94,-104.05]]],
+ ['SD',[[45.94,-104.05],[45.94,-96.6],[42.5,-96.45],[43,-98.0],[43,-104.05]]],
+ ['NE',[[43,-104.05],[43,-98.0],[42.85,-97.0],[40,-95.4],[40,-102.05],[41,-104.05]]],
+ ['KS',[[40,-102.05],[40,-94.6],[37,-94.6],[37,-102.05]]],
+ ['OK',[[37,-103.0],[37,-94.6],[33.9,-94.45],[33.9,-96.4],[34.1,-99.0],[36.5,-100.0],[36.5,-103.0]]],
+ ['TX',[[36.5,-103.0],[36.5,-100.0],[34.1,-99.9],[33.9,-96.4],[33.6,-94.0],[29.9,-93.8],[28,-96.5],[25.9,-97.4],[27.5,-99.5],[29.8,-102.8],[29.0,-103.2],[29.4,-104.7],[31.8,-106.6],[32,-103.0]]],
+ ['MN',[[49,-97.0],[49.4,-95.15],[48.6,-92.5],[47.9,-91.3],[46.7,-92.3],[43.5,-91.2],[43.5,-96.45],[45.5,-96.6],[46.6,-96.6]]],
+ ['IA',[[43.5,-96.45],[43.5,-91.2],[40.4,-91.4],[40.6,-95.8],[42.5,-96.45]]],
+ ['MO',[[40.6,-95.8],[40.4,-91.4],[36.5,-89.5],[36.0,-89.7],[36.0,-94.6],[40,-94.6]]],
+ ['WI',[[46.7,-92.3],[46.0,-90.2],[45.4,-88.0],[44.5,-87.0],[43.4,-87.8],[42.5,-88.9],[42.5,-90.6],[43.5,-91.2],[44.6,-92.3]]],
+ ['IL',[[42.5,-90.6],[42.5,-87.8],[41.7,-87.5],[39,-87.5],[37.9,-88.0],[37,-89.2],[38,-90.6],[40.4,-91.4]]],
+ ['MI',[[45.8,-84.7],[44.0,-83.0],[43.0,-82.5],[41.7,-83.4],[41.7,-86.5],[43.6,-86.5],[45.3,-85.0]]],
+ ['MI',[[46.5,-90.4],[46.0,-88.5],[45.1,-87.6],[45.9,-84.8],[46.5,-84.3],[46.7,-88.5]]],
+ ['OH',[[41.7,-84.8],[41.7,-83.0],[41.0,-80.5],[38.4,-82.5],[38.8,-84.8]]],
+ ['IN',[[41.7,-87.5],[41.7,-84.8],[38.8,-84.8],[37.9,-86.3],[37.9,-87.9]]],
+ ['KY',[[39,-84.8],[38.5,-82.6],[37.2,-82.3],[36.6,-83.7],[36.5,-89.5],[37,-89.2],[38,-86.6]]],
+ ['TN',[[36.6,-90.3],[36.6,-81.7],[35.0,-83.7],[35.0,-90.3]]],
+ ['AR',[[36.5,-94.6],[36.5,-90.4],[36,-89.7],[33,-91.2],[33,-94.0],[35.4,-94.5]]],
+ ['LA',[[33,-94.0],[33,-91.2],[31,-91.6],[29,-89.5],[29.5,-93.8],[31,-94.0]]],
+ ['MS',[[35,-90.3],[35,-88.2],[31,-88.4],[30.2,-89.6],[31,-91.6],[33,-91.2]]],
+ ['AL',[[35,-88.2],[35,-85.6],[32.9,-85.2],[31,-85.1],[30.2,-88.0],[31,-88.4]]],
+ ['GA',[[35,-85.6],[34.99,-83.1],[33,-81.5],[30.7,-81.5],[30.7,-85.0],[32.9,-85.2]]],
+ ['FL',[[31,-87.6],[30.2,-85.0],[29.4,-83.0],[28.0,-82.7],[25.8,-81.5],[25.1,-80.9],[25.9,-80.1],[26.7,-80.0],[30.7,-81.4],[30.7,-87.6]]],
+ ['SC',[[35.2,-82.8],[34.8,-79.7],[33.0,-78.5],[32.0,-80.9],[34.0,-83.1]]],
+ ['NC',[[36.6,-82.3],[36.6,-75.5],[34.6,-76.5],[33.9,-78.5],[35.2,-82.8],[35.0,-84.0]]],
+ ['VA',[[39.0,-78.4],[38.0,-75.2],[36.6,-75.9],[36.6,-83.7],[37.3,-81.9],[39.4,-78.4]]],
+ ['WV',[[40.6,-80.6],[39.7,-77.7],[38.0,-79.0],[37.2,-81.0],[38.4,-82.6],[39.6,-80.5]]],
+ ['MD',[[39.7,-79.5],[39.7,-77.5],[39.0,-77.0],[38.0,-75.2],[38.4,-77.0],[39.3,-79.5]]],
+ ['PA',[[42.3,-80.5],[42.0,-75.3],[39.7,-75.4],[39.7,-80.5]]],
+ ['NY',[[45.0,-74.7],[44.0,-73.3],[41.0,-73.9],[40.5,-74.0],[42.0,-75.4],[42.5,-79.7],[43.3,-79.2],[44.5,-75.8]]],
+ ['NJ',[[41.0,-74.7],[40.5,-74.0],[39.0,-74.9],[40.5,-75.5]]],
+ ['VT',[[45.0,-73.3],[44.0,-71.5],[42.7,-72.5],[43.6,-73.4]]],
+ ['NH',[[45.3,-71.5],[44.0,-70.7],[42.7,-72.0],[44.0,-71.6]]],
+ ['MA',[[42.9,-73.3],[42.7,-71.0],[41.6,-70.0],[41.5,-73.5]]],
+ ['CT',[[42.0,-73.5],[42.0,-71.8],[41.3,-72.0],[41.0,-73.7]]],
+ ['RI',[[42.0,-71.8],[41.4,-71.1],[41.3,-71.6]]],
+ ['ME',[[47.4,-69.2],[45.2,-67.0],[43.7,-70.0],[44.5,-71.1],[45.3,-70.9]]],
+ ['DE',[[39.7,-75.5],[38.5,-75.0],[38.5,-75.6]]]];
+function mapRect(){ const pad=64, w=Math.min(W-pad*2, (H-224)*1.8), h=w/1.8; return {x:(W-w)/2, y:114, w, h}; }
+function projLL(lat,lon,m){ return {x:m.x+((lon+125)/58)*m.w, y:m.y+((49-lat)/24.5)*m.h}; }
+// national-map camera transform helpers
+function applyView(x,y){ const z=mapZoom, cx=W/2, cy=(TOPB+H)/2; return {x:(x-cx)*z+cx+mapPanX, y:(y-cy)*z+cy+mapPanY}; }
+function clampMapPan(){ const ex=(mapZoom-1)*W*0.55+70, ey=(mapZoom-1)*H*0.55+70; mapPanX=clamp(mapPanX,-ex,ex); mapPanY=clamp(mapPanY,-ey,ey); }
+// inset boxes for AK / HI / Territories, parked over the ocean at lower-left
+function insets(m){ const u=m.w;
+  const ak={w:u*0.18,h:u*0.135}; ak.x=m.x+8; ak.y=m.y+m.h-ak.h-8;
+  const hi={w:u*0.105,h:u*0.075}; hi.x=ak.x+ak.w+10; hi.y=m.y+m.h-hi.h-8;
+  const terr={w:u*0.105,h:u*0.062}; terr.x=hi.x; terr.y=hi.y-terr.h-10;
+  return {ak,hi,terr}; }
+// project a park (lat/lon + region tag) to a screen point
+function proj(w){ const m=mapRect(), ins=insets(m);
+  if(w.r==='48') return {x:m.x+((w.lon+125)/58)*m.w, y:m.y+((49-w.lat)/24.5)*m.h};
+  if(w.r==='ak'){ const b=ins.ak; return {x:b.x+((w.lon+170)/40)*b.w, y:b.y+((72-w.lat)/22)*b.h}; }
+  if(w.r==='hi'){ const b=ins.hi; return {x:b.x+((w.lon+160.5)/6)*b.w, y:b.y+((22.5-w.lat)/4)*b.h}; }
+  const b=ins.terr, first=w.n==='American Samoa'; return {x:b.x+b.w*(first?0.3:0.72), y:b.y+b.h*(first?0.66:0.36)}; }
+function traceLand(m){ ctx.beginPath();
+  for(let i=0;i<US_BORDER.length;i++){ const la=US_BORDER[i][0], lo=US_BORDER[i][1], px=m.x+((lo+125)/58)*m.w, py=m.y+((49-la)/24.5)*m.h; i?ctx.lineTo(px,py):ctx.moveTo(px,py);} ctx.closePath(); }
+function strokePoly(pts,m){ ctx.beginPath(); for(let i=0;i<pts.length;i++){ const q=projLL(pts[i][0],pts[i][1],m); i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);} ctx.closePath(); }
+function drawMap(){
+  const t=performance.now()/1000, z=mapZoom;
+  // ocean
+  const og=ctx.createLinearGradient(0,0,0,H); og.addColorStop(0,'#aee0f2'); og.addColorStop(1,'#7cc0dd');
+  ctx.fillStyle=og; ctx.fillRect(0,0,W,H);
+  const m=mapRect(), ins=insets(m);
+  // ==== pan/zoom camera ====
+  ctx.save(); ctx.translate(W/2+mapPanX,(TOPB+H)/2+mapPanY); ctx.scale(z,z); ctx.translate(-W/2,-(TOPB+H)/2);
+  // landmass base (so seams between states read as land, not ocean) + soft drop shadow
+  traceLand(m); ctx.save(); ctx.shadowColor='rgba(20,50,70,0.4)'; ctx.shadowBlur=16/z; ctx.shadowOffsetY=5/z; ctx.fillStyle='#eceedd'; ctx.fill(); ctx.restore();
+  // state borders
+  ctx.strokeStyle='rgba(95,100,78,0.85)'; ctx.lineWidth=1.1/z;
+  for(const s of STATE_SHAPES){ strokePoly(s[1],m); ctx.stroke(); }
+  // coastline
+  traceLand(m); ctx.strokeStyle='#5f7a64'; ctx.lineWidth=1.8/z; ctx.stroke();
+  // state name codes
+  ctx.save(); traceLand(m); ctx.clip(); ctx.textAlign='center'; ctx.font='bold 10px monospace';
+  for(const s of STATES){ const q=projLL(s[0],s[1],m); ctx.fillStyle='rgba(64,70,52,0.72)'; ctx.fillText(s[2],q.x,q.y+3); }
+  ctx.restore(); ctx.textAlign='left';
+  // AK / HI / Territory insets
+  for(const [b,lbl] of [[ins.ak,'ALASKA'],[ins.hi,'HAWAII'],[ins.terr,'TERRITORIES']]){
+    ctx.fillStyle='#e3e6d2'; ctx.fillRect(b.x,b.y,b.w,b.h); ctx.strokeStyle='#8a907a'; ctx.lineWidth=1/z; ctx.strokeRect(b.x,b.y,b.w,b.h);
+    ctx.fillStyle='#6a7258'; ctx.font='9px monospace'; ctx.fillText(lbl,b.x+3,b.y+10); }
+  // park dots
+  for(const w of WONDERS){ const s=proj(w); const founded=parks.find(p=>p.wonder===w); const hov=hoveredWonder(mx,my)===w;
+    if(founded){ const pr=8+Math.sin(t*3)*1.6; ctx.strokeStyle='rgba(214,150,30,0.95)'; ctx.lineWidth=2/z; ctx.beginPath(); ctx.arc(s.x,s.y,pr,0,6.3); ctx.stroke(); }
+    ctx.fillStyle= founded?'#e8951f':(hov?'#ff4242':'#1f7a3a');
+    ctx.beginPath(); ctx.arc(s.x,s.y, hov?6:(w.ap>=90?4.4:3.2),0,6.3); ctx.fill();
+    ctx.strokeStyle='#ffffff'; ctx.lineWidth=1.2/z; ctx.stroke(); }
+  // park labels (icons + founded + hovered)
+  for(const w of WONDERS){ const s=proj(w); const founded=parks.find(p=>p.wonder===w); const hov=hoveredWonder(mx,my)===w;
+    if(!(founded||hov||w.ap>=90)) continue;
+    ctx.font='bold '+(hov?12:10)+'px monospace'; const tw=ctx.measureText(w.n).width+8;
+    ctx.fillStyle= hov?'rgba(255,255,255,0.96)':'rgba(255,255,255,0.82)'; ctx.fillRect(s.x+6,s.y-15,tw,15);
+    ctx.fillStyle='#16280f'; ctx.fillText(w.n,s.x+10,s.y-4); }
+  ctx.restore();   // end camera
+  // ==== fixed HUD overlays ====
+  ctx.textAlign='center';
+  ctx.save(); ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=10;
+  ctx.fillStyle='#eef6e4'; ctx.font='bold 24px monospace'; ctx.fillText('🏞  UNTAMED',W/2,84); ctx.restore();
+  ctx.fillStyle='#2c4a58'; ctx.font='bold 13px monospace'; ctx.fillText('Drag to pan · scroll to zoom · click a park to found it',W/2,104);
+  ctx.textAlign='left';
+  ctx.fillStyle='#1e3a48'; ctx.font='bold 12px monospace';
+  ctx.fillText('● founded    ● available    ·    Parks founded: '+parks.length+' / 63    ·    💰 $'+Math.round(cash).toLocaleString(), 20, H-16);
+}
+
+// ── Park rendering ──
+// draw a building so it reads as what it is (parking lot, visitor center, tent, cabin…)
+function drawBuilding(b,sx,sy,TS){
+  const cx=sx+TS/2, cy=sy+TS/2, by=sy+TS-2; ctx.save();
+  if(b.key!=='road'&&b.key!=='trail'&&b.key!=='restore'){ ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(cx,by,TS*0.42,TS*0.15,0,0,7); ctx.fill(); }
+  switch(b.key){
+   case 'road':{ ctx.fillStyle='#54504a'; ctx.fillRect(sx-1,sy-1,TS+2,TS+2);                 // solid paved, fills the entire square (slight overdraw = seamless)
+     ctx.fillStyle='rgba(216,194,74,0.8)'; ctx.fillRect(cx-1,sy,2,TS); ctx.fillRect(sx,cy-1,TS,2);   // center lines (connect any direction)
+     break; }
+   case 'trail':{ const h=((sx*9+sy*5)>>>0); ctx.fillStyle='#b58a52'; ctx.fillRect(sx-1,sy-1,TS+2,TS+2);  // solid dirt, fills the entire square edge-to-edge
+     ctx.fillStyle='rgba(150,112,60,0.5)'; for(let k=0;k<3;k++){ ctx.fillRect(sx+3+((h*(k+3))%((TS-5)|1)), sy+3+((h*(k+1))%((TS-5)|1)), 2,2); }      // light footworn specks
+     break; }
+   case 'parking':{
+     ctx.fillStyle='#3a3d42'; ctx.fillRect(sx+1,sy+1,TS-2,TS-2);                 // asphalt
+     ctx.strokeStyle='#d8d8c0'; ctx.lineWidth=1;
+     ctx.beginPath(); ctx.moveTo(sx+2,sy+TS*0.46); ctx.lineTo(sx+TS-2,sy+TS*0.46); ctx.stroke();
+     for(let k=1;k<=3;k++){ const lx=sx+(TS-2)*k/4+1; ctx.beginPath(); ctx.moveTo(lx,sy+TS*0.46); ctx.lineTo(lx,sy+TS-3); ctx.stroke(); }
+     ctx.fillStyle='#cc4444'; ctx.fillRect(sx+TS*0.12,sy+TS*0.55,TS*0.22,TS*0.3);
+     ctx.fillStyle='#4488cc'; ctx.fillRect(sx+TS*0.42,sy+TS*0.55,TS*0.22,TS*0.3);
+     ctx.fillStyle='#ffffff'; ctx.font='bold '+Math.round(TS*0.34)+'px sans-serif'; ctx.textAlign='center'; ctx.fillText('P',cx,sy+TS*0.38); ctx.textAlign='left'; break; }
+   case 'entrance':{
+     ctx.fillStyle='#6b4a2a'; ctx.fillRect(sx+TS*0.14,sy+TS*0.34,TS*0.12,TS*0.56); ctx.fillRect(sx+TS*0.74,sy+TS*0.34,TS*0.12,TS*0.56); // posts
+     ctx.fillStyle='#3f7a3a'; ctx.fillRect(sx+TS*0.08,sy+TS*0.16,TS*0.84,TS*0.22);   // sign board
+     ctx.fillStyle='#e8e0c0'; ctx.fillRect(sx+TS*0.18,sy+TS*0.21,TS*0.64,TS*0.045); ctx.fillRect(sx+TS*0.26,sy+TS*0.3,TS*0.48,TS*0.04); break; }
+   case 'center':{
+     ctx.fillStyle='#caa46a'; ctx.fillRect(sx+TS*0.15,sy+TS*0.42,TS*0.7,TS*0.48);    // wall
+     ctx.fillStyle='#7a3f2a'; ctx.beginPath(); ctx.moveTo(sx+TS*0.08,sy+TS*0.42); ctx.lineTo(cx,sy+TS*0.18); ctx.lineTo(sx+TS*0.92,sy+TS*0.42); ctx.closePath(); ctx.fill(); // roof
+     ctx.fillStyle='#9fd0e0'; ctx.fillRect(sx+TS*0.22,sy+TS*0.5,TS*0.13,TS*0.13); ctx.fillRect(sx+TS*0.65,sy+TS*0.5,TS*0.13,TS*0.13); // windows
+     ctx.fillStyle='#5a3a22'; ctx.fillRect(cx-TS*0.08,sy+TS*0.64,TS*0.16,TS*0.26);   // door
+     ctx.strokeStyle='#999'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(cx,sy+TS*0.18); ctx.lineTo(cx,sy+TS*0.04); ctx.stroke(); ctx.fillStyle='#cc3333'; ctx.fillRect(cx,sy+TS*0.04,TS*0.16,TS*0.09); break; } // flag
+   case 'restroom':{
+     ctx.fillStyle='#b8bcc0'; ctx.fillRect(sx+TS*0.26,sy+TS*0.42,TS*0.48,TS*0.48);
+     ctx.fillStyle='#5a6470'; ctx.beginPath(); ctx.moveTo(sx+TS*0.22,sy+TS*0.42); ctx.lineTo(cx,sy+TS*0.26); ctx.lineTo(sx+TS*0.78,sy+TS*0.42); ctx.closePath(); ctx.fill();
+     ctx.fillStyle='#2f6fae'; ctx.fillRect(sx+TS*0.36,sy+TS*0.5,TS*0.28,TS*0.16);    // blue sign
+     ctx.fillStyle='#fff'; ctx.font='bold '+Math.round(TS*0.16)+'px sans-serif'; ctx.textAlign='center'; ctx.fillText('WC',cx,sy+TS*0.63); ctx.textAlign='left';
+     ctx.fillStyle='#4a3520'; ctx.fillRect(cx-TS*0.05,sy+TS*0.72,TS*0.1,TS*0.18); break; }
+   case 'camp':{
+     ctx.fillStyle='#3f8a3f'; ctx.beginPath(); ctx.moveTo(sx+TS*0.14,by); ctx.lineTo(sx+TS*0.4,sy+TS*0.32); ctx.lineTo(sx+TS*0.66,by); ctx.closePath(); ctx.fill();
+     ctx.fillStyle='#2c6a2c'; ctx.beginPath(); ctx.moveTo(sx+TS*0.4,sy+TS*0.32); ctx.lineTo(sx+TS*0.4,by); ctx.lineTo(sx+TS*0.66,by); ctx.closePath(); ctx.fill();
+     ctx.fillStyle='#1f4a1f'; ctx.beginPath(); ctx.moveTo(sx+TS*0.36,by); ctx.lineTo(sx+TS*0.4,sy+TS*0.45); ctx.lineTo(sx+TS*0.44,by); ctx.closePath(); ctx.fill(); // door slit
+     ctx.fillStyle='#e8893a'; ctx.beginPath(); ctx.moveTo(sx+TS*0.76,by); ctx.lineTo(sx+TS*0.84,sy+TS*0.58); ctx.lineTo(sx+TS*0.92,by); ctx.closePath(); ctx.fill(); // campfire
+     ctx.fillStyle='#ffd23a'; ctx.beginPath(); ctx.moveTo(sx+TS*0.8,by); ctx.lineTo(sx+TS*0.84,sy+TS*0.7); ctx.lineTo(sx+TS*0.88,by); ctx.closePath(); ctx.fill(); break; }
+   case 'lodge':{
+     ctx.fillStyle='#8a5a32'; ctx.fillRect(sx+TS*0.1,sy+TS*0.4,TS*0.8,TS*0.5);
+     ctx.strokeStyle='#6b4424'; ctx.lineWidth=1; for(let k=1;k<3;k++){ ctx.beginPath(); ctx.moveTo(sx+TS*0.1,sy+TS*0.4+k*TS*0.16); ctx.lineTo(sx+TS*0.9,sy+TS*0.4+k*TS*0.16); ctx.stroke(); }
+     ctx.fillStyle='#6b4424'; ctx.fillRect(sx+TS*0.68,sy+TS*0.18,TS*0.1,TS*0.18);    // chimney
+     ctx.fillStyle='#5a3320'; ctx.beginPath(); ctx.moveTo(sx+TS*0.04,sy+TS*0.4); ctx.lineTo(cx,sy+TS*0.14); ctx.lineTo(sx+TS*0.96,sy+TS*0.4); ctx.closePath(); ctx.fill();
+     ctx.fillStyle='#ffe08a'; ctx.fillRect(sx+TS*0.2,sy+TS*0.52,TS*0.14,TS*0.14); ctx.fillRect(sx+TS*0.46,sy+TS*0.52,TS*0.14,TS*0.14); ctx.fillRect(sx+TS*0.7,sy+TS*0.52,TS*0.1,TS*0.14); break; }
+   case 'ranger':{
+     ctx.fillStyle='#7a5a3a'; ctx.fillRect(sx+TS*0.2,sy+TS*0.46,TS*0.6,TS*0.44);
+     ctx.fillStyle='#2f5a2f'; ctx.beginPath(); ctx.moveTo(sx+TS*0.12,sy+TS*0.46); ctx.lineTo(cx,sy+TS*0.24); ctx.lineTo(sx+TS*0.88,sy+TS*0.46); ctx.closePath(); ctx.fill();
+     ctx.fillStyle='#caa46a'; ctx.fillRect(cx-TS*0.07,sy+TS*0.64,TS*0.14,TS*0.26);   // door
+     ctx.fillStyle='#8a6a3a'; ctx.beginPath(); ctx.moveTo(sx+TS*0.62,sy+TS*0.06); ctx.lineTo(sx+TS*0.82,sy+TS*0.06); ctx.lineTo(sx+TS*0.72,sy+TS*0.2); ctx.closePath(); ctx.fill(); // arrowhead sign
+     break; }
+   case 'restore':{
+     ctx.fillStyle='#5a4a32'; ctx.fillRect(sx+2,sy+TS*0.62,TS-4,TS*0.32);            // tilled soil
+     ctx.fillStyle='#4aa84a'; for(let k=0;k<3;k++){ const px=sx+TS*(0.26+0.24*k); ctx.fillRect(px-1,sy+TS*0.46,2,TS*0.22); ctx.beginPath(); ctx.arc(px,sy+TS*0.44,TS*0.1,0,7); ctx.fill(); } break; }
+   case 'restaurant':{
+     ctx.fillStyle='#9a4b3a'; ctx.fillRect(sx+TS*0.14,sy+TS*0.42,TS*0.72,TS*0.48);    // brick wall
+     ctx.fillStyle='#c8593f'; ctx.beginPath(); ctx.moveTo(sx+TS*0.08,sy+TS*0.42); ctx.lineTo(cx,sy+TS*0.2); ctx.lineTo(sx+TS*0.92,sy+TS*0.42); ctx.closePath(); ctx.fill();
+     ctx.fillStyle='#ffe7a0'; ctx.fillRect(sx+TS*0.24,sy+TS*0.5,TS*0.16,TS*0.16); ctx.fillRect(sx+TS*0.6,sy+TS*0.5,TS*0.16,TS*0.16);   // warm windows
+     ctx.fillStyle='#5a2a1e'; ctx.fillRect(cx-TS*0.09,sy+TS*0.66,TS*0.18,TS*0.24);     // door
+     ctx.fillStyle='#fff'; ctx.font='bold '+Math.round(TS*0.3)+'px serif'; ctx.textAlign='center'; ctx.fillText('🍴',cx,sy+TS*0.36); ctx.textAlign='left'; break; }
+   case 'giftshop':{
+     ctx.fillStyle='#3f7a8a'; ctx.fillRect(sx+TS*0.16,sy+TS*0.42,TS*0.68,TS*0.48);
+     ctx.fillStyle='#e0c050'; for(let k=0;k<4;k++) ctx.fillRect(sx+TS*0.16+k*TS*0.17,sy+TS*0.38,TS*0.085,TS*0.1);  // striped awning
+     ctx.fillStyle='#cfe6ee'; ctx.fillRect(sx+TS*0.24,sy+TS*0.54,TS*0.5,TS*0.18);       // shop window
+     ctx.fillStyle='#2a4a52'; ctx.fillRect(cx-TS*0.08,sy+TS*0.72,TS*0.16,TS*0.18); break; }
+   case 'picnic':{
+     ctx.fillStyle='#7a5a36'; ctx.fillRect(sx+TS*0.22,sy+TS*0.5,TS*0.56,TS*0.12);       // table top
+     ctx.fillStyle='#5e4327'; ctx.fillRect(sx+TS*0.26,sy+TS*0.62,TS*0.06,TS*0.24); ctx.fillRect(sx+TS*0.68,sy+TS*0.62,TS*0.06,TS*0.24);
+     ctx.fillStyle='#c0392b'; ctx.fillRect(sx+TS*0.22,sy+TS*0.5,TS*0.56,TS*0.04);        // red cloth
+     ctx.fillStyle='#3f8a3f'; ctx.beginPath(); ctx.arc(sx+TS*0.5,sy+TS*0.28,TS*0.18,0,7); ctx.fill(); ctx.fillStyle='#5a3a20'; ctx.fillRect(sx+TS*0.47,sy+TS*0.4,TS*0.06,TS*0.12); break; }   // shade tree
+   case 'overlook':{
+     ctx.fillStyle='#8a8f96'; ctx.fillRect(sx+TS*0.2,sy+TS*0.55,TS*0.6,TS*0.18);        // platform
+     ctx.fillStyle='#6a6f76'; ctx.fillRect(sx+TS*0.24,sy+TS*0.73,TS*0.07,TS*0.17); ctx.fillRect(sx+TS*0.69,sy+TS*0.73,TS*0.07,TS*0.17);
+     ctx.strokeStyle='#caa46a'; ctx.lineWidth=Math.max(1.5,TS*0.06); ctx.beginPath(); ctx.moveTo(sx+TS*0.2,sy+TS*0.46); ctx.lineTo(sx+TS*0.8,sy+TS*0.46); ctx.stroke();  // railing
+     for(let k=0;k<4;k++){ ctx.beginPath(); ctx.moveTo(sx+TS*(0.24+k*0.18),sy+TS*0.46); ctx.lineTo(sx+TS*(0.24+k*0.18),sy+TS*0.55); ctx.stroke(); }
+     ctx.fillStyle='#ffe08a'; ctx.font=Math.round(TS*0.34)+'px serif'; ctx.textAlign='center'; ctx.fillText('🔭',cx,sy+TS*0.4); ctx.textAlign='left'; break; }
+   default: ctx.font=(TS-3)+'px serif'; ctx.fillText(b.em,sx+1,sy+TS-3);
+  }
+  ctx.restore();
+}
+// procedurally draw a real-looking wonder (spring, geyser, falls, peak…) inside a tile box
+function drawLandmark(L,sx,sy,TS,t){
+  const cx=sx+TS/2, cy=sy+TS/2, by=sy+TS-2, top=sy+2; ctx.save();
+  if(/^(peak|tree|cactus|arch|rock|geyser|glacier|cave)$/.test(L.kind)){ ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(cx,by,TS*0.4,TS*0.13,0,0,7); ctx.fill(); }
+  switch(L.kind){
+   case 'geyser':{ ctx.fillStyle='#d8cbb0'; ctx.beginPath(); ctx.ellipse(cx,by,TS*0.38,TS*0.16,0,0,7); ctx.fill();
+     const h=TS*(0.55+0.4*Math.abs(Math.sin(t*2.2))); const g=ctx.createLinearGradient(cx,by,cx,by-h);
+     g.addColorStop(0,'#eafcff'); g.addColorStop(1,'rgba(234,252,255,0)'); ctx.fillStyle=g;
+     ctx.beginPath(); ctx.moveTo(cx-TS*0.12,by); ctx.lineTo(cx-TS*0.04,by-h); ctx.lineTo(cx+TS*0.04,by-h); ctx.lineTo(cx+TS*0.12,by); ctx.closePath(); ctx.fill(); break; }
+   case 'spring':{ const cols=['#1f5f80','#2f9fc0','#73c79a','#e3cf57','#df8a3a'];
+     for(let r=0;r<cols.length;r++){ ctx.fillStyle=cols[r]; ctx.beginPath(); ctx.ellipse(cx,cy,TS*0.44*(1-r*0.17),TS*0.34*(1-r*0.17),0,0,7); ctx.fill(); }
+     ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.arc(cx+Math.sin(t)*2,top+TS*0.2,TS*0.1,0,7); ctx.fill(); break; }
+   case 'falls':{ ctx.fillStyle='#6b5a44'; ctx.fillRect(sx+TS*0.18,sy,TS*0.64,TS);
+     ctx.fillStyle='#bfe8ff'; for(let k=0;k<3;k++) ctx.fillRect(sx+TS*0.28+k*TS*0.17,top,TS*0.09,TS*0.78);
+     ctx.fillStyle='#9fd8f0'; ctx.beginPath(); ctx.ellipse(cx,by,TS*0.34,TS*0.12,0,0,7); ctx.fill();
+     ctx.fillStyle='#eaffff'; for(let k=0;k<3;k++){ const yy=top+((t*36+k*7)%(TS*0.78)); ctx.fillRect(sx+TS*0.32+k*TS*0.17,yy,2,3); } break; }
+   case 'water':{ ctx.fillStyle='#2e6b8a'; ctx.beginPath(); ctx.ellipse(cx,cy,TS*0.45,TS*0.33,0,0,7); ctx.fill();
+     ctx.strokeStyle='rgba(190,230,250,0.6)'; ctx.lineWidth=1; ctx.beginPath(); ctx.ellipse(cx+Math.sin(t)*1.5,cy,TS*0.28,TS*0.16,0,0,7); ctx.stroke(); break; }
+   case 'peak':{ ctx.fillStyle='#7a7d86'; ctx.beginPath(); ctx.moveTo(sx+2,by); ctx.lineTo(cx,top); ctx.lineTo(sx+TS-2,by); ctx.closePath(); ctx.fill();
+     ctx.fillStyle='#eef3f7'; ctx.beginPath(); ctx.moveTo(cx-TS*0.14,top+TS*0.28); ctx.lineTo(cx,top); ctx.lineTo(cx+TS*0.14,top+TS*0.28); ctx.lineTo(cx+TS*0.05,top+TS*0.22); ctx.lineTo(cx-TS*0.05,top+TS*0.22); ctx.closePath(); ctx.fill(); break; }
+   case 'arch':{ ctx.fillStyle='#c0703a'; ctx.beginPath();
+     ctx.moveTo(sx+TS*0.12,by); ctx.lineTo(sx+TS*0.12,sy+TS*0.42); ctx.quadraticCurveTo(cx,top,sx+TS*0.88,sy+TS*0.42); ctx.lineTo(sx+TS*0.88,by);
+     ctx.lineTo(sx+TS*0.66,by); ctx.lineTo(sx+TS*0.66,sy+TS*0.52); ctx.quadraticCurveTo(cx,sy+TS*0.24,sx+TS*0.34,sy+TS*0.52); ctx.lineTo(sx+TS*0.34,by); ctx.closePath(); ctx.fill(); break; }
+   case 'canyon':{ const cols=['#d98a4a','#c0703a','#9a552c','#7a3f22']; for(let k=0;k<cols.length;k++){ ctx.fillStyle=cols[k]; ctx.fillRect(sx+2,top+k*(TS*0.22),TS-4,TS*0.22); } break; }
+   case 'dunes':{ ctx.fillStyle='#e6cd8e'; ctx.beginPath(); ctx.moveTo(sx,by); ctx.quadraticCurveTo(sx+TS*0.3,cy,cx,by); ctx.quadraticCurveTo(sx+TS*0.75,sy+TS*0.35,sx+TS,by); ctx.closePath(); ctx.fill();
+     ctx.strokeStyle='#cbb070'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(sx+TS*0.18,by); ctx.quadraticCurveTo(cx,cy,sx+TS*0.82,by); ctx.stroke(); break; }
+   case 'lava':{ ctx.fillStyle='#352828'; ctx.beginPath(); ctx.ellipse(cx,cy,TS*0.45,TS*0.33,0,0,7); ctx.fill();
+     const g=0.5+0.5*Math.abs(Math.sin(t*3)); ctx.fillStyle='rgba(255,'+Math.round(80*g)+',0,'+(0.55+0.3*g)+')'; ctx.beginPath(); ctx.ellipse(cx,cy,TS*0.3,TS*0.2,0,0,7); ctx.fill();
+     ctx.fillStyle='#ffd23a'; ctx.beginPath(); ctx.ellipse(cx,cy,TS*0.12*g+1,TS*0.08*g+1,0,0,7); ctx.fill(); break; }
+   case 'glacier':{ ctx.fillStyle='#d4eff6'; ctx.beginPath(); ctx.moveTo(sx+2,by); ctx.lineTo(sx+TS*0.3,top+TS*0.2); ctx.lineTo(sx+TS*0.7,top+TS*0.3); ctx.lineTo(sx+TS-2,by); ctx.closePath(); ctx.fill();
+     ctx.strokeStyle='#85bdd4'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(sx+TS*0.4,top+TS*0.25); ctx.lineTo(sx+TS*0.46,by); ctx.moveTo(sx+TS*0.6,top+TS*0.3); ctx.lineTo(sx+TS*0.66,by); ctx.stroke(); break; }
+   case 'cave':{ ctx.fillStyle='#6a5a48'; ctx.fillRect(sx+2,sy+TS*0.2,TS-4,TS*0.8);
+     ctx.fillStyle='#140f10'; ctx.beginPath(); ctx.moveTo(cx-TS*0.22,by); ctx.lineTo(cx-TS*0.22,cy); ctx.quadraticCurveTo(cx,sy+TS*0.25,cx+TS*0.22,cy); ctx.lineTo(cx+TS*0.22,by); ctx.closePath(); ctx.fill(); break; }
+   case 'tree':{ ctx.fillStyle='#7a4a28'; ctx.fillRect(cx-TS*0.07,cy,TS*0.14,by-cy);
+     ctx.fillStyle='#2f6b34'; ctx.beginPath(); ctx.ellipse(cx,cy,TS*0.3,TS*0.36,0,0,7); ctx.fill();
+     ctx.fillStyle='rgba(60,133,64,0.4)'; ctx.beginPath(); ctx.arc(cx-TS*0.1,cy-TS*0.05,TS*0.12,0,7); ctx.fill(); break; }
+   case 'cactus':{ ctx.fillStyle='#3c7a3a'; ctx.fillRect(cx-TS*0.08,sy+TS*0.2,TS*0.16,TS*0.8);
+     ctx.fillRect(cx-TS*0.28,sy+TS*0.45,TS*0.2,TS*0.12); ctx.fillRect(cx-TS*0.28,sy+TS*0.33,TS*0.08,TS*0.24);
+     ctx.fillRect(cx+TS*0.1,sy+TS*0.4,TS*0.2,TS*0.1); ctx.fillRect(cx+TS*0.22,sy+TS*0.28,TS*0.08,TS*0.22); break; }
+   case 'rock':{ ctx.fillStyle='#9a8a76'; ctx.beginPath(); ctx.moveTo(sx+TS*0.2,by); ctx.lineTo(sx+TS*0.3,cy); ctx.lineTo(cx,sy+TS*0.25); ctx.lineTo(sx+TS*0.72,cy); ctx.lineTo(sx+TS*0.82,by); ctx.closePath(); ctx.fill();
+     ctx.fillStyle='#7a6a56'; ctx.beginPath(); ctx.moveTo(cx,sy+TS*0.25); ctx.lineTo(sx+TS*0.72,cy); ctx.lineTo(sx+TS*0.6,by); ctx.lineTo(cx,by); ctx.closePath(); ctx.fill(); break; }
+   case 'meadow':{ ctx.fillStyle='#5fa04a'; ctx.beginPath(); ctx.ellipse(cx,cy+TS*0.1,TS*0.45,TS*0.3,0,0,7); ctx.fill();
+     const fc=['#ffe066','#ff7b9c','#ffffff','#c98cff']; for(let k=0;k<5;k++){ ctx.fillStyle=fc[k%4]; ctx.beginPath(); ctx.arc(sx+TS*(0.2+0.15*k),cy+TS*(0.05+0.05*(k%3)),1.7,0,7); ctx.fill(); } break; }
+   case 'road':{ ctx.fillStyle='#5fa04a'; ctx.fillRect(sx,cy,TS,by-cy);
+     ctx.strokeStyle='#cdbfa0'; ctx.lineWidth=Math.max(2,TS*0.16); ctx.beginPath(); ctx.moveTo(sx,by); ctx.quadraticCurveTo(cx,cy,sx+TS,sy+TS*0.3); ctx.stroke(); break; }
+   default:{ ctx.font=(TS-2)+'px serif'; ctx.textAlign='center'; ctx.fillText(L.e,cx,by); ctx.textAlign='left'; }
+  }
+  ctx.restore();
+}
+// scatter biome vegetation across wild (unowned) land so the wilderness looks alive
+function decorWild(sx,sy,TS,biome,hsh){ const v=(hsh>>9)%3, cx=sx+TS*0.5;
+  if(biome==='geyser'){ if((hsh>>11)%7===0){ ctx.fillStyle='#cdbfa0'; ctx.beginPath(); ctx.ellipse(cx,sy+TS*0.66,TS*0.26,TS*0.12,0,0,7); ctx.fill();  // rare fumarole/steam vent
+      ctx.fillStyle='rgba(230,240,245,0.5)'; ctx.beginPath(); ctx.arc(cx,sy+TS*0.4,TS*0.16,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(cx+TS*0.08,sy+TS*0.24,TS*0.1,0,7); ctx.fill(); }
+    else { ctx.fillStyle='#3a2a18'; ctx.fillRect(cx-TS*0.04,sy+TS*0.58,TS*0.08,TS*0.28);
+      ctx.fillStyle='#2f5e2a'; ctx.beginPath(); ctx.moveTo(cx,sy+TS*0.2); ctx.lineTo(sx+TS*0.74,sy+TS*0.66); ctx.lineTo(sx+TS*0.26,sy+TS*0.66); ctx.closePath(); ctx.fill(); } }
+  else if(biome==='forest'||biome==='mountain'||biome==='coast'){
+    ctx.fillStyle='#3a2a18'; ctx.fillRect(cx-TS*0.04,sy+TS*0.58,TS*0.08,TS*0.28);
+    ctx.fillStyle=biome==='forest'?'#256e1f':(biome==='coast'?'#3a7a40':'#2f5e2a');
+    ctx.beginPath(); ctx.moveTo(cx,sy+TS*0.18); ctx.lineTo(sx+TS*0.76,sy+TS*0.66); ctx.lineTo(sx+TS*0.24,sy+TS*0.66); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(cx,sy+TS*0.34); ctx.lineTo(sx+TS*0.7,sy+TS*0.78); ctx.lineTo(sx+TS*0.3,sy+TS*0.78); ctx.closePath(); ctx.fill(); }
+  else if(biome==='wetland'){ ctx.strokeStyle='#3f7b3a'; ctx.lineWidth=1.3; for(let r=0;r<4;r++){ ctx.beginPath(); ctx.moveTo(cx-5+r*3,sy+TS*0.82); ctx.lineTo(cx-6+r*3,sy+TS*0.42); ctx.stroke(); } }
+  else if(biome==='desert'){ if(v===0){ ctx.fillStyle='#3c7a3a'; ctx.fillRect(cx-TS*0.05,sy+TS*0.4,TS*0.1,TS*0.45); ctx.fillRect(cx-TS*0.22,sy+TS*0.5,TS*0.12,TS*0.07); ctx.fillRect(cx+TS*0.1,sy+TS*0.46,TS*0.12,TS*0.07); } else { ctx.fillStyle='#9a8a66'; ctx.beginPath(); ctx.arc(cx,sy+TS*0.7,TS*0.12,0,7); ctx.fill(); } }
+  else if(biome==='dunes'){ ctx.strokeStyle='rgba(180,150,90,0.6)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(sx+TS*0.2,sy+TS*0.7); ctx.quadraticCurveTo(cx,sy+TS*0.5,sx+TS*0.8,sy+TS*0.7); ctx.stroke(); }
+  else if(biome==='glacier'){ ctx.fillStyle='#d6ecf2'; ctx.beginPath(); ctx.moveTo(cx,sy+TS*0.42); ctx.lineTo(sx+TS*0.68,sy+TS*0.72); ctx.lineTo(sx+TS*0.32,sy+TS*0.72); ctx.closePath(); ctx.fill(); }
+  else if(biome==='prairie'){ ctx.strokeStyle='#9c8c3c'; ctx.lineWidth=1.2; for(let r=0;r<4;r++){ ctx.beginPath(); ctx.moveTo(cx-5+r*3,sy+TS*0.78); ctx.lineTo(cx-6+r*3,sy+TS*0.48); ctx.stroke(); } }
+  else { ctx.fillStyle='#6f6658'; ctx.beginPath(); ctx.arc(cx-TS*0.08,sy+TS*0.68,TS*0.13,0,7); ctx.fill(); ctx.fillStyle='#5c5448'; ctx.beginPath(); ctx.arc(cx+TS*0.12,sy+TS*0.72,TS*0.09,0,7); ctx.fill(); }   // canyon/volcano/cave: boulders
+}
+// little visitors that wander the built park; how many = how popular
+// ── Wildlife: bison, bears, wolves & elk roam the wilderness ──
+const FAUNA={ bison:{body:'#5b4632',dark:'#3a2c1e',spd:0.5}, bear:{body:'#3c2a1c',dark:'#241810',spd:0.7},
+  wolf:{body:'#8d9298',dark:'#565b62',spd:1.2}, elk:{body:'#9c6b3f',dark:'#6b4628',spd:0.9},
+  deer:{body:'#b58a55',dark:'#7e5a32',spd:1.1}, moose:{body:'#473324',dark:'#2a1d12',spd:0.55},
+  fox:{body:'#c87038',dark:'#8c4a20',spd:1.35}, eagle:{body:'#4a3526',dark:'#281c12',spd:1.7,fly:true},
+  coyote:{body:'#b08a5a',dark:'#7a5e38',spd:1.25}, bighorn:{body:'#a3895e',dark:'#6e5638',spd:0.85},
+  rabbit:{body:'#c9bcab',dark:'#8a7f6e',spd:1.45}, raccoon:{body:'#8a9098',dark:'#33363c',spd:1.0},
+  hawk:{body:'#7a5a36',dark:'#46331f',spd:1.6,fly:true} };
+function updateWildlife(p,dt){ if(!p.animals) return; dt=Math.min(dt,0.05);
+  for(const a of p.animals){ a.tt-=dt; if(a.tt<=0){ a.dir+=(Math.random()-0.5)*1.6; a.tt=1.5+Math.random()*3.5; }
+    const nx=a.x+Math.cos(a.dir)*a.spd*dt, ny=a.y+Math.sin(a.dir)*a.spd*dt;
+    const tx=clamp(Math.floor(nx),0,PG-1), ty=clamp(Math.floor(ny),0,PH-1);
+    if(nx<1||nx>PG-1||ny<1||ny>PH-1||(!FAUNA[a.type].fly && p.ground[ti(tx,ty)]===2)){ a.dir+=2.1; } else { a.x=nx; a.y=ny; } } }
+function drawAnimal(type,px,py,s,fl,t){ const f=FAUNA[type], lw2=Math.max(1.2,s*0.16);
+  if(f.fly){ const flap=Math.sin(t*6+px*0.2)*s*0.45, hawk=type==='hawk', sc=hawk?0.82:1;        // soaring raptor (eagle / hawk)
+    ctx.fillStyle='rgba(0,0,0,0.16)'; ctx.beginPath(); ctx.ellipse(px,py+s*0.5,s*0.5*sc,s*0.15,0,0,7); ctx.fill();   // ground shadow
+    ctx.save(); ctx.translate(px,py-s*2.2); ctx.scale(fl*sc,sc);
+    ctx.fillStyle=f.dark; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-s*0.95,-flap-s*0.1); ctx.lineTo(-s*0.5,s*0.06); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(s*0.95,-flap-s*0.1); ctx.lineTo(s*0.5,s*0.06); ctx.closePath(); ctx.fill();
+    ctx.fillStyle=f.body; ctx.fillRect(-s*0.12,-s*0.18,s*0.24,s*0.5);
+    ctx.fillStyle=hawk?f.dark:'#f2f0e8'; ctx.fillRect(-s*0.1,-s*0.28,s*0.2,s*0.14);             // eagle white head / hawk dark head
+    ctx.fillStyle='#e0b020'; ctx.fillRect(-s*0.03,-s*0.16,s*0.1,s*0.08); ctx.restore(); return; } // beak
+  py+=Math.sin(t*4+px*0.3)*s*0.06;
+  ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(px,py+s*0.5,s*0.72,s*0.22,0,0,7); ctx.fill();   // shadow
+  ctx.save(); ctx.translate(px,py); ctx.scale(fl,1);
+  ctx.fillStyle=f.dark; ctx.fillRect(-s*0.5,s*0.05,lw2,s*0.45); ctx.fillRect(-s*0.18,s*0.05,lw2,s*0.45); ctx.fillRect(s*0.08,s*0.05,lw2,s*0.45); ctx.fillRect(s*0.36,s*0.05,lw2,s*0.45); // legs
+  ctx.fillStyle=f.body;
+  if(type==='bison'){ ctx.fillRect(-s*0.72,-s*0.5,s*1.25,s*0.6); ctx.fillRect(-s*0.72,-s*0.78,s*0.55,s*0.42);   // body + hump
+    ctx.fillRect(s*0.48,-s*0.32,s*0.34,s*0.36); ctx.fillStyle=f.dark; ctx.fillRect(s*0.8,-s*0.42,s*0.12,s*0.14); } // head + horn
+  else if(type==='bear'){ ctx.fillRect(-s*0.6,-s*0.56,s*1.1,s*0.64); ctx.fillRect(s*0.36,-s*0.62,s*0.4,s*0.42);    // body + head
+    ctx.fillStyle=f.dark; ctx.fillRect(s*0.4,-s*0.74,s*0.13,s*0.13); ctx.fillRect(s*0.63,-s*0.74,s*0.13,s*0.13); } // ears
+  else if(type==='wolf'){ ctx.fillRect(-s*0.66,-s*0.4,s*1.0,s*0.46); ctx.fillRect(s*0.3,-s*0.52,s*0.34,s*0.36);   // body + head
+    ctx.fillStyle=f.dark; ctx.fillRect(s*0.32,-s*0.68,s*0.1,s*0.16); ctx.fillRect(s*0.52,-s*0.68,s*0.1,s*0.16);    // ears
+    ctx.fillStyle=f.body; ctx.fillRect(-s*0.88,-s*0.44,s*0.26,s*0.16); }                                          // tail
+  else if(type==='elk'){ ctx.fillRect(-s*0.6,-s*0.52,s*1.0,s*0.46); ctx.fillRect(s*0.32,-s*0.82,s*0.26,s*0.52);   // body + neck
+    ctx.strokeStyle=f.dark; ctx.lineWidth=Math.max(1.2,s*0.09); ctx.beginPath();
+    ctx.moveTo(s*0.42,-s*0.82); ctx.lineTo(s*0.3,-s*1.12); ctx.moveTo(s*0.42,-s*0.82); ctx.lineTo(s*0.6,-s*1.06);
+    ctx.moveTo(s*0.36,-s*1.0); ctx.lineTo(s*0.2,-s*1.05); ctx.moveTo(s*0.5,-s*0.96); ctx.lineTo(s*0.66,-s*0.99); ctx.stroke(); }
+  else if(type==='deer'){ ctx.fillRect(-s*0.55,-s*0.48,s*0.95,s*0.42); ctx.fillRect(s*0.3,-s*0.74,s*0.22,s*0.46);  // body + neck
+    ctx.fillStyle='#efe6d4'; ctx.fillRect(-s*0.58,-s*0.18,s*0.16,s*0.2); ctx.fillStyle=f.dark; ctx.fillRect(s*0.46,-s*0.78,s*0.12,s*0.1); } // white tail + nose
+  else if(type==='moose'){ ctx.fillRect(-s*0.72,-s*0.62,s*1.32,s*0.64); ctx.fillRect(s*0.42,-s*0.95,s*0.3,s*0.6);   // big body + long neck
+    ctx.fillStyle=f.dark; ctx.fillRect(s*0.62,-s*0.82,s*0.24,s*0.22);                                              // bulbous snout
+    ctx.strokeStyle=f.dark; ctx.lineWidth=Math.max(1.6,s*0.14); ctx.beginPath();
+    ctx.moveTo(s*0.5,-s*0.95); ctx.lineTo(s*0.18,-s*1.18); ctx.moveTo(s*0.6,-s*0.95); ctx.lineTo(s*0.92,-s*1.14); ctx.stroke(); }  // palmate antlers
+  else if(type==='fox'){ ctx.fillRect(-s*0.5,-s*0.3,s*0.85,s*0.34); ctx.fillRect(s*0.28,-s*0.44,s*0.26,s*0.3);     // body + head
+    ctx.fillStyle=f.dark; ctx.fillRect(s*0.3,-s*0.58,s*0.09,s*0.16); ctx.fillRect(s*0.46,-s*0.58,s*0.09,s*0.16);   // ears
+    ctx.fillStyle=f.body; ctx.fillRect(-s*0.82,-s*0.34,s*0.34,s*0.22); ctx.fillStyle='#f4f0e8'; ctx.fillRect(-s*0.82,-s*0.3,s*0.12,s*0.14); } // bushy white-tipped tail
+  else if(type==='coyote'){ ctx.fillRect(-s*0.6,-s*0.36,s*0.92,s*0.4); ctx.fillRect(s*0.28,-s*0.5,s*0.3,s*0.34);   // lean body + head
+    ctx.fillStyle=f.dark; ctx.fillRect(s*0.3,-s*0.66,s*0.09,s*0.18); ctx.fillRect(s*0.48,-s*0.66,s*0.09,s*0.18);   // tall ears
+    ctx.fillStyle=f.body; ctx.fillRect(-s*0.84,-s*0.3,s*0.3,s*0.18); }                                             // tail
+  else if(type==='bighorn'){ ctx.fillRect(-s*0.58,-s*0.5,s*0.98,s*0.46); ctx.fillRect(s*0.3,-s*0.66,s*0.26,s*0.3); // stout body + head
+    ctx.strokeStyle=f.dark; ctx.lineWidth=Math.max(1.4,s*0.14); ctx.beginPath(); ctx.arc(s*0.34,-s*0.6,s*0.2,-0.5,3.7); ctx.stroke(); } // curled horn
+  else if(type==='rabbit'){ ctx.fillRect(-s*0.26,-s*0.16,s*0.48,s*0.26); ctx.fillRect(s*0.16,-s*0.3,s*0.2,s*0.2);  // small body + head
+    ctx.fillStyle=f.dark; ctx.fillRect(s*0.17,-s*0.58,s*0.07,s*0.3); ctx.fillRect(s*0.29,-s*0.58,s*0.07,s*0.3);    // long ears
+    ctx.fillStyle='#f4f0e8'; ctx.beginPath(); ctx.arc(-s*0.28,-s*0.02,s*0.1,0,7); ctx.fill(); }                    // cotton tail
+  else if(type==='raccoon'){ ctx.fillRect(-s*0.46,-s*0.26,s*0.78,s*0.3); ctx.fillRect(s*0.24,-s*0.4,s*0.24,s*0.26); // body + head
+    ctx.fillStyle=f.dark; ctx.fillRect(s*0.26,-s*0.34,s*0.2,s*0.09);                                               // bandit mask
+    ctx.fillRect(-s*0.8,-s*0.22,s*0.36,s*0.15); ctx.fillStyle=f.body; ctx.fillRect(-s*0.68,-s*0.22,s*0.1,s*0.15); ctx.fillRect(-s*0.5,-s*0.22,s*0.08,s*0.15); } // ringed tail
+  ctx.restore(); }
+function drawWildlife(p,x0,y0,x1,y1,t){ if(!p.animals) return;
+  for(const a of p.animals){ if(a.x<x0-1||a.x>x1+1||a.y<y0-1||a.y>y1+1) continue;
+    drawAnimal(a.type, camX+a.x*TS, camY+a.y*TS, TS*0.5, Math.cos(a.dir)<0?-1:1, t); } }
+function drawVisitors(p,t,x0,y0,x1,y1){
+  if(p.stats.visitors<=0) return;
+  const spots=[]; for(let y=y0;y<=y1&&spots.length<60;y++)for(let x=x0;x<=x1;x++){ const id=p.build[ti(x,y)]; if(id){ const k=B[id].key;
+    if(k==='road'||k==='trail'||k==='center'||k==='parking'||k==='camp'||k==='lodge'||k==='entrance') spots.push([x,y]); } }
+  if(!spots.length) return;
+  const n=Math.min(spots.length,Math.min(22, 1+Math.floor(p.stats.visitors/40))), cols=['#e8d8c0','#dd8a8a','#8ab8dd','#dcd084','#c8a0d0','#f0c090'];
+  for(let i=0;i<n;i++){ const [tx,ty]=spots[(i*7+3)%spots.length], ph=t*0.7+i*1.7;
+    const px=camX+tx*TS+TS/2+Math.cos(ph)*TS*0.32, py=camY+ty*TS+TS/2+Math.sin(ph*1.3)*TS*0.30, s=Math.max(2,TS*0.13);
+    ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(px,py+s*0.6,s*0.7,s*0.3,0,0,7); ctx.fill();   // shadow
+    ctx.fillStyle=cols[i%cols.length]; ctx.fillRect(px-s/2,py-s,s,s*1.5);                                       // body
+    ctx.fillStyle='#f2e3cc'; ctx.beginPath(); ctx.arc(px,py-s*1.25,s*0.55,0,7); ctx.fill(); }                   // head
+}
+function drawMinimap(p,vx0,vy0,vx1,vy1){ const m=miniRect();
+  ctx.fillStyle='rgba(8,18,12,0.85)'; ctx.fillRect(m.x-5,m.y-16,m.w+10,m.h+22);
+  ctx.strokeStyle='rgba(120,200,140,0.3)'; ctx.lineWidth=1; ctx.strokeRect(m.x-5,m.y-16,m.w+10,m.h+22);
+  ctx.fillStyle='#9be08a'; ctx.font='bold 9px monospace'; ctx.textAlign='left'; ctx.fillText('PARK MAP — drag empty land to pan · scroll to zoom',m.x-1,m.y-6);
+  ctx.fillStyle='#16301d'; ctx.fillRect(m.x,m.y,m.w,m.h);
+  const b=p.bounds; ctx.fillStyle='rgba(120,200,140,0.55)'; ctx.fillRect(m.x+b.x0*m.s,m.y+b.y0*m.s,(b.x1-b.x0+1)*m.s,(b.y1-b.y0+1)*m.s);
+  ctx.fillStyle='#ffe08a'; ctx.fillRect(m.x+p.wx*m.s-1.5,m.y+p.wy*m.s-1.5,3,3);
+  for(const L of p.landmarks){ ctx.fillStyle=L.found?'#7ee08a':'#ffd34d'; ctx.fillRect(m.x+L.x*m.s-1,m.y+L.y*m.s-1,2.4,2.4); }
+  ctx.strokeStyle='#ffffff'; ctx.lineWidth=1; ctx.strokeRect(m.x+vx0*m.s,m.y+vy0*m.s,(vx1-vx0+1)*m.s,(vy1-vy0+1)*m.s);
+}
+function drawPark(){
+  const p=current,bm=p.bm, t=performance.now()/1000;
+  // only render the tiles currently on screen (the park is ~30× bigger than a screenful)
+  const x0=Math.max(0,Math.floor((0-camX)/TS)), x1=Math.min(PG-1,Math.floor((W-camX)/TS));
+  const y0=Math.max(0,Math.floor((TOPB-camY)/TS)), y1=Math.min(PH-1,Math.floor((H-camY)/TS));
+  // ===== WORLD — rendered crisp at full resolution =====
+  ctx=screenCtx;
+  const bgg=ctx.createLinearGradient(0,0,0,H); bgg.addColorStop(0,'#0c1812'); bgg.addColorStop(1,'#06100b');
+  ctx.fillStyle=bgg; ctx.fillRect(0,0,W,H);
+  const detailed = TS>=8;   // when zoomed way out, skip tiny per-tile detail (faster & cleaner)
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){ const i=ti(x,y), sx=camX+x*TS, sy=camY+y*TS, gr=p.ground[i], own=p.owned[i];
+    // ground (with subtle per-tile texture; water shimmers)
+    if(gr===2){ ctx.fillStyle='#2e6b8a'; ctx.fillRect(sx,sy,TS,TS);
+      if(detailed){ ctx.fillStyle='rgba(190,230,250,'+(0.06+0.05*Math.sin(t*1.6+x*0.6+y*0.4))+')'; ctx.fillRect(sx,sy,TS,TS); } }
+    else { ctx.fillStyle=bm.g; ctx.fillRect(sx,sy,TS,TS);
+      if(detailed){ const sh=((x*7+y*13)%5-2)*0.02; if(sh){ ctx.fillStyle=(sh<0?'rgba(0,0,0,':'rgba(255,255,255,')+Math.abs(sh)+')'; ctx.fillRect(sx,sy,TS,TS); } } }
+    // wild vegetation on clear unowned land
+    if(detailed && !own && gr===0){ const hsh=((x*73856093)^(y*19349663))>>>0; if(hsh%100<26) decorWild(sx,sy,TS,p.wonder.b,hsh); }
+    if(!own){ ctx.fillStyle='rgba(8,14,8,0.34)'; ctx.fillRect(sx,sy,TS,TS); }     // gentle shade on wild land
+    // obstacle
+    if(detailed && gr===1){ if(bm.oem){ ctx.font=(TS-4)+'px serif'; ctx.fillText(bm.oem,sx+1,sy+TS-3); } else { ctx.fillStyle=bm.o; ctx.fillRect(sx+3,sy+3,TS-6,TS-6); } }
+    // build
+    const id=p.build[i]; if(id) drawBuilding(B[id],sx,sy,TS);
+    // worn paths darken & crack as condition drops; a broken tile gets a red ✕ and stops working
+    if(id&&(B[id].key==='road'||B[id].key==='trail')){ const cv=p.cond.get(i);
+      if(cv!==undefined&&cv<70){ const w=(70-cv)/70; ctx.fillStyle='rgba(60,34,20,'+(0.5*w).toFixed(2)+')'; ctx.fillRect(sx,sy,TS,TS);
+        if(cv<=0){ ctx.strokeStyle='rgba(220,60,40,0.95)'; ctx.lineWidth=Math.max(1.4,TS*0.1);
+          ctx.beginPath(); ctx.moveTo(sx+2,sy+2); ctx.lineTo(sx+TS-2,sy+TS-2); ctx.moveTo(sx+TS-2,sy+2); ctx.lineTo(sx+2,sy+TS-2); ctx.stroke(); }
+        else if(detailed&&cv<38){ ctx.strokeStyle='rgba(30,18,10,0.7)'; ctx.lineWidth=1;
+          ctx.beginPath(); ctx.moveTo(sx+TS*0.25,sy+TS*0.2); ctx.lineTo(sx+TS*0.55,sy+TS*0.75); ctx.lineTo(sx+TS*0.8,sy+TS*0.45); ctx.stroke(); } } }
+    // grid line — skipped on roads/trails so paths merge into one continuous surface
+    if(detailed && !(id&&(B[id].key==='road'||B[id].key==='trail'))){ ctx.strokeStyle='rgba(0,0,0,0.12)'; ctx.lineWidth=1; ctx.strokeRect(sx+.5,sy+.5,TS,TS); }
+    // glowing property boundary on the edge of owned land
+    if(own){ ctx.strokeStyle='rgba(155,224,138,0.55)'; ctx.lineWidth=1.5; ctx.beginPath();
+      if(y===0||!p.owned[ti(x,y-1)]){ ctx.moveTo(sx,sy+.5); ctx.lineTo(sx+TS,sy+.5); }
+      if(y===PH-1||!p.owned[ti(x,y+1)]){ ctx.moveTo(sx,sy+TS-.5); ctx.lineTo(sx+TS,sy+TS-.5); }
+      if(x===0||!p.owned[ti(x-1,y)]){ ctx.moveTo(sx+.5,sy); ctx.lineTo(sx+.5,sy+TS); }
+      if(x===PG-1||!p.owned[ti(x+1,y)]){ ctx.moveTo(sx+TS-.5,sy); ctx.lineTo(sx+TS-.5,sy+TS); }
+      ctx.stroke(); }
+  }
+  // central wonder — drawn larger, styled to its biome
+  if(p.wx>=x0-3&&p.wx<=x1+3&&p.wy>=y0-3&&p.wy<=y1+3){ const wcx=camX+(p.wx+0.5)*TS, wcy=camY+(p.wy+0.5)*TS, WT=TS*2.6;
+    drawLandmark({kind:WKIND[p.wonder.b]||'rock', e:bm.wonder}, wcx-WT/2, wcy-WT/2, WT, t); }
+  // natural wonders — pixel sprite when discovered, pulsing "?" ring until then
+  const hg=gridAt(mx,my);
+  for(const L of p.landmarks){ if(L.x<x0-3||L.x>x1+3||L.y<y0-3||L.y>y1+3) continue;
+    const cx=camX+(L.x+0.5)*TS, cy=camY+(L.y+0.5)*TS, WS=TS*2.7;   // wonders fill their 3×3 footprint
+    if(L.found){ const gl=ctx.createRadialGradient(cx,cy,0,cx,cy,WS*0.85);   // soft golden glow
+        gl.addColorStop(0,'rgba(255,224,138,'+(0.2+0.08*Math.sin(t*2+L.x))+')'); gl.addColorStop(1,'rgba(255,224,138,0)');
+        ctx.fillStyle=gl; ctx.beginPath(); ctx.arc(cx,cy,WS*0.85,0,7); ctx.fill();
+        drawLandmark(L,cx-WS/2,cy-WS/2,WS,t); }
+    else { const pulse=0.55+0.45*Math.sin(t*3), R=TS*1.2;
+      ctx.fillStyle='rgba(10,18,12,0.5)'; ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.fill();
+      ctx.strokeStyle='rgba(255,214,90,'+(0.4+0.5*pulse)+')'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.stroke();
+      ctx.fillStyle='rgba(255,224,138,'+(0.6+0.4*pulse)+')'; ctx.font='bold '+Math.round(TS*1.7)+'px monospace'; ctx.textAlign='center'; ctx.fillText('?',cx,cy+TS*0.6); ctx.textAlign='left'; } }
+  // cars on the roads, wildlife in the wilderness, visitors in the built park
+  drawCars(p,x0,y0,x1,y1);
+  drawWildlife(p,x0,y0,x1,y1,t);
+  drawVisitors(p,t,x0,y0,x1,y1);
+  drawParticles(x0,y0,x1,y1);
+  // seasonal atmosphere over the visible park land
+  const vx=Math.max(0,camX), vy=Math.max(TOPB,camY), vw=Math.min(W,camX+PG*TS)-vx, vh=Math.min(H,camY+PH*TS)-vy;
+  const seas=month%4;
+  if(seas===1){ ctx.fillStyle='rgba(255,214,120,0.05)'; ctx.fillRect(vx,vy,vw,vh); }          // summer warmth
+  else if(seas===2){ ctx.fillStyle='rgba(216,128,40,0.12)'; ctx.fillRect(vx,vy,vw,vh); }       // autumn gold
+  else if(seas===3){ ctx.fillStyle='rgba(222,236,255,0.18)'; ctx.fillRect(vx,vy,vw,vh);        // winter
+    for(let k=0;k<70;k++){ const sx2=vx+((k*97+ t*40)%Math.max(1,vw)), sy2=vy+((k*53+ t*70)%Math.max(1,vh));
+      ctx.fillStyle='rgba(255,255,255,0.8)'; ctx.fillRect(sx2,sy2,2,2); } }
+  // slow day/night mood cycle (~2 min per full cycle): dawn/dusk warm, night cool blue, midday neutral
+  const sun=Math.sin((t/120)*6.2832);
+  if(vw>0&&vh>0){
+    if(sun<-0.04){ const k=Math.min(1,(-sun-0.04)/0.55); ctx.fillStyle='rgba(18,28,72,'+(0.34*k).toFixed(3)+')'; ctx.fillRect(vx,vy,vw,vh); }
+    else if(sun<0.34){ const k=1-Math.abs(sun-0.15)/0.22; if(k>0){ ctx.fillStyle='rgba(255,150,66,'+(0.16*k).toFixed(3)+')'; ctx.fillRect(vx,vy,vw,vh); } } }
+  drawAmbience(t,vx,vy,vw,vh,seas,sun);
+  // drifting cloud shadows across the visible land
+  if(vw>0&&vh>0){ ctx.save(); ctx.beginPath(); ctx.rect(vx,vy,vw,vh); ctx.clip();
+    for(let k=0;k<3;k++){ const cw=W*0.5, cx2=vx-cw+((t*10+k*W*0.55)%(vw+cw)), cy2=vy+(0.2+k*0.3)*vh;
+      const rg=ctx.createRadialGradient(cx2,cy2,0,cx2,cy2,cw*0.5); rg.addColorStop(0,'rgba(0,0,0,0.10)'); rg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=rg; ctx.beginPath(); ctx.ellipse(cx2,cy2,cw*0.5,cw*0.22,0,0,7); ctx.fill(); }
+    ctx.restore(); }
+  // ===== HUD PASS =====
+  ctx.textAlign='center';
+  for(const L of p.landmarks){ if(L.x<x0-3||L.x>x1+3||L.y<y0-3||L.y>y1+3) continue;
+    const cxL=camX+(L.x+0.5)*TS, topY=camY+(L.y+0.5)*TS-TS*1.45, hovL=hg&&Math.abs(hg[0]-L.x)<=1&&Math.abs(hg[1]-L.y)<=1;
+    if(L.found){ ctx.font='bold '+(hovL?13:11)+'px monospace'; const tw=ctx.measureText(L.n).width+10;
+      ctx.fillStyle='rgba(0,0,0,0.72)'; ctx.fillRect(cxL-tw/2,topY-13,tw,16); ctx.fillStyle=hovL?'#fff':'#ffe08a'; ctx.fillText(L.n,cxL,topY); }
+    else if(hovL){ ctx.font='bold 12px monospace'; const m='Unexplored — blaze a trail to it', tw=ctx.measureText(m).width+12;
+      ctx.fillStyle='rgba(0,0,0,0.82)'; ctx.fillRect(cxL-tw/2,topY-14,tw,17); ctx.fillStyle='#ffd34d'; ctx.fillText(m,cxL,topY); } }
+  ctx.textAlign='left';
+  // connection / income banner
+  ctx.font='bold 13px monospace'; let bmsg,bcol;
+  if(!p.opened){ bcol= p._conn?'#7ee08a':'#ffd34d';
+    bmsg= p._conn?'✔ Wonder connected — visitors can reach it!':'⚠ Build an Entrance on your land\'s edge, then a Road/Trail to the '+p.wonder.e; }
+  else { bcol='#9be08a'; const net=p.stats.rev-p.stats.up; const found=p.landmarks.filter(L=>L.found).length;
+    bmsg='💵 +$'+p.stats.rev+' tickets  −$'+p.stats.up+' upkeep  =  '+(net>=0?'+':'')+'$'+net+'    🔭 '+found+'/'+p.landmarks.length+' wonders found'; }
+  const bw=ctx.measureText(bmsg).width+20; ctx.fillStyle='rgba(8,18,12,0.85)'; ctx.fillRect(14,TOPB+2,bw,22);
+  ctx.fillStyle=bcol; ctx.fillText(bmsg,24,TOPB+17);
+  // hover highlight + buy-land hint (the brush grows as you zoom out) — never while touring
+  const g=visitMode?null:gridAt(mx,my); if(g){ const [hx,hy]=g, sx=camX+hx*TS, sy=camY+hy*TS;
+    if(landMode){ const r=landBrush(); ctx.strokeStyle='#9be08a'; ctx.lineWidth=2;
+      ctx.strokeRect(sx-r*TS,sy-r*TS,(2*r+1)*TS,(2*r+1)*TS);
+      const tiles=r<=0?1:Math.round(3.1*(r+0.5)*(r+0.5)); ctx.fillStyle='#9be08a'; ctx.font='11px monospace';
+      ctx.fillText('buy ~$'+(parcelCost(current)*tiles).toLocaleString()+(r>0?'  ('+tiles+' parcels)':''),sx-r*TS,sy-r*TS-3); }
+    else if(tool&&B[tool].paint){ const r=landBrush(); ctx.strokeStyle='#ffe08a'; ctx.lineWidth=2;   // road/trail brush also grows when zoomed out
+      ctx.strokeRect(sx-r*TS,sy-r*TS,(2*r+1)*TS,(2*r+1)*TS); }
+    else { if(tool&&tool!==99){ const ii=ti(hx,hy);   // translucent ghost preview of the building under the cursor
+        const ok=current.owned[ii]&&!current.build[ii]&&current.ground[ii]!==3&&current.ground[ii]!==4&&!(current.ground[ii]===2&&B[tool].key!=='trail');
+        ctx.globalAlpha=0.5; drawBuilding(B[tool],sx,sy,TS); ctx.globalAlpha=1; ctx.strokeStyle=ok?'#9be08a':'#ff6b6b'; }
+      else ctx.strokeStyle= tool?'#ffe08a':'#fff8';
+      ctx.lineWidth=2; ctx.strokeRect(sx,sy,TS,TS); } }
+  // build feedback flashes
+  const nowT=performance.now(); flashes=flashes.filter(f=>f.until>nowT);
+  for(const f of flashes){ const a=(f.until-nowT)/650; ctx.globalAlpha=a; ctx.strokeStyle=f.col; ctx.lineWidth=3;
+    ctx.strokeRect(camX+f.x*TS+1.5,camY+f.y*TS+1.5,TS-3,TS-3); ctx.globalAlpha=1; }
+  // soft vignette
+  const vg=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.32,W/2,H/2,Math.max(W,H)*0.7);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.42)');
+  ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+  if(visitMode&&visitor) drawVisitorAvatar(p,t);
+  drawMinimap(p,x0,y0,x1,y1);
+}
+
+// ── Save / Load (localStorage) ──
+// Terrain is regenerated from each park's seed, so we only persist sparse player data:
+// owned land as run-length runs, the building list, and worn path conditions.
+const SAVE_KEY='untamed_save_v3';   // v3: larger park grid (tile indices changed; older saves are incompatible)
+function ownedRuns(p){ const runs=[], b=p.bounds;
+  for(let y=b.y0;y<=b.y1;y++){ let run=-1;
+    for(let x=b.x0;x<=b.x1;x++){ const i=ti(x,y);
+      if(p.owned[i]){ if(run<0) run=i; } else if(run>=0){ runs.push([run,i-run]); run=-1; } }
+    if(run>=0) runs.push([run, ti(b.x1,y)+1-run]); }
+  return runs; }
+function scanBuilds(p){ const builds=[], cond=[], b=p.bounds;
+  for(let y=b.y0;y<=b.y1;y++)for(let x=b.x0;x<=b.x1;x++){ const i=ti(x,y), id=p.build[i];
+    if(id){ builds.push([i,id]); const cv=p.cond.get(i); if(cv!==undefined&&cv<100) cond.push([i,Math.round(cv)]); } }
+  return {builds,cond}; }
+function serializeGame(){ if(!parks.length) return null;
+  return { v:1, cash:Math.round(cash), month, curIdx: current?parks.indexOf(current):-1,
+    parks: parks.map(p=>{ const sb=scanBuilds(p);
+      return { wi:WONDERS.indexOf(p.wonder), seed:p.seed, desig:p.desig, ownedCount:p.ownedCount,
+        opened:p.opened, goalIdx:p.goalIdx, bounds:{x0:p.bounds.x0,y0:p.bounds.y0,x1:p.bounds.x1,y1:p.bounds.y1},
+        stats:{v:Math.round(p.stats.visitors),r:p.stats.rating,c:p.stats.conservation,rev:p.stats.rev,up:p.stats.up},
+        goals:p.goals.map(g=>g.done?1:0), found:p.landmarks.map(l=>l.found?1:0),
+        owned:ownedRuns(p), builds:sb.builds, cond:sb.cond }; }) }; }
+function hasSave(){ try{ return !!localStorage.getItem(SAVE_KEY); }catch(e){ return false; } }
+function saveGame(silent){ try{ const d=serializeGame();
+    if(!d){ if(!silent) toast('Nothing to save yet — found a park first.'); return; }
+    localStorage.setItem(SAVE_KEY, JSON.stringify(d)); if(!silent) toast('💾 Game saved — '+season()+' Year '+year()+'.'); }
+  catch(e){ toast('⚠ Save failed: '+(e.message||e)); } }
+function loadGame(){ let raw=null; try{ raw=localStorage.getItem(SAVE_KEY); }catch(e){}
+  if(!raw){ toast('No saved game found.'); return false; }
+  let d; try{ d=JSON.parse(raw); }catch(e){ toast('⚠ Saved game is corrupted.'); return false; }
+  cash=d.cash; month=d.month||0; parks=[]; visitMode=false; visitor=null;
+  for(const sp of d.parks){ const w=WONDERS[sp.wi]; if(!w) continue; const p=makePark(w, sp.seed);
+    p.owned.fill(0); let oc=0;
+    for(const [start,len] of sp.owned){ for(let k=0;k<len;k++) p.owned[start+k]=1; oc+=len; }
+    p.ownedCount = sp.ownedCount||oc; p.bounds=sp.bounds;
+    for(const [i,id] of sp.builds) setBuild(p,i,id);                       // rebuilds counts, upkeep, roads, entrances, cond
+    for(const [i,cv] of (sp.cond||[])) if(p.cond.has(i)) p.cond.set(i,cv); // apply worn conditions
+    (sp.found||[]).forEach((f,k)=>{ if(p.landmarks[k]) p.landmarks[k].found=!!f; });
+    p.desig=sp.desig||0; p.opened=!!sp.opened; p.goalIdx=sp.goalIdx||0;
+    p.goals.forEach((g,k)=>{ g.done=!!(sp.goals&&sp.goals[k]); });
+    const st=sp.stats||{}; p.stats.visitors=st.v||0; p.stats.rating=st.r||0; p.stats.conservation=(st.c!=null?st.c:80); p.stats.rev=st.rev||0; p.stats.up=st.up||0;
+    p.name=w.n+' '+DESIGS[p.desig].n; p._conn=connected(p);
+    let broken=0; for(const cv of p.cond.values()) if(cv<=0) broken++; p._broken=broken;
+    parks.push(p); }
+  current = (d.curIdx>=0 && parks[d.curIdx]) ? parks[d.curIdx] : null;
+  $('start').style.display='none';
+  if(current){ view='park'; fitPark(); renderPalette(); renderGoals(); } else { view='map'; }
+  startTransition();
+  updateTop(); toast('📂 Loaded — '+season()+' Year '+year()+'.'); return true; }
+// ── Menu-bar bookmarks: each toggle opens its own dropdown; only one open at a time ──
+const MENUS=['View','Game','Options','Help'];
+function syncMenuBtns(){ for(const n of MENUS) $('mt'+n).classList[$('menu'+n).classList.contains('open')?'add':'remove']('on'); }
+function closeMenus(except){ for(const n of MENUS) if(n!==except) $('menu'+n).classList.remove('open'); syncMenuBtns(); }
+MENUS.forEach(n=>{ $('mt'+n).onclick=e=>{ e.stopPropagation(); const m=$('menu'+n), open=m.classList.contains('open');
+  closeMenus(n); if(open){ m.classList.remove('open'); } else { m.classList.add('open'); resumeAudio(); sfx('click'); } syncMenuBtns(); }; });
+addEventListener('click',e=>{ let ch=false; for(const n of MENUS){ const m=$('menu'+n); if(m.classList.contains('open')&&!m.contains(e.target)&&e.target!==$('mt'+n)){ m.classList.remove('open'); ch=true; } } if(ch) syncMenuBtns(); });
+$('tSave').onclick=()=>{ closeMenus(null); saveGame(false); };
+$('tLoad').onclick=()=>{ closeMenus(null); loadGame(); };
+$('tNew').onclick=()=>{ closeMenus(null); if(typeof confirm==='function'&&!confirm('Start a NEW game? Your saved park(s) will be permanently erased.')) return;
+  try{ localStorage.removeItem(SAVE_KEY); }catch(e){} try{ location.reload(); }catch(e){} };
+$('contBtn').onclick=()=>{ resumeAudio(); loadGame(); };
+$('tSound').onclick=()=>{ sfxOn=!sfxOn; resumeAudio(); $('tSound').textContent=sfxOn?'🔊 Sound: On':'🔇 Sound: Off'; if(sfxOn) sfx('click'); };  // keeps Options open
+$('tVisit').onclick=()=>{ resumeAudio(); closeMenus(null); if(visitMode) exitVisit(); else enterVisit(); };
+$('tCenter').onclick=()=>{ closeMenus(null); if(current){ if(visitMode) exitVisit(); fitPark(); } };
+$('tGoals').onclick=()=>{ goalsHidden=!goalsHidden; $('tGoals').textContent=goalsHidden?'🎯 Goals: Hidden':'🎯 Goals: Shown'; updateTop(); };  // keeps Options open
+function showHelp(t,html){ closeMenus(null); $('mT').textContent=t; $('mP').innerHTML=html; modal.style.display='block'; }
+$('tHelp').onclick=()=>showHelp('📖 How to Play','Found a park from the 🗺️ U.S. Map. Build an <b>Entrance</b> on your land\'s edge, then a <b>Road</b> or <b>Trail</b> to the central wonder to open it to visitors.<br><br>Reach the glowing <b>?</b> landmarks with paths to discover them. Add parking, lodging, restrooms and attractions to grow visitors — but watch <b>🌿 conservation</b>, keep roads &amp; trails <b>repaired</b>, and promote your park from State Park up to a <b>World Heritage Site</b>.');
+$('tControls').onclick=()=>showHelp('🎮 Controls','<b>WASD / Arrows</b> — pan the park (or walk, in Visit mode)<br><b>Scroll</b> — zoom in / out<br><b>Drag</b> — pan, paint roads/trails, or buy land<br><b>Click a tool</b> then your land to build<br><b>🚶 Visit the Park</b> — tour it as a guest<br><b>Esc</b> — leave Visit mode');
+addEventListener('beforeunload',()=>{ if(parks.length) saveGame(true); });   // autosave on close
+setInterval(()=>{ if(parks.length) saveGame(true); }, 30000);                 // autosave every 30s
+
+// ── Visitor Mode — walk your own park as a guest to experience everything you've built ──
+let visitMode=false, visitor=null, _savedTS=22, _nearLm=null;
+function enterVisit(){ if(!current||view!=='park') return; visitMode=true; tool=null; landMode=false; _savedTS=TS; TS=30;
+  let sx=Math.max(0,current.wx-9), sy=current.wy;                         // default: the start of the approach corridor
+  if(current.entrances.size){ const e=current.entrances.values().next().value; sx=e%PG; sy=(e/PG)|0; }
+  visitor={x:sx+0.5,y:sy+0.5,dir:0,step:0}; _nearLm=null; centerOn(visitor.x,visitor.y);
+  sfx('click'); updateTop(); showTip('🚶 Visiting your park — WASD / arrows to walk, Esc or "🏗 Build" to head back.'); }
+function exitVisit(){ visitMode=false; visitor=null; _nearLm=null; TS=_savedTS;
+  if(current) centerOn(current.wx,current.wy); updateTop(); showTip(''); }
+function canWalk(gx,gy){ if(gx<0||gy<0||gx>=PG||gy>=PH) return false; const i=ti(gx,gy);
+  if(current.ground[i]===2){ const b=current.build[i]; return !!(b&&(B[b].key==='trail'||B[b].key==='road'||B[b].key==='entrance')); }  // water only via a path
+  return true; }
+function updateVisitor(dt){ const v=visitor; let mvx=0,mvy=0;
+  if(keys.a||keys.arrowleft) mvx-=1; if(keys.d||keys.arrowright) mvx+=1;
+  if(keys.w||keys.arrowup) mvy-=1; if(keys.s||keys.arrowdown) mvy+=1;
+  if(mvx||mvy){ const len=Math.hypot(mvx,mvy)||1, spd=6.5, nx=v.x+(mvx/len)*spd*dt, ny=v.y+(mvy/len)*spd*dt;
+    if(canWalk(Math.floor(nx),Math.floor(v.y))) v.x=nx;
+    if(canWalk(Math.floor(v.x),Math.floor(ny))) v.y=ny;
+    v.dir=Math.atan2(mvy,mvx); v.step+=dt*spd*1.6;
+    const si=Math.floor(v.step/2); if(si!==v._si){ v._si=si; sfx('step'); } }   // footsteps in cadence with the walk
+  centerOn(v.x,v.y);
+  // arriving at a discovered landmark shows a plaque
+  let near=null,bd=3.2; for(const L of current.landmarks){ if(!L.found) continue; const d=Math.hypot(L.x+0.5-v.x,L.y+0.5-v.y); if(d<bd){bd=d;near=L;} }
+  if(near&&near!==_nearLm){ toast('📍 You\'ve reached '+near.e+' '+near.n+'!'); sfx('cash'); }
+  _nearLm=near; }
+function drawVisitorAvatar(p,t){ const v=visitor, cx=camX+v.x*TS, cy=camY+v.y*TS, s=TS*0.5;
+  const moving=(keys.a||keys.d||keys.w||keys.s||keys.arrowleft||keys.arrowright||keys.arrowup||keys.arrowdown);
+  const bob=moving?Math.sin(v.step)*s*0.12:0, fl=Math.cos(v.dir)<0?-1:1;
+  // locator ring so you can always find yourself
+  ctx.strokeStyle='rgba(155,224,138,'+(0.5+0.3*Math.sin(t*4))+')'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cx,cy,s*1.5,0,7); ctx.stroke();
+  ctx.fillStyle='rgba(0,0,0,0.32)'; ctx.beginPath(); ctx.ellipse(cx,cy+s*0.6,s*0.6,s*0.22,0,0,7); ctx.fill();   // shadow
+  ctx.save(); ctx.translate(cx,cy-bob); ctx.scale(fl,1);
+  const legSw=moving?Math.sin(v.step)*s*0.35:0;
+  ctx.fillStyle='#3a4a6a'; ctx.fillRect(-s*0.22+legSw,s*0.1,s*0.18,s*0.5); ctx.fillRect(s*0.05-legSw,s*0.1,s*0.18,s*0.5);   // legs
+  ctx.fillStyle='#c0533b'; ctx.fillRect(-s*0.3,-s*0.4,s*0.6,s*0.6);                                                          // red jacket
+  ctx.fillStyle='#5a8f3a'; ctx.fillRect(s*0.18,-s*0.34,s*0.22,s*0.42);                                                       // backpack
+  ctx.fillStyle='#f2d2a8'; ctx.beginPath(); ctx.arc(0,-s*0.55,s*0.26,0,7); ctx.fill();                                       // head
+  ctx.fillStyle='#7a5a36'; ctx.fillRect(-s*0.28,-s*0.78,s*0.56,s*0.16);                                                      // hat brim
+  ctx.restore();
+  ctx.textAlign='center'; ctx.font='bold 11px monospace'; ctx.fillStyle='rgba(0,0,0,0.6)';
+  ctx.fillRect(cx-16,cy-s*1.9-11,32,15); ctx.fillStyle='#dff0d8'; ctx.fillText('YOU',cx,cy-s*1.9); ctx.textAlign='left';
+}
+
+// ── Loop ──
+let running=true;
+function updateSpeedBtn(){ const b=$('tSpeed'); b.textContent= !running?'⏸ paused':(speed===1?'▶ 1×':speed===2?'▶▶ 2×':'▶▶▶ 4×'); b.className='sp'+(running?' on':''); }
+$('tSpeed').onclick=()=>{
+  if(!running){ running=true; speed=1; }          // resume at 1×
+  else if(speed===1){ speed=2; }
+  else if(speed===2){ speed=4; }
+  else { running=false; acc=0; }                   // 4× → pause
+  updateSpeedBtn(); };
+$('tMap').onclick=()=>{ closeMenus(null); if(visitMode) exitVisit(); view='map'; updateTop(); $('hover').style.display='none'; startTransition(); };
+$('tUpgrade').onclick=()=>{ if(!current) return; const info=upgradeInfo(current); if(!info) return;
+  if(info.ok) doUpgrade(current); else toast('🔒 To become a '+info.next.n+', '+current.name+' needs: '+info.miss.join(', ')); };
+let last=performance.now();
+function loop(now){ const dt=Math.min((now-last)/1000, 0.5); last=now;
+  if(W!==innerWidth||H!==innerHeight) resize();     // keep canvas synced to the window so the park always fills it
+  if(view==='park'&&current){ updateWildlife(current,dt); updateCars(current,dt); updateParticles(dt);
+    if(visitMode&&visitor){ updateVisitor(dt); }                              // WASD walks your avatar; camera follows
+    else { const ps=Math.round(620*dt)||10;                                   // WASD / arrow keys pan the big map
+      if(keys.a||keys.arrowleft)camX+=ps; if(keys.d||keys.arrowright)camX-=ps;
+      if(keys.w||keys.arrowup)camY+=ps; if(keys.s||keys.arrowdown)camY-=ps;
+      if(keys.a||keys.d||keys.w||keys.s||keys.arrowleft||keys.arrowright||keys.arrowup||keys.arrowdown) clampCam(); } }
+  if(running){ acc+=dt*speed; while(running&&acc>=2.2){ acc-=2.2; advanceMonth(); } }   // ~2.2s per in-game month at 1×
+  shownCash += (cash-shownCash)*Math.min(1,dt*6); if(Math.abs(cash-shownCash)<1) shownCash=cash;   // animated cash counter
+  const ce=$('tCash'); if(ce) ce.textContent=Math.round(shownCash).toLocaleString();
+  if(view==='map') drawMap(); else if(current){ drawPark(); }
+  drawFloaters();
+  if(!running) drawPausePill();
+  drawTransition(dt);
+  requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+
+$('startBtn').onclick=()=>{ resumeAudio(); $('start').style.display='none'; view='map'; updateTop(); };
+updateSpeedBtn(); updateTop();
+if(hasSave()) $('contBtn').style.display='inline-block';   // offer to resume a saved game
+</script>
+</body>
+</html>

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HACKER</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #000;
+  color: #00ff41;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  height: 100vh;
+  overflow: hidden;
+  cursor: none;
+  user-select: none;
+}
+
+/* Matrix rain */
+#matrix { position:fixed; inset:0; opacity:0.07; pointer-events:none; z-index:0; }
+
+/* Scanline overlay */
+body::after {
+  content:'';
+  position:fixed; inset:0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+  pointer-events:none; z-index:100;
+}
+
+/* CRT flicker */
+@keyframes flicker { 0%,100%{opacity:1} 92%{opacity:1} 93%{opacity:0.94} 94%{opacity:1} 97%{opacity:0.97} }
+#wrap { animation: flicker 6s infinite; position:relative; z-index:1; height:100vh; display:grid;
+  grid-template-rows: 38px 1fr 28px;
+  grid-template-columns: 1fr 340px;
+  gap: 1px;
+  padding: 6px;
+}
+
+/* Top bar */
+#topbar {
+  grid-column: 1 / 3;
+  border: 1px solid #00ff4133;
+  display: flex; align-items: center; gap: 32px;
+  padding: 0 16px;
+  background: #001a00;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+#topbar .label { color: #006620; }
+#topbar .val { color: #00ff41; }
+#topbar .status { margin-left:auto; color: #ff3300; animation: blink 1s step-end infinite; }
+@keyframes blink { 50% { opacity:0; } }
+
+/* Terminal */
+#terminal {
+  border: 1px solid #00ff4133;
+  background: #000800;
+  overflow: hidden;
+  padding: 10px 14px;
+  display: flex; flex-direction: column;
+  position: relative;
+}
+#terminal-lines { flex:1; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-end; gap:1px; }
+.line { white-space: pre; line-height: 1.55; }
+.line.cmd { color: #00ff41; }
+.line.out { color: #00cc33; }
+.line.err { color: #ff3300; }
+.line.sys { color: #ffcc00; }
+.line.ok  { color: #00ffff; }
+.line.dim { color: #004d14; }
+#cursor-line { display:flex; gap:6px; margin-top:4px; }
+#prompt { color:#00ff41; }
+#typed { color:#00ff41; border-right:2px solid #00ff41; padding-right:2px; animation: blink 0.7s step-end infinite; }
+
+/* Right panel */
+#panel {
+  border: 1px solid #00ff4133;
+  background: #000800;
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 12px;
+  overflow: hidden;
+}
+.panel-section { display:flex; flex-direction:column; gap:6px; }
+.panel-title { font-size:9px; letter-spacing:3px; color:#004d14; border-bottom:1px solid #004d1444; padding-bottom:4px; margin-bottom:2px; }
+.bar-row { display:flex; flex-direction:column; gap:2px; }
+.bar-label { font-size:10px; display:flex; justify-content:space-between; color:#00cc33; }
+.bar-track { height:6px; background:#001a00; border-radius:2px; overflow:hidden; }
+.bar-fill { height:100%; background:#00ff41; border-radius:2px; transition: width 0.3s; }
+.bar-fill.red { background:#ff3300; }
+.bar-fill.yellow { background:#ffcc00; }
+.stat-row { display:flex; justify-content:space-between; font-size:11px; }
+.stat-row .k { color:#004d14; }
+.stat-row .v { color:#00ff41; }
+#map { font-size:9px; line-height:1.4; color:#003310; letter-spacing:1px; }
+#breach-box {
+  border: 1px solid #ff330044;
+  padding: 8px;
+  background: #1a0000;
+  display:none;
+}
+#breach-box.show { display:block; animation: breachpulse 0.5s ease infinite alternate; }
+@keyframes breachpulse { from{border-color:#ff330044} to{border-color:#ff3300cc} }
+#breach-title { color:#ff3300; font-size:10px; letter-spacing:2px; margin-bottom:4px; }
+#breach-msg { color:#ff6633; font-size:11px; line-height:1.5; }
+
+/* Bottom bar */
+#bottombar {
+  grid-column: 1 / 3;
+  border: 1px solid #00ff4133;
+  background: #001a00;
+  display: flex; align-items: center; gap: 24px;
+  padding: 0 16px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #004d14;
+}
+#bottombar .active { color:#00ff41; }
+#packet-count { margin-left:auto; }
+</style>
+</head>
+<body>
+<canvas id="matrix"></canvas>
+<div id="wrap">
+  <div id="topbar">
+    <span><span class="label">SYS // </span><span class="val" id="hostname">SHADOW-NODE-7</span></span>
+    <span><span class="label">IP // </span><span class="val" id="myip">192.168.0.1</span></span>
+    <span><span class="label">TARGET // </span><span class="val" id="targetip">---.---.---.---</span></span>
+    <span><span class="label">UPLINK // </span><span class="val" id="uplink">94.7 MB/s</span></span>
+    <span><span class="label">ENC // </span><span class="val">AES-2048</span></span>
+    <span class="status" id="statusbadge">● INTRUSION ACTIVE</span>
+  </div>
+
+  <div id="terminal">
+    <div id="terminal-lines"></div>
+    <div id="cursor-line">
+      <span id="prompt">root@shadow:~#</span>
+      <span id="typed"></span>
+    </div>
+  </div>
+
+  <div id="panel">
+    <div class="panel-section">
+      <div class="panel-title">SYSTEM BREACH STATUS</div>
+      <div class="bar-row">
+        <div class="bar-label"><span>FIREWALL</span><span id="fw-pct">0%</span></div>
+        <div class="bar-track"><div class="bar-fill red" id="fw-bar" style="width:0%"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label"><span>ENCRYPTION</span><span id="enc-pct">0%</span></div>
+        <div class="bar-track"><div class="bar-fill yellow" id="enc-bar" style="width:0%"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label"><span>ROOT ACCESS</span><span id="root-pct">0%</span></div>
+        <div class="bar-track"><div class="bar-fill" id="root-bar" style="width:0%"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label"><span>DATA EXFIL</span><span id="exfil-pct">0%</span></div>
+        <div class="bar-track"><div class="bar-fill" id="exfil-bar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">TARGET INTEL</div>
+      <div class="stat-row"><span class="k">LOCATION</span><span class="v" id="location">SCANNING...</span></div>
+      <div class="stat-row"><span class="k">OS</span><span class="v" id="target-os">UNKNOWN</span></div>
+      <div class="stat-row"><span class="k">PORTS OPEN</span><span class="v" id="ports">--</span></div>
+      <div class="stat-row"><span class="k">VULNERABILITIES</span><span class="v" id="vulns">--</span></div>
+      <div class="stat-row"><span class="k">FILES FOUND</span><span class="v" id="files">--</span></div>
+      <div class="stat-row"><span class="k">ADMIN PWD</span><span class="v" id="pwd">--------</span></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">NETWORK MAP</div>
+      <div id="map">PROBING...</div>
+    </div>
+
+    <div id="breach-box">
+      <div id="breach-title">⚠ ALERT</div>
+      <div id="breach-msg"></div>
+    </div>
+  </div>
+
+  <div id="bottombar">
+    <span class="active">[ ACTIVE SESSION ]</span>
+    <span id="b-proxy">PROXY: TOR x7</span>
+    <span id="b-mode">MODE: STEALTH</span>
+    <span id="b-time"></span>
+    <span class="packet-count" id="packet-count">PACKETS: 0</span>
+  </div>
+</div>
+
+<script>
+// ── Matrix rain ──────────────────────────────────────────────────────────────
+const canvas = document.getElementById('matrix');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+const cols = Math.floor(canvas.width / 16);
+const drops = Array(cols).fill(0);
+const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモ0123456789ABCDEF><{}[];';
+function drawMatrix() {
+  ctx.fillStyle = 'rgba(0,0,0,0.05)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = '#00ff41'; ctx.font = '14px monospace';
+  for (let i=0; i<drops.length; i++) {
+    ctx.fillText(chars[Math.floor(Math.random()*chars.length)], i*16, drops[i]*16);
+    if (drops[i]*16 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+    drops[i]++;
+  }
+}
+setInterval(drawMatrix, 50);
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function randIP() { return Array(4).fill(0).map(()=>Math.floor(Math.random()*256)).join('.'); }
+function randHex(n) { return Array(n).fill(0).map(()=>Math.floor(Math.random()*16).toString(16).toUpperCase()).join(''); }
+function pad(n) { return String(n).padStart(2,'0'); }
+let packets = 0;
+
+// ── Terminal ──────────────────────────────────────────────────────────────────
+const linesEl = document.getElementById('terminal-lines');
+const typedEl = document.getElementById('typed');
+const MAX_LINES = 60;
+let lineBuffer = [];
+
+function addLine(text, cls='out') {
+  lineBuffer.push({text, cls});
+  if (lineBuffer.length > MAX_LINES) lineBuffer.shift();
+  renderLines();
+  packets += Math.floor(Math.random()*400+100);
+  document.getElementById('packet-count').textContent = 'PACKETS: ' + packets.toLocaleString();
+}
+function renderLines() {
+  linesEl.innerHTML = lineBuffer.map(l=>`<div class="line ${l.cls}">${l.text}</div>`).join('');
+}
+
+// ── Fake typing animation ─────────────────────────────────────────────────────
+let typeQueue = [];
+let typing = false;
+function typeCommand(cmd, then) {
+  typeQueue.push({cmd, then});
+  if (!typing) processTypeQueue();
+}
+function processTypeQueue() {
+  if (typeQueue.length === 0) { typing = false; return; }
+  typing = true;
+  const {cmd, then} = typeQueue.shift();
+  let i = 0;
+  typedEl.textContent = '';
+  const interval = setInterval(() => {
+    typedEl.textContent += cmd[i++];
+    if (i >= cmd.length) {
+      clearInterval(interval);
+      setTimeout(() => {
+        addLine('root@shadow:~# ' + cmd, 'cmd');
+        typedEl.textContent = '';
+        if (then) then();
+        setTimeout(processTypeQueue, 200);
+      }, 300);
+    }
+  }, 38 + Math.random()*25);
+}
+
+// ── Progress bars ─────────────────────────────────────────────────────────────
+const bars = {
+  fw:    {bar: document.getElementById('fw-bar'),    pct: document.getElementById('fw-pct'),    val: 0},
+  enc:   {bar: document.getElementById('enc-bar'),   pct: document.getElementById('enc-pct'),   val: 0},
+  root:  {bar: document.getElementById('root-bar'),  pct: document.getElementById('root-pct'),  val: 0},
+  exfil: {bar: document.getElementById('exfil-bar'), pct: document.getElementById('exfil-pct'), val: 0},
+};
+function animateBar(key, target, duration) {
+  const b = bars[key];
+  const start = b.val, diff = target - start;
+  const startT = performance.now();
+  function step(now) {
+    const t = Math.min((now - startT) / duration, 1);
+    b.val = start + diff * t;
+    const pct = Math.round(b.val);
+    b.bar.style.width = pct + '%';
+    b.pct.textContent = pct + '%';
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ── Breach alerts ─────────────────────────────────────────────────────────────
+const ALERTS = [
+  'COUNTERINTRUSION DETECTED\nRerouting through backup node...',
+  'HONEYPOT TRIGGERED\nDeploying decoy payload...',
+  'ADMIN ACTIVITY SPIKE\nEngaging ghost protocol...',
+  'PACKET INSPECTION ACTIVE\nSwitching to null-route...',
+  'IDS SIGNATURE MATCH\nObfuscating traffic pattern...',
+];
+let alertVisible = false;
+function showAlert(msg) {
+  if (alertVisible) return;
+  alertVisible = true;
+  const box = document.getElementById('breach-box');
+  document.getElementById('breach-msg').textContent = msg;
+  box.classList.add('show');
+  setTimeout(() => { box.classList.remove('show'); alertVisible = false; }, 5000);
+}
+
+// ── Hacking sequences ─────────────────────────────────────────────────────────
+const LOCATIONS = ['MOSCOW, RU','BEIJING, CN','FRANKFURT, DE','SAO PAULO, BR','SINGAPORE, SG','LAGOS, NG','DUBAI, UAE'];
+const OS_LIST   = ['Windows Server 2019','Ubuntu 22.04 LTS','CentOS 7.9','FreeBSD 13.2','RHEL 8.6'];
+const CMDS = [
+  ['nmap -sS -O {ip}', () => {
+    addLine('Starting Nmap scan...', 'dim');
+    addLine(`Host: {ip} is UP`, 'out');
+    setTimeout(()=>{ addLine('PORT     STATE  SERVICE', 'dim'); },400);
+    setTimeout(()=>{ addLine('22/tcp   open   ssh', 'out'); },700);
+    setTimeout(()=>{ addLine('80/tcp   open   http', 'out'); },900);
+    setTimeout(()=>{ addLine('443/tcp  open   https', 'out'); },1100);
+    setTimeout(()=>{ addLine('3306/tcp open   mysql', 'out'); },1300);
+    setTimeout(()=>{ addLine('8080/tcp open   http-proxy', 'out'); },1500);
+    setTimeout(()=>{
+      document.getElementById('ports').textContent = '5 OPEN';
+      document.getElementById('location').textContent = LOCATIONS[Math.floor(Math.random()*LOCATIONS.length)];
+      document.getElementById('target-os').textContent = OS_LIST[Math.floor(Math.random()*OS_LIST.length)];
+    }, 1800);
+  }],
+  ['exploit --target {ip} --vuln CVE-2024-{n}', () => {
+    addLine('Loading exploit module...', 'dim');
+    setTimeout(()=>addLine('Sending payload...', 'out'), 500);
+    setTimeout(()=>addLine('[*] Payload delivered', 'out'), 1000);
+    setTimeout(()=>addLine('[+] Shell obtained!', 'ok'), 1500);
+    setTimeout(()=>animateBar('fw', Math.min(bars.fw.val+35, 100), 2000), 600);
+    setTimeout(()=>{
+      const v = Math.floor(Math.random()*8+3);
+      document.getElementById('vulns').textContent = v + ' CRITICAL';
+    }, 1800);
+  }],
+  ['decrypt --algo aes256 --brute {hash}', () => {
+    addLine('Initializing GPU cluster...', 'dim');
+    let dots = 0;
+    const iv = setInterval(()=>{ addLine('Cracking... ' + '█'.repeat(++dots), 'dim'); if(dots>=6)clearInterval(iv); }, 400);
+    setTimeout(()=>animateBar('enc', Math.min(bars.enc.val+40, 100), 3000), 300);
+    setTimeout(()=>{ addLine('[+] DECRYPTED: ' + randHex(16), 'ok'); }, 2800);
+  }],
+  ['escalate --user root --method dirtycow', () => {
+    addLine('Checking kernel version...', 'dim');
+    setTimeout(()=>addLine('Kernel 5.4.0 — VULNERABLE', 'err'), 500);
+    setTimeout(()=>addLine('Compiling exploit...', 'dim'), 900);
+    setTimeout(()=>addLine('[+] ROOT SHELL OBTAINED', 'ok'), 1800);
+    setTimeout(()=>animateBar('root', Math.min(bars.root.val+50, 100), 2000), 900);
+    setTimeout(()=>{ document.getElementById('pwd').textContent = randHex(12); }, 2000);
+  }],
+  ['exfil --dir /etc/shadow --compress --encrypt', () => {
+    addLine('Compressing target directory...', 'dim');
+    setTimeout(()=>addLine('Encrypting with session key...', 'dim'), 600);
+    setTimeout(()=>addLine('Uploading via SFTP tunnel...', 'dim'), 1200);
+    setTimeout(()=>animateBar('exfil', Math.min(bars.exfil.val+45, 100), 3000), 800);
+    setTimeout(()=>{
+      const mb = (Math.random()*200+50).toFixed(1);
+      addLine('[+] ' + mb + ' MB exfiltrated', 'ok');
+      document.getElementById('files').textContent = Math.floor(Math.random()*50000+1000).toLocaleString();
+    }, 3200);
+  }],
+  ['proxychains tor --rotate --nodes 7', () => {
+    addLine('Establishing TOR circuit...', 'dim');
+    for(let i=1;i<=7;i++) setTimeout(()=>addLine(`Node ${i}: ${randIP()} — OK`, 'out'), i*250);
+    setTimeout(()=>addLine('[+] Anonymous tunnel active', 'ok'), 2000);
+  }],
+  ['scan --subnet {ip}/24 --ports all', () => {
+    addLine('ARP sweep in progress...', 'dim');
+    for(let i=0;i<6;i++) setTimeout(()=>addLine(`${randIP()} — ALIVE`, 'out'), i*300+200);
+    setTimeout(()=>addLine('[+] 6 hosts discovered', 'ok'), 2300);
+    updateMap();
+  }],
+  ['inject --sql "OR 1=1--" --target /login', () => {
+    addLine("Testing injection point...", 'dim');
+    setTimeout(()=>addLine("VULNERABLE — dumping table...", 'err'), 700);
+    setTimeout(()=>addLine("admin | " + randHex(8) + " | root@corp.com", 'ok'), 1400);
+    setTimeout(()=>addLine("ceo    | " + randHex(8) + " | ceo@corp.com  ", 'ok'), 1600);
+    setTimeout(()=>addLine("devops | " + randHex(8) + " | dev@corp.com  ", 'ok'), 1800);
+  }],
+];
+
+function updateMap() {
+  const nodes = Array(6).fill(0).map(()=>randIP().substring(0,11));
+  document.getElementById('map').innerHTML =
+    `[YOU]──TOR──[${nodes[0]}]\n` +
+    `            └──[${nodes[1]}]\n` +
+    `                └──[TARGET]\n` +
+    `            ├──[${nodes[2]}]\n` +
+    `            └──[${nodes[3]}]`;
+}
+
+// ── Uplink flicker ─────────────────────────────────────────────────────────────
+setInterval(()=>{
+  document.getElementById('uplink').textContent = (Math.random()*300+50).toFixed(1) + ' MB/s';
+}, 2000);
+
+// ── Clock ──────────────────────────────────────────────────────────────────────
+setInterval(()=>{
+  const n = new Date();
+  document.getElementById('b-time').textContent =
+    `${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+}, 1000);
+
+// ── Main sequence ──────────────────────────────────────────────────────────────
+let cmdIdx = 0;
+let target = randIP();
+document.getElementById('targetip').textContent = target;
+
+function runNext() {
+  const [cmdTpl, action] = CMDS[cmdIdx % CMDS.length];
+  cmdIdx++;
+  const cmd = cmdTpl
+    .replace('{ip}', target)
+    .replace('{n}', Math.floor(Math.random()*9000+1000))
+    .replace('{hash}', randHex(32));
+  typeCommand(cmd, () => {
+    if (action) action();
+    // Occasional alerts
+    if (Math.random() < 0.3) setTimeout(()=>showAlert(ALERTS[Math.floor(Math.random()*ALERTS.length)]), 1500);
+  });
+  // New target occasionally
+  if (cmdIdx % 7 === 0) {
+    target = randIP();
+    document.getElementById('targetip').textContent = target;
+    addLine('--- NEW TARGET ACQUIRED: ' + target + ' ---', 'sys');
+  }
+  const delay = 3500 + Math.random()*2000;
+  setTimeout(runNext, delay);
+}
+
+// ── Keypress triggers instant drama ───────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') return;
+  const dramas = [
+    ()=>addLine('[!] TRACE DETECTED — rerouting...', 'err'),
+    ()=>addLine('[+] PASSWORD CRACKED: ' + randHex(10), 'ok'),
+    ()=>addLine('[*] Injecting shellcode 0x' + randHex(8), 'out'),
+    ()=>addLine('[!] FIREWALL RULE BYPASSED', 'sys'),
+    ()=>addLine('[+] SSH KEY STOLEN', 'ok'),
+    ()=>addLine('[*] Kernel exploit staged at 0x' + randHex(8), 'dim'),
+    ()=>addLine('[!] COUNTERMEASURE DEPLOYED — evading...', 'err'),
+    ()=>addLine('[+] DATABASE DUMP: ' + Math.floor(Math.random()*1e6) + ' records', 'ok'),
+  ];
+  dramas[Math.floor(Math.random()*dramas.length)]();
+});
+
+// ── Boot sequence ──────────────────────────────────────────────────────────────
+setTimeout(()=>addLine('SHADOW TERMINAL v4.2.1 — INITIALIZED', 'sys'), 200);
+setTimeout(()=>addLine('Establishing secure tunnel...', 'dim'), 600);
+setTimeout(()=>addLine('[+] Connected via TOR (7 nodes)', 'ok'), 1200);
+setTimeout(()=>addLine('Loading exploit framework...', 'dim'), 1700);
+setTimeout(()=>addLine('[+] 2,847 modules loaded', 'ok'), 2200);
+setTimeout(()=>addLine('', 'dim'), 2500);
+setTimeout(()=>{ updateMap(); runNext(); }, 2800);
+</script>
+</body>
+</html>

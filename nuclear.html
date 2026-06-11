@@ -1,0 +1,2212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>GLOBAL DEFCON</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg:#02060c; --panel:#030a10; --border:#0a1e30;
+  --green:#4ade80; --green2:#16a34a; --dim:#1e4060;
+  --red:#ef4444; --orange:#f97316; --yellow:#eab308;
+  --cyan:#22d3ee; --text:#86efac; --gold:#c8a020;
+}
+body { background:var(--bg); color:var(--text); font-family:'Courier New',monospace; height:100vh; overflow:hidden; user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+body::before { content:''; position:fixed; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.07) 3px,rgba(0,0,0,0.07) 4px); pointer-events:none; z-index:1000; }
+@keyframes shakeHit { 0%,100%{transform:translate(0,0)} 20%{transform:translate(-6px,4px)} 40%{transform:translate(5px,-3px)} 60%{transform:translate(-3px,-5px)} 80%{transform:translate(4px,3px)} }
+body.hit-shake { animation: shakeHit .35s; }
+#hit-flash { position:fixed; inset:0; pointer-events:none; z-index:899; background:rgba(255,30,30,0); box-shadow:inset 0 0 80px 20px rgba(255,30,30,0); transition:background .12s, box-shadow .12s; }
+#hit-flash.flash { background:rgba(255,30,30,.4); box-shadow:inset 0 0 200px 60px rgba(255,30,30,.7); }
+@media (max-width: 900px) {
+  body { overflow:auto; }
+  #app { grid-template-columns:1fr !important; height:auto !important; min-height:100vh !important; }
+  #left-panel, #panel { max-height:none !important; overflow-y:visible !important; border:none !important; border-bottom:2px solid var(--border) !important; }
+  #radar-wrap { height:60vh !important; min-height:340px !important; order:-1 !important; }
+  #left-panel { order:1 !important; }
+  #panel { order:2 !important; }
+  button, .key-slot, .phys-key, .enemy-card, .intercept-btn, .treaty-btn, .select-btn { min-height:36px; }
+}
+#app { display:grid; grid-template-columns:280px 1fr 320px; height:100vh; }
+
+/* ── LEFT ── */
+#radar-wrap { position:relative; display:flex; flex-direction:column; border-right:1px solid var(--border); }
+#radar-header { padding:8px 16px; background:var(--panel); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:20px; flex-shrink:0; }
+#logo { font-size:14px; letter-spacing:6px; color:var(--cyan); font-weight:bold; }
+#defcon-row { display:flex; align-items:center; gap:8px; margin-left:auto; }
+#defcon-label { font-size:10px; letter-spacing:2px; color:var(--dim); }
+.defcon-box { width:32px; height:20px; border:1px solid var(--dim); display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:bold; transition:all 0.3s; }
+#defcon-5.active{background:#16a34a;border-color:#16a34a;color:#fff}
+#defcon-4.active{background:#65a30d;border-color:#65a30d;color:#fff}
+#defcon-3.active{background:#ca8a04;border-color:#ca8a04;color:#fff}
+#defcon-2.active{background:#ea580c;border-color:#ea580c;color:#fff}
+#defcon-1.active{background:#ef4444;border-color:#ef4444;color:#fff;animation:blink .4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+canvas#map { flex:1; width:100%; display:block; min-height:0; }
+#status-bar { padding:6px 16px; background:var(--panel); border-top:1px solid var(--border); display:flex; gap:20px; align-items:center; font-size:10px; flex-shrink:0; }
+.stat { display:flex; flex-direction:column; gap:2px; }
+.stat-label { color:var(--dim); font-size:8px; letter-spacing:2px; }
+.stat-val { color:var(--cyan); font-size:14px; font-weight:bold; }
+.stat-val.danger { color:var(--red); animation:blink .8s infinite; }
+
+/* ── LEFT PANEL (controls) ── */
+#left-panel { display:flex; flex-direction:column; background:var(--panel); border-right:2px solid var(--border); overflow-y:auto; overflow-x:hidden; }
+#left-panel::-webkit-scrollbar { width:3px; }
+#left-panel::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+/* ── RIGHT PANEL (threats) ── */
+#panel { display:flex; flex-direction:column; background:var(--panel); overflow:hidden; border-left:2px solid var(--border); }
+#panel-header { padding:8px 12px; border-bottom:1px solid var(--border); font-size:9px; letter-spacing:3px; color:var(--dim); flex-shrink:0; }
+#enemies { flex:1; overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:6px; min-height:0; }
+.enemy-card { background:var(--bg); border:1px solid var(--border); border-radius:5px; padding:8px 10px; transition:border-color .3s; }
+.enemy-card.hostile { border-color:rgba(239,68,68,.6); }
+.enemy-card.dead { opacity:.3; }
+.enemy-card.targeted { border-color:rgba(234,179,8,.9); background:#090800; box-shadow:0 0 10px rgba(234,179,8,.2); }
+.enemy-top { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+.enemy-flag { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.enemy-name { font-size:11px; font-weight:bold; letter-spacing:2px; flex:1; }
+.enemy-missiles { font-size:9px; color:var(--dim); }
+.threat-bar-wrap { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.threat-label { font-size:9px; color:var(--dim); letter-spacing:1px; width:40px; flex-shrink:0; }
+.threat-bar {
+  flex:1; height:16px;
+  background:#020c14;
+  border-radius:3px; overflow:hidden;
+  border:1px solid #0a1e30;
+  box-shadow:inset 0 1px 4px rgba(0,0,0,.7);
+  position:relative;
+}
+.threat-fill {
+  height:100%; border-radius:2px;
+  transition:width .4s;
+  background:linear-gradient(90deg,#0f7a30,#22c55e);
+  box-shadow:0 0 6px rgba(34,197,94,.4);
+  position:relative;
+}
+.threat-fill::after {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg,rgba(255,255,255,.15) 0%,transparent 60%);
+  border-radius:2px;
+}
+.threat-fill.warn {
+  background:linear-gradient(90deg,#a16207,#eab308);
+  box-shadow:0 0 8px rgba(234,179,8,.5);
+}
+.threat-fill.crit {
+  background:linear-gradient(90deg,#991b1b,#ef4444);
+  box-shadow:0 0 10px rgba(239,68,68,.7);
+  animation:critGlow .5s infinite alternate;
+}
+@keyframes critGlow {
+  from { box-shadow:0 0 6px rgba(239,68,68,.5); }
+  to   { box-shadow:0 0 16px rgba(239,68,68,.95), 0 0 4px #fff2; }
+}
+.threat-pct { font-size:11px; font-weight:bold; width:34px; text-align:right; flex-shrink:0; font-variant-numeric:tabular-nums; }
+.enemy-btns { display:flex; gap:4px; }
+.select-btn {
+  flex:2; padding:5px 6px;
+  background:linear-gradient(180deg,#1c0d00,#110800);
+  border:2px solid #7a3a00;
+  color:#c06010; font-size:8px; letter-spacing:1px; cursor:pointer;
+  border-radius:3px; font-family:inherit;
+  box-shadow:0 3px 0 #3a1500, inset 0 1px 0 rgba(255,140,0,.08);
+  transition:all .08s; text-transform:uppercase; font-weight:bold;
+}
+.select-btn:hover:not(:disabled) {
+  border-color:#f97316; color:#ff9040;
+  box-shadow:0 3px 0 #7a3a00,0 0 10px rgba(249,115,22,.35), inset 0 1px 0 rgba(255,140,0,.15);
+  background:linear-gradient(180deg,#2a1200,#1a0900);
+}
+.select-btn:active:not(:disabled) { transform:translateY(2px); box-shadow:0 1px 0 #3a1500; }
+.select-btn:disabled { opacity:.25; cursor:default; }
+.select-btn.is-targeted { border-color:#f97316; color:#ff9040; background:linear-gradient(180deg,#2a1200,#1a0900); }
+.treaty-btn {
+  flex:1; padding:5px 6px; border:1px solid var(--green2);
+  background:transparent; color:var(--green2); font-size:8px;
+  letter-spacing:1px; cursor:pointer; border-radius:3px; font-family:inherit; transition:all .12s;
+}
+.treaty-btn:hover:not(:disabled) { background:var(--green2); color:#000; }
+.treaty-btn:disabled { opacity:.25; cursor:default; }
+
+/* ── INCOMING ── */
+#incoming-section { border-top:1px solid var(--border); flex-shrink:0; }
+#incoming-header { padding:5px 10px; font-size:9px; letter-spacing:2px; color:var(--dim); background:var(--bg); display:flex; align-items:center; gap:8px; }
+#incoming-count { background:var(--red); color:#fff; width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:bold; }
+#incoming-list { max-height:160px; overflow-y:auto; padding:4px 6px; display:flex; flex-direction:column; gap:3px; }
+.incoming-item { background:var(--bg); border:1px solid var(--red); border-radius:3px; padding:4px 7px; display:flex; align-items:center; gap:6px; }
+.inc-name { font-size:8px; color:var(--red); letter-spacing:1px; flex:1; }
+.inc-timer { font-size:10px; font-weight:bold; color:var(--orange); font-variant-numeric:tabular-nums; }
+.intercept-btn { padding:3px 7px; border:1px solid var(--cyan); background:transparent; color:var(--cyan); font-size:8px; cursor:pointer; border-radius:2px; font-family:inherit; letter-spacing:1px; transition:all .12s; white-space:nowrap; }
+.intercept-btn:hover:not(:disabled) { background:var(--cyan); color:#000; }
+.intercept-btn:disabled { opacity:.3; cursor:default; }
+
+/* ═══════════════════════════════════════════
+   LAUNCH AUTHORIZATION CONSOLE
+═══════════════════════════════════════════ */
+#launch-console {
+  border-top:2px solid #0a1a2a;
+  flex-shrink:0;
+  background:linear-gradient(180deg,#010810,#010508);
+  padding:8px 10px 10px;
+  position:relative;
+}
+#launch-console::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg,transparent,rgba(34,211,238,.3),transparent);
+}
+#lc-header {
+  font-size:8px; letter-spacing:5px; color:var(--cyan);
+  text-align:center; margin-bottom:8px;
+  text-shadow:0 0 10px rgba(34,211,238,.6);
+}
+
+/* Target display */
+#target-row {
+  display:flex; align-items:center; gap:8px;
+  background:#000a10; border:1px solid var(--border);
+  border-radius:4px; padding:4px 10px; margin-bottom:8px;
+}
+.lc-label { font-size:7px; letter-spacing:2px; color:var(--dim); width:44px; flex-shrink:0; }
+#target-display {
+  font-size:13px; font-weight:bold; letter-spacing:4px;
+  color:var(--yellow); flex:1;
+  text-shadow:0 0 8px rgba(234,179,8,.5);
+  transition:all .3s;
+}
+#target-display.has-target { color:#ffdd44; text-shadow:0 0 12px rgba(255,220,60,.7); }
+
+/* Key area */
+#key-area {
+  display:grid; grid-template-columns:1fr 24px 1fr;
+  gap:6px; align-items:stretch; margin-bottom:8px;
+}
+
+/* Key slots panel */
+#key-slots {
+  display:flex; justify-content:space-around; align-items:center;
+  background:#000510; border:1px solid #0a1a2a;
+  border-radius:6px; padding:6px 4px;
+}
+.key-slot-wrap { display:flex; flex-direction:column; align-items:center; gap:3px; }
+.slot-label { font-size:7px; letter-spacing:1px; color:var(--dim); margin-bottom:1px; }
+.key-slot {
+  width:46px; height:54px;
+  background:radial-gradient(ellipse at 50% 30%,#000d1a,#000206);
+  border:2px solid #0d2040;
+  border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; position:relative;
+  transition:all .3s;
+  box-shadow:inset 0 3px 10px rgba(0,0,0,.95), 0 1px 0 rgba(30,64,96,.2);
+}
+.key-slot:hover { border-color:#1a3060; }
+.key-slot.dragover { border-color:var(--gold); box-shadow:inset 0 3px 10px rgba(0,0,0,.9),0 0 16px rgba(200,160,32,.5); }
+.key-slot.has-key {
+  border-color:var(--gold);
+  background:radial-gradient(ellipse at 50% 30%,#0f0a00,#050300);
+  box-shadow:inset 0 3px 10px rgba(0,0,0,.8),0 0 16px rgba(200,160,32,.4);
+  cursor:pointer;
+}
+/* keyhole (hidden when key in) */
+.slot-hole {
+  display:flex; flex-direction:column; align-items:center; pointer-events:none;
+}
+.slot-hole-circle {
+  width:16px; height:16px; border-radius:50%;
+  background:#000; border:1px solid #0d2040;
+}
+.slot-hole-rect {
+  width:8px; height:14px; margin-top:-2px;
+  background:#000; border:1px solid #0d2040;
+  border-top:none; border-radius:0 0 3px 3px;
+}
+.key-slot.has-key .slot-hole { display:none; }
+/* mini key (shown when key in) */
+.slot-key-vis {
+  display:none; flex-direction:column; align-items:center; pointer-events:none;
+}
+.key-slot.has-key .slot-key-vis { display:flex; }
+.sm-bow {
+  width:22px; height:22px; border-radius:50%;
+  background:radial-gradient(circle at 38% 35%,#f5d060,#c8900c,#7a5006);
+  border:2px solid #5a3804;
+  display:flex; align-items:center; justify-content:center;
+  font-size:9px; font-weight:bold; color:#2a1000; font-family:serif;
+  box-shadow:0 0 6px rgba(200,160,30,.5);
+}
+.sm-shank { width:4px; height:7px; background:linear-gradient(90deg,#b08010,#e0b030,#b08010); }
+.sm-blade { width:16px; height:5px; background:linear-gradient(180deg,#b08010,#e0b030,#b08010); border-radius:2px; }
+.slot-status {
+  font-size:7px; letter-spacing:1px; color:var(--dim); text-transform:uppercase;
+}
+.slot-status.ins { color:var(--gold); text-shadow:0 0 4px rgba(200,160,32,.5); }
+
+/* Auth divider */
+#auth-divider {
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+}
+.auth-line { width:1px; flex:1; background:linear-gradient(180deg,transparent,#1a3060,transparent); }
+#auth-dot {
+  width:8px; height:8px; border-radius:50%;
+  background:#050f1a; border:1px solid #1a3060;
+  transition:all .5s;
+  flex-shrink:0;
+}
+#auth-dot.lit { background:var(--gold); border-color:var(--gold); box-shadow:0 0 10px rgba(200,160,32,.8); }
+
+/* Key rack */
+#key-rack {
+  background:#000510; border:1px solid #0a1a2a;
+  border-radius:6px; padding:6px;
+  display:flex; flex-direction:column; align-items:center; gap:5px;
+}
+.rack-label { font-size:7px; letter-spacing:1px; color:var(--dim); text-align:center; }
+#key-storage { display:flex; gap:10px; align-items:flex-end; justify-content:center; }
+
+/* Physical key */
+.phys-key {
+  display:flex; flex-direction:column; align-items:center;
+  cursor:grab; user-select:none;
+  transition:transform .15s, filter .15s;
+  filter:drop-shadow(0 2px 5px rgba(0,0,0,.7));
+}
+.phys-key:hover {
+  transform:translateY(-5px) scale(1.08);
+  filter:drop-shadow(0 5px 10px rgba(200,160,30,.55));
+}
+.phys-key:active { cursor:grabbing; transform:scale(.95); }
+.phys-key.gone { visibility:hidden; pointer-events:none; }
+.key-bow {
+  width:30px; height:30px; border-radius:50%;
+  background:radial-gradient(circle at 38% 35%,#f5d060,#c8900c,#7a5006);
+  border:2.5px solid #5a3804;
+  box-shadow:inset 0 -2px 4px rgba(0,0,0,.45),0 0 8px rgba(200,160,30,.35);
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:bold; color:#2a1000; font-family:serif;
+  position:relative;
+}
+.key-bow::after {
+  content:''; position:absolute;
+  width:9px; height:9px; border-radius:50%;
+  background:#1a0800; border:1px solid #3a1a00;
+}
+.key-shank { width:5px; height:10px; background:linear-gradient(90deg,#9a7008,#e0b030,#9a7008); }
+.key-blade {
+  width:22px; height:7px;
+  background:linear-gradient(180deg,#9a7008,#e0b030,#9a7008);
+  border-radius:0 3px 3px 0; position:relative;
+}
+.key-blade::after {
+  content:''; position:absolute;
+  bottom:0; left:3px; right:3px; height:3px;
+  background:repeating-linear-gradient(90deg,#1a0800 0,#1a0800 3px,transparent 3px,transparent 6px);
+}
+
+/* ═══ LAUNCH BUTTON ZONE ═══ */
+#launch-btn-zone {
+  display:flex; flex-direction:column; align-items:center; gap:5px;
+}
+
+/* Safety cover */
+#cover-wrap {
+  width:100%; height:30px; position:relative; border-radius:5px; overflow:hidden;
+}
+#cover {
+  position:absolute; inset:0;
+  background:linear-gradient(180deg,#bb1a00,#881200);
+  border:1px solid #dd3300; border-radius:5px;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  cursor:pointer; transition:transform .45s cubic-bezier(.7,0,.3,1), opacity .35s;
+  font-size:8px; letter-spacing:2px; color:#ff9988; font-weight:bold;
+  box-shadow:0 3px 8px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,100,80,.15);
+}
+#cover::before,#cover::after { content:'▲'; font-size:7px; opacity:.7; }
+#cover:hover { background:linear-gradient(180deg,#dd2200,#aa1500); color:#fff; border-color:#ff5533; }
+#cover.open { transform:translateY(-102%); opacity:0; pointer-events:none; }
+#cover-armed {
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:8px; letter-spacing:3px; color:var(--red); font-weight:bold;
+  opacity:0; transition:opacity .3s .3s;
+  border:1px solid rgba(239,68,68,.35); border-radius:5px;
+  pointer-events:none;
+  animation:blink .7s infinite;
+}
+#cover.open ~ #cover-armed { opacity:1; }
+
+/* Big red button housing */
+#red-btn-wrap {
+  position:relative;
+  display:flex; align-items:center; justify-content:center;
+  padding:6px;
+}
+/* outer rings */
+#red-btn-wrap::before {
+  content:''; position:absolute; inset:2px; border-radius:50%;
+  border:1px solid #0a1e30; pointer-events:none; border-radius:50%;
+  width:102px; height:102px; top:50%; left:50%; transform:translate(-50%,-50%);
+}
+#red-btn-wrap::after {
+  content:''; position:absolute;
+  width:114px; height:114px; top:50%; left:50%; transform:translate(-50%,-50%);
+  border-radius:50%; border:2px solid #06121e; pointer-events:none;
+}
+
+#big-red-btn {
+  width:90px; height:90px; border-radius:50%;
+  background:radial-gradient(circle at 42% 38%,#6b2020,#3a0808,#1c0404);
+  border:none; cursor:not-allowed;
+  font-family:'Courier New',monospace; font-size:9px; font-weight:bold;
+  letter-spacing:2px; color:rgba(100,20,20,.7);
+  box-shadow:
+    0 0 0 5px #0a0000,
+    0 0 0 9px #050000,
+    0 7px 20px rgba(0,0,0,.95),
+    inset 0 3px 6px rgba(255,255,255,.03),
+    inset 0 -5px 10px rgba(0,0,0,.6);
+  transition:background .3s, color .2s, box-shadow .3s;
+  position:relative; z-index:1;
+}
+#big-red-btn.armed {
+  background:radial-gradient(circle at 42% 38%,#ff9090,#dd1515,#880808);
+  cursor:pointer; color:#fff;
+  text-shadow:0 0 8px rgba(255,200,200,.6);
+  box-shadow:
+    0 0 0 5px #440000,
+    0 0 0 9px #110000,
+    0 7px 20px rgba(0,0,0,.9),
+    0 0 35px rgba(220,20,20,.65),
+    inset 0 3px 6px rgba(255,200,200,.08),
+    inset 0 -5px 10px rgba(0,0,0,.5);
+  animation:redPulse 1.3s ease-in-out infinite;
+}
+@keyframes redPulse {
+  0%,100%{box-shadow:0 0 0 5px #440000,0 0 0 9px #110000,0 7px 20px rgba(0,0,0,.9),0 0 35px rgba(220,20,20,.65),inset 0 3px 6px rgba(255,200,200,.08),inset 0 -5px 10px rgba(0,0,0,.5);}
+  50%{box-shadow:0 0 0 6px #660000,0 0 0 12px #220000,0 7px 20px rgba(0,0,0,.9),0 0 55px rgba(255,40,20,.9),inset 0 3px 6px rgba(255,200,200,.08),inset 0 -5px 10px rgba(0,0,0,.5);}
+}
+#big-red-btn.armed:active {
+  animation:none;
+  transform:scale(.91) translateY(4px);
+  box-shadow:
+    0 0 0 5px #440000,
+    0 0 0 9px #110000,
+    0 3px 8px rgba(0,0,0,.9),
+    0 0 18px rgba(200,10,10,.5),
+    inset 0 6px 12px rgba(0,0,0,.9),
+    inset 0 -2px 5px rgba(0,0,0,.5);
+}
+
+#armed-status {
+  font-size:8px; letter-spacing:2px; color:var(--dim);
+  text-align:center; text-transform:uppercase; min-height:14px;
+}
+#armed-status.ready {
+  color:var(--red); font-weight:bold;
+  animation:blink .9s infinite;
+  text-shadow:0 0 6px rgba(239,68,68,.5);
+}
+
+/* flash overlay for launch */
+#launch-flash {
+  position:fixed; inset:0; pointer-events:none; z-index:900;
+  background:rgba(255,40,0,0); transition:background .08s;
+}
+#launch-flash.flash { background:rgba(255,40,0,.35); }
+
+/* ── PLANES ── */
+#plane-section { border-top:1px solid var(--border); flex-shrink:0; }
+#plane-header { padding:5px 10px; font-size:9px; letter-spacing:2px; color:var(--dim); background:var(--bg); display:flex; align-items:center; gap:8px; }
+#plane-badge { background:var(--orange); color:#000; width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:bold; }
+#plane-list { padding:3px 6px; display:flex; flex-direction:column; gap:3px; }
+.plane-card { background:var(--bg); border:1px solid #0a2040; border-radius:3px; padding:4px 8px; display:flex; align-items:center; gap:6px; transition:border-color .3s; }
+.plane-card.enroute  { border-color:rgba(251,146,60,.6); }
+.plane-card.striking { border-color:rgba(239,68,68,.7); }
+.plane-card.returning{ border-color:rgba(234,179,8,.5); }
+.plane-card.refueling{ border-color:rgba(30,64,96,.5); }
+.plane-card.dead { opacity:.3; }
+.plane-icon { font-size:14px; line-height:1; flex-shrink:0; }
+.plane-name { font-size:9px; color:var(--orange); letter-spacing:1px; flex:1; font-weight:bold; }
+.plane-stat { font-size:6px; color:var(--dim); letter-spacing:1px; display:flex; flex-direction:column; gap:1px; align-items:center; flex-shrink:0; }
+.plane-stat span { font-size:8px; font-weight:bold; }
+.scramble-btn { padding:3px 6px; border:2px solid #7a3a00; background:linear-gradient(180deg,#1c0d00,#110800); color:#c06010; font-size:7px; cursor:pointer; border-radius:3px; font-family:inherit; letter-spacing:1px; transition:all .1s; white-space:nowrap; font-weight:bold; box-shadow:0 2px 0 #3a1500; }
+.scramble-btn:hover:not(:disabled) { border-color:#f97316; color:#ff9040; background:linear-gradient(180deg,#2a1200,#1a0900); }
+.scramble-btn:active:not(:disabled) { transform:translateY(1px); box-shadow:0 1px 0 #3a1500; }
+.scramble-btn:disabled { opacity:.25; cursor:default; }
+.recall-btn { padding:3px 6px; border:1px solid var(--yellow); background:transparent; color:var(--yellow); font-size:7px; cursor:pointer; border-radius:3px; font-family:inherit; letter-spacing:1px; transition:all .1s; white-space:nowrap; }
+.recall-btn:hover:not(:disabled) { background:var(--yellow); color:#000; }
+.recall-btn:disabled { opacity:.25; cursor:default; }
+.plane-cd-btn { padding:3px 6px; border:1px solid #1a4060; background:transparent; color:var(--dim); font-size:7px; border-radius:3px; font-family:inherit; letter-spacing:1px; white-space:nowrap; position:relative; overflow:hidden; }
+.plane-cd-btn .cd-fill { position:absolute; inset:0; background:rgba(249,115,22,.15); transform-origin:left; }
+.plane-cd-btn .cd-label { position:relative; z-index:1; }
+.rearm-btn { padding:3px 7px; border:2px solid #16a34a; background:linear-gradient(180deg,#041408,#020c06); color:#22c55e; font-size:7px; cursor:pointer; border-radius:3px; font-family:inherit; letter-spacing:1px; transition:all .1s; white-space:nowrap; font-weight:bold; box-shadow:0 2px 0 #0a3a10; }
+.rearm-btn:hover { border-color:#4ade80; color:#4ade80; background:linear-gradient(180deg,#061c0a,#040e06); box-shadow:0 2px 0 #16a34a, 0 0 8px rgba(34,197,94,.35); }
+.rearm-btn:active { transform:translateY(1px); box-shadow:0 1px 0 #0a3a10; }
+
+/* ── SUBMARINES ── */
+#sub-section { border-top:1px solid var(--border); flex-shrink:0; }
+#sub-header { padding:5px 10px; font-size:9px; letter-spacing:2px; color:var(--dim); background:var(--bg); display:flex; align-items:center; gap:8px; }
+#sub-badge { background:var(--cyan); color:#000; width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:bold; }
+#sub-list { padding:3px 6px; display:flex; flex-direction:column; gap:3px; }
+.sub-card { background:var(--bg); border:1px solid #0a2040; border-radius:3px; padding:4px 8px; display:flex; align-items:center; gap:7px; transition:border-color .3s; }
+.sub-card.intercepting { border-color:rgba(34,211,238,.5); }
+.sub-card.firing { border-color:rgba(249,115,22,.6); }
+.sub-card.dead { opacity:.3; }
+.sub-icon { font-size:14px; line-height:1; flex-shrink:0; }
+.sub-name { font-size:9px; color:var(--cyan); letter-spacing:1px; flex:1; font-weight:bold; }
+.sub-stat { font-size:7px; color:var(--dim); letter-spacing:1px; display:flex; flex-direction:column; gap:1px; align-items:center; }
+.sub-stat span { color:var(--cyan); font-size:9px; font-weight:bold; }
+.sub-fire-btn { padding:3px 7px; border:2px solid #7a3a00; background:linear-gradient(180deg,#1c0d00,#110800); color:#c06010; font-size:7px; cursor:pointer; border-radius:3px; font-family:inherit; letter-spacing:1px; transition:all .1s; white-space:nowrap; font-weight:bold; box-shadow:0 2px 0 #3a1500; }
+.sub-fire-btn:hover:not(:disabled) { border-color:#f97316; color:#ff9040; background:linear-gradient(180deg,#2a1200,#1a0900); }
+.sub-fire-btn:active:not(:disabled) { transform:translateY(1px); box-shadow:0 1px 0 #3a1500; }
+.sub-fire-btn:disabled { opacity:.25; cursor:default; }
+.sub-resupply-btn {
+  padding:3px 7px; border:1px solid var(--green2);
+  color:var(--green2); font-size:7px; cursor:pointer; border-radius:3px;
+  font-family:inherit; letter-spacing:1px; white-space:nowrap; font-weight:bold;
+  position:relative; overflow:hidden; background:transparent;
+  transition:color .15s, border-color .15s;
+}
+.sub-resupply-btn .cd-fill {
+  position:absolute; inset:0; background:rgba(22,163,74,0.2);
+  transform-origin:left; transition:transform .5s linear;
+}
+.sub-resupply-btn .cd-label { position:relative; z-index:1; }
+.sub-resupply-btn:hover:not(:disabled):not(.cooling) { background:var(--green2); color:#000; }
+.sub-resupply-btn.cooling { color:rgba(22,163,74,0.55); border-color:rgba(22,163,74,0.3); cursor:default; }
+.sub-resupply-btn:disabled { opacity:.25; cursor:default; }
+
+/* ── LOG ── */
+#log-section { border-top:1px solid var(--border); flex-shrink:0; }
+#log-header { padding:5px 10px; font-size:9px; letter-spacing:3px; color:var(--dim); background:var(--bg); }
+#log { height:100px; overflow-y:auto; padding:3px 8px; font-size:8px; display:flex; flex-direction:column; gap:1px; }
+.log-entry{color:var(--dim)} .log-entry.alert{color:var(--red)} .log-entry.good{color:var(--green)} .log-entry.info{color:var(--cyan)}
+
+/* ── MODAL ── */
+#modal { position:fixed; inset:0; background:rgba(0,0,0,.85); display:none; align-items:center; justify-content:center; z-index:500; }
+#modal.show { display:flex; }
+#modal-box { background:var(--panel); border:2px solid var(--cyan); border-radius:8px; padding:32px 40px; text-align:center; max-width:400px; }
+#modal-title { font-size:20px; letter-spacing:4px; margin-bottom:12px; }
+#modal-sub { font-size:12px; color:var(--dim); margin-bottom:8px; line-height:1.6; }
+#modal-score { font-size:28px; color:var(--cyan); font-weight:bold; margin:16px 0; }
+#modal-btn { padding:10px 24px; border:1px solid var(--cyan); background:transparent; color:var(--cyan); font-size:12px; letter-spacing:2px; cursor:pointer; border-radius:4px; font-family:inherit; }
+#modal-btn:hover { background:var(--cyan); color:#000; }
+/* ── HACK ── */
+#hack-zone{padding:10px 16px;border-top:1px solid var(--border);}
+#hack-header{font-size:8px;letter-spacing:3px;color:var(--dim);margin-bottom:6px;}
+#hack-btn{width:100%;padding:7px;background:transparent;border:1px solid var(--green2);color:var(--green);font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;cursor:pointer;transition:all .2s;}
+#hack-btn:hover:not(:disabled){background:rgba(74,222,128,.1);}
+#hack-btn.active{background:rgba(74,222,128,.15);border-color:var(--green);animation:hackPulse .8s infinite;}
+#hack-btn:disabled{opacity:.3;cursor:default;}
+@keyframes hackPulse{0%,100%{box-shadow:0 0 6px rgba(74,222,128,.3)}50%{box-shadow:0 0 14px rgba(74,222,128,.7)}}
+#hack-prog-wrap{margin-top:7px;display:none;}
+#hack-tgt-name{font-size:9px;color:var(--green);letter-spacing:1px;margin-bottom:4px;}
+#hack-track{height:3px;background:#0a1a10;border-radius:2px;}
+#hack-bar{height:100%;width:0%;background:var(--green);border-radius:2px;transition:width .08s linear;}
+#hack-cd{font-size:8px;color:var(--dim);margin-top:5px;min-height:12px;}
+</style>
+</head>
+<body>
+<div id="launch-flash"></div>
+<div id="hit-flash"></div>
+<div id="app">
+
+  <!-- ══ LEFT: COMMAND CONTROLS ══ -->
+  <div id="left-panel">
+
+    <div id="plane-section">
+      <div id="plane-header">✈ AIR COMMAND <div id="plane-badge">3</div></div>
+      <div id="plane-list"></div>
+    </div>
+
+    <div id="sub-section">
+      <div id="sub-header">🚢 SUBMARINES <div id="sub-badge">3</div></div>
+      <div id="sub-list"></div>
+    </div>
+
+    <!-- ═══ LAUNCH AUTHORIZATION CONSOLE ═══ -->
+    <div id="launch-console">
+      <div id="lc-header">◈ LAUNCH AUTHORIZATION ◈</div>
+
+      <div id="target-row">
+        <div class="lc-label">TARGET</div>
+        <div id="target-display">NO TARGET SELECTED</div>
+      </div>
+
+      <div id="key-area">
+        <!-- Key slots -->
+        <div id="key-slots">
+          <div class="key-slot-wrap">
+            <div class="slot-label">KEY Α</div>
+            <div class="key-slot" id="slot-a"
+                 ondragover="onSlotDragOver(event,'a')"
+                 ondragleave="onSlotDragLeave('a')"
+                 ondrop="onDrop(event,'a')"
+                 onclick="removeKey('a')" title="Click to remove key">
+              <div class="slot-hole">
+                <div class="slot-hole-circle"></div>
+                <div class="slot-hole-rect"></div>
+              </div>
+              <div class="slot-key-vis">
+                <div class="sm-bow">α</div>
+                <div class="sm-shank"></div>
+                <div class="sm-blade"></div>
+              </div>
+            </div>
+            <div class="slot-status" id="slot-a-status">EMPTY</div>
+          </div>
+          <div id="auth-divider">
+            <div class="auth-line"></div>
+            <div id="auth-dot"></div>
+            <div class="auth-line"></div>
+          </div>
+          <div class="key-slot-wrap">
+            <div class="slot-label">KEY Β</div>
+            <div class="key-slot" id="slot-b"
+                 ondragover="onSlotDragOver(event,'b')"
+                 ondragleave="onSlotDragLeave('b')"
+                 ondrop="onDrop(event,'b')"
+                 onclick="removeKey('b')" title="Click to remove key">
+              <div class="slot-hole">
+                <div class="slot-hole-circle"></div>
+                <div class="slot-hole-rect"></div>
+              </div>
+              <div class="slot-key-vis">
+                <div class="sm-bow">β</div>
+                <div class="sm-shank"></div>
+                <div class="sm-blade"></div>
+              </div>
+            </div>
+            <div class="slot-status" id="slot-b-status">EMPTY</div>
+          </div>
+        </div>
+
+        <!-- Auth divider column -->
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:6px;color:var(--dim);letter-spacing:1px">
+          <div style="width:1px;flex:1;background:linear-gradient(180deg,transparent,#1a3060,transparent)"></div>
+          <span style="writing-mode:vertical-rl;letter-spacing:2px;opacity:.5">AUTH</span>
+          <div style="width:1px;flex:1;background:linear-gradient(180deg,transparent,#1a3060,transparent)"></div>
+        </div>
+
+        <!-- Key rack -->
+        <div id="key-rack">
+          <div class="rack-label">TAP OR DRAG TO SLOTS</div>
+          <div id="key-storage">
+            <div class="phys-key" id="phys-key-a" draggable="true" ondragstart="onKeyDragStart(event,'a')" onclick="insertKey('a')">
+              <div class="key-bow">α</div>
+              <div class="key-shank"></div>
+              <div class="key-blade"></div>
+            </div>
+            <div class="phys-key" id="phys-key-b" draggable="true" ondragstart="onKeyDragStart(event,'b')" onclick="insertKey('b')">
+              <div class="key-bow">β</div>
+              <div class="key-shank"></div>
+              <div class="key-blade"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Launch button zone -->
+      <div id="launch-btn-zone">
+        <div id="cover-wrap">
+          <div id="cover" onclick="toggleCover()">
+            ⚠ SAFETY COVER — CLICK TO LIFT
+          </div>
+          <div id="cover-armed">◈ ARMED — FIRE WHEN READY ◈</div>
+        </div>
+
+        <div id="red-btn-wrap">
+          <button id="big-red-btn" disabled onclick="pressBigRedButton()">
+            LAUNCH
+          </button>
+        </div>
+
+        <div id="armed-status">INSERT BOTH KEYS TO ENABLE</div>
+      </div>
+    </div>
+
+    <div id="hack-zone">
+      <div id="hack-header">⚡ CYBERATTACK</div>
+      <button id="hack-btn" onclick="toggleHackMode()">INITIATE HACK</button>
+      <div id="hack-prog-wrap">
+        <div id="hack-tgt-name">—</div>
+        <div id="hack-track"><div id="hack-bar"></div></div>
+      </div>
+      <div id="hack-cd"></div>
+    </div>
+
+    <div id="log-section">
+      <div id="log-header">COMMS LOG</div>
+      <div id="log"></div>
+    </div>
+
+  </div><!-- end left-panel -->
+
+  <!-- ══ CENTER: MAP ══ -->
+  <div id="radar-wrap">
+    <div id="radar-header">
+      <div id="logo">◈ GLOBAL DEFCON</div>
+      <div style="font-size:9px;color:var(--dim)">STRATEGIC NUCLEAR COMMAND</div>
+      <div id="defcon-row">
+        <div id="defcon-label">DEFCON</div>
+        <div class="defcon-box" id="defcon-5">5</div>
+        <div class="defcon-box" id="defcon-4">4</div>
+        <div class="defcon-box" id="defcon-3">3</div>
+        <div class="defcon-box" id="defcon-2">2</div>
+        <div class="defcon-box" id="defcon-1">1</div>
+      </div>
+    </div>
+    <canvas id="map"></canvas>
+    <div id="status-bar">
+      <div class="stat"><div class="stat-label">CITIES</div><div class="stat-val" id="stat-cities">10</div></div>
+      <div class="stat"><div class="stat-label">INTERCEPTORS</div><div class="stat-val" id="stat-intercept">8</div></div>
+      <div class="stat"><div class="stat-label">NUKES</div><div class="stat-val" id="stat-nukes">20</div></div>
+      <div class="stat"><div class="stat-label">SCORE</div><div class="stat-val" id="stat-score">0</div></div>
+      <div style="margin-left:auto;font-size:9px;color:var(--dim);letter-spacing:1px" id="ticker">MONITORING GLOBAL THREATS...</div>
+    </div>
+  </div>
+
+  <!-- ══ RIGHT: THREATS ══ -->
+  <div id="panel">
+    <div id="panel-header">◈ THREAT ASSESSMENT</div>
+    <div id="enemies"></div>
+    <div id="incoming-section">
+      <div id="incoming-header">INCOMING <div id="incoming-count">0</div></div>
+      <div id="incoming-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<div id="modal"><div id="modal-box">
+  <div id="modal-title">—</div><div id="modal-sub">—</div>
+  <div id="modal-score">0</div>
+  <div id="modal-countdown" style="font-size:9px;letter-spacing:3px;color:var(--dim);margin:6px 0 12px"></div>
+  <button id="modal-btn" onclick="restartGame()">▶ PLAY AGAIN NOW</button>
+</div></div>
+
+<script>
+// ── World map polygon data ──────────────────────────────────────────────────────
+const MAP_FEATURES = [
+  { id:'alaska', fill:'#0f2e18', stroke:'#1a4a28', paths:[[[-168,54],[-141,56],[-141,70],[-156,71],[-163,63],[-168,63],[-168,54]]] },
+  { id:'canada', fill:'#0d2a14', stroke:'#184024', paths:[[[-141,60],[-130,54],[-126,50],[-124,49],[-116,49],[-97,49],[-84,46],[-80,44],[-75,44],[-74,45],[-67,47],[-64,44],[-61,46],[-59,46],[-54,47],[-53,47],[-54,52],[-56,58],[-60,60],[-64,63],[-66,63],[-70,63],[-74,65],[-78,73],[-80,74],[-95,76],[-110,75],[-115,74],[-130,71],[-141,70],[-141,60]]] },
+  { id:'usa', fill:'#112e18', stroke:'#1e4a28', paths:[
+    [[-124,49],[-116,49],[-104,49],[-97,49],[-84,46],[-82,43],[-80,42],[-79,43],[-77,43],[-76,44],[-75,40],[-74,41],[-72,41],[-70,42],[-70,43],[-68,44],[-67,47],[-70,43],[-76,34],[-78,33],[-80,32],[-81,30],[-81,29],[-80,26],[-80,25],[-82,25],[-82,28],[-84,29],[-87,30],[-89,30],[-90,29],[-91,29],[-94,29],[-97,26],[-99,27],[-104,29],[-111,31],[-117,32],[-120,34],[-122,38],[-124,40],[-124,44],[-124,49]],
+    [[-160,19],[-155,19],[-155,21],[-160,21],[-160,19]]
+  ]},
+  { id:'mexico', fill:'#0f2a14', stroke:'#184024', paths:[[[-117,32],[-111,31],[-104,29],[-97,26],[-97,22],[-91,18],[-90,18],[-88,16],[-84,10],[-83,10],[-87,15],[-88,18],[-89,21],[-91,20],[-94,18],[-100,19],[-104,19],[-109,22],[-115,30],[-117,32]]] },
+  { id:'central-am', fill:'#0f2a14', stroke:'#184024', paths:[[[-84,10],[-77,8],[-80,9],[-83,10],[-84,10]]] },
+  { id:'cuba', fill:'#0f2a14', stroke:'#184024', paths:[[[-85,22],[-82,22],[-74,20],[-75,22],[-80,23],[-85,22]]] },
+  { id:'greenland', fill:'#0c2010', stroke:'#143018', paths:[[[-44,60],[-26,64],[-18,63],[-17,70],[-18,76],[-22,81],[-32,83],[-44,83],[-52,83],[-57,78],[-54,72],[-48,68],[-46,65],[-44,60]]] },
+  { id:'south-america', fill:'#0f2a14', stroke:'#184024', paths:[[[-80,11],[-75,11],[-73,12],[-62,11],[-61,11],[-60,15],[-52,6],[-44,4],[-35,-4],[-35,-9],[-36,-11],[-38,-14],[-40,-20],[-43,-23],[-48,-26],[-49,-28],[-51,-30],[-53,-34],[-54,-36],[-58,-38],[-60,-42],[-65,-55],[-68,-56],[-72,-52],[-75,-38],[-72,-33],[-70,-18],[-73,-14],[-75,-8],[-80,0],[-80,11]]] },
+  { id:'great-britain', fill:'#132e18', stroke:'#1e4428', paths:[
+    [[-6,50],[-2,51],[0,51],[2,52],[0,51],[1,54],[-2,56],[-3,58],[-4,58],[-2,58],[-4,57],[-4,56],[-3,54],[-3,53],[-5,54],[-3,54],[-5,53],[-6,51],[-6,50]],
+    [[-10,52],[-6,52],[-6,54],[-9,55],[-10,54],[-10,52]]
+  ]},
+  { id:'iceland', fill:'#0f2810', stroke:'#184024', paths:[[[-24,63],[-22,64],[-13,65],[-14,66],[-18,66],[-24,66],[-24,63]]] },
+  { id:'scandinavia', fill:'#102810', stroke:'#184024', paths:[
+    [[5,58],[8,58],[10,56],[12,56],[14,56],[18,60],[20,64],[22,64],[24,66],[26,70],[28,72],[28,71],[30,70],[27,71],[25,70],[21,70],[20,69],[18,70],[14,69],[10,63],[6,62],[5,58]],
+    [[22,60],[24,60],[28,64],[30,65],[32,65],[30,68],[28,70],[26,70],[22,66],[22,60]]
+  ]},
+  { id:'iberia', fill:'#122c18', stroke:'#1c4228', paths:[[[-9,44],[-6,44],[3,43],[3,40],[0,38],[-1,36],[-5,36],[-6,36],[-9,38],[-9,44]]] },
+  { id:'france', fill:'#122c18', stroke:'#1c4228', paths:[[[-2,44],[8,48],[8,44],[5,44],[3,43],[-2,44],[2,51],[-2,51],[-4,48],[-2,44]]] },
+  { id:'italy', fill:'#122c18', stroke:'#1c4228', paths:[[[7,44],[10,44],[14,46],[15,42],[16,41],[18,40],[16,37],[14,38],[12,37],[10,37],[10,38],[8,40],[7,44]]] },
+  { id:'balkans', fill:'#122c18', stroke:'#1c4228', paths:[[[14,46],[22,44],[24,44],[26,42],[26,40],[22,38],[20,40],[16,41],[15,42],[14,44],[14,46]]] },
+  { id:'cent-europe', fill:'#122c18', stroke:'#1c4228', paths:[[[8,48],[15,51],[22,52],[24,54],[22,52],[18,50],[16,50],[14,50],[14,46],[14,44],[8,44],[8,48]]] },
+  { id:'ukraine-area', fill:'#122c18', stroke:'#1c4228', paths:[[[22,52],[38,47],[36,44],[32,46],[28,46],[24,48],[22,48],[22,52]]] },
+  { id:'turkey', fill:'#122c18', stroke:'#1c4228', paths:[[[26,42],[44,42],[44,38],[42,37],[36,36],[34,37],[28,36],[26,38],[26,42]]] },
+  { id:'russia', fill:'#0e2812', stroke:'#183822', paths:[
+    [[28,55],[36,47],[38,47],[44,42],[50,42],[52,44],[60,44],[70,52],[80,54],[90,52],[100,50],[110,52],[120,50],[126,50],[130,52],[130,58],[124,62],[120,65],[108,72],[90,74],[80,74],[60,70],[50,66],[40,70],[32,66],[28,60],[28,55]],
+    [[126,50],[130,52],[134,48],[141,46],[142,48],[140,52],[135,54],[134,52],[130,52]]
+  ]},
+  { id:'arabia', fill:'#122810', stroke:'#1c3c1a', paths:[[[36,30],[38,28],[44,28],[48,30],[52,28],[56,22],[56,18],[50,14],[44,12],[38,14],[36,24],[36,30]]] },
+  { id:'levant-iraq', fill:'#122810', stroke:'#1c3c1a', paths:[[[26,38],[36,36],[38,30],[44,32],[48,30],[52,28],[56,26],[60,24],[62,22],[62,28],[56,34],[56,38],[50,38],[44,38],[38,38],[34,32],[30,32],[26,38]]] },
+  { id:'iran', fill:'#122810', stroke:'#1c3c1a', paths:[[[44,38],[56,38],[62,35],[62,28],[56,26],[52,28],[48,30],[44,32],[38,30],[36,36],[40,38],[44,38]]] },
+  { id:'central-asia', fill:'#102810', stroke:'#183e1a', paths:[[[50,55],[60,55],[70,52],[80,54],[80,42],[72,38],[68,38],[62,36],[62,28],[56,34],[56,38],[44,38],[40,38],[46,38],[48,40],[52,44],[60,44],[50,42],[50,55]]] },
+  { id:'africa', fill:'#102812', stroke:'#184020', paths:[
+    [[-17,16],[-10,34],[-5,36],[3,36],[10,36],[12,34],[16,34],[20,36],[24,36],[30,32],[34,32],[36,22],[38,12],[44,12],[50,12],[50,8],[44,4],[42,0],[38,-4],[36,-18],[28,-32],[26,-34],[18,-34],[14,-18],[10,-16],[8,-6],[2,-2],[0,4],[0,8],[-4,5],[-8,5],[-12,5],[-16,5],[-17,10],[-17,16]],
+    [[44,-12],[50,-14],[50,-26],[44,-26],[44,-12]]
+  ]},
+  { id:'horn', fill:'#102812', stroke:'#184020', paths:[[[36,22],[44,12],[50,12],[50,8],[44,4],[42,2],[40,8],[34,12],[34,18],[36,22]]] },
+  { id:'india', fill:'#112a14', stroke:'#1c4020', paths:[
+    [[68,24],[68,28],[72,34],[74,34],[78,32],[80,30],[84,28],[86,28],[88,26],[92,24],[96,22],[100,8],[98,8],[96,10],[92,10],[88,12],[82,8],[78,8],[74,8],[72,8],[70,16],[68,20],[68,24]],
+    [[80,8],[82,8],[82,6],[80,6],[80,8]]
+  ]},
+  { id:'indochina', fill:'#102810', stroke:'#183e1a', paths:[[[100,22],[104,20],[108,20],[108,16],[104,14],[104,10],[102,8],[100,4],[100,8],[96,14],[98,18],[100,22]]] },
+  { id:'china', fill:'#112a14', stroke:'#1c4020', paths:[[[74,40],[76,36],[80,32],[84,28],[88,28],[90,28],[92,28],[96,28],[100,22],[104,20],[108,20],[108,22],[112,24],[116,22],[120,24],[122,30],[122,36],[120,42],[118,44],[116,42],[112,42],[106,42],[100,42],[96,36],[90,36],[84,36],[80,32],[76,36],[74,40]]] },
+  { id:'mongolia', fill:'#0f2810', stroke:'#183c1a', paths:[[[80,50],[90,50],[100,48],[106,44],[112,44],[116,44],[118,50],[112,52],[100,52],[88,50],[80,50]]] },
+  { id:'korea', fill:'#0f2810', stroke:'#183c1a', paths:[[[124,38],[126,38],[128,36],[130,36],[132,36],[132,34],[130,34],[128,34],[126,36],[124,36],[124,38]]] },
+  { id:'japan', fill:'#0f2810', stroke:'#183c1a', paths:[
+    [[130,32],[132,34],[134,34],[136,34],[138,36],[140,38],[142,40],[141,42],[141,44],[138,44],[136,44],[134,44],[132,36],[130,34],[130,32]],
+    [[141,44],[144,44],[144,42],[141,42],[141,44]],
+    [[130,32],[132,32],[132,30],[130,30],[130,32]]
+  ]},
+  { id:'australia', fill:'#102810', stroke:'#183e1a', paths:[[[114,-22],[120,-18],[124,-16],[128,-12],[132,-12],[136,-12],[138,-14],[140,-18],[142,-18],[144,-20],[148,-20],[150,-22],[152,-24],[154,-26],[152,-30],[154,-38],[150,-38],[144,-38],[136,-36],[130,-34],[118,-34],[114,-34],[114,-22]]] },
+  { id:'new-zealand', fill:'#0f2810', stroke:'#183c1a', paths:[
+    [[172,-36],[174,-38],[176,-40],[174,-42],[172,-40],[172,-36]],
+    [[168,-44],[170,-44],[172,-46],[170,-48],[168,-46],[168,-44]]
+  ]},
+  { id:'antarctica', fill:'#0a1e14', stroke:'#102c1c', paths:[[[-180,-70],[180,-70],[180,-80],[-180,-80],[-180,-70]]] },
+];
+
+// ── Game countries ─────────────────────────────────────────────────────────────
+const COUNTRY_DATA = [
+  { id:'usa',      name:'USA',       color:'#22d3ee', lon:-98, lat:38,  player:true,  missiles:20, interceptors:8, cities:10, aggression:0 },
+  { id:'russia',   name:'RUSSIA',    color:'#ef4444', lon:60,  lat:58,  player:false, missiles:15, interceptors:0, cities:8,  aggression:0.28 },
+  { id:'china',    name:'CHINA',     color:'#f97316', lon:105, lat:35,  player:false, missiles:12, interceptors:0, cities:7,  aggression:0.20 },
+  { id:'nkorea',   name:'N.KOREA',   color:'#eab308', lon:127, lat:40,  player:false, missiles:6,  interceptors:0, cities:4,  aggression:0.55 },
+  { id:'iran',     name:'IRAN',      color:'#a855f7', lon:53,  lat:32,  player:false, missiles:5,  interceptors:0, cities:4,  aggression:0.40 },
+  { id:'india',    name:'INDIA',     color:'#fb923c', lon:78,  lat:22,  player:false, missiles:8,  interceptors:0, cities:6,  aggression:0.15 },
+  { id:'uk',       name:'UK',        color:'#60a5fa', lon:-2,  lat:52,  player:false, missiles:4,  interceptors:0, cities:3,  aggression:0.05 },
+  { id:'pakistan', name:'PAKISTAN',  color:'#c084fc', lon:68,  lat:30,  player:false, missiles:5,  interceptors:0, cities:4,  aggression:0.30 },
+  { id:'israel',   name:'ISRAEL',    color:'#34d399', lon:35,  lat:31,  player:false, missiles:4,  interceptors:0, cities:3,  aggression:0.20 },
+  { id:'france',   name:'FRANCE',    color:'#818cf8', lon:2,   lat:46,  player:false, missiles:4,  interceptors:0, cities:4,  aggression:0.08 },
+  { id:'brazil',   name:'BRAZIL',    color:'#4ade80', lon:-51, lat:-10, player:false, missiles:3,  interceptors:0, cities:5,  aggression:0.12 },
+  { id:'australia',name:'AUSTRALIA', color:'#fbbf24', lon:134, lat:-26, player:false, missiles:3,  interceptors:0, cities:4,  aggression:0.05 },
+];
+
+// ── Canvas + Audio ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('map');
+const ctx = canvas.getContext('2d');
+const AC = new AudioContext();
+
+function playSound(type) {
+  if (AC.state==='suspended') AC.resume();
+  const t=AC.currentTime;
+  if (type==='launch') {
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type='sawtooth';o.frequency.setValueAtTime(200,t);o.frequency.linearRampToValueAtTime(800,t+0.6);
+    g.gain.setValueAtTime(0.25,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.7);
+    o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+0.7);
+  } else if (type==='explosion') {
+    const buf=AC.createBuffer(1,AC.sampleRate*0.6,AC.sampleRate);
+    const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,0.5);
+    const src=AC.createBufferSource();src.buffer=buf;
+    const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=300;
+    const g=AC.createGain();g.gain.setValueAtTime(0.7,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.6);
+    src.connect(f);f.connect(g);g.connect(AC.destination);src.start(t);
+  } else if (type==='intercept') {
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type='square';o.frequency.setValueAtTime(800,t);o.frequency.exponentialRampToValueAtTime(200,t+0.15);
+    g.gain.setValueAtTime(0.15,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+    o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+0.2);
+  } else if (type==='alert') {
+    [0,0.18,0.36].forEach(off=>{
+      const o=AC.createOscillator(),g=AC.createGain();
+      o.frequency.value=880;o.type='square';
+      g.gain.setValueAtTime(0.12,t+off);g.gain.exponentialRampToValueAtTime(0.001,t+off+0.12);
+      o.connect(g);g.connect(AC.destination);o.start(t+off);o.stop(t+off+0.15);
+    });
+  } else if (type==='defcon') {
+    [220,277,330,415].forEach((freq,i)=>{
+      const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=freq;o.type='sine';
+      g.gain.setValueAtTime(0,t+i*0.12);g.gain.linearRampToValueAtTime(0.18,t+i*0.12+0.05);g.gain.linearRampToValueAtTime(0,t+i*0.12+0.3);
+      o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+0.8);
+    });
+  } else if (type==='keyclick') {
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type='square';o.frequency.setValueAtTime(1200,t);o.frequency.exponentialRampToValueAtTime(400,t+0.05);
+    g.gain.setValueAtTime(0.08,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.06);
+    o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+0.07);
+  }
+}
+
+// ── Projection ─────────────────────────────────────────────────────────────────
+function project(lon, lat) {
+  return { x:(lon+180)/360*canvas.width, y:(90-lat)/180*canvas.height };
+}
+function project2(lon,lat,W,H){ return{x:(lon+180)/360*W,y:(90-lat)/180*H}; }
+function getPos(c) { return project(c.lon, c.lat); }
+
+// ── Player plane templates ─────────────────────────────────────────────────────
+const PLAYER_PLANE_TEMPLATES = [
+  { id:'plane_b2',  name:'B-2 SPIRIT',  speed:10, refuelTime:55, damage:{cities:4,missiles:6} },
+  { id:'plane_b1',  name:'B-1 LANCER',  speed:16, refuelTime:40, damage:{cities:3,missiles:4} },
+  { id:'plane_b52', name:'B-52',         speed:7,  refuelTime:70, damage:{cities:5,missiles:8} },
+];
+const BASE_LON=-98, BASE_LAT=38;
+
+// ── Country tensions (who hates who) ──────────────────────────────────────────
+const TENSIONS = {
+  russia:   ['usa','uk','france'],
+  china:    ['usa','india','taiwan'],
+  nkorea:   ['usa','japan','australia'],
+  iran:     ['usa','israel','uk'],
+  pakistan: ['india'],
+  india:    ['pakistan','china'],
+  israel:   ['iran'],
+  uk:       ['russia'],
+  france:   ['russia'],
+  brazil:   [],
+  australia:['nkorea','china'],
+};
+
+// ── Submarine data ─────────────────────────────────────────────────────────────
+const PLAYER_SUB_TEMPLATES = [
+  { id:'sub_ohio',     name:'USS OHIO',     baseLon:-40,  baseLat:45,  missiles:4, maxMissiles:4 },
+  { id:'sub_michigan', name:'USS MICHIGAN', baseLon:-170, baseLat:38,  missiles:4, maxMissiles:4 },
+  { id:'sub_kentucky', name:'USS KENTUCKY', baseLon:65,   baseLat:14,  missiles:4, maxMissiles:4 },
+];
+const SUB_RESUPPLY_COOLDOWN = 45;
+
+// ── Game state ─────────────────────────────────────────────────────────────────
+let countries=[],missiles=[],explosions=[],playerSubs=[],enemySubs=[],playerPlanes=[],enemyPlanes=[];
+let radarAngle=0,defcon=5,score=0,gameTime=0,gameRunning=false;
+let interceptorRegen=0,lastTimestamp=0;
+let lastEnemyRender=0,lastIncomingIds='',subRenderTimer=0;
+const MISSILE_TRAVEL=7, THREAT_DECAY=2;
+
+// Launch console state
+let keyAIn=false, keyBIn=false, coverOpen=false, selectedTargetId=null;
+// Sub drag state
+let draggingSub=null;
+let dragStart=null;
+function pointInPolygon(lon,lat,poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i][0], yi=poly[i][1];
+    const xj=poly[j][0], yj=poly[j][1];
+    if(((yi>lat)!==(yj>lat))&&(lon<(xj-xi)*(lat-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function isOnLand(lon,lat){
+  for(const f of MAP_FEATURES){
+    for(const path of f.paths){
+      if(pointInPolygon(lon,lat,path)) return true;
+    }
+  }
+  return false;
+}
+// Hack state
+let hackMode=false, hackTarget=null, hackProgress=0, hackCooldown=0;
+const HACK_DURATION=6, HACK_COOLDOWN=40;
+
+function toggleHackMode(){
+  if(hackTarget){cancelHack();return;}
+  hackMode=!hackMode;
+  updateHackUI();
+}
+function cancelHack(){
+  hackMode=false;hackTarget=null;hackProgress=0;
+  document.getElementById('hack-bar').style.width='0%';
+  document.getElementById('hack-prog-wrap').style.display='none';
+  updateHackUI();
+}
+function updateHackUI(){
+  const btn=document.getElementById('hack-btn');
+  const cd=document.getElementById('hack-cd');
+  btn.classList.toggle('active',hackMode);
+  btn.disabled=hackCooldown>0&&!hackTarget;
+  btn.textContent=hackTarget?'CANCEL HACK':hackMode?'HACK MODE — PICK TARGET':'INITIATE HACK';
+  cd.textContent=hackCooldown>0?'COOLDOWN: '+Math.ceil(hackCooldown)+'s':'';
+}
+function hackTargetAtPoint(mx,my){
+  // enemy planes
+  for(const p of enemyPlanes){
+    if(!p.alive)continue;
+    const{x,y}=project(p.lon,p.lat);
+    if(Math.hypot(mx-x,my-y)<22)return{type:'plane',id:p.id,name:(countries.find(c=>c.id===p.fromId)?.name||'?')+' BOMBER'};
+  }
+  // enemy subs
+  for(const s of enemySubs){
+    if(!s.missiles)continue;
+    const{x,y}=project(s.lon,s.lat);
+    if(Math.hypot(mx-x,my-y)<22)return{type:'sub',id:s.id,name:(countries.find(c=>c.id===s.fromId)?.name||'?')+' SUB'};
+  }
+  // enemy country silos
+  for(const c of countries){
+    if(c.player||!c.alive||c.missiles<=0)continue;
+    const{x,y}=getPos(c);
+    if(Math.hypot(mx-x,my-y)<24)return{type:'country',id:c.id,name:c.name+' SILO'};
+  }
+  return null;
+}
+function applyHack(tgt){
+  playSound('intercept');
+  if(tgt.type==='plane'){
+    const p=enemyPlanes.find(x=>x.id===tgt.id);
+    if(!p||!p.alive)return;
+    const own=countries.find(c=>c.id===p.fromId);
+    if(own){p.hacked=true;p.targetLon=own.lon;p.targetLat=own.lat;}
+    addLog('⚡ HACK: '+own?.name+' BOMBER REDIRECTED','good');score+=400;
+  } else if(tgt.type==='sub'){
+    const s=enemySubs.find(x=>x.id===tgt.id);
+    if(!s||!s.missiles)return;
+    const own=countries.find(c=>c.id===s.fromId);
+    for(let i=0;i<s.missiles;i++){
+      const tt=MISSILE_TRAVEL*0.7+Math.random();
+      missiles.push({id:'hs'+Date.now()+'_'+i,fromId:s.fromId,toId:s.fromId,
+        type:'intercountry',timeLeft:tt,totalTime:tt,fromSub:s.id,subLon:s.lon,subLat:s.lat});
+    }
+    s.missiles=0;
+    addLog('⚡ HACK: '+own?.name+' SUB FIRES ON ITSELF','good');score+=500;
+  } else if(tgt.type==='country'){
+    const c=countries.find(x=>x.id===tgt.id);
+    if(!c||!c.alive)return;
+    const disabled=Math.min(3,c.missiles);
+    c.missiles-=disabled;c.launchCooldown+=45;c.threat=Math.max(0,c.threat-70);
+    addLog('⚡ SILO HACK: '+c.name+' — '+disabled+' MISSILES DISABLED','good');score+=350;
+    if(c.missiles<=0&&c.cities<=0){c.alive=false;addLog('★ '+c.name+' NEUTRALIZED','good');score+=2000;}
+  }
+}
+
+function initGame() {
+  countries=COUNTRY_DATA.map(c=>({...c,threat:0,alive:true,treatyCooldown:0,launchCooldown:Math.random()*15+8,retaliateTarget:null}));
+  missiles=[];explosions=[];defcon=5;score=0;gameTime=0;gameRunning=true;
+  interceptorRegen=0;lastEnemyRender=0;lastIncomingIds='';subRenderTimer=0;
+  hackMode=false;hackTarget=null;hackProgress=0;hackCooldown=0;updateHackUI();
+  playerSubs=PLAYER_SUB_TEMPLATES.map(t=>({...t,lon:t.baseLon,lat:t.baseLat,alive:true,status:'PATROL',patrolAngle:Math.random()*Math.PI*2,cooldown:0,resupplyCooldown:0}));
+  enemySubs=[];
+  playerPlanes=PLAYER_PLANE_TEMPLATES.map(t=>({...t,lon:BASE_LON,lat:BASE_LAT,alive:true,status:'READY',targetId:null,targetLon:null,targetLat:null,refuelCooldown:0}));
+  enemyPlanes=[];
+  // Reset launch console
+  keyAIn=false;keyBIn=false;coverOpen=false;selectedTargetId=null;
+  resetLaunchConsole();
+  updateDefcon(5);updateStats();clearLog();
+  addLog('GLOBAL DEFCON SYSTEM ONLINE','info');
+  addLog('MONITORING '+countries.filter(c=>!c.player).length+' NUCLEAR STATES','info');
+  addLog('PROTECT YOUR CITIES. GOOD LUCK.','good');
+  renderEnemyList();updateIncomingUI();renderSubList();renderPlaneList();
+}
+function restartGame(){
+  if (restartTimeout) { clearTimeout(restartTimeout); restartTimeout=null; }
+  if (countdownInterval) { clearInterval(countdownInterval); countdownInterval=null; }
+  document.getElementById('modal').classList.remove('show');
+  initGame();
+}
+function player(){return countries.find(c=>c.player);}
+
+function resetLaunchConsole() {
+  document.getElementById('phys-key-a').classList.remove('gone');
+  document.getElementById('phys-key-b').classList.remove('gone');
+  document.getElementById('slot-a').classList.remove('has-key');
+  document.getElementById('slot-b').classList.remove('has-key');
+  document.getElementById('slot-a-status').textContent='EMPTY';
+  document.getElementById('slot-a-status').classList.remove('ins');
+  document.getElementById('slot-b-status').textContent='EMPTY';
+  document.getElementById('slot-b-status').classList.remove('ins');
+  document.getElementById('cover').classList.remove('open');
+  document.getElementById('target-display').textContent='NO TARGET SELECTED';
+  document.getElementById('target-display').classList.remove('has-target');
+  updateArmedState();
+}
+
+// ── Drag-and-drop keys ─────────────────────────────────────────────────────────
+function onKeyDragStart(e, key) {
+  e.dataTransfer.setData('text/plain', key);
+  e.dataTransfer.effectAllowed='move';
+}
+function onSlotDragOver(e, slot) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  document.getElementById('slot-'+slot).classList.add('dragover');
+}
+function onSlotDragLeave(slot) {
+  document.getElementById('slot-'+slot).classList.remove('dragover');
+}
+function onDrop(e, slot) {
+  e.preventDefault();
+  document.getElementById('slot-'+slot).classList.remove('dragover');
+  insertKey(slot);
+}
+function insertKey(key) {
+  if (key==='a' && !keyAIn) {
+    keyAIn=true;
+    document.getElementById('phys-key-a').classList.add('gone');
+    document.getElementById('slot-a').classList.add('has-key');
+    document.getElementById('slot-a-status').textContent='INSERTED ✓';
+    document.getElementById('slot-a-status').classList.add('ins');
+    playSound('keyclick');
+  } else if (key==='b' && !keyBIn) {
+    keyBIn=true;
+    document.getElementById('phys-key-b').classList.add('gone');
+    document.getElementById('slot-b').classList.add('has-key');
+    document.getElementById('slot-b-status').textContent='INSERTED ✓';
+    document.getElementById('slot-b-status').classList.add('ins');
+    playSound('keyclick');
+  }
+  updateArmedState();
+}
+function removeKey(slot) {
+  if (slot==='a' && keyAIn) {
+    keyAIn=false;
+    document.getElementById('phys-key-a').classList.remove('gone');
+    document.getElementById('slot-a').classList.remove('has-key');
+    document.getElementById('slot-a-status').textContent='EMPTY';
+    document.getElementById('slot-a-status').classList.remove('ins');
+    if (coverOpen) { coverOpen=false; document.getElementById('cover').classList.remove('open'); }
+    playSound('keyclick');
+  } else if (slot==='b' && keyBIn) {
+    keyBIn=false;
+    document.getElementById('phys-key-b').classList.remove('gone');
+    document.getElementById('slot-b').classList.remove('has-key');
+    document.getElementById('slot-b-status').textContent='EMPTY';
+    document.getElementById('slot-b-status').classList.remove('ins');
+    if (coverOpen) { coverOpen=false; document.getElementById('cover').classList.remove('open'); }
+    playSound('keyclick');
+  }
+  updateArmedState();
+}
+
+function toggleCover() {
+  if (!keyAIn || !keyBIn) {
+    addLog('INSERT BOTH KEYS BEFORE ARMING','alert');
+    return;
+  }
+  coverOpen=!coverOpen;
+  document.getElementById('cover').classList.toggle('open', coverOpen);
+  if (coverOpen) playSound('alert');
+  updateArmedState();
+}
+
+function selectTarget(id) {
+  const target=countries.find(c=>c.id===id);
+  if (!target||!target.alive) return;
+  selectedTargetId=id;
+  const td=document.getElementById('target-display');
+  td.textContent=target.name;
+  td.classList.add('has-target');
+  document.querySelectorAll('.enemy-card').forEach(card=>{
+    const isT=card.dataset.id===id;
+    card.classList.toggle('targeted',isT);
+    const btn=card.querySelector('.select-btn');
+    if (btn) btn.classList.toggle('is-targeted',isT);
+  });
+  updateArmedState();
+}
+
+function updateArmedState() {
+  const keysIn=keyAIn&&keyBIn;
+  const armed=keysIn&&coverOpen&&!!selectedTargetId;
+  const dot=document.getElementById('auth-dot');
+  dot.classList.toggle('lit', keysIn);
+  const cover=document.getElementById('cover');
+  cover.style.opacity=keysIn?'1':'0.45';
+  cover.style.cursor=keysIn?'pointer':'not-allowed';
+  const btn=document.getElementById('big-red-btn');
+  btn.disabled=!armed;
+  btn.classList.toggle('armed',armed);
+  const status=document.getElementById('armed-status');
+  if (!keysIn) { status.textContent='INSERT BOTH KEYS TO ENABLE'; status.className=''; }
+  else if (!coverOpen) { status.textContent='LIFT SAFETY COVER TO ARM'; status.className=''; }
+  else if (!selectedTargetId) { status.textContent='SELECT A TARGET TO PROCEED'; status.className=''; }
+  else { status.textContent='⚠ ARMED — CONFIRM LAUNCH ⚠'; status.className='ready'; }
+}
+
+function pressBigRedButton() {
+  if (!keyAIn||!keyBIn||!coverOpen||!selectedTargetId) return;
+  const usa=player(), target=countries.find(c=>c.id===selectedTargetId);
+  if (!usa||!target||!target.alive) { addLog('LAUNCH FAILED: INVALID TARGET','alert'); return; }
+  if (usa.missiles<=0) { addLog('LAUNCH FAILED: NO MISSILES','alert'); return; }
+  usa.missiles--;
+  const tt=MISSILE_TRAVEL+Math.random()*2;
+  missiles.push({id:'p'+Date.now(),fromId:'usa',toId:target.id,type:'player',timeLeft:tt,totalTime:tt});
+  playSound('launch');
+  addLog('⚛ LAUNCH AUTHORIZED → '+target.name,'alert');
+  updateStats();
+  // Flash screen
+  const fl=document.getElementById('launch-flash');
+  fl.classList.add('flash');
+  setTimeout(()=>fl.classList.remove('flash'),350);
+  // Reset cover after launch; keep keys and target
+  coverOpen=false;
+  document.getElementById('cover').classList.remove('open');
+  updateArmedState();
+}
+
+// ── Map cache ──────────────────────────────────────────────────────────────────
+let mapCache=null,cacheW=0,cacheH=0;
+function buildMapCache(W,H) {
+  const off=document.createElement('canvas');
+  off.width=W;off.height=H;
+  const c=off.getContext('2d');
+  const oceanGrad=c.createRadialGradient(W*.5,H*.5,0,W*.5,H*.5,Math.max(W,H)*.7);
+  oceanGrad.addColorStop(0,'#021020');
+  oceanGrad.addColorStop(0.5,'#010c18');
+  oceanGrad.addColorStop(1,'#010810');
+  c.fillStyle=oceanGrad;c.fillRect(0,0,W,H);
+  const drawPoly=(paths,fill,stroke,lw)=>{
+    paths.forEach(pts=>{
+      if(pts.length<2)return;
+      c.beginPath();
+      pts.forEach(([lon,lat],i)=>{const{x,y}=project2(lon,lat,W,H);i===0?c.moveTo(x,y):c.lineTo(x,y);});
+      c.closePath();
+      if(fill){c.fillStyle=fill;c.fill();}
+      if(stroke){c.strokeStyle=stroke;c.lineWidth=lw||0.6;c.stroke();}
+    });
+  };
+  MAP_FEATURES.forEach(f=>drawPoly(f.paths,f.fill,null));
+  MAP_FEATURES.forEach(f=>{
+    f.paths.forEach(pts=>{
+      if(pts.length<2)return;
+      c.beginPath();
+      pts.forEach(([lon,lat],i)=>{const{x,y}=project2(lon,lat,W,H);i===0?c.moveTo(x,y):c.lineTo(x,y);});
+      c.closePath();
+      c.strokeStyle='rgba(34,180,80,0.08)';c.lineWidth=2.5;c.stroke();
+    });
+  });
+  MAP_FEATURES.forEach(f=>drawPoly(f.paths,null,f.stroke,0.5));
+  c.strokeStyle='rgba(4,40,70,0.5)';c.lineWidth=0.4;
+  for(let lon=-150;lon<=180;lon+=30){const{x}=project2(lon,0,W,H);c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke();}
+  for(let lat=-60;lat<=90;lat+=30){const{y}=project2(0,lat,W,H);c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();}
+  const{y:eq}=project2(0,0,W,H);
+  c.strokeStyle='rgba(4,60,100,0.4)';c.lineWidth=0.7;c.beginPath();c.moveTo(0,eq);c.lineTo(W,eq);c.stroke();
+  [23.5,-23.5].forEach(lat=>{
+    const{y}=project2(0,lat,W,H);
+    c.strokeStyle='rgba(4,60,80,0.2)';c.lineWidth=0.4;c.setLineDash([4,6]);
+    c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke();c.setLineDash([]);
+  });
+  return off;
+}
+
+// ── Game loop ──────────────────────────────────────────────────────────────────
+function gameLoop(ts) {
+  const dt=lastTimestamp?Math.min((ts-lastTimestamp)/1000,0.1):0;
+  lastTimestamp=ts;
+  resizeCanvas();
+  if(!mapCache||cacheW!==canvas.width||cacheH!==canvas.height){
+    cacheW=canvas.width;cacheH=canvas.height;mapCache=buildMapCache(cacheW,cacheH);
+  }
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(mapCache,0,0);
+  drawCountryGlows();
+  drawRadarSweep(dt);
+  updateMissileVisibility();
+  drawSubmarines();
+  drawPlanes();
+  drawCountries();
+  drawMissiles();
+  drawExplosions(dt);
+  if(gameRunning)updateGame(dt);
+  requestAnimationFrame(gameLoop);
+}
+
+function updateGame(dt){
+  gameTime+=dt;score+=dt*2;
+  document.getElementById('stat-score').textContent=Math.floor(score);
+
+  // ── Hack update ──────────────────────────────────────────────────────────
+  hackCooldown=Math.max(0,hackCooldown-dt);
+  if(hackTarget){
+    const alive=(hackTarget.type==='plane'&&enemyPlanes.find(p=>p.id===hackTarget.id&&p.alive))
+      ||(hackTarget.type==='sub'&&enemySubs.find(s=>s.id===hackTarget.id&&s.missiles>0))
+      ||(hackTarget.type==='country'&&countries.find(c=>c.id===hackTarget.id&&c.alive));
+    if(!alive){addLog('HACK LOST — TARGET GONE','alert');cancelHack();}
+    else{
+      hackProgress+=dt/HACK_DURATION;
+      document.getElementById('hack-bar').style.width=(hackProgress*100)+'%';
+      if(hackProgress>=1){applyHack(hackTarget);cancelHack();hackCooldown=HACK_COOLDOWN;}
+    }
+  }
+  updateHackUI();
+
+  interceptorRegen+=dt;
+  if(interceptorRegen>20){interceptorRegen=0;const u=player();if(u)u.interceptors=Math.min(u.interceptors+1,12);updateStats();}
+  updateIncomingTimers();
+  countries.filter(c=>!c.player&&c.alive).forEach(c=>{
+    c.launchCooldown-=dt;c.treatyCooldown=Math.max(0,c.treatyCooldown-dt);
+    if(c.treatyCooldown<=0)c.threat=Math.min(100,c.threat+c.aggression*dt*3);
+    else c.threat=Math.max(0,c.threat-THREAT_DECAY*dt);
+    if(c.threat>=85&&c.missiles>0&&c.launchCooldown<=0){
+      enemyLaunch(c);c.threat=Math.max(0,c.threat-60);c.launchCooldown=12+Math.random()*15;
+    }
+  });
+  missiles.forEach(m=>{m.timeLeft-=dt;});
+  missiles=missiles.filter(m=>{if(m.timeLeft<=0){handleImpact(m);return false;}return true;});
+  // ── Submarine update ─────────────────────────────────────────────────────
+  playerSubs.filter(s=>s.alive).forEach(s=>{
+    s.cooldown=Math.max(0,s.cooldown-dt);
+    s.resupplyCooldown=Math.max(0,s.resupplyCooldown-dt);
+    if(!s.dragging){
+      s.patrolAngle+=dt*0.08;
+      const tmpl=PLAYER_SUB_TEMPLATES.find(t=>t.id===s.id);
+      s.lon=tmpl.baseLon+Math.cos(s.patrolAngle)*4;
+      s.lat=tmpl.baseLat+Math.sin(s.patrolAngle)*2;
+    }
+  });
+
+  // Player sub auto-intercept
+  missiles.filter(m=>m.type==='enemy').forEach(m=>{
+    const pos=getMissilePos(m);if(!pos)return;
+    playerSubs.filter(s=>s.alive&&s.missiles>0&&s.cooldown<=0).forEach(s=>{
+      const sp=project(s.lon,s.lat);
+      if(Math.hypot(pos.x-sp.x,pos.y-sp.y)<70){
+        s.missiles--;s.cooldown=4;
+        explosions.push({x:pos.x,y:pos.y,r:0,alpha:.8});
+        missiles=missiles.filter(x=>x.id!==m.id);
+        playSound('intercept');
+        addLog('◉ '+s.name+' INTERCEPT','good');
+        score+=180;s.status='INTERCEPT';
+        setTimeout(()=>{if(s.alive)s.status='PATROL';},2500);
+      }
+    });
+  });
+
+  // Enemy sub spawning (after 25s, max 2 at a time)
+  if(gameTime>25&&enemySubs.length<2&&Math.random()<dt*0.012){
+    const pool=['russia','china','nkorea'].filter(id=>{const c=countries.find(x=>x.id===id);return c&&c.alive&&c.missiles>0;});
+    if(pool.length){
+      const ownerId=pool[Math.floor(Math.random()*pool.length)];
+      const spots=[{lon:-55,lat:48},{lon:-30,lat:38},{lon:-125,lat:42},{lon:-145,lat:36},{lon:-80,lat:50}];
+      const spot=spots[Math.floor(Math.random()*spots.length)];
+      enemySubs.push({id:'esub_'+Date.now(),fromId:ownerId,lon:spot.lon,lat:spot.lat,missiles:2,launchCooldown:18+Math.random()*10,alive:true,lastSeen:-999});
+      addLog('⚠ ENEMY SUBMARINE CONTACT','alert');playSound('alert');
+    }
+  }
+
+  // Enemy sub AI
+  enemySubs.filter(s=>s.alive&&s.missiles>0).forEach(s=>{
+    s.launchCooldown-=dt;
+    const up=getPos(player());
+    const sp=project(s.lon,s.lat);
+    const sweep=((radarAngle%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
+    let angle=Math.atan2(sp.y-up.y,sp.x-up.x);
+    angle=((angle%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
+    let diff=sweep-angle;
+    if(diff>Math.PI)diff-=Math.PI*2;if(diff<-Math.PI)diff+=Math.PI*2;
+    if(Math.abs(diff)<0.18)s.lastSeen=gameTime;
+    if(s.launchCooldown<=0&&s.missiles>0){
+      s.missiles--;s.launchCooldown=25+Math.random()*12;
+      const tt=7+Math.random()*2;
+      const id='esm_'+Date.now();
+      missiles.push({id,fromId:s.fromId,toId:'usa',type:'enemy',timeLeft:tt,totalTime:tt,fromSub:s.id,subLon:s.lon,subLat:s.lat});
+      const own=countries.find(c=>c.id===s.fromId);
+      addLog('⚠ SUB MISSILE: '+(own?.name||'?')+' → USA','alert');
+      playSound('alert');if(defcon>1)updateDefcon(defcon-1);
+      updateIncomingUI();lastIncomingIds='';
+    }
+  });
+  enemySubs=enemySubs.filter(s=>s.missiles>0);
+
+  subRenderTimer+=dt;
+  if(subRenderTimer>=0.8){subRenderTimer=0;renderSubList();renderPlaneList();}
+  // ── End submarine update ──────────────────────────────────────────────────
+
+  // ── Plane update ──────────────────────────────────────────────────────────
+  playerPlanes.filter(p=>p.alive).forEach(p=>{
+    if(p.status==='REFUELING'){
+      p.refuelCooldown=Math.max(0,p.refuelCooldown-dt);
+      if(p.refuelCooldown<=0){p.status='READY';p.lon=BASE_LON;p.lat=BASE_LAT;}
+      return;
+    }
+    if(p.status==='READY') return;
+    const tLon=p.status==='RETURNING'?BASE_LON:p.targetLon;
+    const tLat=p.status==='RETURNING'?BASE_LAT:p.targetLat;
+    const dLon=tLon-p.lon, dLat=tLat-p.lat;
+    const dist=Math.hypot(dLon,dLat);
+    if(dist<2){
+      if(p.status==='ENROUTE'){
+        // Strike!
+        const tc=countries.find(c=>c.id===p.targetId);
+        if(tc&&tc.alive){
+          const pos=getPos(tc);
+          [0,1,2].forEach(i=>setTimeout(()=>explosions.push({x:pos.x+(Math.random()-.5)*20,y:pos.y+(Math.random()-.5)*20,r:0,alpha:1.2}),i*180));
+          playSound('explosion');
+          tc.cities=Math.max(0,tc.cities-p.damage.cities);
+          tc.missiles=Math.max(0,tc.missiles-p.damage.missiles);
+          tc.threat=Math.max(0,tc.threat-50);
+          score+=800;
+          addLog('✈ '+p.name+' BOMBED '+tc.name,'good');
+          countries.filter(e=>!e.player&&e.alive&&e.id!==tc.id).forEach(e=>e.threat=Math.min(100,e.threat+15));
+          if(defcon>1)updateDefcon(defcon-1);
+          if(tc.cities<=0&&tc.missiles<=0){tc.alive=false;addLog('★ '+tc.name+' NEUTRALIZED','good');score+=2000;}
+          updateStats();
+        }
+        p.status='RETURNING';
+      } else if(p.status==='RETURNING'){
+        p.lon=BASE_LON;p.lat=BASE_LAT;
+        p.status='REFUELING';p.refuelCooldown=p.refuelTime;
+        addLog('✈ '+p.name+' RETURNING TO BASE','info');
+      }
+    } else {
+      p.lon+=(dLon/dist)*p.speed*dt;
+      p.lat+=(dLat/dist)*p.speed*dt;
+    }
+  });
+
+  // Enemy plane spawning (after 60s, max 2)
+  if(gameTime>60&&enemyPlanes.length<2&&Math.random()<dt*0.007){
+    const pool=['russia','china'].filter(id=>{const c=countries.find(x=>x.id===id);return c&&c.alive&&c.threat>50;});
+    if(pool.length){
+      const ownerId=pool[Math.floor(Math.random()*pool.length)];
+      const own=countries.find(c=>c.id===ownerId);
+      enemyPlanes.push({id:'ep_'+Date.now(),fromId:ownerId,lon:own.lon,lat:own.lat,alive:true,lastSeen:-999,speed:5});
+      addLog('⚠ ENEMY AIRCRAFT SCRAMBLED','alert');playSound('alert');
+      if(defcon>2)updateDefcon(defcon-1);
+    }
+  }
+
+  // Move enemy planes toward USA (or own country if hacked)
+  const usaNode=player();
+  enemyPlanes.filter(p=>p.alive).forEach(p=>{
+    if(!usaNode)return;
+    const tLon=p.hacked?(p.targetLon??usaNode.lon):usaNode.lon;
+    const tLat=p.hacked?(p.targetLat??usaNode.lat):usaNode.lat;
+    const dLon=tLon-p.lon,dLat=tLat-p.lat;
+    const dist=Math.hypot(dLon,dLat);
+    if(dist<3){
+      const tgt=p.hacked?countries.find(c=>c.lon===tLon&&c.lat===tLat)||usaNode:usaNode;
+      const pos=getPos(tgt);
+      explosions.push({x:pos.x+(Math.random()-.5)*30,y:pos.y+(Math.random()-.5)*30,r:0,alpha:1.5});
+      explosions.push({x:pos.x,y:pos.y,r:0,alpha:1});
+      playSound('explosion');
+      tgt.cities=Math.max(0,tgt.cities-2);
+      if (tgt.player) triggerHitFlash();
+      if(p.hacked) addLog('⚡ HACKED BOMBER STRUCK '+tgt.name,'good');
+      else{addLog('💥 ENEMY BOMBER HIT — '+usaNode.cities+' CITIES LEFT','alert');if(usaNode.cities<=0)endGame(false);}
+      p.alive=false;updateStats();
+    } else {
+      p.lon+=(dLon/dist)*p.speed*dt;
+      p.lat+=(dLat/dist)*p.speed*dt;
+    }
+    // Radar visibility
+    const up=getPos(usaNode);const pp=project(p.lon,p.lat);
+    const sweep=((radarAngle%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
+    let ang=Math.atan2(pp.y-up.y,pp.x-up.x);
+    ang=((ang%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
+    let diff=sweep-ang;if(diff>Math.PI)diff-=Math.PI*2;if(diff<-Math.PI)diff+=Math.PI*2;
+    if(Math.abs(diff)<0.22)p.lastSeen=gameTime;
+  });
+  enemyPlanes=enemyPlanes.filter(p=>p.alive);
+  // ── End plane update ──────────────────────────────────────────────────────
+
+  updateStats();
+  lastEnemyRender+=dt;
+  if(lastEnemyRender>=0.5){lastEnemyRender=0;renderEnemyList();}
+  const ids=missiles.filter(m=>m.toId==='usa').map(m=>m.id).join(',');
+  if(ids!==lastIncomingIds){lastIncomingIds=ids;updateIncomingUI();}
+  const usa=player();
+  if(usa&&usa.cities<=0){endGame(false);return;}
+  if(countries.filter(c=>!c.player&&c.alive).length===0){endGame(true);return;}
+}
+
+function resizeCanvas(){
+  if(canvas.width!==canvas.offsetWidth||canvas.height!==canvas.offsetHeight){
+    canvas.width=canvas.offsetWidth;canvas.height=canvas.offsetHeight;
+  }
+}
+
+function drawCountryGlows(){
+  countries.filter(c=>!c.player&&c.alive).forEach(c=>{
+    const{x,y}=getPos(c);
+    const grad=ctx.createRadialGradient(x,y,0,x,y,20);
+    grad.addColorStop(0,c.color+'20');grad.addColorStop(1,c.color+'00');
+    ctx.beginPath();ctx.arc(x,y,20,0,Math.PI*2);ctx.fillStyle=grad;ctx.fill();
+  });
+}
+
+function drawRadarSweep(dt){
+  radarAngle+=dt*0.8;
+  const W=canvas.width,H=canvas.height;
+  const usa=player();if(!usa)return;
+  const{x:cx,y:cy}=getPos(usa);
+  const maxR=Math.sqrt(W*W+H*H);
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(radarAngle);
+  const sweep=ctx.createLinearGradient(0,0,maxR,0);
+  sweep.addColorStop(0,'rgba(34,211,238,0.28)');
+  sweep.addColorStop(1,'rgba(34,211,238,0)');
+  ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,maxR,-0.22,0);ctx.closePath();
+  ctx.fillStyle=sweep;ctx.fill();ctx.restore();
+  ctx.beginPath();ctx.moveTo(cx,cy);
+  ctx.lineTo(cx+Math.cos(radarAngle)*maxR,cy+Math.sin(radarAngle)*maxR);
+  ctx.strokeStyle='rgba(34,211,238,0.5)';ctx.lineWidth=1.5;ctx.stroke();
+}
+
+function drawHackRing(x,y,r,progress){
+  // Background ring
+  ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+  ctx.strokeStyle='rgba(74,222,128,0.2)';ctx.lineWidth=3;ctx.stroke();
+  // Progress arc
+  ctx.beginPath();ctx.arc(x,y,r,-Math.PI/2,-Math.PI/2+progress*Math.PI*2);
+  ctx.strokeStyle='rgba(74,222,128,0.9)';ctx.lineWidth=3;ctx.stroke();
+}
+
+function drawCountries(){
+  countries.forEach(c=>{
+    if(!c.alive&&!c.player)return;
+    const{x,y}=getPos(c);const r=c.player?13:9;
+    const glow=ctx.createRadialGradient(x,y,0,x,y,r*3.5);
+    glow.addColorStop(0,c.color+'28');glow.addColorStop(1,c.color+'00');
+    ctx.beginPath();ctx.arc(x,y,r*3.5,0,Math.PI*2);ctx.fillStyle=glow;ctx.fill();
+    // Hack mode: highlight hackable silos
+    if(hackMode&&!c.player&&c.alive&&c.missiles>0){
+      const isTarget=hackTarget?.id===c.id;
+      const pulse=0.4+0.3*Math.sin(Date.now()/200);
+      ctx.beginPath();ctx.arc(x,y,r+8,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(74,222,128,${isTarget?0.9:pulse})`;ctx.lineWidth=2;ctx.stroke();
+      if(isTarget)drawHackRing(x,y,r+14,hackProgress);
+    }
+    if(!c.player&&c.threat>55){
+      const a=0.2+(c.threat/100)*0.6;
+      const pr=r+5+Math.sin(Date.now()/180)*4;
+      ctx.beginPath();ctx.arc(x,y,pr,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(239,68,68,${a})`;ctx.lineWidth=1.5;ctx.stroke();
+    }
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=c.color+'30';ctx.strokeStyle=c.color;ctx.lineWidth=c.player?2.5:1.5;
+    ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.arc(x,y,r*.35,0,Math.PI*2);ctx.fillStyle=c.color;ctx.fill();
+    ctx.font=`bold ${c.player?10:8}px 'Courier New'`;
+    ctx.fillStyle=c.color;ctx.textAlign='center';
+    ctx.fillText(c.name,x,y-r-5);
+    if(!c.player){
+      ctx.font=`7px 'Courier New'`;ctx.fillStyle='rgba(134,239,172,0.45)';
+      ctx.fillText('⚛'+c.missiles,x,y+r+11);
+    }
+  });
+}
+
+function bez(a,b,c,t){return(1-t)*(1-t)*a+2*(1-t)*t*b+t*t*c;}
+
+function getMissilePos(m){
+  const total=m.totalTime||MISSILE_TRAVEL;
+  const t=Math.max(0,Math.min(1,1-m.timeLeft/total));
+  const tc=countries.find(c=>c.id===m.toId);if(!tc)return null;
+  const to=getPos(tc);
+  let from;
+  if(m.fromSub!=null){
+    from=project(m.subLon,m.subLat);
+  } else {
+    const fc=countries.find(c=>c.id===m.fromId);if(!fc)return null;
+    from=getPos(fc);
+  }
+  const dist=Math.hypot(to.x-from.x,to.y-from.y);
+  const cp={x:(from.x+to.x)/2,y:Math.min(from.y,to.y)-dist*.5-30};
+  return{x:bez(from.x,cp.x,to.x,t),y:bez(from.y,cp.y,to.y,t),t,from,to,cp};
+}
+
+function updateMissileVisibility(){
+  const usa=player();if(!usa)return;
+  const up=getPos(usa);
+  const sweep=((radarAngle%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
+  missiles.forEach(m=>{
+    const pos=getMissilePos(m);if(!pos)return;
+    let angle=Math.atan2(pos.y-up.y,pos.x-up.x);
+    angle=((angle%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
+    let diff=sweep-angle;
+    if(diff>Math.PI)diff-=Math.PI*2;if(diff<-Math.PI)diff+=Math.PI*2;
+    if(Math.abs(diff)<0.18){m.lastSeen=gameTime;m.justRevealed=true;}else m.justRevealed=false;
+    if(m.lastSeen===undefined)m.lastSeen=-999;
+  });
+}
+
+function drawMissiles(){
+  missiles.forEach(m=>{
+    const alpha=1;
+    const pos=getMissilePos(m);if(!pos)return;
+    const{t,from,to,cp}=pos,wx=pos.x,wy=pos.y;
+    let col,glo;
+    if(m.type==='player'||m.fromId==='usa'){col='#22d3ee';glo='rgba(34,211,238,';}
+    else if(m.type==='intercountry'){col='#f59e0b';glo='rgba(245,158,11,';}
+    else{col='#ef4444';glo='rgba(239,68,68,';}
+    const a=alpha;
+    ctx.beginPath();
+    for(let i=0;i<=40;i++){const ti=i/40;ctx.lineTo(bez(from.x,cp.x,to.x,ti),bez(from.y,cp.y,to.y,ti));}
+    ctx.strokeStyle=glo+(0.07*alpha)+')';ctx.lineWidth=1;ctx.setLineDash([4,5]);ctx.stroke();ctx.setLineDash([]);
+    const trailT=Math.max(0,t-0.28);
+    for(let i=0;i<28;i++){
+      const ti=trailT+(t-trailT)*(i/28),tn=trailT+(t-trailT)*((i+1)/28);
+      ctx.beginPath();
+      ctx.moveTo(bez(from.x,cp.x,to.x,ti),bez(from.y,cp.y,to.y,ti));
+      ctx.lineTo(bez(from.x,cp.x,to.x,tn),bez(from.y,cp.y,to.y,tn));
+      ctx.strokeStyle=glo+((0.1+0.9*(i/28))*alpha)+')';ctx.lineWidth=2.5;ctx.stroke();
+    }
+    const hr=14;
+    const halo=ctx.createRadialGradient(wx,wy,0,wx,wy,hr);
+    halo.addColorStop(0,glo+(0.7*a)+')');halo.addColorStop(1,glo+'0)');
+    ctx.beginPath();ctx.arc(wx,wy,hr,0,Math.PI*2);ctx.fillStyle=halo;ctx.fill();
+    ctx.globalAlpha=alpha;
+    ctx.beginPath();ctx.arc(wx,wy,5,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
+    ctx.beginPath();ctx.arc(wx,wy,2.5,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+    ctx.globalAlpha=1;
+    if(m.toId==='usa'&&m.type!=='player'&&m.timeLeft<3.5){
+      const pulse=0.5+0.5*Math.sin(Date.now()/80);
+      ctx.beginPath();ctx.arc(wx,wy,10+pulse*6,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(239,68,68,${(0.5+pulse*.5)*Math.max(alpha,.25)})`;
+      ctx.lineWidth=2;ctx.stroke();
+    }
+  });ctx.globalAlpha=1;
+}
+
+function drawSubmarines(){
+  const fadeDur=(Math.PI*2)/0.8*0.85;
+
+  // Player subs
+  playerSubs.filter(s=>s.alive).forEach(s=>{
+    const{x,y}=project(s.lon,s.lat);
+    const isDragging=s.dragging;
+    const rangeR=70;
+    // Range ring — brighter when dragging
+    ctx.beginPath();ctx.arc(x,y,rangeR,0,Math.PI*2);
+    ctx.strokeStyle=isDragging?'rgba(34,211,238,0.35)':'rgba(34,211,238,0.07)';
+    ctx.lineWidth=isDragging?1.5:1;ctx.setLineDash([3,5]);ctx.stroke();ctx.setLineDash([]);
+    // Drop-zone pulse when dragging
+    if(isDragging){
+      const pulse=0.5+0.5*Math.sin(Date.now()/150);
+      ctx.beginPath();ctx.arc(x,y,rangeR,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(34,211,238,${0.15+pulse*0.25})`;
+      ctx.lineWidth=2;ctx.setLineDash([]);ctx.stroke();
+    }
+    // Glow
+    const glR=isDragging?28:18;
+    const gl=ctx.createRadialGradient(x,y,0,x,y,glR);
+    gl.addColorStop(0,isDragging?'rgba(34,211,238,0.5)':'rgba(34,211,238,0.18)');
+    gl.addColorStop(1,'rgba(34,211,238,0)');
+    ctx.beginPath();ctx.arc(x,y,glR,0,Math.PI*2);ctx.fillStyle=gl;ctx.fill();
+    // Hull
+    ctx.save();ctx.translate(x,y);
+    ctx.beginPath();ctx.ellipse(0,0,13,5,0,0,Math.PI*2);
+    ctx.fillStyle=isDragging?'rgba(20,120,160,0.9)':'rgba(10,80,110,0.7)';
+    ctx.strokeStyle=isDragging?'#7fffff':'#22d3ee';ctx.lineWidth=isDragging?2:1.5;
+    ctx.fill();ctx.stroke();
+    // Sail
+    ctx.fillStyle=isDragging?'rgba(30,140,180,0.9)':'rgba(10,100,140,0.8)';
+    ctx.strokeStyle=isDragging?'#7fffff':'#22d3ee';ctx.lineWidth=1;
+    ctx.fillRect(-2.5,-8,5,6);ctx.strokeRect(-2.5,-8,5,6);
+    // Periscope
+    ctx.strokeStyle=isDragging?'#7fffff':'#22d3ee';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(0,-12);ctx.stroke();
+    ctx.beginPath();ctx.arc(0,-12,2,0,Math.PI*2);ctx.fillStyle=isDragging?'#7fffff':'#22d3ee';ctx.fill();
+    ctx.restore();
+    // Label
+    ctx.font=`bold 7px 'Courier New'`;
+    ctx.fillStyle=isDragging?'rgba(130,255,255,0.95)':'rgba(34,211,238,0.7)';
+    ctx.textAlign='center';
+    ctx.fillText(s.name.replace('USS ',''),x,y+16);
+    ctx.font=`6px 'Courier New'`;
+    ctx.fillStyle=s.missiles>0?'rgba(34,211,238,0.55)':'rgba(239,68,68,0.7)';
+    ctx.fillText('⚛'+s.missiles,x,y+23);
+    if(isDragging){
+      ctx.font=`7px 'Courier New'`;ctx.fillStyle='rgba(130,255,255,0.8)';
+      ctx.fillText('REPOSITIONING',x,y-20);
+    }
+  });
+
+  // Enemy subs — always faintly visible, brighten on radar sweep
+  enemySubs.forEach(s=>{
+    const timeSince=gameTime-(s.lastSeen??-999);
+    const alpha=Math.max(0.18,1-timeSince/fadeDur);
+    const{x,y}=project(s.lon,s.lat);
+    const own=countries.find(c=>c.id===s.fromId);
+    const col=own?own.color:'#ef4444';
+    ctx.globalAlpha=alpha;
+    const gl=ctx.createRadialGradient(x,y,0,x,y,18);
+    gl.addColorStop(0,col+'30');gl.addColorStop(1,col+'00');
+    ctx.beginPath();ctx.arc(x,y,18,0,Math.PI*2);ctx.fillStyle=gl;ctx.fill();
+    ctx.save();ctx.translate(x,y);
+    ctx.beginPath();ctx.ellipse(0,0,13,5,0,0,Math.PI*2);
+    ctx.fillStyle=col+'55';ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.fill();ctx.stroke();
+    ctx.fillStyle=col+'70';ctx.strokeStyle=col;ctx.lineWidth=1;
+    ctx.fillRect(-2.5,-8,5,6);ctx.strokeRect(-2.5,-8,5,6);
+    ctx.restore();
+    ctx.font=`6px 'Courier New'`;ctx.fillStyle=col;ctx.textAlign='center';
+    ctx.fillText('SUB',x,y+14);
+    // Hack mode highlight
+    if(hackMode&&s.missiles>0){
+      const isTarget=hackTarget?.id===s.id;
+      const pulse=0.4+0.3*Math.sin(Date.now()/200);
+      ctx.globalAlpha=isTarget?0.9:pulse;
+      ctx.beginPath();ctx.arc(x,y,22,0,Math.PI*2);
+      ctx.strokeStyle='rgba(74,222,128,1)';ctx.lineWidth=2;ctx.stroke();
+      if(isTarget){ctx.globalAlpha=1;drawHackRing(x,y,28,hackProgress);}
+    }
+    ctx.globalAlpha=1;
+  });
+}
+
+function drawPlaneShape(x,y,angle,col,alpha){
+  ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.globalAlpha=alpha;
+  // Contrail
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-32,0);
+  const cg=ctx.createLinearGradient(0,0,-32,0);
+  cg.addColorStop(0,col);cg.addColorStop(1,'transparent');
+  ctx.strokeStyle=cg;ctx.lineWidth=1.5;ctx.setLineDash([3,4]);ctx.stroke();ctx.setLineDash([]);
+  // Fuselage
+  ctx.beginPath();ctx.moveTo(12,0);ctx.lineTo(-9,2.5);ctx.lineTo(-7,0);ctx.lineTo(-9,-2.5);ctx.closePath();
+  ctx.fillStyle=col+'cc';ctx.strokeStyle=col;ctx.lineWidth=1;ctx.fill();ctx.stroke();
+  // Wings
+  ctx.beginPath();ctx.moveTo(4,0);ctx.lineTo(-2,-11);ctx.lineTo(-6,-9);ctx.lineTo(-5,0);ctx.lineTo(-6,9);ctx.lineTo(-2,11);ctx.closePath();
+  ctx.fill();ctx.stroke();
+  // Tail
+  ctx.beginPath();ctx.moveTo(-7,0);ctx.lineTo(-10,-5);ctx.lineTo(-11,0);ctx.lineTo(-10,5);ctx.closePath();
+  ctx.fill();ctx.stroke();
+  ctx.restore();
+}
+
+function drawPlanes(){
+  const fadeDur=(Math.PI*2)/0.8*0.85;
+
+  // Player planes in flight
+  playerPlanes.filter(p=>p.alive&&p.status!=='READY'&&p.status!=='REFUELING').forEach(p=>{
+    const{x,y}=project(p.lon,p.lat);
+    const tLon=p.status==='RETURNING'?BASE_LON:p.targetLon;
+    const tLat=p.status==='RETURNING'?BASE_LAT:p.targetLat;
+    const{x:tx,y:ty}=project(tLon,tLat);
+    const angle=Math.atan2(ty-y,tx-x);
+    // Flight path line
+    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(tx,ty);
+    ctx.strokeStyle='rgba(249,115,22,0.12)';ctx.lineWidth=1;ctx.setLineDash([4,6]);ctx.stroke();ctx.setLineDash([]);
+    // Glow
+    const gl=ctx.createRadialGradient(x,y,0,x,y,16);
+    gl.addColorStop(0,'rgba(249,115,22,0.35)');gl.addColorStop(1,'rgba(249,115,22,0)');
+    ctx.beginPath();ctx.arc(x,y,16,0,Math.PI*2);ctx.fillStyle=gl;ctx.fill();
+    drawPlaneShape(x,y,angle,'#fb923c',1);
+    ctx.font=`bold 7px 'Courier New'`;ctx.fillStyle='rgba(251,146,60,0.8)';ctx.textAlign='center';
+    ctx.fillText(p.name,x,y-18);
+    if(p.status==='STRIKING'){
+      const pulse=0.5+0.5*Math.sin(Date.now()/120);
+      ctx.beginPath();ctx.arc(x,y,12+pulse*5,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(239,68,68,${0.5+pulse*0.5})`;ctx.lineWidth=2;ctx.stroke();
+    }
+  });
+
+  // Enemy planes — always faintly visible, brighten on radar sweep
+  enemyPlanes.forEach(p=>{
+    const timeSince=gameTime-(p.lastSeen??-999);
+    const alpha=Math.max(0.18,1-timeSince/fadeDur);
+    const{x,y}=project(p.lon,p.lat);
+    const usaNode=player();if(!usaNode)return;
+    const{x:tx,y:ty}=getPos(usaNode);
+    const angle=Math.atan2(ty-y,tx-x);
+    const own=countries.find(c=>c.id===p.fromId);
+    const col=own?own.color:'#ef4444';
+    ctx.globalAlpha=alpha;
+    const gl=ctx.createRadialGradient(x,y,0,x,y,14);
+    gl.addColorStop(0,col+'44');gl.addColorStop(1,col+'00');
+    ctx.beginPath();ctx.arc(x,y,14,0,Math.PI*2);ctx.fillStyle=gl;ctx.fill();
+    drawPlaneShape(x,y,angle,col,1);
+    ctx.font=`6px 'Courier New'`;ctx.fillStyle=col;ctx.textAlign='center';
+    ctx.fillText(p.hacked?'HACKED':'BOMBER',x,y-16);
+    // Hack mode highlight
+    if(hackMode&&!p.hacked){
+      const isTarget=hackTarget?.id===p.id;
+      const pulse=0.4+0.3*Math.sin(Date.now()/200);
+      ctx.globalAlpha=isTarget?0.9:pulse;
+      ctx.beginPath();ctx.arc(x,y,18,0,Math.PI*2);
+      ctx.strokeStyle='rgba(74,222,128,1)';ctx.lineWidth=2;ctx.stroke();
+      if(isTarget){ctx.globalAlpha=1;drawHackRing(x,y,24,hackProgress);}
+    }
+    ctx.globalAlpha=1;
+  });
+}
+
+function drawExplosions(dt){
+  explosions=explosions.filter(e=>e.alpha>0);
+  explosions.forEach(e=>{
+    e.r+=dt*110;e.alpha-=dt*1.6;
+    const g=ctx.createRadialGradient(e.x,e.y,0,e.x,e.y,e.r);
+    g.addColorStop(0,`rgba(255,200,50,${e.alpha})`);
+    g.addColorStop(0.4,`rgba(239,68,68,${e.alpha*.7})`);
+    g.addColorStop(1,'transparent');
+    ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+  });
+}
+
+// ── Game logic ─────────────────────────────────────────────────────────────────
+function enemyLaunch(c){
+  if(!c.alive||c.missiles<=0)return;
+
+  // Pick target: retaliate first, then tensions, then random
+  let targetId=null;
+  if(c.retaliateTarget&&Math.random()<0.75){
+    const rt=countries.find(x=>x.id===c.retaliateTarget&&x.alive);
+    if(rt){targetId=c.retaliateTarget;c.retaliateTarget=null;}
+  }
+  if(!targetId){
+    const tensions=(TENSIONS[c.id]||[]).filter(tid=>{
+      if(tid==='usa')return true;
+      return countries.find(x=>x.id===tid&&x.alive);
+    });
+    const aliveOthers=countries.filter(x=>!x.player&&x.alive&&x.id!==c.id);
+    const roll=Math.random();
+    if(roll<0.50){
+      targetId='usa';
+    } else if(tensions.length>0&&roll<0.80){
+      targetId=tensions[Math.floor(Math.random()*tensions.length)];
+    } else if(aliveOthers.length>0){
+      targetId=aliveOthers[Math.floor(Math.random()*aliveOthers.length)].id;
+    } else {
+      targetId='usa';
+    }
+  }
+
+  c.missiles--;
+  const tt=MISSILE_TRAVEL+Math.random()*3;
+  const id='miss_'+Date.now()+Math.random();
+  const toUSA=targetId==='usa';
+  missiles.push({id,fromId:c.id,toId:targetId,type:toUSA?'enemy':'intercountry',timeLeft:tt,totalTime:tt});
+
+  const tname=toUSA?'USA':(countries.find(x=>x.id===targetId)?.name||'?');
+  if(toUSA){
+    addLog('⚠ INCOMING: '+c.name+' → USA','alert');
+    playSound('alert');
+    if(defcon>2)updateDefcon(defcon-1);
+    updateIncomingUI();lastIncomingIds='';
+  } else {
+    addLog('⚡ '+c.name+' → '+tname,'info');
+    // Raise global tension a little
+    countries.filter(e=>!e.player&&e.alive&&e.id!==c.id&&e.id!==targetId)
+      .forEach(e=>e.threat=Math.min(100,e.threat+4));
+  }
+}
+
+function handleImpact(m){
+  const isHittingUSA=m.toId==='usa';
+  const tc=isHittingUSA?player():countries.find(c=>c.id===m.toId);
+  if(!tc)return;
+  const pos=getPos(tc);
+  explosions.push({x:pos.x,y:pos.y,r:0,alpha:1});playSound('explosion');
+
+  if(isHittingUSA){
+    // ── USA takes a hit ──
+    tc.cities=Math.max(0,tc.cities-1);
+    triggerHitFlash();
+    addLog('🔴 CITY HIT — '+tc.cities+' REMAINING','alert');
+    if(tc.cities<=0)endGame(false);
+  } else if(m.type==='player'||m.fromId==='usa'){
+    // ── Player strike on enemy ──
+    tc.cities=Math.max(0,tc.cities-3);tc.missiles=Math.max(0,tc.missiles-4);tc.threat=Math.max(0,tc.threat-40);
+    score+=500;addLog('✓ STRIKE: '+tc.name,'good');
+    countries.filter(e=>!e.player&&e.alive&&e.id!==tc.id).forEach(e=>e.threat=Math.min(100,e.threat+12));
+    if(defcon>1)updateDefcon(defcon-1);
+    if(tc.cities<=0&&tc.missiles<=0){
+      tc.alive=false;
+      addLog('★ '+tc.name+' NEUTRALIZED','good');score+=1500;
+      if(selectedTargetId===tc.id){
+        selectedTargetId=null;
+        document.getElementById('target-display').textContent='TARGET NEUTRALIZED';
+        document.getElementById('target-display').classList.remove('has-target');
+        updateArmedState();
+      }
+    }
+  } else {
+    // ── Country-vs-country hit ──
+    const attacker=countries.find(c=>c.id===m.fromId);
+    tc.cities=Math.max(0,tc.cities-2);tc.missiles=Math.max(0,tc.missiles-2);
+    addLog('💥 '+( attacker?.name||'?')+' HIT '+tc.name,'alert');
+    // Victim retaliates hard
+    tc.threat=Math.min(100,tc.threat+55);
+    tc.retaliateTarget=m.fromId;
+    tc.launchCooldown=Math.min(tc.launchCooldown,2+Math.random()*4);
+    // Bystanders get nervous
+    countries.filter(e=>!e.player&&e.alive&&e.id!==tc.id&&e.id!==m.fromId)
+      .forEach(e=>e.threat=Math.min(100,e.threat+8));
+    if(defcon>2)updateDefcon(defcon-1);
+    if(tc.cities<=0&&tc.missiles<=0){
+      tc.alive=false;addLog('☠ '+tc.name+' DESTROYED','alert');
+    }
+  }
+  updateStats();
+}
+
+function playerLaunchAt(targetId){ selectTarget(targetId); }
+
+function offerTreaty(targetId){
+  const target=countries.find(c=>c.id===targetId);if(!target||!target.alive)return;
+  target.threat=Math.max(0,target.threat-50);target.treatyCooldown=40;target.aggression*=0.75;
+  addLog('TREATY: '+target.name,'good');score+=100;updateStats();
+}
+
+function interceptMissile(id){
+  const usa=player();if(!usa||usa.interceptors<=0){addLog('NO INTERCEPTORS','alert');return;}
+  const m=missiles.find(x=>x.id===id);if(!m)return;
+  usa.interceptors--;
+  const pos=getMissilePos(m);if(pos)explosions.push({x:pos.x,y:pos.y,r:0,alpha:.8});
+  missiles=missiles.filter(x=>x.id!==id);
+  playSound('intercept');addLog('INTERCEPTED','good');score+=200;
+  updateStats();lastIncomingIds='';updateIncomingUI();
+}
+
+function updateDefcon(level){
+  defcon=level;
+  for(let i=1;i<=5;i++)document.getElementById('defcon-'+i).classList.toggle('active',i>=level);
+  if(level<=3)playSound('defcon');
+  addLog('DEFCON '+level,level<=2?'alert':'info');
+}
+
+function updateStats(){
+  const usa=player();if(!usa)return;
+  const el=document.getElementById('stat-cities');
+  el.textContent=usa.cities;el.className='stat-val'+(usa.cities<=3?' danger':'');
+  document.getElementById('stat-intercept').textContent=usa.interceptors;
+  document.getElementById('stat-nukes').textContent=usa.missiles;
+  document.getElementById('stat-score').textContent=Math.floor(score);
+}
+
+function renderEnemyList(){
+  const container=document.getElementById('enemies');container.innerHTML='';
+  countries.filter(c=>!c.player).forEach(c=>{
+    const pct=Math.floor(c.threat);
+    const isTargeted=selectedTargetId===c.id;
+    const div=document.createElement('div');
+    div.className='enemy-card'+(c.threat>70?' hostile':'')+(!c.alive?' dead':'')+(isTargeted?' targeted':'');
+    div.dataset.id=c.id;
+    div.innerHTML=`<div class="enemy-top">
+      <div class="enemy-flag" style="background:${c.color}"></div>
+      <div class="enemy-name" style="color:${c.color}">${c.name}</div>
+      <div class="enemy-missiles">⚛${c.missiles} 🏙${c.cities}</div>
+    </div>
+    <div class="threat-bar-wrap">
+      <div class="threat-label">THREAT</div>
+      <div class="threat-bar"><div class="threat-fill ${pct>75?'crit':pct>45?'warn':''}" style="width:${pct}%"></div></div>
+      <div class="threat-pct" style="color:${pct>75?'var(--red)':pct>45?'var(--yellow)':'var(--dim)'}">${pct}%</div>
+    </div>
+    ${c.treatyCooldown>0?`<div style="font-size:7px;color:var(--green2);margin-bottom:3px">◆ TREATY ${Math.ceil(c.treatyCooldown)}s</div>`:''}
+    <div class="enemy-btns">
+      <button class="select-btn${isTargeted?' is-targeted':''}" onclick="playerLaunchAt('${c.id}')" ${!c.alive||!player()||player().missiles<=0?'disabled':''}>
+        ${isTargeted?'◉ TARGETED':'◎ SELECT TARGET'}
+      </button>
+      <button class="treaty-btn" onclick="offerTreaty('${c.id}')" ${!c.alive||c.treatyCooldown>0?'disabled':''}>☮ TREATY</button>
+    </div>`;
+    container.appendChild(div);
+  });
+}
+
+function updateIncomingUI(){
+  const inc=missiles.filter(m=>m.toId==='usa');
+  const totalThreats=inc.length+enemyPlanes.length;
+  document.getElementById('incoming-count').textContent=totalThreats;
+  const list=document.getElementById('incoming-list');list.innerHTML='';
+  if(!totalThreats){
+    const d=document.createElement('div');
+    d.style.cssText='font-size:8px;color:var(--dim);padding:3px 8px;letter-spacing:1px';
+    d.textContent='NO INCOMING THREATS';list.appendChild(d);return;
+  }
+  inc.forEach(m=>{
+    const src=countries.find(c=>c.id===m.fromId);
+    const div=document.createElement('div');div.className='incoming-item';
+    div.innerHTML=`<div class="inc-name">⚛ ${src?.name||'?'} → USA</div><div class="inc-timer" id="timer-${m.id}">${Math.max(0,m.timeLeft).toFixed(1)}s</div><button class="intercept-btn" id="ibtn-${m.id}" onclick="interceptMissile('${m.id}')" ${!player()||player().interceptors<=0?'disabled':''}>INTERCEPT</button>`;
+    list.appendChild(div);
+  });
+  enemyPlanes.forEach(p=>{
+    const src=countries.find(c=>c.id===p.fromId);
+    const dist=Math.hypot((p.lon-BASE_LON),(p.lat-BASE_LAT));
+    const eta=(dist/p.speed).toFixed(0);
+    const div=document.createElement('div');div.className='incoming-item';
+    div.style.borderColor='rgba(249,115,22,0.7)';
+    div.innerHTML=`<div class="inc-name" style="color:var(--orange)">✈ ${src?.name||'?'} BOMBER</div><div class="inc-timer">~${eta}s</div><button class="intercept-btn" onclick="interceptPlane('${p.id}')" ${!player()||player().interceptors<=0?'disabled':''}>SHOOT DOWN</button>`;
+    list.appendChild(div);
+  });
+}
+
+function updateIncomingTimers(){
+  const noInt=!player()||player().interceptors<=0;
+  missiles.filter(m=>m.toId==='usa').forEach(m=>{
+    const t=document.getElementById('timer-'+m.id);if(t)t.textContent=Math.max(0,m.timeLeft).toFixed(1)+'s';
+    const b=document.getElementById('ibtn-'+m.id);if(b)b.disabled=noInt;
+  });
+  if(enemyPlanes.length>0)updateIncomingUI();
+}
+
+function renderPlaneList(){
+  const list=document.getElementById('plane-list');list.innerHTML='';
+  const ready=playerPlanes.filter(p=>p.alive&&p.status==='READY').length;
+  document.getElementById('plane-badge').textContent=ready;
+  playerPlanes.forEach(p=>{
+    const div=document.createElement('div');
+    let cls='plane-card';
+    if(!p.alive) cls+=' dead';
+    else if(p.status==='ENROUTE')   cls+=' enroute';
+    else if(p.status==='STRIKING')  cls+=' striking';
+    else if(p.status==='RETURNING') cls+=' returning';
+    else if(p.status==='REFUELING') cls+=' refueling';
+    div.className=cls;
+    const canScramble=p.alive&&p.status==='READY'&&!!selectedTargetId;
+    const canRecall=p.alive&&(p.status==='ENROUTE'||p.status==='STRIKING');
+    const isRefueling=p.status==='REFUELING';
+    const cdPct=isRefueling?((p.refuelCooldown/p.refuelTime)*100).toFixed(1):0;
+    let actionBtn='';
+    if(isRefueling){
+      actionBtn=`<button class="plane-cd-btn" disabled>
+        <div class="cd-fill" style="transform:scaleX(${cdPct/100})"></div>
+        <span class="cd-label">${Math.ceil(p.refuelCooldown)}s</span>
+      </button><button class="rearm-btn" onclick="planeRearm('${p.id}')">REARM</button>`;
+    } else if(canRecall){
+      actionBtn=`<button class="recall-btn" onclick="planeRecall('${p.id}')">RECALL</button>`;
+    } else {
+      actionBtn=`<button class="scramble-btn" onclick="planeScramble('${p.id}')" ${canScramble?'':'disabled'}>SCRAMBLE</button>`;
+    }
+    div.innerHTML=`<div class="plane-icon">✈</div>
+      <div class="plane-name">${p.name}</div>
+      <div class="plane-stat"><div style="color:var(--dim);font-size:6px">${p.status}</div></div>
+      <div class="plane-stat"><div style="color:var(--dim);font-size:6px">DMG</div><span style="color:var(--orange)">+${p.damage.cities}🏙</span></div>
+      ${actionBtn}`;
+    list.appendChild(div);
+  });
+}
+
+function planeScramble(planeId){
+  const plane=playerPlanes.find(p=>p.id===planeId);
+  if(!plane||!plane.alive||plane.status!=='READY'||!selectedTargetId)return;
+  const target=countries.find(c=>c.id===selectedTargetId);
+  if(!target||!target.alive){addLog('NO VALID TARGET','alert');return;}
+  plane.targetId=selectedTargetId;
+  plane.targetLon=target.lon;plane.targetLat=target.lat;
+  plane.status='ENROUTE';
+  addLog('✈ '+plane.name+' SCRAMBLED → '+target.name,'info');
+  playSound('launch');
+}
+
+function planeRearm(planeId){
+  const plane=playerPlanes.find(p=>p.id===planeId);
+  if(!plane||!plane.alive||plane.status!=='REFUELING')return;
+  plane.status='READY';
+  plane.refuelCooldown=0;
+  plane.lon=BASE_LON;plane.lat=BASE_LAT;
+  addLog('✈ '+plane.name+' REARMED','good');
+}
+
+function planeRecall(planeId){
+  const plane=playerPlanes.find(p=>p.id===planeId);
+  if(!plane||!plane.alive)return;
+  plane.status='RETURNING';
+  addLog('✈ '+plane.name+' RECALLED','info');
+}
+
+function interceptPlane(id){
+  const usa=player();if(!usa||usa.interceptors<=0){addLog('NO INTERCEPTORS','alert');return;}
+  const p=enemyPlanes.find(x=>x.id===id);if(!p)return;
+  usa.interceptors--;
+  const pp=project(p.lon,p.lat);explosions.push({x:pp.x,y:pp.y,r:0,alpha:.9});
+  enemyPlanes=enemyPlanes.filter(x=>x.id!==id);
+  playSound('intercept');addLog('✈ ENEMY BOMBER DESTROYED','good');score+=300;
+  updateStats();lastIncomingIds='';updateIncomingUI();
+}
+
+function renderSubList(){
+  const list=document.getElementById('sub-list');list.innerHTML='';
+  const alive=playerSubs.filter(s=>s.alive).length;
+  document.getElementById('sub-badge').textContent=alive;
+  playerSubs.forEach(s=>{
+    const div=document.createElement('div');
+    let cls='sub-card';
+    if(!s.alive) cls+=' dead';
+    else if(s.status==='INTERCEPT') cls+=' intercepting';
+    else if(s.status==='FIRING') cls+=' firing';
+    div.className=cls;
+    const canFire=s.alive&&s.missiles>0&&!!selectedTargetId;
+    const onCooldown=s.resupplyCooldown>0;
+    const isFull=s.missiles>=(s.maxMissiles||4);
+    const canResupply=s.alive&&!onCooldown&&!isFull;
+    const cdPct=onCooldown?((s.resupplyCooldown/SUB_RESUPPLY_COOLDOWN)*100).toFixed(1):0;
+    const resupplyLabel=onCooldown?Math.ceil(s.resupplyCooldown)+'s':(isFull?'FULL':'RESUPPLY');
+    div.innerHTML=`<div class="sub-icon">🚢</div>
+      <div class="sub-name">${s.name}</div>
+      <div class="sub-stat"><div style="font-size:6px;color:var(--dim)">${s.status}</div></div>
+      <div class="sub-stat"><div style="font-size:6px;color:var(--dim)">MSLS</div><span style="color:${s.missiles>0?'var(--cyan)':'var(--red)'}">${s.missiles}/${s.maxMissiles||4}</span></div>
+      <button class="sub-fire-btn" onclick="subFire('${s.id}')" ${canFire?'':'disabled'}>FIRE</button>
+      <button class="sub-resupply-btn${onCooldown?' cooling':''}" onclick="subResupply('${s.id}')" ${canResupply?'':'disabled'}>
+        <div class="cd-fill" style="transform:scaleX(${onCooldown?cdPct/100:0})"></div>
+        <span class="cd-label">${resupplyLabel}</span>
+      </button>`;
+    list.appendChild(div);
+  });
+}
+
+function subResupply(subId){
+  const sub=playerSubs.find(s=>s.id===subId);
+  if(!sub||!sub.alive||sub.resupplyCooldown>0) return;
+  const max=sub.maxMissiles||4;
+  if(sub.missiles>=max) return;
+  sub.missiles=max;
+  sub.resupplyCooldown=SUB_RESUPPLY_COOLDOWN;
+  sub.status='RESUPPLY';
+  setTimeout(()=>{if(sub.alive&&sub.status==='RESUPPLY')sub.status='PATROL';},2000);
+  addLog('◉ '+sub.name+' RELOADED','good');
+  playSound('keyclick');
+}
+
+function subFire(subId){
+  const sub=playerSubs.find(s=>s.id===subId);
+  if(!sub||!sub.alive||sub.missiles<=0||!selectedTargetId)return;
+  const target=countries.find(c=>c.id===selectedTargetId);
+  if(!target||!target.alive){addLog('NO VALID TARGET','alert');return;}
+  sub.missiles--;
+  const tt=(MISSILE_TRAVEL*0.65)+Math.random();
+  missiles.push({id:'psub'+Date.now(),fromId:'usa',toId:target.id,type:'player',timeLeft:tt,totalTime:tt,fromSub:subId,subLon:sub.lon,subLat:sub.lat});
+  playSound('launch');
+  addLog('◉ '+sub.name+' → '+target.name,'info');
+  sub.status='FIRING';
+  setTimeout(()=>{if(sub.alive)sub.status='PATROL';},3000);
+}
+
+function triggerHitFlash(){
+  const fl=document.getElementById('hit-flash');
+  fl.classList.add('flash');
+  setTimeout(()=>fl.classList.remove('flash'), 220);
+  document.body.classList.remove('hit-shake');
+  void document.body.offsetWidth;
+  document.body.classList.add('hit-shake');
+}
+
+function addLog(msg,type=''){
+  const log=document.getElementById('log');
+  const ts=new Date(),hh=ts.getHours().toString().padStart(2,'0'),mm=ts.getMinutes().toString().padStart(2,'0'),ss=ts.getSeconds().toString().padStart(2,'0');
+  const div=document.createElement('div');div.className='log-entry '+type;
+  div.textContent=`[${hh}:${mm}:${ss}] ${msg}`;log.appendChild(div);log.scrollTop=log.scrollHeight;
+  while(log.children.length>60)log.removeChild(log.firstChild);
+}
+function clearLog(){document.getElementById('log').innerHTML='';}
+
+let restartTimeout=null, countdownInterval=null;
+function endGame(won){
+  gameRunning=false;
+  document.getElementById('modal-title').textContent=won?'◆ VICTORY ◆':'☠ GAME OVER ☠';
+  document.getElementById('modal-title').style.color=won?'var(--cyan)':'var(--red)';
+  document.getElementById('modal-sub').textContent=won?'All nuclear threats neutralized.':'Your cities have been destroyed.';
+  document.getElementById('modal-score').textContent='SCORE: '+Math.floor(score);
+  document.getElementById('modal').classList.add('show');
+  playSound(won?'defcon':'explosion');
+  // Auto-restart after 15s with countdown
+  let remaining=15;
+  const cd=document.getElementById('modal-countdown');
+  cd.textContent='NEW ROUND IN '+remaining+'s';
+  if (countdownInterval) clearInterval(countdownInterval);
+  if (restartTimeout) clearTimeout(restartTimeout);
+  countdownInterval=setInterval(()=>{
+    remaining--;
+    if (remaining<=0) { clearInterval(countdownInterval); cd.textContent=''; }
+    else cd.textContent='NEW ROUND IN '+remaining+'s';
+  }, 1000);
+  restartTimeout=setTimeout(()=>{ if(!gameRunning) restartGame(); }, 15000);
+}
+
+const tickers=['MONITORING GLOBAL THREATS...','SATELLITES ACTIVE','RADAR ONLINE','ALL SYSTEMS NOMINAL','NUCLEAR DETERRENT ACTIVE'];
+let tickerIdx=0;
+setInterval(()=>{if(!gameRunning)return;tickerIdx=(tickerIdx+1)%tickers.length;document.getElementById('ticker').textContent=tickers[tickerIdx];},4000);
+
+initGame();
+requestAnimationFrame(gameLoop);
+
+// ── Sub drag-and-drop on canvas ────────────────────────────────────────────────
+function canvasPos(e){
+  const r=canvas.getBoundingClientRect();
+  // Support both MouseEvent and TouchEvent
+  const t=e.touches&&e.touches[0]||e.changedTouches&&e.changedTouches[0]||e;
+  return{mx:t.clientX-r.left, my:t.clientY-r.top};
+}
+function canvasToGeo(mx,my){
+  return{lon:(mx/canvas.width)*360-180, lat:90-(my/canvas.height)*180};
+}
+function subAtPoint(mx,my){
+  return playerSubs.find(s=>{
+    if(!s.alive)return false;
+    const{x,y}=project(s.lon,s.lat);
+    return Math.hypot(mx-x,my-y)<18;
+  });
+}
+
+canvas.addEventListener('mousedown',e=>{
+  const{mx,my}=canvasPos(e);
+  if(hackMode){
+    const tgt=hackTargetAtPoint(mx,my);
+    if(tgt){
+      hackTarget=tgt;hackProgress=0;
+      document.getElementById('hack-tgt-name').textContent='HACKING: '+tgt.name;
+      document.getElementById('hack-prog-wrap').style.display='block';
+      updateHackUI();
+    } else {
+      cancelHack();
+    }
+    e.preventDefault();return;
+  }
+  const sub=subAtPoint(mx,my);
+  if(sub){
+    draggingSub=sub;sub.dragging=true;
+    dragStart={lon:sub.lon, lat:sub.lat};
+    e.preventDefault();
+  }
+});
+
+canvas.addEventListener('mousemove',e=>{
+  const{mx,my}=canvasPos(e);
+  if(draggingSub){
+    const{lon,lat}=canvasToGeo(mx,my);
+    draggingSub.lon=lon;draggingSub.lat=lat;
+    canvas.style.cursor=isOnLand(lon,lat)?'not-allowed':'grabbing';
+  } else if(hackMode){
+    canvas.style.cursor=hackTargetAtPoint(mx,my)?'crosshair':'not-allowed';
+  } else {
+    canvas.style.cursor=subAtPoint(mx,my)?'grab':'default';
+  }
+});
+
+canvas.addEventListener('mouseup',e=>{
+  if(draggingSub){
+    const{mx,my}=canvasPos(e);
+    let{lon,lat}=canvasToGeo(mx,my);
+    // Snap back if released on land
+    if(isOnLand(lon,lat)&&dragStart){ lon=dragStart.lon; lat=dragStart.lat; }
+    draggingSub.lon=lon;draggingSub.lat=lat;
+    // Update base so patrol resumes from here
+    const tmpl=PLAYER_SUB_TEMPLATES.find(t=>t.id===draggingSub.id);
+    if(tmpl){tmpl.baseLon=lon;tmpl.baseLat=lat;}
+    draggingSub.patrolAngle=0;
+    draggingSub.dragging=false;
+    draggingSub=null;
+    dragStart=null;
+    canvas.style.cursor='default';
+  }
+});
+
+canvas.addEventListener('mouseleave',()=>{
+  if(draggingSub){
+    const tmpl=PLAYER_SUB_TEMPLATES.find(t=>t.id===draggingSub.id);
+    if(tmpl){tmpl.baseLon=draggingSub.lon;tmpl.baseLat=draggingSub.lat;}
+    draggingSub.patrolAngle=0;
+    draggingSub.dragging=false;
+    draggingSub=null;
+    canvas.style.cursor='default';
+  }
+});
+
+// Touch support for mobile
+function onTouchDown(e){
+  const{mx,my}=canvasPos(e);
+  if(hackMode){
+    const tgt=hackTargetAtPoint(mx,my);
+    if(tgt){
+      hackTarget=tgt;hackProgress=0;
+      document.getElementById('hack-tgt-name').textContent='HACKING: '+tgt.name;
+      document.getElementById('hack-prog-wrap').style.display='block';
+      updateHackUI();
+    } else { cancelHack(); }
+    e.preventDefault();return;
+  }
+  const sub=subAtPoint(mx,my);
+  if(sub){
+    draggingSub=sub;sub.dragging=true;
+    dragStart={lon:sub.lon, lat:sub.lat};
+    e.preventDefault();
+  }
+}
+function onTouchMove(e){
+  if(draggingSub){
+    const{mx,my}=canvasPos(e);
+    const{lon,lat}=canvasToGeo(mx,my);
+    draggingSub.lon=lon;draggingSub.lat=lat;
+    e.preventDefault();
+  }
+}
+function onTouchUp(e){
+  if(draggingSub){
+    const{mx,my}=canvasPos(e);
+    let{lon,lat}=canvasToGeo(mx,my);
+    if(isOnLand(lon,lat)&&dragStart){ lon=dragStart.lon; lat=dragStart.lat; }
+    draggingSub.lon=lon;draggingSub.lat=lat;
+    const tmpl=PLAYER_SUB_TEMPLATES.find(t=>t.id===draggingSub.id);
+    if(tmpl){tmpl.baseLon=lon;tmpl.baseLat=lat;}
+    draggingSub.patrolAngle=0;
+    draggingSub.dragging=false;
+    draggingSub=null;
+    dragStart=null;
+  }
+}
+canvas.addEventListener('touchstart',onTouchDown,{passive:false});
+canvas.addEventListener('touchmove',onTouchMove,{passive:false});
+canvas.addEventListener('touchend',onTouchUp,{passive:false});
+canvas.addEventListener('touchcancel',onTouchUp,{passive:false});
+</script>
+</body>
+</html>

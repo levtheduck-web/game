@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PIXEL WAR — Battle</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;background:#0a0e0a;overflow:hidden;
+    font-family:'Courier New',monospace;color:#cde;user-select:none;}
+  canvas{display:block;image-rendering:pixelated;cursor:crosshair;}
+  #hud{position:fixed;left:0;right:0;bottom:0;z-index:5;pointer-events:none;
+    padding:10px 14px;display:flex;justify-content:space-between;align-items:flex-end;}
+  .gauge{background:#0008;border:2px solid #2c4a2c;border-radius:6px;padding:8px 12px;font-size:13px;line-height:1.7;}
+  .gauge b{color:#7fe87f;} .bar{height:8px;border-radius:3px;background:#400;margin-top:3px;overflow:hidden;width:170px;}
+  .bar i{display:block;height:100%;}
+  #topbar{position:fixed;top:0;left:0;right:0;height:34px;z-index:5;background:#0c120cdd;
+    border-bottom:2px solid #3c5a3c;display:flex;align-items:center;gap:22px;padding:0 14px;font-size:14px;}
+  #topbar .t{color:#7fe87f;font-weight:bold;letter-spacing:2px;}
+  .blue{color:#6cf;} .red{color:#f77;}
+  #msg{position:fixed;top:44px;left:50%;transform:translateX(-50%);z-index:6;font-size:15px;
+    color:#ffe;text-shadow:0 1px 3px #000;background:#0009;padding:4px 16px;border-radius:4px;opacity:0;transition:.3s;}
+  #killfeed{position:fixed;top:40px;right:10px;z-index:6;font-size:12px;text-align:right;line-height:1.6;}
+  /* menus */
+  .screen{position:fixed;inset:0;z-index:30;background:radial-gradient(#16241a,#070b07);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;}
+  .screen h1{font-size:64px;letter-spacing:10px;color:#7fe87f;text-shadow:0 3px 0 #1a3a1a,0 0 30px #2f6;}
+  .screen .sub{color:#9ab;font-size:15px;margin-top:-12px;}
+  .pick{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;max-width:900px;}
+  .card{width:190px;background:#0e160e;border:2px solid #2c4a2c;border-radius:10px;padding:14px;
+    cursor:pointer;transition:.12s;text-align:center;}
+  .card:hover{border-color:#6cf;transform:translateY(-4px);box-shadow:0 8px 20px #0008;}
+  .card canvas{margin:0 auto 6px;display:block;background:#1a2a18;border-radius:6px;cursor:pointer;}
+  .card h3{font-size:18px;color:#cff;letter-spacing:1px;}
+  .card .desc{font-size:11px;color:#8aa;margin:4px 0 8px;min-height:30px;}
+  .card .stats{font-size:11px;color:#bdb;text-align:left;line-height:1.5;}
+  .ctrls{font-size:12px;color:#8aa;line-height:1.8;background:#0006;padding:12px 20px;border-radius:8px;}
+  .ctrls b{color:#cff;}
+  #over h1{font-size:60px;}
+  .winC{color:#6cf;text-shadow:0 0 30px #6cf;} .loseC{color:#f55;text-shadow:0 0 30px #f55;}
+  button.again{font-family:inherit;font-size:18px;padding:12px 30px;cursor:pointer;
+    background:#1e3a24;color:#bff;border:2px solid #5c8a5c;border-radius:8px;}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <span class="t">⚔ PIXEL WAR</span>
+  <span class="blue">BLUE <b id="bscore">0</b></span>
+  <span class="red">RED <b id="rscore">0</b></span>
+  <span>Goal: <b id="goal">25</b></span>
+  <span style="margin-left:auto">Your kills: <b id="kills">0</b></span>
+  <span>⚡ <b id="speed">0</b></span>
+</div>
+<div id="msg"></div>
+<div id="killfeed"></div>
+<canvas id="cv"></canvas>
+<div id="hud">
+  <div class="gauge">
+    <div>HULL <span id="hptxt">100%</span></div>
+    <div class="bar"><i id="hpbar" style="width:100%;background:#3f6"></i></div>
+    <div style="margin-top:6px">RELOAD <span id="rldtxt">READY</span></div>
+    <div class="bar"><i id="rldbar" style="width:100%;background:#fc4"></i></div>
+  </div>
+  <div class="gauge" id="rightg">
+    <div id="vehname">—</div>
+    <div id="ammo2"></div>
+  </div>
+</div>
+
+<!-- START SCREEN -->
+<div class="screen" id="start">
+  <h1>PIXEL WAR</h1>
+  <div class="sub">— pick your machine —</div>
+  <div class="pick" id="picker"></div>
+  <div class="ctrls" id="ctrlsbox"></div>
+</div>
+
+<!-- RESPAWN -->
+<div class="screen" id="respawn" style="display:none">
+  <h1 style="font-size:40px">CHOOSE NEXT VEHICLE</h1>
+  <div class="pick" id="picker2"></div>
+</div>
+
+<!-- GAME OVER -->
+<div class="screen" id="over" style="display:none">
+  <h1 id="overtxt"></h1>
+  <div class="sub" id="oversub"></div>
+  <button class="again" onclick="location.reload()">REMATCH</button>
+</div>
+
+<script>
+//==================================================================
+//  PIXEL WAR — direct vehicle combat (War-Thunder-ish, top-down)
+//==================================================================
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+let W,H; function resize(){W=cv.width=innerWidth;H=cv.height=innerHeight;}
+addEventListener('resize',resize);resize();
+
+// ---- world ----
+const WORLD=6800;          // bigger battlefield
+const RIVER=260;           // width of the river moat around the edge
+const cam={x:0,y:0};
+const TAU=Math.PI*2;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+function angLerp(a,b,t){ let d=((b-a+Math.PI)%TAU)-Math.PI; if(d<-Math.PI)d+=TAU; return a+d*t; }
+function angDiff(a,b){ let d=((b-a+Math.PI)%TAU)-Math.PI; return d<-Math.PI?d+TAU:d; }
+
+// ---- terrain: scatter of features on a big grass/dirt field ----
+let trees=[], rocks=[], lakes=[], roads=[];
+function genTerrain(){
+  trees=[];rocks=[];lakes=[];
+  const lo=RIVER+260, span=WORLD-2*lo;
+  for(let i=0;i<6;i++)lakes.push({x:lo+Math.random()*span,y:lo+Math.random()*span,r:150+Math.random()*200});
+  for(let i=0;i<320;i++){const x=Math.random()*WORLD,y=Math.random()*WORLD;
+    if(inWater(x,y))continue; trees.push({x,y,r:14+Math.random()*8});}
+  for(let i=0;i<180;i++){const x=Math.random()*WORLD,y=Math.random()*WORLD;
+    if(inWater(x,y))continue; rocks.push({x,y,r:10+Math.random()*14});}
+  // a couple cross roads
+  roads=[{x:WORLD*0.4,horiz:false},{y:WORLD*0.55,horiz:true}];
+}
+function inLake(x,y){ for(const l of lakes) if(Math.hypot(x-l.x,y-l.y)<l.r)return l; return null; }
+function inRiver(x,y){ return x<RIVER||y<RIVER||x>WORLD-RIVER||y>WORLD-RIVER; }
+function inWater(x,y){ return inRiver(x,y)||inLake(x,y); }
+genTerrain();
+
+// ---- vehicle specs ----
+const VEH={
+  light:{name:'Light Tank',cls:'tank',hp:120,acc:0.20,maxs:4.6,rev:2.4,turn:0.060,turret:0.075,
+    dmg:24,reload:80,shell:11,rng:560,sz:20,col:'#5a7a3a',armor:35,pen:60,
+    desc:'Fast, nimble, thin armor. Great flanker.',ico:'fast scout tank'},
+  medium:{name:'Medium Tank',cls:'tank',hp:200,acc:0.15,maxs:3.6,rev:1.9,turn:0.044,turret:0.058,
+    dmg:42,reload:120,shell:10,rng:660,sz:24,col:'#4a6a34',armor:60,pen:95,
+    desc:'Balanced workhorse. Solid all-rounder.',ico:'balanced battle tank'},
+  heavy:{name:'Heavy Tank',cls:'tank',hp:340,acc:0.10,maxs:2.7,rev:1.3,turn:0.030,turret:0.040,
+    dmg:70,reload:170,shell:9,rng:720,sz:28,col:'#3a5a2c',armor:100,pen:150,
+    desc:'Thick armor, big gun, slow. A rolling fort.',ico:'huge armored tank'},
+  aa:{name:'AA Flak',cls:'tank',hp:140,acc:0.18,maxs:3.9,rev:2.1,turn:0.052,turret:0.12,
+    dmg:9,reload:6,shell:14,rng:540,sz:20,col:'#6a5a38',armor:22,pen:28,aa:true,
+    desc:'Mobile flak — rapid gun that CAN down aircraft. Weak vs tanks.',ico:'anti-air gun'},
+  fighter:{name:'Stealth Fighter',cls:'plane',hp:90,acc:0.06,maxs:9.0,mins:3.6,turn:0.062,
+    dmg:8,reload:5,shell:14,rng:460,sz:18,col:'#2c313a',armor:0,pen:22,stealth:true,
+    desc:'Fast stealth jet, rapid cannons. STEALTH: enemies can\'t lock on.',ico:'sleek stealth jet'},
+  attacker:{name:'B-2 Bomber',cls:'plane',hp:160,acc:0.05,maxs:6.4,mins:2.6,turn:0.044,
+    dmg:20,reload:8,shell:11,rng:420,sz:26,col:'#23272f',armor:0,pen:34,stealth:true,
+    desc:'B-2 Spirit flying wing. Bombs (B to drop). STEALTH: enemies can\'t lock on.',ico:'b2 stealth bomber',bombs:true},
+  ship:{name:'Gunship',cls:'ship',hp:420,acc:0.05,maxs:2.2,rev:1.0,turn:0.018,turret:0.05,
+    dmg:55,reload:140,shell:10,rng:820,sz:40,col:'#41576a',armor:75,pen:120,
+    desc:'Floating gun platform. Water only, long range.',ico:'naval gunboat'},
+};
+
+// ---- entity ----
+let ents=[], shells=[], parts=[], bombs=[], floaters=[], cps=[];
+let player=null;
+const TEAM={blue:'#5cf',red:'#f66'};
+const SCORE={blue:0,red:0,goal:50,over:false};
+let myKills=0;
+
+function makeVeh(key,team,x,y){
+  const s=VEH[key];
+  return {key,spec:s,team,x,y,
+    ang:team==='blue'?-Math.PI/2:Math.PI/2, // facing
+    tang:team==='blue'?-Math.PI/2:Math.PI/2, // turret
+    vx:0,vy:0,spd:0, hp:s.hp,maxhp:s.hp, cd:0, flash:0, dead:false,
+    bombcd:0, ai:true, aiState:0, aiT:0, recoil:0, wob:Math.random()*TAU,
+    mods:{engine:0,gun:0,tracks:0}};
+}
+function landSpawn(team){
+  const lo=RIVER+200, hi=WORLD-RIVER-200;
+  let x,y,tries=0;
+  do{ if(team==='blue'){x=lo+Math.random()*700;y=hi-Math.random()*700;}
+      else{x=hi-Math.random()*700;y=lo+Math.random()*700;} tries++; }
+  while(inWater(x,y)&&tries<40);
+  return {x:clamp(x,RIVER+40,WORLD-RIVER-40),y:clamp(y,RIVER+40,WORLD-RIVER-40)};
+}
+function spawnTeam(team,n){
+  const keys=Object.keys(VEH);
+  for(let i=0;i<n;i++){
+    let k=keys[Math.random()*keys.length|0];
+    if(VEH[k].cls==='ship'){ const l=lakes[Math.random()*lakes.length|0];
+      ents.push(makeVeh(k,team,l.x,l.y)); continue; }
+    const p=landSpawn(team);
+    ents.push(makeVeh(k,team,p.x,p.y));
+  }
+}
+
+// ================= SPRITES (drawn, rotated, detailed) =================
+function drawTank(g,s,team,recoil){
+  const z=s.sz/24, col=s.col, dark=shade(col,-30), lite=shade(col,25);
+  // shadow
+  g.save();g.globalAlpha=.22;g.fillStyle='#000';g.translate(3,4);
+  rr(g,-13*z,-9*z,26*z,18*z,3);g.fill();g.restore();
+  // tracks
+  g.fillStyle='#1c1c1c';
+  rr(g,-13*z,-11*z,26*z,5*z,2);g.fill();
+  rr(g,-13*z,6*z,26*z,5*z,2);g.fill();
+  // track treads
+  g.fillStyle='#333';
+  for(let i=-12;i<13;i+=4){g.fillRect(i*z,-11*z,2*z,5*z);g.fillRect(i*z,6*z,2*z,5*z);}
+  // hull (sloped front)
+  g.fillStyle=col;
+  g.beginPath();
+  g.moveTo(-12*z,-7*z);g.lineTo(9*z,-7*z);g.lineTo(13*z,-3*z);g.lineTo(13*z,3*z);
+  g.lineTo(9*z,7*z);g.lineTo(-12*z,7*z);g.closePath();g.fill();
+  // hull top highlight
+  g.fillStyle=lite;g.fillRect(-11*z,-6*z,20*z,2*z);
+  g.fillStyle=dark;g.fillRect(-12*z,5*z,24*z,2*z);
+  // team stripe
+  g.fillStyle=TEAM[team];g.fillRect(-10*z,-1.5*z,4*z,3*z);
+  // turret
+  const tg=g; // turret in its own rotation handled by caller (we draw turret separately)
+}
+function drawTurret(g,s,team,recoil){
+  const z=s.sz/24, col=shade(s.col,8), dark=shade(s.col,-25), lite=shade(s.col,30);
+  // barrel
+  g.fillStyle='#2a2a2a';
+  g.fillRect((6-recoil)*z,-2*z,22*z,4*z);
+  g.fillStyle='#3a3a3a';g.fillRect((26-recoil)*z,-2.5*z,3*z,5*z); // muzzle
+  // mantlet
+  g.fillStyle=dark;g.fillRect(4*z,-4*z,5*z,8*z);
+  // turret body (hexish)
+  g.fillStyle=col;
+  g.beginPath();
+  g.moveTo(-8*z,-6*z);g.lineTo(6*z,-6*z);g.lineTo(9*z,-3*z);g.lineTo(9*z,3*z);
+  g.lineTo(6*z,6*z);g.lineTo(-8*z,6*z);g.lineTo(-10*z,3*z);g.lineTo(-10*z,-3*z);g.closePath();g.fill();
+  g.fillStyle=lite;g.fillRect(-7*z,-5*z,13*z,2*z);
+  // cupola
+  g.fillStyle=dark;g.beginPath();g.arc(-3*z,0,3*z,0,TAU);g.fill();
+  g.fillStyle=TEAM[team];g.fillRect(-6*z,-1.5*z,3*z,3*z);
+}
+function drawPlane(g,s,team){
+  // B-2 Spirit style stealth flying wing (top-down, nose toward -y)
+  const z=s.sz/22, col='#2c313a', dark='#181c23', lite='#4a5160';
+  // ground shadow (altitude feel)
+  g.save();g.globalAlpha=.22;g.fillStyle='#000';g.translate(13,17);flyingWing(g,z,'#000');g.restore();
+  // body
+  flyingWing(g,z,col);
+  // center spine highlight (sun-lit upper surface)
+  g.fillStyle=lite;
+  g.beginPath();g.moveTo(0,-19*z);g.lineTo(-5*z,4*z);g.lineTo(5*z,4*z);g.closePath();g.fill();
+  // swept panel lines along the leading edges
+  g.strokeStyle=dark;g.lineWidth=Math.max(1,1.2*z);
+  g.beginPath();g.moveTo(-34*z,7*z);g.lineTo(0,-17*z);g.lineTo(34*z,7*z);g.stroke();
+  g.beginPath();g.moveTo(-20*z,9*z);g.lineTo(0,-9*z);g.lineTo(20*z,9*z);g.stroke();
+  // cockpit hump near the nose
+  g.fillStyle=dark;g.beginPath();g.ellipse(0,-11*z,3.4*z,5.5*z,0,0,TAU);g.fill();
+  g.fillStyle='#5a6b80';g.beginPath();g.ellipse(0,-12*z,1.7*z,3*z,0,0,TAU);g.fill();
+  // twin engine exhausts at the trailing center
+  g.fillStyle='#0e1116';g.fillRect(-7.5*z,2*z,4.5*z,4*z);g.fillRect(3*z,2*z,4.5*z,4*z);
+  g.fillStyle='rgba(120,170,255,.5)';g.fillRect(-7*z,5*z,3.5*z,2*z);g.fillRect(3.5*z,5*z,3.5*z,2*z);
+  // team roundels out on the wings
+  g.fillStyle=TEAM[team];
+  g.beginPath();g.arc(-17*z,5*z,2.2*z,0,TAU);g.arc(17*z,5*z,2.2*z,0,TAU);g.fill();
+}
+function flyingWing(g,z,col){
+  // wide low-sweep wing with the B-2's sawtooth trailing edge
+  g.fillStyle=col;g.beginPath();
+  g.moveTo(0,-20*z);          // nose
+  g.lineTo(-36*z,7*z);        // left wingtip (leading edge)
+  g.lineTo(-27*z,3*z);        // -- trailing-edge sawtooth --
+  g.lineTo(-18*z,11*z);
+  g.lineTo(-9*z,5*z);
+  g.lineTo(0,12*z);           // center notch
+  g.lineTo(9*z,5*z);
+  g.lineTo(18*z,11*z);
+  g.lineTo(27*z,3*z);
+  g.lineTo(36*z,7*z);         // right wingtip
+  g.closePath();g.fill();
+}
+function drawShip(g,s,team){
+  const z=s.sz/40, col=s.col, dark=shade(col,-28), lite=shade(col,22);
+  // wake handled elsewhere
+  g.fillStyle=col;
+  g.beginPath();
+  g.moveTo(0,-40*z);g.lineTo(11*z,-26*z);g.lineTo(13*z,30*z);g.lineTo(8*z,40*z);
+  g.lineTo(-8*z,40*z);g.lineTo(-13*z,30*z);g.lineTo(-11*z,-26*z);g.closePath();g.fill();
+  g.fillStyle=dark;g.fillRect(-12*z,28*z,24*z,4*z);
+  // deck
+  g.fillStyle=lite;rr(g,-8*z,-22*z,16*z,52*z,3);g.fill();
+  // superstructure
+  g.fillStyle=shade(col,-10);rr(g,-7*z,-4*z,14*z,16*z,2);g.fill();
+  g.fillStyle=dark;g.fillRect(-2*z,-2*z,4*z,10*z);
+  // funnel
+  g.fillStyle='#333';rr(g,-3*z,6*z,6*z,7*z,2);g.fill();
+  g.fillStyle=TEAM[team];g.fillRect(-5*z,16*z,10*z,3*z);
+}
+function drawShipTurret(g,s,recoil){
+  const z=s.sz/40;
+  g.fillStyle='#2a2a2a';g.fillRect((4-recoil)*z,-3*z,30*z,6*z);
+  g.fillStyle='#556';g.beginPath();g.arc(0,0,8*z,0,TAU);g.fill();
+  g.fillStyle='#334';g.beginPath();g.arc(0,0,5*z,0,TAU);g.fill();
+}
+function shade(hex,amt){
+  const n=parseInt(hex.slice(1),16);
+  let r=(n>>16)+amt,gg=((n>>8)&255)+amt,b=(n&255)+amt;
+  r=clamp(r,0,255);gg=clamp(gg,0,255);b=clamp(b,0,255);
+  return '#'+((1<<24)+(r<<16)+(gg<<8)+b).toString(16).slice(1);
+}
+function rr(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);
+  g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();}
+
+// render one entity
+function drawEnt(e){
+  const sx=e.x-cam.x, sy=e.y-cam.y, s=e.spec;
+  if(sx<-80||sy<-80||sx>W+80||sy>H+80)return;
+  ctx.save();ctx.translate(sx,sy);
+  const fl=e.flash>0;
+  if(s.cls==='tank'){
+    // tank art is authored facing +x, so rotate by the raw angle — hull points where it drives
+    ctx.save();ctx.rotate(e.ang);drawTank(ctx,s,e.team,0);ctx.restore();
+    ctx.save();ctx.rotate(e.tang);drawTurret(ctx,s,e.team,e.recoil);ctx.restore();
+  } else if(s.cls==='plane'){
+    ctx.save();ctx.rotate(e.ang+Math.PI/2);drawPlane(ctx,s,e.team);ctx.restore();
+  } else if(s.cls==='ship'){
+    ctx.save();ctx.rotate(e.ang+Math.PI/2);drawShip(ctx,s,e.team);ctx.restore();
+    // ship turret barrels are authored facing +x (unlike the hull) — raw angle aims them right
+    ctx.save();ctx.rotate(e.tang);drawShipTurret(ctx,s,e.recoil);ctx.restore();
+  }
+  if(fl){ctx.globalCompositeOperation='lighter';ctx.fillStyle='rgba(255,200,120,.5)';
+    ctx.beginPath();ctx.arc(0,0,s.sz,0,TAU);ctx.fill();ctx.globalCompositeOperation='source-over';}
+  ctx.restore();
+  // healthbar + name
+  const w=s.sz*1.6;
+  if(e.hp<e.maxhp||e===player){
+    ctx.fillStyle='#000a';ctx.fillRect(sx-w/2-1,sy-s.sz-11,w+2,5);
+    ctx.fillStyle=e.hp/e.maxhp>.4?'#3f6':'#f63';ctx.fillRect(sx-w/2,sy-s.sz-10,w*Math.max(0,e.hp/e.maxhp),3);
+  }
+  if(e===player){ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.arc(sx,sy,s.sz+8,0,TAU);ctx.stroke();ctx.setLineDash([]);}
+}
+
+// ================= INPUT =================
+const keys={};
+const mouse={x:0,y:0,wx:0,wy:0,down:false};
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;
+  const k=e.key.toLowerCase();
+  if((k==='b'||e.key===' ')&&player&&player.spec.bombs)dropBomb(player);
+  if([' ','w','a','s','d','b'].includes(k))e.preventDefault();});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+cv.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
+cv.addEventListener('mousedown',e=>{if(e.button===0)mouse.down=true; if(AC&&AC.state==='suspended')AC.resume();});
+addEventListener('mouseup',e=>{if(e.button===0)mouse.down=false;});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+
+// ================= PHYSICS / CONTROL =================
+function controlPlayer(p){
+  const s=p.spec;
+  mouse.wx=mouse.x+cam.x; mouse.wy=mouse.y+cam.y;
+  if(s.cls==='plane'){
+    // throttle
+    if(keys['w'])p.spd=Math.min(s.maxs,p.spd+s.acc);
+    if(keys['s'])p.spd=Math.max(s.mins,p.spd-s.acc);
+    if(!keys['w']&&!keys['s'])p.spd+=( (s.mins+s.maxs)/2 - p.spd)*0.01;
+    // steer toward mouse (mouse-flight)
+    const aim=Math.atan2(mouse.wy-p.y,mouse.wx-p.x);
+    let dd=angDiff(p.ang,aim);
+    p.bankTurn=clamp(dd,-s.turn*3,s.turn*3);
+    p.ang+=clamp(dd,-s.turn,s.turn);
+    p.vx=Math.cos(p.ang)*p.spd; p.vy=Math.sin(p.ang)*p.spd;
+    if(mouse.down&&p.cd<=0)fireGun(p,p.ang);
+  } else {
+    // tank/ship: WASD drive hull, mouse aim turret
+    let th=0;
+    if(keys['w'])th=1; if(keys['s'])th=-1;
+    if(p.mods.tracks>0)th=0;                 // tracks knocked out = immobile
+    const em=p.mods.engine>0?0.4:1;          // engine damage = sluggish
+    const tgt=th>0?s.maxs*em:th<0?-s.rev*em:0;
+    p.spd+= (tgt-p.spd)*s.acc*0.9;
+    if(Math.abs(p.spd)<0.02&&th===0)p.spd=0;
+    const steer=(keys['a']?-1:0)+(keys['d']?1:0);
+    if(s.cls==='ship') p.ang+=steer*s.turn*(0.4+Math.abs(p.spd)/s.maxs);
+    else p.ang+=steer*s.turn*(th!==0?1:0.6);
+    p.vx=Math.cos(p.ang)*p.spd; p.vy=Math.sin(p.ang)*p.spd;
+    // turret to mouse
+    const aim=Math.atan2(mouse.wy-p.y,mouse.wx-p.x);
+    p.tang=angLerp(p.tang,aim,s.turret);
+    if(mouse.down&&p.cd<=0)fireMain(p);
+  }
+}
+
+function moveEnt(e){
+  const s=e.spec;
+  let nx=e.x+e.vx, ny=e.y+e.vy;
+  // terrain rules
+  const wet=inWater(nx,ny);
+  if(s.cls==='ship'){ if(!wet){ // bounce off shore
+      e.vx*=-0.3;e.vy*=-0.3;e.spd*=-0.3; nx=e.x;ny=e.y; } }
+  else if(s.cls==='tank'){
+    if(wet){ e.vx*=-0.4;e.vy*=-0.4;e.spd*=-0.4; nx=e.x;ny=e.y; }
+    // tree/rock collision
+    for(const o of trees.concat(rocks)){
+      const d=Math.hypot(nx-o.x,ny-o.y), min=o.r+s.sz*0.5;
+      if(d<min){ const a=Math.atan2(ny-o.y,nx-o.x); nx=o.x+Math.cos(a)*min;ny=o.y+Math.sin(a)*min; e.spd*=0.5; }
+    }
+  }
+  e.x=clamp(nx,40,WORLD-40); e.y=clamp(ny,40,WORLD-40);
+  if(e.recoil>0)e.recoil-=0.8;
+  if(e.cd>0)e.cd--;
+  if(e.flash>0)e.flash--;
+  if(e.bombcd>0)e.bombcd--;
+  for(const k in e.mods)if(e.mods[k]>0)e.mods[k]--;
+  // vehicle-vehicle soft collision (tanks/ships)
+  if(s.cls!=='plane'){
+    for(const o of ents){ if(o===e||o.dead||o.spec.cls==='plane')continue;
+      const dx=e.x-o.x,dy=e.y-o.y,d=Math.hypot(dx,dy),min=(s.sz+o.spec.sz)*0.5;
+      if(d<min&&d>0){e.x+=dx/d*0.6;e.y+=dy/d*0.6;}
+    }
+  }
+  // wake / dust trail
+  if(Math.abs(e.spd)>0.5&&Math.random()<0.5){
+    parts.push({x:e.x-Math.cos(e.ang)*s.sz*0.6,y:e.y-Math.sin(e.ang)*s.sz*0.6,
+      vx:0,vy:0,t:0,life:s.cls==='ship'?26:16,r:s.cls==='ship'?5:3,
+      c:s.cls==='ship'?'#bcd':(s.cls==='plane'?null:'#9a7'),smoke:s.cls==='plane'});
+  }
+}
+
+// ================= WEAPONS =================
+function fireMain(p){
+  const s=p.spec; p.cd=s.reload*(p.mods.gun>0?2.4:1); p.recoil=6;
+  const a=p.tang, air=s.cls==='plane'||!!s.aa;
+  shells.push({x:p.x+Math.cos(a)*s.sz,y:p.y+Math.sin(a)*s.sz,
+    vx:Math.cos(a)*s.shell,vy:Math.sin(a)*s.shell,dmg:s.dmg,pen:s.pen,team:p.team,air,
+    life:s.rng/s.shell,big:true,owner:p});
+  muzzle(p.x+Math.cos(a)*s.sz,p.y+Math.sin(a)*s.sz,a);
+  boom(p.x+Math.cos(a)*s.sz,p.y+Math.sin(a)*s.sz,5,'#fd8');
+  sfxFire(true,p.x,p.y);
+}
+function fireGun(p,a){
+  const s=p.spec; p.cd=s.reload*(p.mods.gun>0?2.4:1);
+  const spread=(Math.random()-.5)*0.05, air=s.cls==='plane'||!!s.aa;
+  shells.push({x:p.x+Math.cos(a)*s.sz,y:p.y+Math.sin(a)*s.sz,
+    vx:Math.cos(a+spread)*s.shell,vy:Math.sin(a+spread)*s.shell,dmg:s.dmg,pen:s.pen,team:p.team,air,
+    life:s.rng/s.shell,big:false,owner:p});
+  if(Math.random()<0.5)sfxFire(false,p.x,p.y);
+}
+function dropBomb(p){
+  if(p.bombcd>0)return; p.bombcd=120;
+  bombs.push({x:p.x,y:p.y,vx:p.vx*0.6,vy:p.vy*0.6,t:0,fuse:45,team:p.team});
+  flash('💣 Bomb away!');
+}
+// armor-penetration model: face (front/side/rear) + impact obliquity → effective armor
+function resolveHit(e,sh){
+  const arm=e.spec.armor||0;
+  if(arm<=0) return {pen:true};               // planes & unarmored = always penetrated
+  const incoming=Math.atan2(-sh.vy,-sh.vx);   // direction back toward the shooter
+  const rel=Math.abs(angDiff(e.ang,incoming));// 0 = hit on the front, PI = rear
+  let base,dev;
+  if(rel<Math.PI/3){ base=arm;       dev=rel; }                 // FRONT (thickest)
+  else if(rel>2*Math.PI/3){ base=arm*0.45; dev=Math.PI-rel; }   // REAR (weakest)
+  else { base=arm*0.6; dev=Math.abs(rel-Math.PI/2); }          // SIDE
+  dev=Math.min(dev,1.48);
+  const eff=base/Math.max(0.18,Math.cos(dev)); // sloped/angled armor is effectively thicker
+  if(dev>1.3 && sh.pen<eff*1.1) return {pen:false}; // glancing auto-bounce
+  return {pen: sh.pen>=eff};
+}
+function ricochet(x,y){ for(let i=0;i<9;i++){const a=Math.random()*TAU,sp=2+Math.random()*3.5;
+  parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,t:0,life:9+Math.random()*7,
+    r:1.4+Math.random()*1.6,c:Math.random()<.5?'#fff':'#9cf'});} }
+
+function updateShells(){
+  for(const sh of shells){
+    sh.x+=sh.vx;sh.y+=sh.vy;sh.life--;
+    // bullets never expire mid-air: they fly until they hit something or leave the map
+    if(sh.x<0||sh.y<0||sh.x>WORLD||sh.y>WORLD){sh.dead=true;continue;}
+    // hit terrain (big shells stopped by rocks/trees)
+    if(sh.big){ for(const o of rocks){ if(Math.hypot(sh.x-o.x,sh.y-o.y)<o.r){sh.dead=true;boom(sh.x,sh.y,8,'#ca8');} } }
+    for(const e of ents){ if(e.dead||e.team===sh.team)continue;
+      // aircraft fly high: only plane/AA fire can reach them
+      if(e.spec.cls==='plane' && !sh.air)continue;
+      if(Math.hypot(sh.x-e.x,sh.y-e.y)<e.spec.sz*0.8){
+        const r=resolveHit(e,sh);
+        const armored=(e.spec.armor||0)>0;
+        if(r.pen){ hit(e,sh.dmg,sh.owner); boom(sh.x,sh.y,sh.big?12:5,sh.big?'#fb6':'#ff8');
+          if(!e.dead)sfxExplode(sh.x,sh.y,false);
+          if(armored){ floatText(e.x,e.y-e.spec.sz-6,'PEN!','#7fffa0');
+            if(!e.dead && Math.random()<0.5) damageModule(e); } }
+        else { ricochet(sh.x,sh.y); e.flash=3; sfxBounce(sh.x,sh.y);
+          floatText(e.x,e.y-e.spec.sz-6,'BOUNCE','#9cdcff');
+          if(sh.owner===player)flash('⟂ RICOCHET — bounced off armor');
+          else if(e===player)flash('✓ Shot bounced off your armor!'); }
+        sh.dead=true;break;
+      }
+    }
+  }
+  shells=shells.filter(s=>!s.dead);
+}
+function updateBombs(){
+  for(const b of bombs){ b.x+=b.vx;b.y+=b.vy;b.vx*=0.97;b.vy*=0.97;b.t++;
+    if(b.t>=b.fuse){ b.dead=true; boom(b.x,b.y,40,'#fc6'); sfxExplode(b.x,b.y,true);
+      for(const e of ents){ if(e.dead||e.team===b.team||e.spec.cls==='plane')continue;
+        const d=Math.hypot(b.x-e.x,b.y-e.y); if(d<70) hit(e,30*(1-d/70),null); }
+    }
+  }
+  bombs=bombs.filter(b=>!b.dead);
+}
+function damageModule(e){
+  const m=['engine','gun','tracks'][Math.random()*3|0];
+  e.mods[m]=Math.max(e.mods[m], m==='tracks'?260:380); // frames until repaired
+  floatText(e.x,e.y-e.spec.sz-22, {engine:'⚙ ENGINE',gun:'⚙ GUN',tracks:'⚙ TRACKS'}[m], '#ffcf5a');
+}
+function hit(e,dmg,owner){
+  e.hp-=dmg; e.flash=4;
+  if(e.hp<=0&&!e.dead){
+    e.dead=true; boom(e.x,e.y,e.spec.sz*1.8,'#f84'); sfxExplode(e.x,e.y,true);
+    SCORE[owner&&owner.team||(e.team==='red'?'blue':'red')]++;
+    if(owner===player){myKills++;feed('You destroyed a '+e.spec.name,'#6f8');}
+    else if(e===player){feed('You were destroyed!','#f66');}
+    setTimeout(()=>respawnEnt(e),1500);
+  }
+}
+function respawnEnt(e){
+  if(SCORE.over)return;
+  if(e===player){ // show respawn picker
+    showRespawn(); return;
+  }
+  // respawn AI on its side
+  const team=e.team; const idx=ents.indexOf(e); if(idx>=0)ents.splice(idx,1);
+  const keys=Object.keys(VEH), k=keys[Math.random()*keys.length|0];
+  let x,y;
+  if(VEH[k].cls==='ship'){ const l=lakes[Math.random()*lakes.length|0]; x=l.x;y=l.y; }
+  else { const p=landSpawn(team); x=p.x;y=p.y; }
+  ents.push(makeVeh(k,team,x,y));
+}
+
+// ================= CAPTURE POINTS =================
+function genCPs(){
+  cps=[
+    {x:WORLD*0.5,y:WORLD*0.5,r:200,name:'CENTER',owner:'neutral',cap:0},
+    {x:WORLD*0.30,y:WORLD*0.32,r:180,name:'NORTH',owner:'neutral',cap:0},
+    {x:WORLD*0.70,y:WORLD*0.68,r:180,name:'SOUTH',owner:'neutral',cap:0},
+  ];
+  for(const cp of cps) clearCP(cp);
+}
+function clearCP(cp){ // nudge off water so land units can contest it
+  if(!inWater(cp.x,cp.y))return;
+  for(let r=160;r<1200;r+=160)for(let a=0;a<TAU;a+=0.4){
+    const x=cp.x+Math.cos(a)*r,y=cp.y+Math.sin(a)*r;
+    if(!inWater(x,y)&&x>RIVER+100&&y>RIVER+100&&x<WORLD-RIVER-100&&y<WORLD-RIVER-100){cp.x=x;cp.y=y;return;}
+  }
+}
+function updateCPs(){
+  for(const cp of cps){
+    let b=0,r=0;
+    for(const e of ents){ if(e.dead||e.spec.cls==='plane')continue;
+      if(Math.hypot(e.x-cp.x,e.y-cp.y)<cp.r){ e.team==='blue'?b++:r++; } }
+    let dir=0; if(b>0&&r===0)dir=-1; else if(r>0&&b===0)dir=1;
+    cp.cap=clamp(cp.cap+dir*0.006,-1,1);
+    if(cp.cap<=-1)cp.owner='blue'; else if(cp.cap>=1)cp.owner='red';
+    else if(Math.abs(cp.cap)<0.05)cp.owner='neutral';
+  }
+  // owned points generate score over time
+  if(gtime%75===0)for(const cp of cps){ if(cp.owner==='blue')SCORE.blue++; else if(cp.owner==='red')SCORE.red++; }
+}
+function drawCPs(){
+  for(const cp of cps){const sx=cp.x-cam.x,sy=cp.y-cam.y;
+    if(sx<-cp.r||sy<-cp.r||sx>W+cp.r||sy>H+cp.r)continue;
+    const col=cp.owner==='blue'?'#5cf':cp.owner==='red'?'#f66':'#ccc';
+    ctx.globalAlpha=.45;ctx.strokeStyle=col;ctx.lineWidth=3;ctx.setLineDash([10,8]);
+    ctx.beginPath();ctx.arc(sx,sy,cp.r,0,TAU);ctx.stroke();ctx.setLineDash([]);
+    ctx.globalAlpha=.10;ctx.fillStyle=col;ctx.beginPath();ctx.arc(sx,sy,cp.r,0,TAU);ctx.fill();
+    ctx.globalAlpha=1;
+    // flag
+    ctx.fillStyle='#3a3a3a';ctx.fillRect(sx-2,sy-30,4,34);
+    const f=clamp((cp.cap+1)/2,0,1); // 0 blue .5 neutral 1 red
+    ctx.fillStyle=col;ctx.fillRect(sx+2,sy-30,20,13);
+    ctx.fillStyle='#000a';ctx.font='bold 11px monospace';ctx.textAlign='center';
+    ctx.fillText(cp.name,sx,sy-36);ctx.textAlign='left';
+    // capture progress bar when contested
+    if(cp.owner==='neutral'||Math.abs(cp.cap)<1){
+      ctx.fillStyle='#000a';ctx.fillRect(sx-26,sy+8,52,6);
+      ctx.fillStyle=cp.cap<0?'#5cf':cp.cap>0?'#f66':'#999';
+      const w=Math.abs(cp.cap)*26; ctx.fillRect(sx+(cp.cap<0?-w:0),sy+8,Math.max(2,w),6);
+    }
+  }
+}
+
+// ================= AI =================
+// is the path ahead impassable for this entity? (water/edge for tanks, land for ships)
+function blockedAhead(e,ang,dist){
+  const x=e.x+Math.cos(ang)*dist, y=e.y+Math.sin(ang)*dist;
+  if(x<60||y<60||x>WORLD-60||y>WORLD-60)return true;
+  if(e.spec.cls==='ship')return !inWater(x,y);
+  if(inWater(x,y))return true;
+  for(const o of rocks)if(Math.hypot(x-o.x,y-o.y)<o.r+e.spec.sz*0.6)return true;
+  return false;
+}
+function aiThink(e){
+  const s=e.spec;
+  // find best target (ground can't engage aircraft; flak prioritizes them)
+  let tgt=null,bs=1e9;
+  for(const o of ents){ if(o.dead||o.team===e.team)continue;
+    if(o.spec.stealth)continue; // stealth: radar can't lock on
+    if(o.spec.cls==='plane'&&!(s.cls==='plane'||s.aa))continue;
+    let sc=Math.hypot(o.x-e.x,o.y-e.y);
+    if(s.aa&&o.spec.cls==='plane')sc*=0.5;
+    if(sc<bs){bs=sc;tgt=o;} }
+  if(!tgt){e.spd*=0.96;return;}
+  const bd=Math.hypot(tgt.x-e.x,tgt.y-e.y);
+  const aim=Math.atan2(tgt.y-e.y,tgt.x-e.x);
+  if(s.cls==='plane'){
+    e.spd=Math.min(s.maxs,e.spd+s.acc);
+    if(e.spd<s.mins)e.spd=s.mins;
+    // strafing: aim at target but veer when too close
+    let goal=aim;
+    if(bd<160){ goal=aim+1.2; } // bank away to circle
+    e.ang+=clamp(angDiff(e.ang,goal),-s.turn,s.turn);
+    e.vx=Math.cos(e.ang)*e.spd;e.vy=Math.sin(e.ang)*e.spd;
+    if(Math.abs(angDiff(e.ang,aim))<0.18&&bd<s.rng&&e.cd<=0)fireGun(e,e.ang);
+    if(s.bombs&&bd<90&&tgt.spec.cls!=='plane'&&e.bombcd<=0)dropBomb(e);
+  } else {
+    e.tang=angLerp(e.tang,aim,s.turret);
+    const want = s.cls==='ship'?s.rng*0.7:s.rng*0.55;
+    let drive=0;
+    if(bd>want+60)drive=1; else if(bd<want-120)drive=-1;
+    let hullGoal = drive>=0?aim:aim+Math.PI;
+    // steer around water / rocks / edges so units don't freeze (e.g. at a lake shore)
+    const probe=(s.cls==='ship'?90:70)+s.sz;
+    if(drive>0 && blockedAhead(e,e.ang,probe)){
+      if(!e.avoidDir)e.avoidDir=Math.random()<.5?-1:1;
+      let cleared=false;
+      for(let t=0.4;t<=2.6;t+=0.4){
+        if(!blockedAhead(e,e.ang+e.avoidDir*t,probe)){hullGoal=e.ang+e.avoidDir*t;cleared=true;break;}
+      }
+      if(!cleared){drive=0;e.avoidDir=-e.avoidDir;} // dead end: stop & flip search side
+    } else e.avoidDir=0;
+    if(e.mods.tracks>0)drive=0;
+    const em=e.mods.engine>0?0.4:1;
+    const tspd=drive>0?s.maxs*em:drive<0?-s.rev*em:0;
+    e.spd+=(tspd-e.spd)*s.acc*0.8;
+    e.ang+=clamp(angDiff(e.ang,hullGoal),-s.turn,s.turn);
+    e.vx=Math.cos(e.ang)*e.spd;e.vy=Math.sin(e.ang)*e.spd;
+    if(Math.abs(angDiff(e.tang,aim))<0.1&&bd<s.rng&&e.cd<=0)fireMain(e);
+  }
+}
+
+// ================= PARTICLES =================
+function muzzle(x,y,a){ for(let i=0;i<6;i++){const sp=2+Math.random()*3;
+  parts.push({x,y,vx:Math.cos(a)*sp+(Math.random()-.5),vy:Math.sin(a)*sp+(Math.random()-.5),
+    t:0,life:8,r:2+Math.random()*2,c:Math.random()<.5?'#ffd':'#fa4'});} }
+function boom(x,y,r,c){ for(let i=0;i<Math.min(26,r*1.3);i++){const a=Math.random()*TAU,sp=Math.random()*r*0.2;
+  parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,t:0,life:14+Math.random()*14,
+    r:2+Math.random()*4,c:Math.random()<.4?'#fff':(Math.random()<.6?c:'#f63'),smoke:Math.random()<.3});} }
+function updateParts(){ for(const p of parts){p.t++;p.x+=p.vx;p.y+=p.vy;p.vx*=0.92;p.vy*=0.92;
+    if(p.smoke)p.r+=0.3;} parts=parts.filter(p=>p.t<p.life); }
+function floatText(x,y,txt,c){ floaters.push({x,y,txt,c,t:0,life:46}); }
+function updateFloaters(){ for(const f of floaters){f.t++;f.y-=0.7;} floaters=floaters.filter(f=>f.t<f.life); }
+function drawFloaters(){
+  ctx.textAlign='center';ctx.font='bold 15px "Courier New",monospace';ctx.lineWidth=3;
+  for(const f of floaters){const sx=f.x-cam.x,sy=f.y-cam.y;
+    ctx.globalAlpha=Math.max(0,1-f.t/f.life);
+    ctx.strokeStyle='#000';ctx.strokeText(f.txt,sx,sy);
+    ctx.fillStyle=f.c;ctx.fillText(f.txt,sx,sy);}
+  ctx.globalAlpha=1;ctx.textAlign='left';
+}
+
+// ================= SOUND (Web Audio, synthesized) =================
+let AC=null, master=null;
+function initAudio(){ if(AC)return;
+  try{ AC=new (window.AudioContext||window.webkitAudioContext)();
+    master=AC.createGain(); master.gain.value=0.32; master.connect(AC.destination);
+  }catch(e){ AC=null; } }
+function audible(x,y){ const cx=cam.x+W/2, cy=cam.y+H/2;
+  return clamp(1-Math.hypot(x-cx,y-cy)/1500,0,1); }
+function blip(f1,f2,dur,type,vol,x,y){
+  if(!AC)return; const a=audible(x,y); if(a<.03)return;
+  const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;
+  o.type=type; o.frequency.setValueAtTime(f1,t);
+  o.frequency.exponentialRampToValueAtTime(Math.max(20,f2),t+dur);
+  g.gain.setValueAtTime(vol*a,t); g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t+dur); }
+function noise(dur,vol,x,y,lp){
+  if(!AC)return; const a=audible(x,y); if(a<.03)return;
+  const len=AC.sampleRate*dur|0, buf=AC.createBuffer(1,len,AC.sampleRate), d=buf.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);
+  const n=AC.createBufferSource(); n.buffer=buf;
+  const f=AC.createBiquadFilter(); f.type='lowpass'; f.frequency.value=lp||1000;
+  const g=AC.createGain(); g.gain.value=vol*a;
+  n.connect(f); f.connect(g); g.connect(master); n.start(); }
+function sfxFire(big,x,y){ blip(big?170:320,big?50:130,big?0.18:0.05,'sawtooth',big?0.5:0.18,x,y);
+  noise(big?0.12:0.03,big?0.32:0.1,x,y,big?700:1600); }
+function sfxExplode(x,y,big){ noise(big?0.55:0.22,big?0.6:0.3,x,y,big?500:950);
+  blip(big?130:170,40,big?0.45:0.2,'sawtooth',0.3,x,y); }
+function sfxBounce(x,y){ blip(1500,650,0.12,'square',0.16,x,y); }
+
+// ================= RENDER WORLD =================
+function drawGround(){
+  // base grass gradient
+  ctx.fillStyle='#33502c';ctx.fillRect(0,0,W,H);
+  // checker field for depth
+  const tile=64, x0=Math.floor(cam.x/tile)*tile, y0=Math.floor(cam.y/tile)*tile;
+  for(let x=x0;x<cam.x+W;x+=tile)for(let y=y0;y<cam.y+H;y+=tile){
+    if(((x/tile)+(y/tile))%2===0){ctx.fillStyle='#36542f';ctx.fillRect(x-cam.x,y-cam.y,tile,tile);}
+  }
+  // roads
+  ctx.fillStyle='#6b5d44';
+  for(const r of roads){ if(r.horiz)ctx.fillRect(0-cam.x*0+(-cam.x),r.y-cam.y-22,WORLD,44);
+    else ctx.fillRect(r.x-cam.x-22,0-cam.y,44,WORLD); }
+  ctx.fillStyle='#5a4d38';
+  for(const r of roads){ if(r.horiz){for(let x=0;x<WORLD;x+=60)ctx.fillRect(x-cam.x-12,r.y-cam.y-2,24,4);}
+    else{for(let y=0;y<WORLD;y+=60)ctx.fillRect(r.x-cam.x-2,y-cam.y-12,4,24);} }
+  // river moat around the whole map
+  ctx.fillStyle='#2e597d';
+  ctx.fillRect(-cam.x,-cam.y,WORLD,RIVER);                       // top
+  ctx.fillRect(-cam.x,WORLD-RIVER-cam.y,WORLD,RIVER);            // bottom
+  ctx.fillRect(-cam.x,-cam.y,RIVER,WORLD);                       // left
+  ctx.fillRect(WORLD-RIVER-cam.x,-cam.y,RIVER,WORLD);            // right
+  ctx.fillStyle='#356588';                                       // brighter mid-channel
+  const mc=64;
+  ctx.fillRect(-cam.x,mc-cam.y,WORLD,RIVER-2*mc);
+  ctx.fillRect(-cam.x,WORLD-RIVER+mc-cam.y,WORLD,RIVER-2*mc);
+  ctx.fillRect(mc-cam.x,-cam.y,RIVER-2*mc,WORLD);
+  ctx.fillRect(WORLD-RIVER+mc-cam.x,-cam.y,RIVER-2*mc,WORLD);
+  // animated ripples in the channel
+  ctx.strokeStyle='#4a7ba0';ctx.lineWidth=2;
+  const rp=(gtime/30)%40;
+  for(let o=-40;o<WORLD;o+=80){
+    ctx.beginPath();ctx.moveTo(o+rp-cam.x,RIVER/2-cam.y);ctx.lineTo(o+rp+24-cam.x,RIVER/2-cam.y);
+    ctx.moveTo(o+rp-cam.x,WORLD-RIVER/2-cam.y);ctx.lineTo(o+rp+24-cam.x,WORLD-RIVER/2-cam.y);ctx.stroke();
+  }
+  // sandy shoreline along the inner bank
+  ctx.strokeStyle='#b59a5a';ctx.lineWidth=7;
+  ctx.strokeRect(RIVER-cam.x,RIVER-cam.y,WORLD-2*RIVER,WORLD-2*RIVER);
+  // outer world frame
+  ctx.strokeStyle='#0007';ctx.lineWidth=10;ctx.strokeRect(-cam.x,-cam.y,WORLD,WORLD);
+  // lakes
+  for(const l of lakes){ const sx=l.x-cam.x,sy=l.y-cam.y;
+    if(sx<-l.r||sy<-l.r||sx>W+l.r||sy>H+l.r)continue;
+    ctx.fillStyle='#2e597d';ctx.beginPath();ctx.arc(sx,sy,l.r,0,TAU);ctx.fill();
+    ctx.fillStyle='#356588';ctx.beginPath();ctx.arc(sx,sy,l.r*0.7,0,TAU);ctx.fill();
+    ctx.strokeStyle='#b59a5a';ctx.lineWidth=6;ctx.beginPath();ctx.arc(sx,sy,l.r,0,TAU);ctx.stroke();
+    // ripples
+    ctx.strokeStyle='#4a7ba0';ctx.lineWidth=2;
+    for(let i=1;i<3;i++){ctx.beginPath();ctx.arc(sx,sy,l.r*0.4*i+ (gtime/30%20),0,TAU);ctx.stroke();}
+  }
+}
+function drawProps(){
+  // rocks
+  for(const o of rocks){const sx=o.x-cam.x,sy=o.y-cam.y;
+    if(sx<-30||sy<-30||sx>W+30||sy>H+30)continue;
+    ctx.fillStyle='#0004';ctx.beginPath();ctx.ellipse(sx+3,sy+4,o.r,o.r*0.7,0,0,TAU);ctx.fill();
+    ctx.fillStyle='#776c5e';ctx.beginPath();ctx.arc(sx,sy,o.r,0,TAU);ctx.fill();
+    ctx.fillStyle='#8a7e6e';ctx.beginPath();ctx.arc(sx-o.r*0.3,sy-o.r*0.3,o.r*0.5,0,TAU);ctx.fill();}
+}
+function drawTrees(){ // drawn on top (canopy above vehicles)
+  for(const o of trees){const sx=o.x-cam.x,sy=o.y-cam.y;
+    if(sx<-40||sy<-40||sx>W+40||sy>H+40)continue;
+    ctx.fillStyle='#0005';ctx.beginPath();ctx.ellipse(sx+5,sy+6,o.r,o.r*0.6,0,0,TAU);ctx.fill();
+    ctx.fillStyle='#1d3a17';ctx.beginPath();ctx.arc(sx,sy,o.r,0,TAU);ctx.fill();
+    ctx.fillStyle='#2b5421';ctx.beginPath();ctx.arc(sx-o.r*0.3,sy-o.r*0.3,o.r*0.7,0,TAU);ctx.fill();
+    ctx.fillStyle='#357a2a';ctx.beginPath();ctx.arc(sx-o.r*0.4,sy-o.r*0.4,o.r*0.35,0,TAU);ctx.fill();}
+}
+function drawParts(){
+  for(const p of parts){const sx=p.x-cam.x,sy=p.y-cam.y;
+    ctx.globalAlpha=Math.max(0,1-p.t/p.life);
+    ctx.fillStyle=p.smoke?'rgba(120,120,120,'+(1-p.t/p.life)*0.6+')':(p.c||'#ccc');
+    ctx.beginPath();ctx.arc(sx,sy,p.r,0,TAU);ctx.fill();}
+  ctx.globalAlpha=1;
+}
+function drawShells(){
+  for(const sh of shells){const sx=sh.x-cam.x,sy=sh.y-cam.y;
+    if(sh.big){ctx.strokeStyle='#fe8';ctx.lineWidth=3;ctx.beginPath();
+      ctx.moveTo(sx,sy);ctx.lineTo(sx-sh.vx*1.5,sy-sh.vy*1.5);ctx.stroke();
+      ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(sx,sy,2.5,0,TAU);ctx.fill();}
+    else{ctx.strokeStyle='#ffd86a';ctx.lineWidth=2;ctx.beginPath();
+      ctx.moveTo(sx,sy);ctx.lineTo(sx-sh.vx*1.2,sy-sh.vy*1.2);ctx.stroke();}
+  }
+}
+function drawBombs(){ for(const b of bombs){const sx=b.x-cam.x,sy=b.y-cam.y;
+    const sc=1+b.t/b.fuse; // grows as it falls toward ground
+    ctx.fillStyle='#0005';ctx.beginPath();ctx.arc(sx+12*sc,sy+14*sc,5,0,TAU);ctx.fill();
+    ctx.fillStyle='#333';ctx.save();ctx.translate(sx,sy);ctx.rotate(b.t*0.2);
+    ctx.beginPath();ctx.ellipse(0,0,3,6,0,0,TAU);ctx.fill();ctx.restore();} }
+
+function drawMinimap(){
+  const mw=150,mh=150,px=W-mw-10,py=44,sc=mw/WORLD;
+  ctx.fillStyle='#000b';ctx.fillRect(px-2,py-2,mw+4,mh+4);
+  ctx.fillStyle='#28401f';ctx.fillRect(px,py,mw,mh);
+  ctx.fillStyle='#2e597d';for(const l of lakes){ctx.beginPath();ctx.arc(px+l.x*sc,py+l.y*sc,l.r*sc,0,TAU);ctx.fill();}
+  for(const cp of cps){const c=cp.owner==='blue'?'#5cf':cp.owner==='red'?'#f66':'#ccc';
+    ctx.strokeStyle=c;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(px+cp.x*sc,py+cp.y*sc,5,0,TAU);ctx.stroke();}
+  for(const e of ents){if(e.dead)continue;ctx.fillStyle=e===player?'#fff':TEAM[e.team];
+    ctx.fillRect(px+e.x*sc-1.5,py+e.y*sc-1.5,e===player?4:3,e===player?4:3);}
+  ctx.strokeStyle='#fff8';ctx.lineWidth=1;ctx.strokeRect(px+cam.x*sc,py+cam.y*sc,W*sc,H*sc);
+}
+
+// lead indicators: where to aim so a moving target walks into your shell
+function drawLead(){
+  if(!player||player.dead)return; const s=player.spec, ss=s.shell;
+  ctx.lineWidth=1.5;
+  for(const e of ents){ if(e.dead||e.team===player.team)continue;
+    if(e.spec.stealth)continue; // stealth: no lock indicator either
+    if(e.spec.cls==='plane' && !(s.cls==='plane'||s.aa))continue; // can't hit it anyway
+    const dist=Math.hypot(e.x-player.x,e.y-player.y);
+    if(dist>s.rng*1.15)continue;
+    const t=dist/ss;                       // ~frames for shell to arrive
+    const lx=e.x+e.vx*t-cam.x, ly=e.y+e.vy*t-cam.y;
+    ctx.strokeStyle='rgba(255,235,90,.9)';
+    ctx.beginPath();ctx.arc(lx,ly,7,0,TAU);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(lx-4,ly);ctx.lineTo(lx+4,ly);ctx.moveTo(lx,ly-4);ctx.lineTo(lx,ly+4);ctx.stroke();
+    // faint tie line from target to its lead point
+    ctx.strokeStyle='rgba(255,235,90,.3)';
+    ctx.beginPath();ctx.moveTo(e.x-cam.x,e.y-cam.y);ctx.lineTo(lx,ly);ctx.stroke();
+  }
+}
+// crosshair for player
+function drawReticle(){
+  if(!player||player.dead)return;
+  const s=player.spec;
+  if(s.cls==='plane'){
+    // lead reticle in front of plane
+    const lx=player.x+Math.cos(player.ang)*260-cam.x, ly=player.y+Math.sin(player.ang)*260-cam.y;
+    ctx.strokeStyle='#fe6';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(lx,ly,9,0,TAU);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(lx-14,ly);ctx.lineTo(lx-9,ly);ctx.moveTo(lx+9,ly);ctx.lineTo(lx+14,ly);ctx.stroke();
+  } else {
+    const mx=mouse.x,my=mouse.y;
+    ctx.strokeStyle=player.cd<=0?'#6f6':'#f84';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(mx,my,11,0,TAU);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(mx-16,my);ctx.lineTo(mx-6,my);ctx.moveTo(mx+6,my);ctx.lineTo(mx+16,my);
+    ctx.moveTo(mx,my-16);ctx.lineTo(mx,my-6);ctx.moveTo(mx,my+6);ctx.lineTo(mx,my+16);ctx.stroke();
+    // range line from turret
+    ctx.strokeStyle='#fff2';ctx.lineWidth=1;ctx.beginPath();
+    ctx.moveTo(player.x-cam.x,player.y-cam.y);ctx.lineTo(mx,my);ctx.stroke();
+  }
+}
+
+// ================= LOOP =================
+let gtime=0, started=false, paused=true;
+function loop(){
+  if(!paused){update();}
+  render();
+  requestAnimationFrame(loop);
+}
+function update(){
+  gtime++;
+  if(player&&!player.dead)controlPlayer(player);
+  for(const e of ents){ if(e.dead)continue; if(e.ai&&e!==player)aiThink(e); moveEnt(e); }
+  updateShells();updateBombs();updateParts();updateFloaters();updateCPs();
+  // camera follow
+  if(player){ const lead= player.spec.cls==='plane'?120:40;
+    const tx=player.x+Math.cos(player.ang)*lead-W/2, ty=player.y+Math.sin(player.ang)*lead-H/2;
+    cam.x+=(tx-cam.x)*0.1; cam.y+=(ty-cam.y)*0.1;
+    cam.x=clamp(cam.x,0,WORLD-W); cam.y=clamp(cam.y,0,WORLD-H);
+  }
+  // HUD
+  if(player){
+    const hpp=Math.max(0,player.hp/player.maxhp);
+    document.getElementById('hptxt').textContent=Math.round(hpp*100)+'%';
+    document.getElementById('hpbar').style.width=hpp*100+'%';
+    document.getElementById('hpbar').style.background=hpp>.4?'#3f6':'#f63';
+    const rl=player.cd<=0?1:1-player.cd/player.spec.reload;
+    document.getElementById('rldtxt').textContent=player.cd<=0?'READY':'…';
+    document.getElementById('rldbar').style.width=rl*100+'%';
+    document.getElementById('speed').textContent=Math.abs(player.spd*30|0);
+    document.getElementById('vehname').textContent=player.spec.name;
+    document.getElementById('rldtxt').textContent=player.mods.gun>0?'⚙ GUN HIT':(player.cd<=0?'READY':'…');
+    const warns=[]; if(player.mods.engine>0)warns.push('ENGINE'); if(player.mods.gun>0)warns.push('GUN'); if(player.mods.tracks>0)warns.push('TRACKS');
+    document.getElementById('ammo2').innerHTML=(warns.length?'<span style="color:#ff9">⚙ '+warns.join(' / ')+'</span><br>':'')+(player.spec.bombs?'B: drop bomb':'');
+  }
+  document.getElementById('bscore').textContent=SCORE.blue;
+  document.getElementById('rscore').textContent=SCORE.red;
+  document.getElementById('kills').textContent=myKills;
+  if((SCORE.blue>=SCORE.goal||SCORE.red>=SCORE.goal)&&!SCORE.over)endGame();
+}
+function render(){
+  ctx.fillStyle='#1a2416';ctx.fillRect(0,0,W,H);
+  if(!cam)return;
+  drawGround();drawProps();drawCPs();
+  drawBombs();
+  // ground vehicles first, planes last (they're "above")
+  ents.filter(e=>!e.dead&&e.spec.cls!=='plane').forEach(drawEnt);
+  drawShells();
+  ents.filter(e=>!e.dead&&e.spec.cls==='plane').forEach(drawEnt);
+  drawParts();
+  drawTrees();
+  drawFloaters();
+  drawLead();
+  drawReticle();
+  drawMinimap();
+}
+
+// ================= UI / FLOW =================
+function flash(t){const m=document.getElementById('msg');m.textContent=t;m.style.opacity=1;
+  clearTimeout(m._t);m._t=setTimeout(()=>m.style.opacity=0,1400);}
+let feedItems=[];
+function feed(t,c){feedItems.unshift({t,c,time:gtime});if(feedItems.length>5)feedItems.pop();renderFeed();
+  setTimeout(renderFeed,4000);}
+function renderFeed(){const el=document.getElementById('killfeed');
+  feedItems=feedItems.filter(f=>gtime-f.time<240||true).slice(0,5);
+  el.innerHTML=feedItems.map(f=>`<div style="color:${f.c}">${f.t}</div>`).join('');}
+
+// vehicle preview thumbnails
+function buildCards(containerId,onPick){
+  const c=document.getElementById(containerId);c.innerHTML='';
+  for(const key in VEH){const s=VEH[key];
+    const card=document.createElement('div');card.className='card';
+    const cvp=document.createElement('canvas');cvp.width=150;cvp.height=90;
+    const g=cvp.getContext('2d');g.translate(75,45);
+    const e={spec:s,recoil:0};
+    if(s.cls==='tank'){drawTank(g,s,'blue',0);
+      g.save();g.rotate(-0.5);drawTurret(g,s,'blue',0);g.restore();}
+    else if(s.cls==='plane'){g.save();g.rotate(Math.PI/2);drawPlane(g,s,'blue');g.restore();}
+    else{g.save();g.rotate(Math.PI/2);drawShip(g,s,'blue');g.restore();
+      g.save();g.rotate(-0.4);drawShipTurret(g,s,0);g.restore();}
+    card.appendChild(cvp);
+    card.innerHTML+=`<h3>${s.name}</h3><div class="desc">${s.desc}</div>
+      <div class="stats">❤ HP ${s.hp}<br>🎯 DMG ${s.dmg}${s.cls==='plane'?'/shot':''}<br>
+      🏁 SPD ${(s.maxs*30|0)}<br>🌍 ${s.cls.toUpperCase()}</div>`;
+    card.onclick=()=>onPick(key);
+    c.appendChild(card);
+  }
+}
+function setCtrls(cls){
+  const box=document.getElementById('ctrlsbox');
+  if(cls==='plane')box.innerHTML='<b>Plane:</b> Move mouse to steer • <b>W/S</b> throttle • <b>Click</b> fire guns • <b>B</b> drop bombs (B-2)';
+  else if(cls==='ship')box.innerHTML='<b>Ship:</b> <b>W/S</b> sail • <b>A/D</b> turn • <b>Mouse</b> aim turret • <b>Click</b> fire';
+  else box.innerHTML='<b>Tank:</b> <b>W/S</b> drive • <b>A/D</b> rotate hull • <b>Mouse</b> aim turret • <b>Click</b> fire';
+}
+function startGame(key){
+  initAudio();
+  document.getElementById('start').style.display='none';
+  ents=[];shells=[];parts=[];bombs=[];floaters=[];
+  genCPs();
+  // player
+  player=makeVeh(key,'blue',RIVER+350,WORLD-RIVER-350); player.ai=false;
+  if(player.spec.cls==='ship'){player.x=lakes[0].x;player.y=lakes[0].y;}
+  ents.push(player);
+  spawnTeam('blue',5);   // allies
+  spawnTeam('red',7);    // enemies
+  paused=false;started=true;
+  cam.x=clamp(player.x-W/2,0,WORLD-W);cam.y=clamp(player.y-H/2,0,WORLD-H);
+  flash('Capture points + kills to reach '+SCORE.goal+'. Good hunting!');
+}
+function showRespawn(){
+  if(SCORE.over)return;
+  paused=false; // game keeps running
+  const idx=ents.indexOf(player);if(idx>=0)ents.splice(idx,1);
+  document.getElementById('respawn').style.display='flex';
+  buildCards('picker2',key=>{
+    document.getElementById('respawn').style.display='none';
+    player=makeVeh(key,'blue',RIVER+350,WORLD-RIVER-350);player.ai=false;
+    if(player.spec.cls==='ship'){player.x=lakes[0].x;player.y=lakes[0].y;}
+    ents.push(player);
+  });
+}
+function endGame(){
+  SCORE.over=true;paused=true;
+  const win=SCORE.blue>=SCORE.goal && SCORE.blue>SCORE.red;
+  document.getElementById('respawn').style.display='none';
+  const o=document.getElementById('over');o.style.display='flex';
+  const t=document.getElementById('overtxt');
+  t.textContent=win?'BLUE WINS':'RED WINS';t.className=win?'winC':'loseC';
+  document.getElementById('oversub').textContent=`Final: BLUE ${SCORE.blue} — RED ${SCORE.red}  •  Your kills: ${myKills}`;
+}
+
+document.getElementById('goal').textContent=SCORE.goal;
+buildCards('picker',startGame);
+// live-update control hint on hover
+document.getElementById('picker').addEventListener('mouseover',e=>{
+  const card=e.target.closest('.card');if(!card)return;
+  const i=[...card.parentNode.children].indexOf(card);
+  const key=Object.keys(VEH)[i];if(key)setCtrls(VEH[key].cls);
+});
+setCtrls('tank');
+loop();
+</script>
+</body>
+</html>

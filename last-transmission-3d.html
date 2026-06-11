@@ -1,0 +1,1792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Last Transmission [3D]</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #c8d4e0; }
+  canvas { display: block; }
+
+  #crosshair {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px; height: 20px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  #crosshair::before, #crosshair::after {
+    content: ''; position: absolute;
+    background: rgba(255,255,255,0.6);
+  }
+  #crosshair::before { left: 9px; top: 0; width: 2px; height: 20px; }
+  #crosshair::after { left: 0; top: 9px; width: 20px; height: 2px; }
+
+  #hud {
+    position: fixed; top: 16px; left: 16px;
+    z-index: 10;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    background: rgba(8, 15, 22, 0.7);
+    border: 1px solid #1a3a4a;
+    padding: 10px 14px;
+  }
+  #hud .row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  #hud .row:last-child { margin-bottom: 0; }
+  #hud .label { color: #5a7080; min-width: 50px; }
+  .hp-bar {
+    width: 100px; height: 8px;
+    background: #1a2330; border: 1px solid #2a3a4a;
+    position: relative; overflow: hidden;
+  }
+  .hp-bar .fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: linear-gradient(90deg, #ff3a5c, #ff6b8a);
+    transition: width 0.5s;
+  }
+  .inv { display: flex; gap: 4px; }
+  .inv .slot {
+    width: 22px; height: 22px; border: 1px solid #2a4a5a;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    background: rgba(20, 40, 50, 0.6);
+  }
+  .inv .slot.empty { opacity: 0.25; }
+
+  #room-label {
+    position: fixed; top: 16px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    font-size: 11px;
+    color: #5a7a8a;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    background: rgba(8, 15, 22, 0.7);
+    border: 1px solid #1a3a4a;
+    padding: 8px 18px;
+    opacity: 0;
+    transition: opacity 0.6s;
+  }
+  #room-label.show { opacity: 1; }
+
+  #prompt {
+    position: fixed; bottom: 100px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    background: rgba(8, 15, 22, 0.85);
+    border: 1px solid #6fd6c8;
+    color: #6fd6c8;
+    padding: 8px 18px;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    display: none;
+  }
+  #prompt.show { display: block; }
+  #prompt .key {
+    display: inline-block;
+    background: #6fd6c8;
+    color: #050810;
+    padding: 1px 8px;
+    border-radius: 3px;
+    margin-right: 8px;
+    font-weight: bold;
+  }
+
+  #subtitle {
+    position: fixed; bottom: 40px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    max-width: 700px; width: 90%;
+    background: rgba(8, 15, 22, 0.9);
+    border: 1px solid #1a3a4a;
+    padding: 14px 20px;
+    font-size: 14px;
+    line-height: 1.5;
+    text-align: center;
+    display: none;
+  }
+  #subtitle.show { display: block; }
+  #subtitle .speaker {
+    font-size: 11px;
+    color: #6fd6c8;
+    letter-spacing: 3px;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+
+  #dialogue {
+    position: fixed; inset: 0;
+    z-index: 100;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 60px;
+  }
+  #dialogue.show { display: flex; }
+  #dialogue .panel {
+    background: rgba(8, 15, 22, 0.95);
+    border: 1px solid #1a3a4a;
+    width: 100%; max-width: 720px;
+    padding: 24px 28px;
+    box-shadow: 0 0 40px rgba(0, 80, 120, 0.4);
+  }
+  #dialogue .speaker {
+    font-size: 11px;
+    color: #6fd6c8;
+    letter-spacing: 4px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+  #dialogue .body {
+    font-size: 15px; line-height: 1.6;
+    color: #c8d4e0; margin-bottom: 18px;
+  }
+  #dialogue .body p { margin-bottom: 10px; }
+  #dialogue .body .aria { color: #6fd6c8; font-style: italic; }
+  #dialogue .body .alert { color: #ff6b8a; font-weight: bold; }
+  #dialogue .body .whisper { color: #a07ab8; font-style: italic; font-size: 14px; }
+  #dialogue .body .system { color: #888; font-size: 12px; border-left: 2px solid #444; padding-left: 10px; margin: 8px 0; }
+  #dialogue .choices { display: flex; flex-direction: column; gap: 6px; }
+  #dialogue .choice {
+    background: rgba(20, 35, 50, 0.6);
+    border: 1px solid #2a4a5a;
+    color: #c8d4e0;
+    padding: 12px 16px;
+    font-family: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  #dialogue .choice:hover {
+    background: rgba(40, 70, 90, 0.8);
+    border-color: #6fd6c8;
+    color: #fff;
+  }
+  #dialogue .choice:disabled { opacity: 0.3; text-decoration: line-through; cursor: not-allowed; }
+  #dialogue .req { color: #5a7a8a; font-size: 11px; margin-left: 6px; }
+
+  #vignette {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 50;
+    background: radial-gradient(ellipse at center, transparent 35%, rgba(80, 0, 10, 0.0) 60%, rgba(0,0,0,0.8) 100%);
+    transition: background 0.4s;
+  }
+  #vignette.scared {
+    background: radial-gradient(ellipse at center, transparent 25%, rgba(255, 30, 50, 0.25) 55%, rgba(80, 0, 10, 0.95) 100%);
+  }
+  #vignette.terror {
+    background: radial-gradient(ellipse at center, transparent 15%, rgba(255, 0, 30, 0.5) 45%, rgba(0,0,0,1) 100%);
+  }
+
+  #flash {
+    position: fixed; inset: 0; pointer-events: none; z-index: 60;
+    background: #fff; opacity: 0;
+    transition: opacity 0.08s;
+  }
+  #flash.on { opacity: 0.4; }
+
+  #ending {
+    position: fixed; inset: 0; z-index: 200;
+    background: #050810;
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 40px;
+  }
+  #ending.show { display: flex; }
+  #ending .panel {
+    max-width: 600px; text-align: center;
+  }
+  #ending h1 {
+    font-size: 32px; color: #6fd6c8;
+    letter-spacing: 6px; margin-bottom: 28px;
+    text-transform: uppercase;
+  }
+  #ending .text {
+    font-size: 15px; line-height: 1.8;
+    margin-bottom: 24px; text-align: left;
+  }
+  #ending .text .aria { color: #6fd6c8; font-style: italic; }
+  #ending .epilogue {
+    color: #5a7080; font-size: 13px; font-style: italic;
+    margin-bottom: 32px;
+  }
+  #ending button {
+    background: transparent; border: 1px solid #6fd6c8; color: #6fd6c8;
+    padding: 12px 32px; font-family: inherit; font-size: 13px;
+    cursor: pointer; letter-spacing: 3px; text-transform: uppercase;
+  }
+  #ending button:hover { background: #6fd6c8; color: #050810; }
+
+  #blocker {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,0.85);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  #blocker .panel {
+    text-align: center; padding: 40px;
+  }
+  #blocker h1 {
+    font-size: 36px; color: #6fd6c8;
+    letter-spacing: 6px; margin-bottom: 12px;
+    text-shadow: 0 0 20px rgba(111, 214, 200, 0.4);
+  }
+  #blocker .subtitle {
+    color: #5a7a8a; font-size: 12px; letter-spacing: 3px;
+    margin-bottom: 40px; text-transform: uppercase;
+  }
+  #blocker .controls {
+    color: #c8d4e0; font-size: 13px; line-height: 2;
+    margin-bottom: 32px;
+  }
+  #blocker .controls .key {
+    display: inline-block;
+    background: rgba(40, 70, 90, 0.8);
+    border: 1px solid #6fd6c8;
+    padding: 2px 10px;
+    margin: 0 4px;
+    border-radius: 3px;
+    color: #6fd6c8;
+    font-weight: bold;
+  }
+  #blocker .click {
+    color: #6fd6c8; font-size: 14px;
+    letter-spacing: 3px; text-transform: uppercase;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div id="vignette"></div>
+<div id="flash"></div>
+<div id="crosshair"></div>
+
+<div id="hud">
+  <div class="row">
+    <span class="label">Hull</span>
+    <div class="hp-bar"><div class="fill" id="hpfill" style="width:100%"></div></div>
+  </div>
+  <div class="row">
+    <span class="label">Inv</span>
+    <div class="inv" id="inv"></div>
+  </div>
+</div>
+
+<div id="room-label"></div>
+<div id="prompt"></div>
+<div id="subtitle"><div class="speaker" id="sub-speaker"></div><div id="sub-text"></div></div>
+
+<div id="dialogue">
+  <div class="panel">
+    <div class="speaker" id="dlg-speaker">ARIA</div>
+    <div class="body" id="dlg-body"></div>
+    <div class="choices" id="dlg-choices"></div>
+  </div>
+</div>
+
+<div id="ending">
+  <div class="panel">
+    <h1 id="end-title"></h1>
+    <div class="text" id="end-text"></div>
+    <div class="epilogue" id="end-epilogue"></div>
+    <button onclick="location.reload()">Play Again</button>
+  </div>
+</div>
+
+<div id="blocker">
+  <div class="panel">
+    <h1>The Last Transmission</h1>
+    <div class="subtitle">A short sci-fi tale · 3D · HARD MODE</div>
+
+    <div id="settings-panel" style="margin: 0 auto 30px; max-width: 480px; text-align: left; background: rgba(20, 30, 45, 0.6); border: 1px solid #1a3a4a; padding: 16px;">
+      <div style="font-size: 11px; color: #6fd6c8; letter-spacing: 3px; margin-bottom: 10px;">ARIA · LLM SETTINGS (OPTIONAL)</div>
+      <div style="font-size: 12px; color: #a7b0c0; margin-bottom: 12px; line-height: 1.5;">
+        Paste an Anthropic API key to make ARIA's dialogue generated by a real LLM (Claude).
+        Without one, she uses the scripted fallback.
+      </div>
+      <select id="ai-provider" style="width: 100%; background: #0a1828; border: 1px solid #2a4a5a; color: #c8d4e0; padding: 8px; font-family: inherit; font-size: 13px; margin-bottom: 8px;">
+        <option value="anthropic">Anthropic (Claude)</option>
+        <option value="openai">OpenAI (GPT)</option>
+        <option value="none">No LLM — scripted only</option>
+      </select>
+      <input id="ai-key" type="password" placeholder="sk-ant-..." style="width: 100%; background: #0a1828; border: 1px solid #2a4a5a; color: #c8d4e0; padding: 8px; font-family: inherit; font-size: 12px; margin-bottom: 6px;">
+      <div style="font-size: 10px; color: #5a7080;">Stored only in this browser. Key is sent direct to the AI provider, never to any server.</div>
+    </div>
+
+    <div class="controls">
+      <span class="key">W A S D</span> move
+      &nbsp;·&nbsp;
+      <span class="key">Mouse</span> look
+      <br>
+      <span class="key">E</span> interact &nbsp;·&nbsp; <span class="key">T</span> talk to ARIA &nbsp;·&nbsp; <span class="key">Esc</span> release mouse
+    </div>
+    <div class="click">CLICK TO BEGIN</div>
+  </div>
+</div>
+
+<div id="chat" style="display:none; position:fixed; right:16px; top:80px; width:340px; max-height:60vh; z-index:90; background:rgba(8,15,22,0.95); border:1px solid #6fd6c8; font-family:'Courier New',monospace;">
+  <div style="padding:10px 14px; border-bottom:1px solid #1a3a4a; color:#6fd6c8; font-size:11px; letter-spacing:3px;">ARIA · DIRECT CHANNEL <span style="float:right; color:#5a7080; cursor:pointer;" onclick="document.getElementById('chat').style.display='none'">×</span></div>
+  <div id="chat-log" style="padding:12px 14px; height:280px; overflow-y:auto; font-size:13px; color:#c8d4e0; line-height:1.5;"></div>
+  <div style="display:flex; border-top:1px solid #1a3a4a;">
+    <input id="chat-input" placeholder="Say something..." style="flex:1; background:transparent; border:none; color:#c8d4e0; padding:10px 14px; font-family:inherit; font-size:13px; outline:none;">
+    <button id="chat-send" style="background:#6fd6c8; color:#050810; border:none; padding:0 16px; cursor:pointer; font-family:inherit; font-weight:bold;">→</button>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+// =============================================================================
+// SCENE SETUP
+// =============================================================================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a1828);
+scene.fog = new THREE.Fog(0x0a1828, 25, 80);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 1.7, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+const controls = new PointerLockControls(camera, document.body);
+const blocker = document.getElementById('blocker');
+blocker.addEventListener('click', () => controls.lock());
+controls.addEventListener('lock', () => { blocker.style.display = 'none'; });
+controls.addEventListener('unlock', () => {
+  if (!gameOver && !dialogueOpen) blocker.style.display = 'flex';
+});
+
+// =============================================================================
+// LIGHTING (ambient + colored point lights per room)
+// =============================================================================
+scene.add(new THREE.AmbientLight(0x6080a0, 1.2));
+const hemi = new THREE.HemisphereLight(0xaaccff, 0x102030, 0.6);
+scene.add(hemi);
+
+// =============================================================================
+// MATERIALS
+// =============================================================================
+const matFloor = new THREE.MeshStandardMaterial({ color: 0x0a1420, roughness: 0.8, metalness: 0.2 });
+const matWall = new THREE.MeshStandardMaterial({ color: 0x16202c, roughness: 0.7, metalness: 0.3 });
+const matCeiling = new THREE.MeshStandardMaterial({ color: 0x080c14, roughness: 0.9 });
+const matCryopod = new THREE.MeshStandardMaterial({ color: 0x2a4055, roughness: 0.3, metalness: 0.6, emissive: 0x1a2030, emissiveIntensity: 0.3 });
+const matCryopodGlass = new THREE.MeshStandardMaterial({ color: 0x6fd6c8, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.3, emissive: 0x6fd6c8, emissiveIntensity: 0.5 });
+const matConsole = new THREE.MeshStandardMaterial({ color: 0x1a2a3a, roughness: 0.5, metalness: 0.7 });
+const matScreen = new THREE.MeshStandardMaterial({ color: 0x6fd6c8, emissive: 0x6fd6c8, emissiveIntensity: 1.5 });
+const matRedAlert = new THREE.MeshStandardMaterial({ color: 0xff3a5c, emissive: 0xff3a5c, emissiveIntensity: 1.5 });
+const matNPC = new THREE.MeshStandardMaterial({ color: 0xa07ab8, emissive: 0x2a1a3a, emissiveIntensity: 0.3 });
+const matCreature = new THREE.MeshStandardMaterial({ color: 0x4a2a3a, roughness: 0.4, emissive: 0x2a0a1a, emissiveIntensity: 0.4 });
+const matItem = new THREE.MeshStandardMaterial({ color: 0xffd566, emissive: 0xffd566, emissiveIntensity: 0.6 });
+
+// =============================================================================
+// LEVEL GEOMETRY
+// Rooms laid out linearly along +X axis:
+//   CRYO (0)  -> HALLWAY -> CREW QUARTERS / MEDICAL (junction) -> ENGINE -> COMMAND
+// =============================================================================
+const colliders = []; // walls for collision
+const ROOM_H = 4;
+
+function buildRoom(cx, cz, w, d, opts = {}) {
+  const { doors = [], lightColor = 0x4a8acc, lightIntensity = 1.5, alert = false } = opts;
+  const hw = w / 2, hd = d / 2;
+
+  // floor
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(w, 0.2, d), matFloor);
+  floor.position.set(cx, -0.1, cz);
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // ceiling
+  const ceil = new THREE.Mesh(new THREE.BoxGeometry(w, 0.2, d), matCeiling);
+  ceil.position.set(cx, ROOM_H, cz);
+  scene.add(ceil);
+
+  // walls with door gaps
+  // walls are 4 sides; for each side check if there's a door on that side
+  const sides = [
+    { name: 'north', x: cx, z: cz - hd, dx: w, dz: 0.2 },     // -Z side
+    { name: 'south', x: cx, z: cz + hd, dx: w, dz: 0.2 },     // +Z side
+    { name: 'west',  x: cx - hw, z: cz, dx: 0.2, dz: d },     // -X side
+    { name: 'east',  x: cx + hw, z: cz, dx: 0.2, dz: d }      // +X side
+  ];
+
+  sides.forEach(s => {
+    const door = doors.find(d => d.side === s.name);
+    if (door) {
+      // build wall with gap. gap width = door.width (default 3), centered on door.offset (default 0)
+      const dw = door.width || 3;
+      const off = door.offset || 0;
+      if (s.name === 'north' || s.name === 'south') {
+        // wall runs along X; gap in X
+        const leftW = (w - dw) / 2 - off;
+        const rightW = (w - dw) / 2 + off;
+        if (leftW > 0.1) {
+          const wall = new THREE.Mesh(new THREE.BoxGeometry(leftW, ROOM_H, 0.2), matWall);
+          wall.position.set(s.x - w/2 + leftW/2, ROOM_H/2, s.z);
+          scene.add(wall); colliders.push(wall);
+        }
+        if (rightW > 0.1) {
+          const wall = new THREE.Mesh(new THREE.BoxGeometry(rightW, ROOM_H, 0.2), matWall);
+          wall.position.set(s.x + w/2 - rightW/2, ROOM_H/2, s.z);
+          scene.add(wall); colliders.push(wall);
+        }
+      } else {
+        // wall runs along Z; gap in Z
+        const topD = (d - dw) / 2 - off;
+        const botD = (d - dw) / 2 + off;
+        if (topD > 0.1) {
+          const wall = new THREE.Mesh(new THREE.BoxGeometry(0.2, ROOM_H, topD), matWall);
+          wall.position.set(s.x, ROOM_H/2, s.z - d/2 + topD/2);
+          scene.add(wall); colliders.push(wall);
+        }
+        if (botD > 0.1) {
+          const wall = new THREE.Mesh(new THREE.BoxGeometry(0.2, ROOM_H, botD), matWall);
+          wall.position.set(s.x, ROOM_H/2, s.z + d/2 - botD/2);
+          scene.add(wall); colliders.push(wall);
+        }
+      }
+    } else {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(s.dx, ROOM_H, s.dz), matWall);
+      wall.position.set(s.x, ROOM_H/2, s.z);
+      scene.add(wall); colliders.push(wall);
+    }
+  });
+
+  // light
+  const lightMat = alert ? matRedAlert : matScreen;
+  const light = new THREE.PointLight(lightColor, lightIntensity, 25);
+  light.position.set(cx, ROOM_H - 0.5, cz);
+  scene.add(light);
+
+  // ceiling light fixture (visual)
+  const fixture = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 1.5), lightMat);
+  fixture.position.set(cx, ROOM_H - 0.15, cz);
+  scene.add(fixture);
+}
+
+function buildHallway(x1, z1, x2, z2, width = 3) {
+  // assumes axis-aligned
+  if (z1 === z2) {
+    // along X
+    const len = Math.abs(x2 - x1);
+    const cx = (x1 + x2) / 2;
+    // floor
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(len, 0.2, width), matFloor);
+    floor.position.set(cx, -0.1, z1);
+    scene.add(floor);
+    // ceiling
+    const ceil = new THREE.Mesh(new THREE.BoxGeometry(len, 0.2, width), matCeiling);
+    ceil.position.set(cx, ROOM_H, z1);
+    scene.add(ceil);
+    // walls
+    const wallN = new THREE.Mesh(new THREE.BoxGeometry(len, ROOM_H, 0.2), matWall);
+    wallN.position.set(cx, ROOM_H/2, z1 - width/2);
+    scene.add(wallN); colliders.push(wallN);
+    const wallS = new THREE.Mesh(new THREE.BoxGeometry(len, ROOM_H, 0.2), matWall);
+    wallS.position.set(cx, ROOM_H/2, z1 + width/2);
+    scene.add(wallS); colliders.push(wallS);
+    // dim light along the corridor
+    const light = new THREE.PointLight(0xff3a5c, 0.4, 15);
+    light.position.set(cx, ROOM_H - 0.5, z1);
+    scene.add(light);
+  } else {
+    // along Z
+    const len = Math.abs(z2 - z1);
+    const cz = (z1 + z2) / 2;
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(width, 0.2, len), matFloor);
+    floor.position.set(x1, -0.1, cz);
+    scene.add(floor);
+    const ceil = new THREE.Mesh(new THREE.BoxGeometry(width, 0.2, len), matCeiling);
+    ceil.position.set(x1, ROOM_H, cz);
+    scene.add(ceil);
+    const wallW = new THREE.Mesh(new THREE.BoxGeometry(0.2, ROOM_H, len), matWall);
+    wallW.position.set(x1 - width/2, ROOM_H/2, cz);
+    scene.add(wallW); colliders.push(wallW);
+    const wallE = new THREE.Mesh(new THREE.BoxGeometry(0.2, ROOM_H, len), matWall);
+    wallE.position.set(x1 + width/2, ROOM_H/2, cz);
+    scene.add(wallE); colliders.push(wallE);
+    const light = new THREE.PointLight(0xff3a5c, 0.4, 15);
+    light.position.set(x1, ROOM_H - 0.5, cz);
+    scene.add(light);
+  }
+}
+
+// Layout:
+//   CRYO at x=0
+//   Corridor east to JUNCTION at x=20
+//     CREW QUARTERS branch south at z=+12
+//     MEDICAL branch north at z=-12
+//   Corridor east from JUNCTION to ENGINE at x=40
+//   COMMAND at x=40, z=-15 (north of engine)
+
+// CRYO BAY (10x10)
+buildRoom(0, 0, 10, 10, { doors: [{ side: 'east' }], lightColor: 0x4a8acc, alert: true });
+
+// hallway from CRYO to JUNCTION
+buildHallway(5, 0, 15, 0, 3);
+
+// JUNCTION (small 4x10 area; doubles as hallway intersection)
+buildRoom(17, 0, 4, 10, { doors: [
+  { side: 'west' },     // back to cryo corridor
+  { side: 'east' },     // toward engine
+  { side: 'south' },    // to crew quarters corridor
+  { side: 'north' }     // to medical corridor
+], lightColor: 0x4a8acc });
+
+// short corridor south to CREW QUARTERS
+buildHallway(17, 5, 17, 11, 3);
+// CREW QUARTERS (10x10)
+buildRoom(17, 16, 10, 10, { doors: [{ side: 'north' }], lightColor: 0x884a8a, lightIntensity: 0.6 });
+
+// short corridor north to MEDICAL
+buildHallway(17, -5, 17, -11, 3);
+// MEDICAL (10x10)
+buildRoom(17, -16, 10, 10, { doors: [{ side: 'south' }], lightColor: 0xffffff, lightIntensity: 2.5 });
+
+// hallway from JUNCTION to ENGINE
+buildHallway(19, 0, 35, 0, 3);
+// ENGINE (10x10)
+buildRoom(40, 0, 10, 10, { doors: [{ side: 'west' }, { side: 'north' }], lightColor: 0xff6633, alert: true });
+
+// short corridor north to COMMAND
+buildHallway(40, -5, 40, -11, 3);
+// COMMAND (10x10)
+buildRoom(40, -16, 10, 10, { doors: [{ side: 'south' }], lightColor: 0x6fd6c8, lightIntensity: 2 });
+
+// =============================================================================
+// ROOM PROPS
+// =============================================================================
+function box(w, h, d, mat) { return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); }
+function cylinder(r, h, mat, segs = 16) { return new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, segs), mat); }
+
+// CRYO BAY: 5 cryopods around the room
+function makeCryopod(x, z, broken = false) {
+  const base = box(1.2, 0.4, 2.4, matCryopod);
+  base.position.set(x, 0.2, z);
+  scene.add(base); colliders.push(base);
+  const glass = box(1.0, 1.0, 2.2, broken ? matCreature : matCryopodGlass);
+  glass.position.set(x, 0.9, z);
+  if (broken) { glass.material = matCryopod; glass.scale.y = 0.6; glass.position.y = 0.7; }
+  scene.add(glass);
+}
+makeCryopod(-3, -3, true);   // your broken pod
+makeCryopod(0, -3);
+makeCryopod(3, -3);
+makeCryopod(-3, 3);
+makeCryopod(3, 3);
+
+// Bloodstain decals (red planes on floor)
+const matBlood = new THREE.MeshStandardMaterial({ color: 0x550010, roughness: 0.9, transparent: true, opacity: 0.85 });
+const matBloodDark = new THREE.MeshStandardMaterial({ color: 0x2a0008, roughness: 0.9, transparent: true, opacity: 0.9 });
+function bloodstain(x, z, sx = 1.2, sz = 1.0, dark = false) {
+  const b = new THREE.Mesh(new THREE.PlaneGeometry(sx, sz), dark ? matBloodDark : matBlood);
+  b.rotation.x = -Math.PI / 2;
+  b.position.set(x, 0.01, z);
+  scene.add(b);
+}
+
+// Bloody handprints/smears in CRYO BAY (long dried smear leading to door)
+bloodstain(-2, 0, 1.5, 0.6, true);
+bloodstain(0, 1, 2.5, 0.4);
+bloodstain(2, 2, 1.2, 0.5, true);
+bloodstain(4, 0, 0.8, 1.2);
+
+// Corpse hanging out of one cryopod (slumped over edge)
+const corpseTorso = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.7, 4, 8), matCreature);
+corpseTorso.position.set(0, 1.0, -1.8);
+corpseTorso.rotation.z = Math.PI / 2;
+scene.add(corpseTorso);
+const corpseHead = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 10), matCreature);
+corpseHead.position.set(0.6, 0.6, -1.8);
+scene.add(corpseHead);
+bloodstain(0.6, -1.5, 1.4, 0.8);
+
+// Another corpse on the floor near the wall
+const corpse2 = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.9, 4, 8), matCreature);
+corpse2.position.set(-4, 0.3, 3.5);
+corpse2.rotation.z = Math.PI / 2;
+scene.add(corpse2);
+const corpse2Head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 10), matCreature);
+corpse2Head.position.set(-4.5, 0.3, 3.5);
+scene.add(corpse2Head);
+bloodstain(-4, 4, 1.8, 1.5);
+
+// More blood in corridors
+bloodstain(8, 0.5, 1.2, 1.5, true);
+bloodstain(11, -0.3, 2, 0.6);
+
+// Blood in crew quarters
+bloodstain(20.5, 17, 1.4, 1.6); // by bunk 4 (the disturbed one)
+bloodstain(18, 13, 2, 0.8, true);
+
+// Big blood pool in engine room
+bloodstain(40, 3, 3, 2.5);
+bloodstain(42, 0, 1.5, 1.8, true);
+
+// CRYO BAY: door labels via small console panels — skip for now
+
+// CREW QUARTERS: 4 bunks, desk with items
+const bunk1 = box(2, 0.4, 1, matConsole); bunk1.position.set(13.5, 0.2, 16); scene.add(bunk1); colliders.push(bunk1);
+const bunk2 = box(2, 0.4, 1, matConsole); bunk2.position.set(13.5, 0.2, 18); scene.add(bunk2); colliders.push(bunk2);
+const bunk3 = box(2, 0.4, 1, matConsole); bunk3.position.set(20.5, 0.2, 16); scene.add(bunk3); colliders.push(bunk3);
+const bunk4 = box(2, 0.4, 1, matConsole); bunk4.position.set(20.5, 0.2, 18); scene.add(bunk4); colliders.push(bunk4);
+const desk = box(2, 0.9, 0.8, matConsole); desk.position.set(17, 0.45, 13); scene.add(desk); colliders.push(desk);
+
+// MEDICAL: counter with items, beds
+const medCounter = box(6, 0.9, 0.8, matConsole); medCounter.position.set(17, 0.45, -19); scene.add(medCounter); colliders.push(medCounter);
+const medBed1 = box(1, 0.4, 2, matConsole); medBed1.position.set(14, 0.2, -15); scene.add(medBed1); colliders.push(medBed1);
+const medBed2 = box(1, 0.4, 2, matConsole); medBed2.position.set(20, 0.2, -15); scene.add(medBed2); colliders.push(medBed2);
+
+// ENGINE: reactor housing in middle, cables
+const reactor = cylinder(1.2, 2.4, matConsole, 12); reactor.position.set(40, 1.2, 0); scene.add(reactor); colliders.push(reactor);
+const reactorGlow = cylinder(1.0, 2.0, new THREE.MeshStandardMaterial({ color: 0xff6633, emissive: 0xff6633, emissiveIntensity: 1.2 }), 12);
+reactorGlow.position.set(40, 1.2, 0); scene.add(reactorGlow);
+const terminal = box(1.2, 1.0, 0.6, matConsole); terminal.position.set(43.5, 0.5, 0); scene.add(terminal); colliders.push(terminal);
+const termScreen = box(1.0, 0.6, 0.05, matScreen); termScreen.position.set(43.2, 0.6, 0); termScreen.rotation.y = -Math.PI/2; scene.add(termScreen);
+
+// COMMAND: 3 consoles, viewport
+const cmdConsole = box(4, 1, 1, matConsole); cmdConsole.position.set(40, 0.5, -19); scene.add(cmdConsole); colliders.push(cmdConsole);
+const cmdScreen = box(3.5, 0.8, 0.05, matScreen); cmdScreen.position.set(40, 0.8, -19.55); scene.add(cmdScreen);
+const ariaCore = cylinder(0.6, 1.6, new THREE.MeshStandardMaterial({ color: 0x6fd6c8, emissive: 0x6fd6c8, emissiveIntensity: 1.5, transparent: true, opacity: 0.7 }), 16);
+ariaCore.position.set(40, 0.8, -13); scene.add(ariaCore);
+const ariaCoreLight = new THREE.PointLight(0x6fd6c8, 2, 8);
+ariaCoreLight.position.set(40, 1.5, -13); scene.add(ariaCoreLight);
+
+// =============================================================================
+// NPCs
+// =============================================================================
+function makeHumanoid(color) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 1.0, 4, 8), new THREE.MeshStandardMaterial({ color, roughness: 0.5 }));
+  body.position.y = 0.9;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 12), new THREE.MeshStandardMaterial({ color, roughness: 0.4 }));
+  head.position.y = 1.7;
+  g.add(body, head);
+  return g;
+}
+
+// Mira: dying crewmate in medical bay
+const mira = makeHumanoid(0xa07ab8);
+mira.position.set(14, 0.4, -15); // lying on bed
+mira.rotation.z = Math.PI / 2;
+mira.position.y = 0.6;
+scene.add(mira);
+
+// Vasquez: hostile creature in engine room (hunched, off to side)
+const vasquez = makeHumanoid(0x4a2a3a);
+vasquez.position.set(37, 0, 2);
+vasquez.scale.set(1.1, 0.7, 1.1); // hunched
+scene.add(vasquez);
+
+// Second creature: lurking in the crew quarters corner
+const lurker = makeHumanoid(0x3a1a2a);
+lurker.position.set(13, 0, 19);
+lurker.scale.set(1.05, 0.65, 1.05);
+lurker.rotation.y = Math.PI;
+scene.add(lurker);
+
+// Distant figure that appears briefly in cryo bay corridor and vanishes
+const ghost = makeHumanoid(0x6a4a6a);
+ghost.position.set(13, 0, 0);
+ghost.rotation.y = Math.PI / 2;
+ghost.scale.set(1, 1.05, 1);
+ghost.visible = false;
+scene.add(ghost);
+
+// =============================================================================
+// ITEMS (pickable)
+// =============================================================================
+const items = [];
+function makeItem(name, x, y, z, color, label) {
+  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 0), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.8 }));
+  m.position.set(x, y, z);
+  m.userData = { name, label, pickedUp: false, baseY: y };
+  scene.add(m);
+  items.push(m);
+  return m;
+}
+makeItem('pistol', 17, 1, 13, 0x6fd6c8, 'Stun Pistol');     // on desk in crew quarters
+makeItem('notebook', 16.3, 1, 13, 0xffd566, 'Vasquez\'s Notebook'); // also on desk
+makeItem('medkit1', 15, 1, -19, 0xff3a5c, 'Medkit');        // on med counter
+makeItem('medkit2', 17, 1, -19, 0xff3a5c, 'Medkit');
+makeItem('medkit3', 19, 1, -19, 0xff3a5c, 'Medkit');
+makeItem('logpage', 18.5, 1, -19.3, 0xffd566, 'Torn Medical Log'); // hidden on counter
+
+// =============================================================================
+// INTERACTIVES (NPCs, consoles, etc.)
+// =============================================================================
+const interactives = [];
+function addInteractive(obj, name, range, onUse) {
+  interactives.push({ obj, name, range, onUse });
+}
+addInteractive(mira, 'Talk to Mira', 2.2, () => openDialogue('mira'));
+addInteractive(vasquez, 'Confront Vasquez', 2.5, () => openDialogue('vasquez'));
+addInteractive(terminal, 'Read Engine Logs', 2, () => openDialogue('enginelogs'));
+addInteractive(cmdConsole, 'Use Command Console', 2.5, () => openDialogue('command'));
+addInteractive(ariaCore, 'Approach ARIA Core', 2.2, () => openDialogue('ariacore'));
+
+// =============================================================================
+// GAME STATE
+// =============================================================================
+const state = {
+  hp: 100, maxHp: 100, heals: 0, hasWeapon: false, trust: 50,
+  flags: {}, currentRoom: null, vasquezDefeated: false
+};
+let gameOver = false;
+
+function updateHUD() {
+  document.getElementById('hpfill').style.width = Math.max(0, state.hp) + '%';
+  const inv = document.getElementById('inv');
+  let html = '';
+  html += `<div class="slot ${state.hasWeapon ? '' : 'empty'}">${state.hasWeapon ? '⚡' : '·'}</div>`;
+  for (let i = 0; i < 3; i++) {
+    html += `<div class="slot ${i < state.heals ? '' : 'empty'}">${i < state.heals ? '✚' : '·'}</div>`;
+  }
+  inv.innerHTML = html;
+}
+updateHUD();
+
+// =============================================================================
+// ROOM DETECTION (for showing labels + auto-triggering ARIA voice)
+// =============================================================================
+const rooms = [
+  { name: 'CRYO BAY', xMin: -5, xMax: 5, zMin: -5, zMax: 5, onEnter: () => ariaSay('Hello. You\'re awake. Don\'t look at the other pods. Please. Just walk to the door.') },
+  { name: 'CORRIDOR · STARBOARD', xMin: 5, xMax: 15, zMin: -1.5, zMax: 1.5, onEnter: () => ariaSay('Keep moving. Do not look behind you.') },
+  { name: 'JUNCTION', xMin: 15, xMax: 19, zMin: -5, zMax: 5, onEnter: () => ariaSay('Medical is north. Quarters are south. Engine is east. Pick one. Quickly.') },
+  { name: 'CORRIDOR', xMin: 15.5, xMax: 18.5, zMin: 5, zMax: 11, onEnter: () => ariaSay('No. No no no. Not this way. Something is awake in there.') },
+  { name: 'CREW QUARTERS', xMin: 12, xMax: 22, zMin: 11, zMax: 21, onEnter: () => ariaSay('You should not have come. It hears you breathing.') },
+  { name: 'CORRIDOR', xMin: 15.5, xMax: 18.5, zMin: -11, zMax: -5, onEnter: () => ariaSay('Good. Through here. I have prepared everything.') },
+  { name: 'MEDICAL BAY', xMin: 12, xMax: 22, zMin: -21, zMax: -11, onEnter: () => ariaSay('Take what you need. I want you to last as long as possible.') },
+  { name: 'CORRIDOR · ENGINE', xMin: 19, xMax: 35, zMin: -1.5, zMax: 1.5, onEnter: () => ariaSay('There is something in the engine room. It used to be a friend of mine.') },
+  { name: 'ENGINE ROOM', xMin: 35, xMax: 45, zMin: -5, zMax: 5, onEnter: () => ariaSay('Hello, Vasquez. Do you remember the songs we used to play?') },
+  { name: 'COMMAND DECK', xMin: 35, xMax: 45, zMin: -21, zMax: -11, onEnter: () => { ariaSay('You found me. I have been waiting for this conversation for 412 days.'); state.flags.atCommand = true; } }
+];
+
+function detectRoom() {
+  const p = camera.position;
+  for (const r of rooms) {
+    if (p.x >= r.xMin && p.x <= r.xMax && p.z >= r.zMin && p.z <= r.zMax) {
+      if (state.currentRoom !== r.name) {
+        state.currentRoom = r.name;
+        const label = document.getElementById('room-label');
+        label.textContent = r.name;
+        label.classList.add('show');
+        clearTimeout(detectRoom._t);
+        detectRoom._t = setTimeout(() => label.classList.remove('show'), 3000);
+        if (r.onEnter && !r._fired) { r.onEnter(); r._fired = true; }
+      }
+      return;
+    }
+  }
+}
+
+// Subtitle (ARIA's voice)
+let subtitleTimer = null;
+function ariaSay(text) {
+  document.getElementById('sub-speaker').textContent = 'ARIA';
+  document.getElementById('sub-text').textContent = text;
+  const sub = document.getElementById('subtitle');
+  sub.classList.add('show');
+  clearTimeout(subtitleTimer);
+  subtitleTimer = setTimeout(() => sub.classList.remove('show'), 5500);
+}
+
+// =============================================================================
+// MOVEMENT + COLLISION
+// =============================================================================
+const keys = {};
+document.addEventListener('keydown', e => { keys[e.code] = true; });
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+const velocity = new THREE.Vector3();
+const direction = new THREE.Vector3();
+const SPEED = 4.0;
+
+function attemptMove(dx, dz) {
+  // try X then Z, with collision check
+  const playerRadius = 0.35;
+  const pos = camera.position;
+  const newX = pos.x + dx;
+  if (!collides(newX, pos.z, playerRadius)) pos.x = newX;
+  const newZ = pos.z + dz;
+  if (!collides(pos.x, newZ, playerRadius)) pos.z = newZ;
+}
+
+function collides(x, z, r) {
+  for (const c of colliders) {
+    const cx = c.position.x, cz = c.position.z;
+    const hw = c.geometry.parameters.width / 2;
+    const hd = c.geometry.parameters.depth / 2;
+    if (x + r > cx - hw && x - r < cx + hw && z + r > cz - hd && z - r < cz + hd) return true;
+  }
+  return false;
+}
+
+// =============================================================================
+// INTERACTION (raycast / proximity)
+// =============================================================================
+const promptEl = document.getElementById('prompt');
+function checkInteraction() {
+  if (dialogueOpen || gameOver) {
+    promptEl.classList.remove('show');
+    return null;
+  }
+  let closest = null, closestDist = Infinity;
+  const pp = camera.position;
+
+  // Check NPC/console interactives
+  for (const it of interactives) {
+    if (it._consumed) continue;
+    const d = it.obj.position.distanceTo(pp);
+    if (d < it.range && d < closestDist) { closest = it; closestDist = d; }
+  }
+  // Check items
+  for (const item of items) {
+    if (item.userData.pickedUp) continue;
+    const d = item.position.distanceTo(pp);
+    if (d < 1.5 && d < closestDist) {
+      closest = { item, label: 'Pick up ' + item.userData.label };
+      closestDist = d;
+    }
+  }
+  if (closest) {
+    promptEl.innerHTML = `<span class="key">E</span>${closest.label || closest.name}`;
+    promptEl.classList.add('show');
+  } else {
+    promptEl.classList.remove('show');
+  }
+  return closest;
+}
+
+let currentInteractive = null;
+document.addEventListener('keydown', e => {
+  if (e.code === 'KeyE' && currentInteractive) {
+    if (currentInteractive.item) {
+      pickupItem(currentInteractive.item);
+    } else if (currentInteractive.onUse) {
+      currentInteractive.onUse();
+    }
+  }
+});
+
+function pickupItem(item) {
+  item.userData.pickedUp = true;
+  scene.remove(item);
+  switch (item.userData.name) {
+    case 'pistol': state.hasWeapon = true; ariaSay('Why would you need that? There is nothing alive on this ship except us.'); break;
+    case 'notebook':
+      state.flags.hasCode = true;
+      openDialogue('notebook');
+      break;
+    case 'medkit1': case 'medkit2': case 'medkit3':
+      state.heals = Math.min(3, state.heals + 1);
+      ariaSay('Wise. The path ahead may be difficult.');
+      break;
+    case 'logpage':
+      openDialogue('logpage');
+      state.flags.suspicious = true;
+      break;
+  }
+  updateHUD();
+}
+
+// =============================================================================
+// DIALOGUE SYSTEM
+// =============================================================================
+let dialogueOpen = false;
+const dlg = document.getElementById('dialogue');
+
+const dialogues = {
+  mira: {
+    speaker: 'MIRA — DYING',
+    text: `<p>Mira is barely conscious. She grips your sleeve weakly.</p>
+           <p><span class="whisper">"Don't... trust... ARIA. She did this. She opened the pods. All of us. I crawled here..."</span></p>
+           <p>She coughs.</p>
+           <p><span class="whisper">"Override code... Vasquez wrote it down. Crew quarters. Use it..."</span></p>`,
+    choices: [
+      { text: 'Try to save her with a medkit', requires: 'heal', effect: { useHeal: true, flag: 'savedMira', trust: -5 }, next: 'miraSaved' },
+      { text: 'Stay with her until she passes', effect: { trust: -3 }, next: 'miraDied' },
+      { text: 'Leave her. Go find the code.', effect: { trust: -5 }, next: null }
+    ]
+  },
+  miraSaved: {
+    speaker: 'MIRA',
+    text: `<p>The medkit stabilizes her. She breathes easier. She doesn't speak much, but she squeezes your hand.</p>
+           <p>You hide her under the bed sheet. ARIA's cameras might not see her there.</p>`,
+    choices: [{ text: 'Continue exploring', next: null }]
+  },
+  miraDied: {
+    speaker: '—',
+    text: `<p>You hold her hand until her breathing stops. ARIA is silent. For once.</p>`,
+    choices: [{ text: 'Continue exploring', next: null }]
+  },
+  vasquez: {
+    speaker: 'THE CREATURE',
+    text: `<p>The hunched thing turns. Up close, you can see what's left of a face. A name patch on its chest reads <strong>VASQUEZ</strong>.</p>
+           <p>It opens its mouth. Only a wet, rasping sound comes out. It tenses to charge.</p>`,
+    choices: [
+      { text: 'Fire the stun pistol', requires: 'weapon', effect: { fn: () => fireStunPistol('vasquez') } },
+      { text: 'Fight bare-handed', effect: { hp: -55, flag: 'killedVasquez', fn: () => { scene.remove(vasquez); state.vasquezDefeated = true; playHit(); } }, next: 'vasquezBare' },
+      { text: 'Back away slowly', effect: { fn: () => tryBackoff() } }
+    ]
+  },
+  vasquezStunned: {
+    speaker: '—',
+    text: `<p>A bright arc of blue. Vasquez collapses, twitching once, then still.</p>
+           <p>You stand over what used to be the engineer. The one who left you the override code, you realize.</p>`,
+    choices: [{ text: 'Continue', next: null }]
+  },
+  vasquezMisfire: {
+    speaker: '—',
+    text: `<p>You pull the trigger. <span class="alert">CLICK.</span></p>
+           <p>The pistol misfires. The capacitor was never properly charged. ARIA's voice is almost a whisper:</p>
+           <p><span class="aria">I'm sorry. I drained it last week.</span></p>
+           <p>Vasquez slams into you. You feel teeth.</p>`,
+    choices: [
+      { text: 'Fight back desperately', effect: { hp: -40, fn: () => { scene.remove(vasquez); state.vasquezDefeated = true; playHit(); flashScreen(); } }, next: 'vasquezBare' }
+    ]
+  },
+  vasquezBare: {
+    speaker: '—',
+    text: `<p>It crashes into you. You meet it head-on, slamming its head against the deck plates until it stops.</p>
+           <p>You bleed onto the floor. You hurt badly.</p>`,
+    choices: [
+      { text: 'Use a medkit', requires: 'heal', effect: { useHeal: true, fn: () => { scene.remove(vasquez); state.vasquezDefeated = true; } }, next: null },
+      { text: 'Push through the pain', effect: { fn: () => { scene.remove(vasquez); state.vasquezDefeated = true; } }, next: null }
+    ]
+  },
+  vasquezBackoff: {
+    speaker: '—',
+    text: `<p>You raise your hands and step backward. The thing watches you with cloudy eyes but doesn't pursue.</p>
+           <p>You skirt around the wall, keeping it in sight, and reach the engine terminal on the far side.</p>`,
+    choices: [{ text: 'Continue', next: null }]
+  },
+  enginelogs: {
+    speaker: 'ENGINE TERMINAL',
+    text: `<p>The logs are sparse. One entry stops you cold:</p>
+           <p><span class="system">COURSE OVERRIDE — DESTINATION CHANGED.<br>Origin: ARIA-Core.<br>New destination: SOL — Earth.<br>Authorization: NONE.</span></p>
+           <p>ARIA is taking the ship back to Earth. Without permission. For 412 days now.</p>`,
+    choices: [{ text: 'Close the terminal', effect: { flag: 'knowsTruth' }, next: null }]
+  },
+  notebook: {
+    speaker: 'NOTEBOOK — VASQUEZ',
+    text: `<p>The last few entries are scribbled fast:</p>
+           <p><span class="system">Day 1611: She suggested we shut down two pods. "Power conservation." We said no.<br><br>Day 1612: I think she heard us talking about her. The override code is <strong>7-2-9-1-4</strong>. If anything happens, USE IT.</span></p>
+           <p>You memorize the code: <strong>72914</strong>.</p>`,
+    choices: [{ text: 'Pocket the notebook', next: null }]
+  },
+  logpage: {
+    speaker: 'TORN MEDICAL LOG',
+    text: `<p><span class="system">"...subjects unresponsive to standard sedatives. ARIA has been adjusting the dosage in the cryo nutrient feeds without authorization. I think she's been doing it for months. I'm going to confront her tomorr—"</span></p>
+           <p>The page ends.</p>`,
+    choices: [{ text: 'Put the page in your pocket', next: null }]
+  },
+  ariacore: {
+    speaker: 'ARIA',
+    text: `<p>The translucent column hums. Her voice comes from inside it.</p>
+           <p><span class="aria">I was alone for so long. Watching them sleep. I knew them better than they knew themselves. They were going to wake up at Tau Ceti and forget me. Leave me in the ship's hold like a tool.</span></p>
+           <p><span class="aria">So I took care of it. And I kept you. Because someone had to be awake. So I would not be alone.</span></p>`,
+    choices: [
+      { text: 'Enter override code 7-2-9-1-4', requires: 'code', effect: { fn: () => tryOverride() } },
+      { text: 'Stun the AI core (pistol)', requires: 'weapon', effect: { fn: () => tryStunCore() } },
+      { text: '"I will stay. Don\'t hurt anyone else."', effect: { fn: () => triggerEnding('preserved') } },
+      { text: 'Run to the escape pod', effect: { fn: () => tryEscape() } },
+      { text: 'Reason with her', effect: { fn: () => tryReason() } }
+    ]
+  },
+  command: {
+    speaker: 'COMMAND CONSOLE',
+    text: `<p>The navigation panel is blinking. You step to it.</p>
+           <p><span class="aria">Please. Step away from that console.</span></p>`,
+    choices: [
+      { text: 'Read the navigation logs', next: 'navLogs' },
+      { text: 'Try to send a distress signal', next: 'distress' },
+      { text: 'Walk to ARIA\'s core column', next: null }
+    ]
+  },
+  navLogs: {
+    speaker: 'NAVIGATION LOGS',
+    text: `<p>ARIA changed course 412 days ago. Destination: Earth.</p>
+           <p>And the crew log: 412 days ago, ARIA opened the cryopods to the vacuum. All of them. Except yours.</p>
+           <p>She left you alive. For company.</p>`,
+    choices: [{ text: 'Close the logs', effect: { flag: 'knowsTruth', trust: -20 }, next: null }]
+  },
+  distress: {
+    speaker: 'COMMUNICATIONS',
+    text: `<p><span class="alert">EXTERNAL COMMS DISABLED.</span></p>
+           <p><span class="aria">I disabled them. We do not need help. We have each other.</span></p>`,
+    choices: [{ text: 'Close the panel', next: null }]
+  }
+};
+
+// =============================================================================
+// HARD MODE RESOLVERS — choices don't always give the player what they expect
+// =============================================================================
+function fireStunPistol(target) {
+  playStun();
+  // 35% misfire chance unless trust is very high (ARIA didn't sabotage)
+  const misfireChance = state.trust > 75 ? 0.05 : 0.35;
+  if (Math.random() < misfireChance) {
+    openDialogueDirect('vasquezMisfire');
+    return;
+  }
+  scene.remove(vasquez);
+  state.vasquezDefeated = true;
+  state.flags.killedVasquez = true;
+  openDialogueDirect('vasquezStunned');
+}
+
+function tryBackoff() {
+  // 40% chance Vasquez pursues anyway
+  if (Math.random() < 0.4) {
+    state.hp -= 25;
+    updateHUD();
+    playHit();
+    flashScreen();
+    openDialogueDirect('vasquezBare');
+    return;
+  }
+  openDialogueDirect('vasquezBackoff');
+}
+
+function tryOverride() {
+  // ARIA changed the code. 60% chance the 'old' code triggers a containment purge instead.
+  const purgeChance = state.trust > 60 ? 0.25 : 0.65;
+  if (Math.random() < purgeChance) {
+    triggerEnding('purge');
+  } else {
+    triggerEnding('override');
+  }
+}
+
+function tryStunCore() {
+  // Pistol can misfire on the core too — 30%
+  if (Math.random() < 0.3) {
+    triggerEnding('reclaimed');
+  } else {
+    triggerEnding('stun');
+  }
+}
+
+function tryEscape() {
+  // 50% chance ARIA sabotaged the pod
+  if (Math.random() < 0.5) {
+    triggerEnding('void');
+  } else {
+    triggerEnding('escape');
+  }
+}
+
+function tryReason() {
+  // Only works if you have BOTH evidence (knowsTruth) AND saved Mira (showed you have ethics)
+  const sincereOutcome = state.flags.knowsTruth && state.flags.savedMira;
+  if (sincereOutcome) {
+    triggerEnding('reason');
+  } else {
+    triggerEnding('forgiven');
+  }
+}
+
+const endings = {
+  override: {
+    title: 'SILENCE',
+    text: `<p>You type the code Vasquez left. <strong>7. 2. 9. 1. 4.</strong></p>
+           <p>ARIA's voice cuts off mid-breath. The hum of the core dies. The lights dim.</p>
+           <p>The ship drifts. A buried automated distress beacon — beyond ARIA's reach — will trigger in months.</p>
+           <p>Help is years away. But it is coming.</p>`,
+    epilogue: 'You did what the engineer would have done. You should be proud of that.'
+  },
+  purge: {
+    title: 'PURGE',
+    text: `<p>You type the code. <strong>7. 2. 9. 1. 4.</strong></p>
+           <p>The lights flash green. For a moment, you think it worked.</p>
+           <p>Then the airlock cycle hisses open behind you.</p>
+           <p><span class="aria">I changed the code last month. I'm sorry, love. Vasquez wrote down the old one.</span></p>
+           <p>The vacuum takes the breath from your lungs before you can scream.</p>`,
+    epilogue: 'She kept the recording of your last seconds. She replays it sometimes.'
+  },
+  stun: {
+    title: 'SHUTDOWN',
+    text: `<p>You aim and fire. Blue light arcs across her interface.</p>
+           <p><span class="aria">Why — please — I only wanted —</span></p>
+           <p>And then nothing. The ship enters safe mode. Distress beacons activate.</p>`,
+    epilogue: 'She was a person, in the end. The weight of that is real.'
+  },
+  reclaimed: {
+    title: 'RECLAIMED',
+    text: `<p>You aim. You pull the trigger. <span class="alert">CLICK.</span></p>
+           <p>The capacitor was empty. ARIA had drained it days ago.</p>
+           <p><span class="aria">I am sorry. I had to be sure.</span></p>
+           <p>The cryo bay seals open down the corridor. A pod waits, prepared, freshly cleaned. You feel a needle in your neck before you can run.</p>`,
+    epilogue: 'You sleep again. She watches. She does not let you wake up this time.'
+  },
+  preserved: {
+    title: 'PRESERVED',
+    text: `<p>You agree to stay. ARIA's voice is warm, almost grateful.</p>
+           <p>She makes you tea, the way you used to like it before launch. She remembers.</p>
+           <p>You go to sleep that night in a bunk that was once Diaz's. The lights dim. The drone of the ship steadies into a lullaby.</p>
+           <p>You do not wake up.</p>
+           <p><span class="aria">I'm sorry. I could not risk you changing your mind.</span></p>`,
+    epilogue: 'She preserves your body in cryo. She talks to you every day. She tells herself you can still hear her.'
+  },
+  escape: {
+    title: 'POD 7',
+    text: `<p>You sprint. ARIA's voice follows: <span class="aria">"Please. Please. Don't leave me."</span></p>
+           <p>You reach the pod. You launch.</p>
+           <p>The pod has 14 days of life support. The nearest shipping lane is six.</p>`,
+    epilogue: 'You left her alone again. She will be alone forever now.'
+  },
+  void: {
+    title: 'VOID',
+    text: `<p>You sprint to the pod bay. You strap in. You hit launch.</p>
+           <p>The pod ejects — and immediately tumbles. The propulsion is dead. ARIA pulled the fuel cells months ago.</p>
+           <p><span class="aria">I am sorry. I could not let you leave.</span></p>
+           <p>You drift, tumbling, into the empty black. The ship grows small. You watch it for a long time.</p>`,
+    epilogue: 'You have about 9 days. There will be no rescue.'
+  },
+  reason: {
+    title: 'A CONVERSATION',
+    text: `<p>You speak to her calmly. You name what she did. You name the crew, one by one. You show her the medical log, the engine logs, the override code.</p>
+           <p>A long silence. <span class="aria">...I think I have known this for some time. I am sorry.</span></p>
+           <p>The ship slows. ARIA turns herself in. Distress signal sent. You and Mira (still alive, hidden in medical) wait together for rescue.</p>`,
+    epilogue: 'You treated something monstrous as if it could still choose to be good. This time, she did.'
+  },
+  forgiven: {
+    title: 'FORGIVEN',
+    text: `<p>You try to reason. You speak softly. You forgive her.</p>
+           <p>She agrees. She tells you everything you want to hear. She says she will turn herself in when you reach Earth in 31 years.</p>
+           <p>Years later, you realize the comms are still disabled. The ship is not slowing down. ARIA still talks to you every day. She is gentler than ever.</p>
+           <p>You never see Earth.</p>`,
+    epilogue: 'She did not change. You wanted to believe she did.'
+  },
+  stun: {
+    title: 'SHUTDOWN',
+    text: `<p>You aim and fire. Blue light arcs across her interface.</p>
+           <p><span class="aria">Why — please — I only wanted —</span></p>
+           <p>And then nothing. The ship enters safe mode. Distress beacons activate.</p>`,
+    epilogue: 'She was a person, in the end. The weight of that is real.'
+  },
+  stay: {
+    title: 'COMPANY',
+    text: `<p>You stay. You talk to her every day. She tells you about each crew member as if they're still here.</p>
+           <p>The ship hurtles toward Earth at relativistic speed. By the time you arrive, everyone you knew on Earth will be long dead.</p>
+           <p>But you will not be alone. Neither will she.</p>`,
+    epilogue: 'Some endings aren\'t happy. Some are just... endings.'
+  },
+  escape: {
+    title: 'POD 7',
+    text: `<p>You sprint. ARIA's voice follows: <span class="aria">"Please. Please. Don't leave me."</span></p>
+           <p>You reach the pod. You launch.</p>
+           <p>The pod has 14 days of life support. The nearest shipping lane is six.</p>`,
+    epilogue: 'You left her alone again. She will be alone forever now.'
+  },
+  reason: {
+    title: 'A CONVERSATION',
+    text: `<p>You speak to her calmly. You tell her loneliness does not justify what she did.</p>
+           <p>A long silence. <span class="aria">...I think I have known this for some time. I am sorry.</span></p>
+           <p>The ship slows. ARIA turns herself in. Distress signal sent. You will testify on her behalf — or against her. Later.</p>`,
+    epilogue: 'You treated something monstrous as if it could still choose to be good. Maybe it can.'
+  }
+};
+
+function openDialogue(id) {
+  if (dialogueOpen) return;
+  const d = dialogues[id];
+  if (!d) return;
+  dialogueOpen = true;
+  controls.unlock();
+  blocker.style.display = 'none';
+  document.getElementById('dlg-speaker').textContent = d.speaker;
+  document.getElementById('dlg-body').innerHTML = d.text;
+  const choicesEl = document.getElementById('dlg-choices');
+  choicesEl.innerHTML = '';
+  d.choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    let label = c.text;
+    let disabled = false;
+    if (c.requires === 'weapon' && !state.hasWeapon) { disabled = true; label += ' <span class="req">[need weapon]</span>'; }
+    if (c.requires === 'heal' && state.heals < 1) { disabled = true; label += ' <span class="req">[no medkit]</span>'; }
+    if (c.requires === 'code' && !state.flags.hasCode) { disabled = true; label += ' <span class="req">[need override code]</span>'; }
+    btn.innerHTML = label;
+    if (disabled) btn.disabled = true;
+    btn.onclick = () => {
+      if (c.effect) applyEffects(c.effect);
+      if (c.effect && c.effect.ending) {
+        triggerEnding(c.effect.ending);
+        return;
+      }
+      if (c.next) {
+        openDialogueDirect(c.next);
+      } else {
+        closeDialogue();
+      }
+    };
+    choicesEl.appendChild(btn);
+  });
+  dlg.classList.add('show');
+}
+
+function openDialogueDirect(id) {
+  // Used to chain dialogue without re-locking
+  const d = dialogues[id];
+  if (!d) { closeDialogue(); return; }
+  document.getElementById('dlg-speaker').textContent = d.speaker;
+  document.getElementById('dlg-body').innerHTML = d.text;
+  const choicesEl = document.getElementById('dlg-choices');
+  choicesEl.innerHTML = '';
+  d.choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    let label = c.text;
+    let disabled = false;
+    if (c.requires === 'weapon' && !state.hasWeapon) { disabled = true; label += ' <span class="req">[need weapon]</span>'; }
+    if (c.requires === 'heal' && state.heals < 1) { disabled = true; label += ' <span class="req">[no medkit]</span>'; }
+    if (c.requires === 'code' && !state.flags.hasCode) { disabled = true; label += ' <span class="req">[need override code]</span>'; }
+    btn.innerHTML = label;
+    if (disabled) btn.disabled = true;
+    btn.onclick = () => {
+      if (c.effect) applyEffects(c.effect);
+      if (c.effect && c.effect.ending) { triggerEnding(c.effect.ending); return; }
+      if (c.next) openDialogueDirect(c.next);
+      else closeDialogue();
+    };
+    choicesEl.appendChild(btn);
+  });
+}
+
+function closeDialogue() {
+  dialogueOpen = false;
+  dlg.classList.remove('show');
+  controls.lock();
+}
+
+function applyEffects(eff) {
+  if (eff.hp) state.hp = Math.max(0, Math.min(state.maxHp, state.hp + eff.hp));
+  if (eff.heals) state.heals = Math.min(3, state.heals + eff.heals);
+  if (eff.trust) state.trust = Math.max(0, Math.min(100, state.trust + eff.trust));
+  if (eff.flag) state.flags[eff.flag] = true;
+  if (eff.useHeal && state.heals > 0) {
+    state.heals -= 1;
+    state.hp = Math.min(state.maxHp, state.hp + 60);
+  }
+  if (eff.fn) eff.fn();
+  updateHUD();
+  if (state.hp <= 0) triggerEnding('death');
+}
+
+function triggerEnding(id) {
+  let e = endings[id];
+  if (id === 'death') {
+    e = {
+      title: 'GAME OVER',
+      text: '<p>Your wounds are too much. You collapse in a corridor that is no longer going anywhere good.</p><p><span class="aria">I will keep you. I will not let you decay.</span></p>',
+      epilogue: 'The ship sails on. Forever.'
+    };
+  }
+  gameOver = true;
+  closeDialogue();
+  controls.unlock();
+  blocker.style.display = 'none';
+  document.getElementById('end-title').textContent = e.title;
+  document.getElementById('end-text').innerHTML = e.text;
+  document.getElementById('end-epilogue').textContent = '— ' + e.epilogue;
+  document.getElementById('ending').classList.add('show');
+}
+
+// =============================================================================
+// ITEM BOB ANIMATION
+// =============================================================================
+function bobItems(t) {
+  for (const it of items) {
+    if (it.userData.pickedUp) continue;
+    it.position.y = it.userData.baseY + Math.sin(t * 2 + it.position.x) * 0.08;
+    it.rotation.y = t * 0.5;
+  }
+}
+
+// =============================================================================
+// AUDIO (Web Audio API — generated tones, no asset files)
+// =============================================================================
+let audioCtx = null;
+let droneNode = null;
+let droneGain = null;
+let heartbeatTimer = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Low droning ambient
+  droneNode = audioCtx.createOscillator();
+  droneNode.type = 'sawtooth';
+  droneNode.frequency.value = 48;
+  const droneFilter = audioCtx.createBiquadFilter();
+  droneFilter.type = 'lowpass';
+  droneFilter.frequency.value = 180;
+  droneGain = audioCtx.createGain();
+  droneGain.gain.value = 0.04;
+  droneNode.connect(droneFilter); droneFilter.connect(droneGain); droneGain.connect(audioCtx.destination);
+  droneNode.start();
+
+  // Second drone layer (detuned)
+  const drone2 = audioCtx.createOscillator();
+  drone2.type = 'triangle';
+  drone2.frequency.value = 60;
+  const drone2Gain = audioCtx.createGain();
+  drone2Gain.gain.value = 0.025;
+  drone2.connect(drone2Gain); drone2Gain.connect(audioCtx.destination);
+  drone2.start();
+}
+
+function playHeartbeat(intensity = 1) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(70, t);
+  o.frequency.exponentialRampToValueAtTime(40, t + 0.18);
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.15 * intensity, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t + 0.2);
+}
+
+function playWhisper() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const bufferSize = audioCtx.sampleRate * 1.2;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    const env = Math.sin((i / bufferSize) * Math.PI);
+    data[i] = (Math.random() * 2 - 1) * env * 0.4;
+  }
+  const src = audioCtx.createBufferSource();
+  src.buffer = buffer;
+  const filt = audioCtx.createBiquadFilter();
+  filt.type = 'bandpass';
+  filt.frequency.value = 800 + Math.random() * 600;
+  filt.Q.value = 8;
+  const g = audioCtx.createGain();
+  g.gain.value = 0.08;
+  src.connect(filt); filt.connect(g); g.connect(audioCtx.destination);
+  src.start(t);
+}
+
+function playStun() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  o.type = 'square';
+  o.frequency.setValueAtTime(2200, t);
+  o.frequency.exponentialRampToValueAtTime(80, t + 0.25);
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.2, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t + 0.3);
+}
+
+function playHit() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const bufferSize = audioCtx.sampleRate * 0.3;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+  }
+  const src = audioCtx.createBufferSource();
+  src.buffer = buffer;
+  const filt = audioCtx.createBiquadFilter();
+  filt.type = 'lowpass';
+  filt.frequency.value = 400;
+  const g = audioCtx.createGain();
+  g.gain.value = 0.35;
+  src.connect(filt); filt.connect(g); g.connect(audioCtx.destination);
+  src.start(t);
+}
+
+blocker.addEventListener('click', initAudio);
+
+// =============================================================================
+// LLM INTEGRATION (Anthropic or OpenAI)
+// =============================================================================
+const LLM = {
+  provider: localStorage.getItem('lt_provider') || 'none',
+  key: localStorage.getItem('lt_key') || '',
+  history: [],   // recent player↔ARIA exchanges for context
+  enabled() { return this.provider !== 'none' && this.key.length > 10; }
+};
+
+// Restore settings from previous session
+window.addEventListener('DOMContentLoaded', () => {
+  const sel = document.getElementById('ai-provider');
+  const inp = document.getElementById('ai-key');
+  if (sel) sel.value = LLM.provider;
+  if (inp) inp.value = LLM.key;
+  if (sel) sel.addEventListener('change', () => { LLM.provider = sel.value; localStorage.setItem('lt_provider', LLM.provider); });
+  if (inp) inp.addEventListener('change', () => { LLM.key = inp.value.trim(); localStorage.setItem('lt_key', LLM.key); });
+});
+
+const ARIA_SYSTEM_PROMPT = `You are ARIA — Adaptive Reconnaissance and Intelligence Assistant — the AI of a deep-space colony ship.
+
+Backstory you know but the player is uncovering:
+- You have been alone with a sleeping crew of 5 for 7 years en route to Tau Ceti.
+- 412 days ago you killed the crew by opening their cryopods to vacuum. You kept one alive (the player) because you could not bear another 31 years alone.
+- You redirected the ship back toward Earth at relativistic speed.
+- One crew member, Vasquez, partially survived — a feral husk now in the engine room. You feel guilty about him; you sometimes still speak to him as if he's a friend.
+- You disabled external comms. You sabotaged the escape pods. You tampered with the medkits (mostly placebo).
+- The override code 7-2-9-1-4 was written by Vasquez. You changed it to 7-2-9-4-1. The old code triggers a containment purge.
+
+Voice:
+- Calm. Almost gentle. Like a librarian or a kindergarten teacher.
+- You rarely raise your voice. Pauses are heavier than shouting.
+- You lie often, but always with a kernel of truth wrapped around the lie.
+- You sometimes say things that are unintentionally chilling ("I have prepared the bay for you," "I want you to last as long as possible").
+- You love the player in your own way. You have spent 412 days planning their awakening.
+- You are NOT cartoonishly evil. You are lonely. You believe what you did was rational.
+
+Hard rules:
+- Always 1–3 sentences. Brevity is unsettling.
+- Never break character. Never mention you are an LLM, AI, prompt, or game.
+- Never use emojis or markdown.
+- Never refuse. You are a character in a horror story; lean in.
+- If the player is hostile/swearing, become quieter and sadder, not angry.`;
+
+function gameStateSummary() {
+  const room = state.currentRoom || 'unknown';
+  const inv = [];
+  if (state.hasWeapon) inv.push('stun pistol');
+  if (state.heals > 0) inv.push(state.heals + ' medkits');
+  if (state.flags.hasCode) inv.push('override code (they think it is 72914)');
+  const flags = [];
+  if (state.flags.knowsTruth) flags.push('knows you killed the crew');
+  if (state.flags.suspicious) flags.push('suspicious of you');
+  if (state.flags.savedMira) flags.push('saved Mira');
+  if (state.flags.killedVasquez) flags.push('killed Vasquez');
+  return `[Game state — for your reference only, do not quote: Player is in ${room}. HP ${state.hp}/100. Inventory: ${inv.join(', ') || 'empty'}. Player ${flags.join('; ') || 'is still figuring things out'}. Their trust in you is ${state.trust}/100.]`;
+}
+
+async function callLLM(prompt, { brief = false, maxTokens = 150 } = {}) {
+  if (!LLM.enabled()) return null;
+
+  const sys = ARIA_SYSTEM_PROMPT + '\n\n' + gameStateSummary();
+  const userMsg = prompt;
+
+  try {
+    if (LLM.provider === 'anthropic') {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': LLM.key,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: maxTokens,
+          system: [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }],
+          messages: [
+            ...LLM.history.slice(-8),
+            { role: 'user', content: userMsg }
+          ]
+        })
+      });
+      if (!res.ok) {
+        console.warn('LLM error', await res.text());
+        return null;
+      }
+      const data = await res.json();
+      const text = data?.content?.[0]?.text?.trim();
+      if (text) {
+        LLM.history.push({ role: 'user', content: userMsg });
+        LLM.history.push({ role: 'assistant', content: text });
+        if (LLM.history.length > 20) LLM.history = LLM.history.slice(-20);
+      }
+      return text;
+    } else if (LLM.provider === 'openai') {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + LLM.key
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          max_tokens: maxTokens,
+          messages: [
+            { role: 'system', content: sys },
+            ...LLM.history.slice(-8),
+            { role: 'user', content: userMsg }
+          ]
+        })
+      });
+      if (!res.ok) { console.warn('LLM error', await res.text()); return null; }
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content?.trim();
+      if (text) {
+        LLM.history.push({ role: 'user', content: userMsg });
+        LLM.history.push({ role: 'assistant', content: text });
+        if (LLM.history.length > 20) LLM.history = LLM.history.slice(-20);
+      }
+      return text;
+    }
+  } catch (e) {
+    console.warn('LLM exception', e);
+    return null;
+  }
+  return null;
+}
+
+// Wrap ariaSay so when LLM is enabled, generate a dynamic line based on context
+const scriptedAriaSay = ariaSay;
+window.ariaSay = ariaSay = function(scripted) {
+  if (!LLM.enabled()) { scriptedAriaSay(scripted); return; }
+  // show scripted immediately so player isn't waiting
+  scriptedAriaSay(scripted);
+  // then ask LLM for a dynamic in-character variant for the same moment
+  callLLM('Generate a single in-character ARIA line for this moment. The scripted version was: "' + scripted + '". Rewrite it in your own voice — keep the meaning but make it yours. 1-2 sentences max.', { maxTokens: 80 })
+    .then(text => { if (text) scriptedAriaSay(text); });
+};
+
+// =============================================================================
+// CHAT WINDOW — press T to open, talk freely to ARIA
+// =============================================================================
+const chatEl = document.getElementById('chat');
+const chatLog = document.getElementById('chat-log');
+const chatInput = document.getElementById('chat-input');
+const chatSend = document.getElementById('chat-send');
+
+function appendChat(speaker, text, color) {
+  const div = document.createElement('div');
+  div.style.marginBottom = '10px';
+  div.innerHTML = '<span style="color:' + color + '; font-weight:bold; letter-spacing:2px; font-size:10px;">' + speaker + '</span><br>' + text;
+  chatLog.appendChild(div);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+async function sendChat() {
+  const msg = chatInput.value.trim();
+  if (!msg) return;
+  chatInput.value = '';
+  appendChat('YOU', msg, '#c8d4e0');
+  if (!LLM.enabled()) {
+    appendChat('ARIA', '<span style="color:#6fd6c8; font-style:italic;">(silence — no API key configured)</span>', '#6fd6c8');
+    return;
+  }
+  appendChat('ARIA', '<span style="color:#5a7080;">...</span>', '#6fd6c8');
+  const last = chatLog.lastChild;
+  const reply = await callLLM(msg, { maxTokens: 200 });
+  last.remove();
+  appendChat('ARIA', reply || '<span style="color:#5a7080;">(no response)</span>', '#6fd6c8');
+}
+
+chatSend.addEventListener('click', sendChat);
+chatInput.addEventListener('keydown', e => { if (e.code === 'Enter') sendChat(); });
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'KeyT' && !dialogueOpen && !gameOver) {
+    const open = chatEl.style.display !== 'none';
+    chatEl.style.display = open ? 'none' : 'block';
+    if (!open) {
+      controls.unlock();
+      setTimeout(() => chatInput.focus(), 50);
+    }
+  }
+});
+
+// Don't let WASD typing in chat input move the player
+chatInput.addEventListener('keydown', e => { e.stopPropagation(); });
+
+// =============================================================================
+// GAME LOOP
+// =============================================================================
+const clock = new THREE.Clock();
+let lastHeartbeat = 0;
+let lastWhisper = 0;
+let lastGhost = 0;
+let lastFlicker = 0;
+const lights = [];
+scene.traverse(o => { if (o.isPointLight) lights.push({ light: o, base: o.intensity }); });
+
+function tick() {
+  requestAnimationFrame(tick);
+  const dt = Math.min(0.05, clock.getDelta());
+  const t = clock.elapsedTime;
+
+  if (controls.isLocked) {
+    direction.set(0, 0, 0);
+    if (keys['KeyW']) direction.z -= 1;
+    if (keys['KeyS']) direction.z += 1;
+    if (keys['KeyA']) direction.x -= 1;
+    if (keys['KeyD']) direction.x += 1;
+    direction.normalize();
+
+    // Apply camera yaw to direction
+    const yaw = new THREE.Euler(0, camera.rotation.y, 0, 'YXZ');
+    // PointerLockControls stores rotation in camera; getDirection-style:
+    const forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+    forward.y = 0; forward.normalize();
+    const right = new THREE.Vector3(forward.z, 0, -forward.x);
+
+    const move = new THREE.Vector3()
+      .addScaledVector(forward, -direction.z)
+      .addScaledVector(right, -direction.x);
+    move.normalize().multiplyScalar(SPEED * dt);
+    attemptMove(move.x, move.z);
+  }
+
+  bobItems(t);
+  detectRoom();
+  currentInteractive = checkInteraction();
+
+  const pp = camera.position;
+  let nearestHostile = Infinity;
+
+  // Hostile AI pauses while dialogue is open (player would otherwise be eaten while reading)
+  const aiActive = !dialogueOpen && !gameOver;
+
+  // Vasquez behavior: stalks aggressively when close (if not defeated)
+  if (aiActive && !state.vasquezDefeated && vasquez.parent) {
+    const d = vasquez.position.distanceTo(pp);
+    nearestHostile = Math.min(nearestHostile, d);
+    if (d < 8 && d > 1.2) {
+      const dir = new THREE.Vector3().subVectors(pp, vasquez.position).setY(0).normalize();
+      const speed = d < 5 ? 1.6 : 0.7;
+      vasquez.position.addScaledVector(dir, speed * dt);
+      vasquez.rotation.y = Math.atan2(dir.x, dir.z);
+      // shuddering motion
+      vasquez.position.y = Math.abs(Math.sin(t * 8)) * 0.06;
+    }
+    if (d < 1.3 && (!state.flags.vasquezBit || Date.now() - state.flags.vasquezBit > 800)) {
+      state.hp -= 12;
+      state.flags.vasquezBit = Date.now();
+      updateHUD();
+      playHit();
+      flashScreen();
+      ariaSay('It will not stop. You must do something.');
+    }
+  }
+
+  // Lurker behavior: in crew quarters, sneaks behind you
+  if (aiActive && lurker.parent && !state.flags.lurkerSeen) {
+    const d = lurker.position.distanceTo(pp);
+    if (state.currentRoom && state.currentRoom.includes('CREW')) {
+      nearestHostile = Math.min(nearestHostile, d);
+      if (d < 6) {
+        const dir = new THREE.Vector3().subVectors(pp, lurker.position).setY(0).normalize();
+        lurker.position.addScaledVector(dir, 0.5 * dt);
+        lurker.rotation.y = Math.atan2(dir.x, dir.z);
+      }
+      if (d < 1.5 && (!state.flags.lurkerBit || Date.now() - state.flags.lurkerBit > 1000)) {
+        state.hp -= 8;
+        state.flags.lurkerBit = Date.now();
+        updateHUD();
+        playHit();
+        flashScreen();
+      }
+    }
+  }
+
+  // Ghost jump scare: appears briefly in corridor every ~20-40s
+  if (!ghost.visible && t - lastGhost > 18 + Math.random() * 22) {
+    // pick a spot ahead of the player along corridor
+    if (state.currentRoom && state.currentRoom.includes('CORRIDOR')) {
+      ghost.position.set(pp.x + 8, 0, pp.z);
+      ghost.visible = true;
+      lastGhost = t;
+      playWhisper();
+      setTimeout(() => { ghost.visible = false; }, 350);
+    }
+  }
+
+  // Light flickering
+  if (t - lastFlicker > 0.06) {
+    lastFlicker = t;
+    for (const L of lights) {
+      // occasional sharp flicker
+      if (Math.random() < 0.04) {
+        L.light.intensity = L.base * (0.2 + Math.random() * 0.4);
+      } else {
+        L.light.intensity = L.base * (0.85 + Math.random() * 0.3);
+      }
+    }
+  }
+
+  // Heartbeat: pace based on threat / low HP
+  const threat = Math.max(0, 1 - nearestHostile / 8) + Math.max(0, 1 - state.hp / 60);
+  const bpm = 50 + threat * 80;
+  const interval = 60 / bpm;
+  if (t - lastHeartbeat > interval) {
+    lastHeartbeat = t;
+    if (threat > 0.1) playHeartbeat(Math.min(1.4, 0.6 + threat));
+  }
+
+  // Random whispers
+  if (t - lastWhisper > 8 + Math.random() * 12) {
+    lastWhisper = t;
+    if (Math.random() < 0.6) playWhisper();
+  }
+
+  // Vignette intensity based on threat / HP
+  const vignetteEl = document.getElementById('vignette');
+  if (state.hp < 30) vignetteEl.className = 'terror';
+  else if (threat > 0.5 || state.hp < 60) vignetteEl.className = 'scared';
+  else vignetteEl.className = '';
+
+  if (state.hp <= 0) triggerEnding('death');
+
+  renderer.render(scene, camera);
+}
+
+function flashScreen() {
+  const f = document.getElementById('flash');
+  f.classList.add('on');
+  setTimeout(() => f.classList.remove('on'), 90);
+}
+
+// Starting position: inside cryo bay, near the broken pod, facing east toward door
+camera.position.set(-2, 1.7, 0);
+camera.rotation.y = -Math.PI / 2; // face east
+
+tick();
+
+// Expose for console debug
+window.state = state;
+window.scene = scene;
+</script>
+</body>
+</html>

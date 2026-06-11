@@ -1,0 +1,1751 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Spaceship — Co-op</title>
+<style>
+  :root {
+    --bg: #05060d; --panel: #0e1322cc; --border: #1d2a4a;
+    --text: #e6edf3; --muted: #8b97c4; --hp: #00d4a0; --danger: #ff6b6b; --accent: #7c5cff;
+  }
+  * { box-sizing: border-box; user-select: none; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  canvas { display: block; position: fixed; inset: 0; cursor: crosshair; }
+  .hud { position: fixed; top: 14px; left: 14px; display: flex; gap: 10px; align-items: center; pointer-events: none; flex-wrap: wrap; max-width: calc(100vw - 360px); }
+  .hud .bar { width: 150px; height: 14px; background: #0a1024; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  /* On desktop the travel log shows the current location (highlighted), so the HUD
+     location chip is redundant and just makes the HUD wrap — hide it there. */
+  @media (min-width: 769px) { #locationStat { display: none; } }
+  .hud .bar > div { height: 100%; background: linear-gradient(90deg, var(--hp), var(--accent)); transition: width 0.15s; }
+  /* Solid (opaque) so the bright world behind the HUD doesn't show through and make
+     the buttons look overlapped/hard to find. */
+  .hud .stat { background: #0e1322; padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .hud .autoBtn { pointer-events: auto; cursor: pointer; color: var(--text); font: inherit; font-size: 13px; font-weight: 600; background: #141a30; border-color: var(--accent); }
+  .hud .autoBtn:hover { background: #1c2440; }
+  .hud .autoBtn.on { background: linear-gradient(135deg, var(--accent), var(--hp)); border-color: transparent; color: #fff; font-weight: 700; }
+  .legend { position: fixed; top: 14px; right: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: var(--muted); max-width: 320px; }
+  .legend b { color: var(--text); }
+  .legend .row { display: flex; gap: 10px; }
+  .copilot { position: fixed; bottom: 14px; left: 14px; max-width: 340px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(6px); }
+  .copilot h3 { margin: 0 0 6px; font-size: 13px; color: var(--accent); }
+  .copilot .line { font-size: 13px; min-height: 32px; color: var(--text); }
+  .copilot .line.warn { color: #ffb86b; }
+  .copilot .line.danger { color: var(--danger); }
+  .panel { position: fixed; top: 130px; right: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; min-width: 200px; max-width: 220px; max-height: calc(100vh - 340px); overflow-y: auto; }
+  /* Anchored to the bottom-left (above the co-pilot) and grows upward, so it can
+     never collide with the top-left HUD no matter how many rows the HUD wraps to. */
+  .travelLog { position: fixed; bottom: 132px; left: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px 11px; min-width: 190px; max-width: 240px; max-height: calc(100vh - 360px); overflow-y: auto; font-size: 12px; z-index: 4; display: flex; flex-direction: column; }
+  .travelLog #travelList { overflow-y: auto; }
+  .travelLog h3 { margin: 0 0 6px; font-size: 12px; color: var(--accent); letter-spacing: 0.5px; }
+  .travelLog #travelCount { color: var(--muted); font-weight: 400; }
+  .travelLog .trow { color: var(--muted); padding: 2px 0; display: flex; gap: 6px; align-items: baseline; line-height: 1.3; }
+  .travelLog .trow.cur { color: var(--text); font-weight: 600; }
+  .travelLog .trow .n { color: #5663a8; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .minimap {
+    position: fixed; bottom: 14px; right: 14px;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    z-index: 5;                 /* above the side panels so they can't poke into the radar */
+    background: #05060d;
+    border: 3px solid var(--border);
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(124, 92, 255, 0.15), 0 4px 14px rgba(0,0,0,0.4);
+  }
+  .minimap canvas { display: block; width: 100%; height: 100%; }
+  /* Travel-scope settings modal */
+  .travelModal { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); background: var(--panel); border: 1px solid var(--accent); border-radius: 12px; padding: 18px 22px; z-index: 9; display: none; min-width: 280px; max-width: 92vw; backdrop-filter: blur(8px); }
+  .travelModal.show { display: block; }
+  .travelModal h3 { margin: 0 0 6px; color: var(--accent); }
+  .travelModal .tm-meta { color: var(--muted); font-size: 12px; margin-bottom: 12px; line-height: 1.4; }
+  .travelModal .tm-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin-bottom: 6px; background: #0a1024; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+  .travelModal .tm-row span { flex: 1; font-size: 14px; }
+  .travelModal .tm-row em { color: var(--muted); font-size: 11px; font-style: normal; }
+  .travelModal .tm-row input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+  .travelModal #travelClose { margin-top: 8px; width: 100%; padding: 9px; background: linear-gradient(135deg, var(--accent), var(--hp)); color: #fff; border: none; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 600; }
+  /* On short windows the bottom-anchored minimap would rise into the top HUD — shrink it,
+     and hide it entirely when the window is too short to fit it clear of the health bars. */
+  @media (max-height: 620px) { .minimap { width: 140px; height: 140px; } }
+  @media (max-height: 470px) { .minimap { display: none; } }
+  /* On a short window the bottom-right minimap rises up into the top-right panels —
+     drop those non-essential panels so the minimap has the right column to itself. */
+  @media (max-height: 760px) {
+    .legend { display: none; }
+    .panel { display: none; }
+    #voiceBtn { display: none !important; }
+  }
+  .minimap .compass {
+    position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
+    color: var(--accent); font-size: 11px; font-weight: 700;
+    background: var(--panel); padding: 1px 6px; border-radius: 4px;
+    pointer-events: none;
+  }
+  .panel h3 { margin: 0 0 6px; font-size: 12px; color: var(--accent); }
+  .panel .row { font-size: 12px; display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+  .panel .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .status { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 22px 30px; text-align: center; z-index: 6; display: none; }
+  .status.show { display: block; }
+  .status h2 { margin: 0 0 6px; }
+  .status .meta { color: var(--muted); font-size: 13px; }
+  .status input { background: #0a1024; border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; color: var(--text); font: inherit; width: 200px; }
+  .status button { margin-top: 12px; padding: 9px 22px; background: linear-gradient(135deg, var(--accent), var(--hp)); color: white; border: none; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 600; }
+  .respawn { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(5,6,13,0.85); border: 1px solid var(--danger); border-radius: 12px; padding: 18px 28px; z-index: 5; display: none; text-align: center; }
+  .respawn.show { display: block; }
+  .respawn h2 { margin: 0 0 4px; color: var(--danger); }
+  .respawn .t { color: var(--text); font-size: 16px; }
+
+  /* ── Touch controls ── */
+  .touch-ctrl { display: none; }
+  /* Any touch device shows touch controls AND pushes UI out of the touch zones */
+  @media (pointer: coarse) {
+    .touch-ctrl { display: block; }
+    .legend { display: none; }                   /* keyboard hints not useful on touch */
+    .copilot { bottom: 200px; }                   /* clear the joystick */
+    .minimap { bottom: 240px; }                   /* clear the fire/warp/brake stack */
+  }
+  /* Phone-size: shrink everything */
+  @media (max-width: 768px) {
+    .touch-ctrl { display: block; }
+    .legend { display: none; }
+    .panel, .travelLog { display: none; }          /* side panels eat too much space */
+    .copilot { max-width: 220px; padding: 6px 10px; bottom: 200px; left: 8px; }
+    .copilot h3 { font-size: 11px; }
+    .copilot .line { font-size: 11px; min-height: 24px; }
+    .minimap { width: 130px; height: 130px; bottom: 200px; right: 8px; }
+    .hud { top: 8px; left: 8px; gap: 6px; flex-wrap: wrap; max-width: calc(100vw - 130px); }
+    .hud .bar { width: 90px; height: 10px; }
+    .hud .stat { padding: 2px 6px; font-size: 11px; }
+    /* Bug fix: voice button needs to clear the wrapped HUD on phones */
+    #voiceBtn { top: 8px !important; right: 8px !important; padding: 4px 8px !important; font-size: 11px !important; }
+  }
+  /* iPad-style — touch device with a roomy screen. Bump up touch target sizes. */
+  @media (pointer: coarse) and (min-width: 768px) {
+    .joystick { width: 180px; height: 180px; bottom: 40px; left: 40px; }
+    .joystick-knob { width: 76px; height: 76px; margin-left: -38px; margin-top: -38px; }
+    .touch-btn { width: 110px; height: 110px; font-size: 38px; }
+    .touch-btn.fire { bottom: 40px; right: 40px; }
+    .touch-btn.warp { bottom: 170px; right: 50px; width: 84px; height: 84px; font-size: 28px; }
+    .touch-btn.brake { bottom: 40px; right: 170px; width: 84px; height: 84px; font-size: 28px; }
+    .touch-btn.ability { bottom: 140px; right: 170px; width: 56px; height: 56px; font-size: 24px; }
+    .copilot { bottom: 240px; }
+    .minimap { bottom: 270px; }
+  }
+  /* ⌚ Watch-size screens (~200px) — ultra-compact; auto-pilot is on by default */
+  @media (max-width: 300px), (max-height: 300px) {
+    .hud { top: 2px; left: 2px; gap: 3px; max-width: calc(100vw - 4px); }
+    .hud .bar { width: 36px; height: 7px; }
+    .hud .stat { padding: 1px 4px; font-size: 8px; }
+    .hud .autoBtn { font-size: 8px; padding: 2px 5px; }
+    #sectorStat, #warpStat, #abilityStat, #locationStat { display: none; }
+    .legend, .panel, .copilot, .minimap, .travelLog { display: none; }
+    #voiceBtn { display: none !important; }
+    .joystick { width: 60px; height: 60px; bottom: 4px; left: 4px; border-width: 1px; }
+    .joystick-knob { width: 26px; height: 26px; margin-left: -13px; margin-top: -13px; }
+    .touch-btn { width: 38px; height: 38px; font-size: 15px; border-width: 1px; }
+    .touch-btn.fire { bottom: 4px; right: 4px; }
+    .touch-btn.warp { bottom: 48px; right: 4px; width: 34px; height: 34px; font-size: 13px; }
+    .touch-btn.brake { display: none; }
+    .touch-btn.ability { bottom: 90px; right: 6px; width: 32px; height: 32px; font-size: 13px; }
+    /* dock button: inline right:230px would be off a ~200px watch face — recenter it */
+    #dockBtn { left: 50% !important; right: auto !important; bottom: 6px !important; transform: translateX(-50%); width: 38px !important; height: 38px !important; font-size: 14px !important; }
+    /* welcome modal shrunk to fit a watch face */
+    .status { padding: 8px; border-radius: 8px; }
+    #welcomeStatus { min-width: 0 !important; width: 96vw !important; max-height: 96vh; overflow-y: auto; }
+    .status h2 { font-size: 13px; margin-bottom: 2px; }
+    .meta { font-size: 8px; }
+    #nameInput { padding: 4px 6px; font-size: 11px; margin-bottom: 6px !important; }
+    .class-grid { gap: 3px; margin: 5px 0; }
+    .class-card { padding: 4px 3px; border-width: 1px; }
+    .class-card .cls-icon { font-size: 15px; }
+    .class-card .cls-name { font-size: 9px; margin: 1px 0; }
+    .class-card .cls-desc, .class-card .cls-stats { display: none; }
+    #joinBtn { padding: 6px; font-size: 12px; }
+    .boss-alert { font-size: 15px; }
+    .dockPanel { min-width: 0; width: 92vw; padding: 10px 12px; }
+    .dockPrompt { font-size: 11px; padding: 5px 10px; }
+  }
+  .joystick {
+    position: fixed; bottom: 30px; left: 30px;
+    width: 140px; height: 140px;
+    background: rgba(14, 19, 34, 0.55);
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    touch-action: none;
+    z-index: 9;
+  }
+  .joystick-knob {
+    position: absolute; left: 50%; top: 50%;
+    width: 60px; height: 60px;
+    margin-left: -30px; margin-top: -30px;
+    background: var(--accent);
+    border-radius: 50%;
+    opacity: 0.85;
+    pointer-events: none;
+    transition: transform 0.04s linear;
+  }
+  .touch-btn {
+    position: fixed; right: 30px;
+    width: 88px; height: 88px;
+    background: rgba(14, 19, 34, 0.55);
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px;
+    touch-action: none;
+    user-select: none;
+    color: var(--text);
+    z-index: 9;
+  }
+  .touch-btn.fire { bottom: 30px; }
+  .touch-btn.warp { bottom: 140px; right: 40px; width: 68px; height: 68px; font-size: 24px; border-color: var(--hp); }
+  .touch-btn.brake { bottom: 30px; right: 140px; width: 68px; height: 68px; font-size: 24px; border-color: var(--muted); }
+  /* Ability (✦) tucked between the brake and warp buttons, clear of the minimap */
+  .touch-btn.ability { bottom: 104px; right: 150px; width: 46px; height: 46px; font-size: 20px; border-color: var(--accent); }
+  .touch-btn:active, .touch-btn.pressed { background: rgba(124, 92, 255, 0.5); }
+
+  /* Dock prompt + panel */
+  .dockPrompt { position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--accent); border-radius: 8px; padding: 8px 16px; font-size: 14px; display: none; z-index: 5; pointer-events: none; }
+  .dockPrompt.show { display: block; }
+  .dockPrompt b { color: var(--accent); }
+  .dockPanel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 22px 28px; display: none; z-index: 6; max-width: 360px; min-width: 280px; }
+  .dockPanel.show { display: block; }
+  .dockPanel h3 { margin: 0 0 6px; text-align: center; }
+  .dockPanel .biome { color: var(--muted); text-align: center; font-size: 12px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .dockPanel .upName { color: var(--accent); font-weight: 600; margin-bottom: 4px; font-size: 15px; }
+  .dockPanel .upDesc { color: var(--text); font-size: 13px; margin-bottom: 16px; }
+  .dockPanel .actions { display: flex; flex-direction: column; gap: 8px; }
+  .dockPanel button { padding: 10px; background: #0a1024; color: var(--text); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font: inherit; font-size: 13px; }
+  .dockPanel button:hover:not(:disabled) { border-color: var(--accent); }
+  .dockPanel button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .dockPanel .install { background: linear-gradient(135deg, var(--accent), var(--hp)); border: none; font-weight: 600; }
+
+  /* Class selection */
+  .class-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: 10px 0; }
+  .class-card { background: #0a1024; border: 2px solid var(--border); border-radius: 8px; padding: 9px 8px; cursor: pointer; text-align: center; transition: border-color 0.12s; }
+  .class-card:hover { border-color: var(--muted); }
+  /* Fixes 1-3: class card active state, selected glow, stat line */
+  .class-card:active { background: #1a1040; }
+  .class-card.selected { border-color: var(--accent); background: #120d30; box-shadow: 0 0 0 1px var(--accent); }
+  .class-card .cls-icon { font-size: 22px; }
+  .class-card .cls-name { font-weight: 700; font-size: 13px; margin: 3px 0 2px; }
+  .class-card .cls-desc { font-size: 10px; color: var(--muted); }
+  .class-card .cls-stats { font-size: 9px; color: #5cd6ff; margin-top: 3px; }
+
+  /* Fix 4-5: boss HUD above copilot, clear of touch controls on mobile */
+  .boss-hud { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); display: none;
+    background: var(--panel); border: 1px solid #ff4444; border-radius: 8px; padding: 5px 14px; text-align: center; z-index: 7; }
+  @media (pointer: coarse) { .boss-hud { bottom: 230px; } }
+  @media (max-width: 768px)  { .boss-hud { bottom: 230px; } }
+  .boss-hud .boss-label { font-size: 11px; color: #ff4444; font-weight: 700; letter-spacing: 1px; }
+  .boss-hud .bar { width: 260px; height: 10px; }
+  .boss-hud .bar > div { background: linear-gradient(90deg, #ff4444, #ff0000); }
+
+  /* Boss alert */
+  .boss-alert { position: fixed; top: 38%; left: 50%; transform: translate(-50%,-50%);
+    font-size: 32px; font-weight: 900; color: #ff3030; pointer-events: none; z-index: 10; display: none;
+    text-shadow: 0 0 20px rgba(255,48,48,0.9); animation: bossFlash 2.8s ease-out forwards; }
+  @keyframes bossFlash {
+    0%   { opacity: 1; transform: translate(-50%,-50%) scale(1.5); }
+    40%  { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%,-50%) scale(1); }
+  }
+
+  .stat.buff-stat { color: var(--hp); font-size: 11px; }
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div class="hud">
+  <button class="stat autoBtn" id="autoBtn" title="Auto-pilot (P)">🤖 AUTO</button>
+  <button class="stat autoBtn" id="travelBtn" title="Choose travel scopes">⚙ TRAVEL</button>
+  <div class="bar" title="Hull"><div id="hpBar" style="width:100%"></div></div>
+  <div class="bar" title="Shield"><div id="shBar" style="width:100%; background: linear-gradient(90deg, #00d4a0, #5cd6ff)"></div></div>
+  <div class="stat" id="killsStat">0 kills</div>
+  <div class="stat" id="sectorStat">Sector 1</div>
+  <div class="stat" id="warpStat" style="color:#00d4a0">⚡ WARP READY</div>
+  <div class="stat" id="abilityStat" style="color:#7c5cff">✦ ABILITY</div>
+  <div class="stat" id="locationStat">🌌 …</div>
+</div>
+
+<div class="legend">
+  <div class="row"><b>W</b> thrust · <b>S</b> brake · <b>Shift</b> warp · <b>F</b> ability</div>
+  <div class="row"><b>A / D</b> rotate · <b>Mouse</b> aim · <b>Click/Space</b> fire</div>
+  <div class="row"><b>E</b> dock · <b>Q</b> install</div>
+</div>
+
+<!-- Bug 22 fix: z-index raised to 8 so it sits above boss HUD (z-index 7) -->
+<button id="voiceBtn" style="position:fixed; top:84px; right:14px; padding:8px 14px; background:var(--panel); border:1px solid var(--border); border-radius:8px; color:var(--text); font:inherit; font-size:13px; cursor:pointer; z-index:8; display:none">🎤 Join Voice</button>
+
+<div class="copilot">
+  <h3>🤖 CO-PILOT</h3>
+  <div class="line" id="coLine">Systems nominal. Awaiting hostiles.</div>
+</div>
+
+<div class="minimap">
+  <canvas id="minimap" width="180" height="180"></canvas>
+  <div class="compass">N</div>
+</div>
+
+<div class="panel">
+  <h3>👥 PILOTS ONLINE</h3>
+  <div id="pilotList"></div>
+</div>
+
+<div class="travelLog" id="travelLog" style="display:none">
+  <h3>🧭 TRAVELED <span id="travelCount"></span></h3>
+  <div id="travelList"></div>
+</div>
+
+<div class="travelModal" id="travelModal">
+  <h3>⚙ Travel Scope</h3>
+  <div class="tm-meta">Hold <b>warp</b> to jump. Enable the destinations you want to reach — longer holds reach farther:</div>
+  <label class="tm-row"><input type="checkbox" id="ttMilky"><span>🌑 Milky Ways</span><em>hold ~2.5s</em></label>
+  <label class="tm-row"><input type="checkbox" id="ttGalaxy"><span>🌌 Galaxies</span><em>hold ~4.5s</em></label>
+  <label class="tm-row"><input type="checkbox" id="ttUniverse"><span>✦ Universes</span><em>hold ~6.5s</em></label>
+  <label class="tm-row"><input type="checkbox" id="ttOmni"><span>⚫ Omniverse</span><em>hold ~12.5s</em></label>
+  <button id="travelClose">Done</button>
+</div>
+
+<div class="status" id="welcomeStatus" style="min-width:320px">
+  <h2>🚀 Spaceship Co-op</h2>
+  <div class="meta">Pick a callsign and ship class</div>
+  <!-- Fix 9: autocomplete=off prevents browser autofill injecting weird callsigns -->
+  <input id="nameInput" placeholder="Callsign" maxlength="20" autofocus autocomplete="off" spellcheck="false" style="margin-bottom:10px" />
+  <div class="class-grid">
+    <!-- Fix 6: class cards now show stat numbers for comparison -->
+    <div class="class-card selected" data-class="gunship"><div class="cls-icon">🚀</div><div class="cls-name">Gunship</div><div class="cls-desc">Balanced · ✦ Barrage</div><div class="cls-stats">HP 120 · Fire ×1.0 · Spd ×1.0</div></div>
+    <div class="class-card" data-class="fighter"><div class="cls-icon">⚡</div><div class="cls-name">Fighter</div><div class="cls-desc">Glass cannon · ✦ Blink</div><div class="cls-stats">HP 50 · Fire ×1.6 · Spd ×1.3 · Warp 2×</div></div>
+    <div class="class-card" data-class="tank"><div class="cls-icon">🛡️</div><div class="cls-name">Tank</div><div class="cls-desc">Tough hull · ✦ Shockwave</div><div class="cls-stats">HP 220 · Fire ×0.65 · Spd ×0.72</div></div>
+    <div class="class-card" data-class="support"><div class="cls-icon">💚</div><div class="cls-name">Support</div><div class="cls-desc">Heals crew · ✦ Repair</div><div class="cls-stats">HP 110 · Heals allies · Spd ×1.05</div></div>
+  </div>
+  <button id="joinBtn">Join Game</button>
+  <div class="meta" id="connStatus" style="margin-top:10px"></div>
+  <div id="lanInfo" style="display:none; margin-top:12px; padding-top:10px; border-top:1px solid var(--border); font-size:12px; color:var(--muted); text-align:center">
+    <b style="color:var(--text)">Play without internet</b>
+    <div style="color:var(--muted); margin:3px 0 8px">Create a hotspot on this device, friends connect to it, then scan:</div>
+    <img id="lanQr" style="display:none; border-radius:8px; margin-bottom:6px" />
+    <div id="lanUrls"></div>
+  </div>
+</div>
+
+<!-- Fix 10: dock prompt text set dynamically to show correct key vs touch button hint -->
+<div class="dockPrompt" id="dockPrompt">Press <b id="dockKey">E</b> to dock at <b id="dockPromptName"></b></div>
+<div class="dockPanel" id="dockPanel">
+  <h3 id="dockPlanetName"></h3>
+  <div class="biome" id="dockOrbit"></div>
+  <div class="upName" id="dockUpName"></div>
+  <div class="upDesc" id="dockUpDesc"></div>
+  <div class="actions">
+    <button class="install" id="dockInstall">⚡ Install Upgrade</button>
+    <button id="dockDepart">↑ Depart (E)</button>
+  </div>
+</div>
+
+<div class="boss-hud" id="bossHud">
+  <div class="boss-label">⚠ BOSS</div>
+  <div class="bar"><div id="bossHpBar" style="width:100%"></div></div>
+</div>
+<div class="boss-alert" id="bossAlert"></div>
+
+<div class="respawn" id="respawnPanel">
+  <h2>SHIP DESTROYED</h2>
+  <div class="t">Respawning in <span id="respawnTime">4.0</span>s</div>
+</div>
+
+<!-- Touch controls — hidden on desktop, shown on coarse-pointer / small-width devices.
+     `connected` class is added once the WebSocket opens so they don't fire from
+     accidental taps in the welcome modal. -->
+<!-- Fix 7: inline style="display:none" overrode CSS media query — touch controls were permanently
+     hidden on mobile. Now hidden via JS until connect(), so media queries work properly. -->
+<div class="touch-ctrl" id="touchCtrl" style="display:none">
+  <div class="joystick" id="joystick">
+    <div class="joystick-knob" id="joystickKnob"></div>
+  </div>
+  <div class="touch-btn warp" id="warpBtn">⚡</div>
+  <div class="touch-btn brake" id="brakeBtn">S</div>
+  <!-- Fix 8: dock button for touch devices — shows when near a planet -->
+  <div class="touch-btn" id="dockBtn" style="bottom:30px;right:230px;width:54px;height:54px;font-size:18px;border-color:var(--accent);display:none">E</div>
+  <div class="touch-btn fire" id="fireBtn">🔥</div>
+  <div class="touch-btn ability" id="abilityBtn">✦</div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W, H;
+// Bug 1: camX/camY were local to render() — made module-level so culling helpers can use them
+let camX = 0, camY = 0;
+// Bug 2: rx/ry called performance.now() in tight per-entity loops — cache once per frame
+let _frameNow = 0;
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize); resize();
+
+// Show QR code + LAN URL so friends can connect without internet
+fetch('/info').then(r => r.json()).then(info => {
+  if (!info.ips.length) return;
+  const el = document.getElementById('lanInfo');
+  if (info.qr) {
+    const img = document.getElementById('lanQr');
+    img.src = info.qr;
+    img.style.display = '';
+  }
+  document.getElementById('lanUrls').innerHTML = info.ips
+    .map(ip => `<code style="display:block;margin-top:3px;color:var(--accent);user-select:text">http://${ip}:${info.port}/</code>`)
+    .join('');
+  el.style.display = '';
+}).catch(() => {});
+
+// ── State ──
+const KEYS = {};
+let ws = null;
+let myId = null;
+let myColor = '#7c5cff';
+let state = { players: [], enemies: [], bullets: [], sector: 1 };
+let snapshotTime = performance.now();
+let stars = [];
+// Tile must cover the largest viewport dimension or large monitors show an
+// un-starred band (stars only populated a 2400px tile but draw across max(W,H)).
+const STAR_TILE = Math.max(2400, (window.screen ? Math.max(screen.width, screen.height) : 0) + 200);
+for (let i = 0; i < 220; i++) stars.push({ x: Math.random()*STAR_TILE, y: Math.random()*STAR_TILE, r: Math.random()*0.6 + 0.4, p: 0.3 });
+for (let i = 0; i < 70; i++)  stars.push({ x: Math.random()*STAR_TILE, y: Math.random()*STAR_TILE, r: Math.random()*1.0 + 0.8, p: 0.7 });
+
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') e.preventDefault();
+  if (e.repeat) { KEYS[e.code] = true; return; }
+  KEYS[e.code] = true;
+  if (e.code === 'KeyE') tryDockOrDepart();
+  // Q installs the upgrade of the nearest/docked planet — always works in one press.
+  if (e.code === 'KeyQ') installUpgrade();
+  // P toggles auto-pilot (AI flies the ship)
+  if (e.code === 'KeyP') setAutoPilot(!autoPilot);
+  // Any flight input takes back manual control — you can never get stuck on auto-pilot.
+  if (autoPilot && ['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft','ShiftRight'].includes(e.code)) setAutoPilot(false);
+  // Bug 21 fix: Escape closes the dock panel (was uncloseable without E key or button)
+  if (e.code === 'Escape' && dockedPlanet) tryDockOrDepart();
+});
+window.addEventListener('keyup', e => { KEYS[e.code] = false; });
+// Bug fix: when the window loses focus while keys/touches are held, keyup/touchend
+// may never fire. Clear all input so the ship doesn't fly off on its own.
+window.addEventListener('blur', () => {
+  for (const k of Object.keys(KEYS)) KEYS[k] = false;
+  touchAim = null; touchThrust = false;
+  touchFire = false; touchBrake = false; touchWarp = false; touchAbility = false;
+});
+
+// ── Touch controls ──
+let touchAim = null;        // radians, null when no joystick contact
+let touchThrust = false;
+let touchFire = false;
+let touchBrake = false;
+let touchWarp = false;
+let touchAbility = false;
+// Cursor-controlled turret aim. The ship renders at screen-centre, so the world
+// aim angle is just the cursor's offset from centre.
+let mouseX = 0, mouseY = 0, mouseAimed = false, mouseFire = false;
+window.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; mouseAimed = true; });
+// Left-click on the game area fires (UI buttons sit above the canvas, so they aren't affected).
+canvas.addEventListener('mousedown', e => { if (e.button === 0) { mouseFire = true; mouseX = e.clientX; mouseY = e.clientY; mouseAimed = true; if (autoPilot) setAutoPilot(false); } });
+window.addEventListener('mouseup', e => { if (e.button === 0) mouseFire = false; });
+let autoPilot = false;   // AI flies the ship — toggle with the AUTO button or P
+let _apTick = 0;          // autopilot frame counter (used to pulse the ability key)
+let mergeFlashT = 0;      // black-hole-merger shockwave flash timer
+
+(function setupTouch() {
+  const joystick = document.getElementById('joystick');
+  const knob = document.getElementById('joystickKnob');
+  let joyTouchId = null;
+
+  function joyUpdate(x, y) {
+    const r = joystick.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const dx = x - cx, dy = y - cy;
+    const d = Math.hypot(dx, dy);
+    const max = r.width / 2 - 10;
+    const clamped = Math.min(d, max);
+    const kx = d > 0 ? (dx / d) * clamped : 0;
+    const ky = d > 0 ? (dy / d) * clamped : 0;
+    knob.style.transform = `translate(${kx}px, ${ky}px)`;
+    if (d > 15) {
+      touchAim = Math.atan2(dy, dx);
+      touchThrust = d > 30;
+    } else {
+      touchAim = null;
+      touchThrust = false;
+    }
+  }
+  function joyEnd() {
+    joyTouchId = null;
+    touchAim = null;
+    touchThrust = false;
+    knob.style.transform = '';
+  }
+
+  joystick.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (joyTouchId !== null) return;
+    const t = e.changedTouches[0];
+    joyTouchId = t.identifier;
+    joyUpdate(t.clientX, t.clientY);
+  }, { passive: false });
+  joystick.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) if (t.identifier === joyTouchId) joyUpdate(t.clientX, t.clientY);
+  }, { passive: false });
+  ['touchend', 'touchcancel'].forEach(ev => joystick.addEventListener(ev, e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) if (t.identifier === joyTouchId) joyEnd();
+  }, { passive: false }));
+
+  function bindBtn(id, setter) {
+    const el = document.getElementById(id);
+    const press = e => { e.preventDefault(); setter(true);  el.classList.add('pressed'); };
+    const release = e => { e.preventDefault(); setter(false); el.classList.remove('pressed'); };
+    el.addEventListener('touchstart', press, { passive: false });
+    el.addEventListener('mousedown', press);
+    ['touchend', 'touchcancel'].forEach(ev => el.addEventListener(ev, release, { passive: false }));
+    el.addEventListener('mouseup', release);
+    el.addEventListener('mouseleave', release);
+  }
+  bindBtn('fireBtn',  v => touchFire = v);
+  bindBtn('warpBtn',  v => touchWarp = v);
+  bindBtn('brakeBtn', v => touchBrake = v);
+  bindBtn('abilityBtn', v => touchAbility = v);
+  // Fix 31: bind the touch dock button
+  const dockBtnEl = document.getElementById('dockBtn');
+  if (dockBtnEl) {
+    dockBtnEl.addEventListener('touchstart', e => { e.preventDefault(); tryDockOrDepart(); }, { passive: false });
+    dockBtnEl.addEventListener('mousedown', () => tryDockOrDepart());
+  }
+})();
+
+// Auto-pilot: a simple combat AI that aims at the nearest threat, fires when lined
+// up, dodges incoming bullets, grabs loot, and uses the class ability. Returns an
+// input packet (the server turns toward `aim` just like the touch joystick).
+function autoInput() {
+  if (!state || !state.players) return null;
+  const me = state.players.find(p => p.id === myId);
+  if (!me || !me.alive) return null;
+  const mx = me.x, my = me.y;
+  const keys = { thrust: false, brake: false, left: false, right: false, fire: false, warp: false, ability: false };
+  const angTo = (ox, oy) => Math.atan2(oy - my, ox - mx);
+  const lowHp = me.hp < me.maxHp * 0.35;
+
+  // nearest target (enemy or boss)
+  let tgt = null, tgtD = Infinity;
+  for (const e of state.enemies || []) { const d = Math.hypot(e.x - mx, e.y - my); if (d < tgtD) { tgtD = d; tgt = e; } }
+  if (state.boss) { const d = Math.hypot(state.boss.x - mx, state.boss.y - my); if (d < tgtD) { tgtD = d; tgt = state.boss; } }
+  // nearest incoming hostile bullet
+  let thr = null, thrD = Infinity;
+  for (const b of state.bullets || []) { if (b.friendly) continue; const d = Math.hypot(b.x - mx, b.y - my); if (d < thrD) { thrD = d; thr = b; } }
+  // nearest loot
+  let lt = null, ltD = Infinity;
+  for (const l of state.loot || []) { const d = Math.hypot(l.x - mx, l.y - my); if (d < ltD) { ltD = d; lt = l; } }
+
+  let aim = me.a, turretAim = me.a, wantAbility = false;
+  // Only treat a bullet as a threat if it's actually closing on us.
+  const closing = thr && ((thr.x - mx) * (thr.vx || 0) + (thr.y - my) * (thr.vy || 0)) < 0;
+  if (thr && thrD < 150 && closing) {
+    // Dodge — fly away from the bullet; Fighter blinks clear
+    aim = angTo(2 * mx - thr.x, 2 * my - thr.y);
+    if (tgt) turretAim = angTo(tgt.x, tgt.y);   // keep shooting while dodging
+    keys.thrust = true;
+    if ((me.abilityCool || 0) <= 0 && me.shipClass === 'fighter') wantAbility = true;
+  } else if (tgt) {
+    turretAim = angTo(tgt.x, tgt.y);            // turret fires straight at the target
+    aim = turretAim;
+    if (tgtD < 820) keys.fire = true;           // turret aims, so no need to face it first
+    if (tgtD > 360) keys.thrust = true; else if (tgtD < 180) keys.brake = true;
+    if ((me.abilityCool || 0) <= 0 && tgtD < 600) wantAbility = true;
+    if (lowHp) { aim = angTo(2 * mx - tgt.x, 2 * my - tgt.y); keys.thrust = true; keys.brake = false; }  // retreat, keep firing
+  } else if (lt && ltD < 2600) {
+    aim = angTo(lt.x, lt.y); keys.thrust = true;   // go collect loot
+  } else {
+    keys.thrust = true;                            // drift forward, exploring
+  }
+  // Pulse the ability key (server fires on rising edge) so it re-triggers off cooldown.
+  keys.ability = wantAbility && (_apTick++ % 2 === 0);
+  return { type: 'input', keys, aim, turret: turretAim };
+}
+
+function inputPacket() {
+  // Grabbing the joystick (touch) takes back manual control from auto-pilot.
+  if (autoPilot && typeof touchAim === 'number' && isFinite(touchAim)) setAutoPilot(false);
+  if (autoPilot) { const ap = autoInput(); if (ap) return ap; }
+  const out = {
+    type: 'input',
+    keys: {
+      thrust: !!KEYS['KeyW'] || touchThrust,
+      brake:  !!KEYS['KeyS'] || touchBrake,
+      left:   !!KEYS['KeyA'],
+      right:  !!KEYS['KeyD'],
+      fire:   !!KEYS['Space'] || touchFire || mouseFire,
+      warp:   !!KEYS['ShiftLeft'] || !!KEYS['ShiftRight'] || touchWarp,
+      ability: !!KEYS['KeyF'] || touchAbility,
+    },
+  };
+  // Fix 32: only include aim when it's a valid number — null would serialize as missing anyway
+  // but explicitly guard to avoid sending NaN or undefined
+  if (typeof touchAim === 'number' && isFinite(touchAim)) out.aim = touchAim;
+  // Cursor turret: fire toward the mouse (ship is at screen centre W/2,H/2).
+  if (mouseAimed) out.turret = Math.atan2(mouseY - H / 2, mouseX - W / 2);
+  return out;
+}
+
+function setAutoPilot(on) {
+  autoPilot = on;
+  const btn = document.getElementById('autoBtn');
+  if (btn) { btn.classList.toggle('on', on); btn.textContent = on ? '🤖 AUTO ●' : '🤖 AUTO'; }
+}
+document.getElementById('autoBtn').addEventListener('click', () => setAutoPilot(!autoPilot));
+
+// ── Travel-scope toggles (which hyperjump destinations are enabled) ──
+let travelTiers = (() => {
+  try { const s = JSON.parse(localStorage.getItem('spaceshipTravelTiers')); if (s) return { 0:!!s[0], 1:!!s[1], 2:!!s[2], 3:!!s[3] }; } catch {}
+  return { 0:true, 1:true, 2:true, 3:true };
+})();
+function sendTravel() { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type:'travel', tiers: travelTiers })); }
+const ttBoxes = { 0:'ttMilky', 1:'ttGalaxy', 2:'ttUniverse', 3:'ttOmni' };
+function syncTravelUI() { for (const k in ttBoxes) { const el = document.getElementById(ttBoxes[k]); if (el) el.checked = !!travelTiers[k]; } }
+syncTravelUI();
+for (const k in ttBoxes) {
+  document.getElementById(ttBoxes[k]).addEventListener('change', (e) => {
+    travelTiers[k] = e.target.checked;
+    try { localStorage.setItem('spaceshipTravelTiers', JSON.stringify(travelTiers)); } catch {}
+    sendTravel();
+  });
+}
+document.getElementById('travelBtn').addEventListener('click', () => { syncTravelUI(); document.getElementById('travelModal').classList.toggle('show'); });
+document.getElementById('travelClose').addEventListener('click', () => document.getElementById('travelModal').classList.remove('show'));
+
+let anomalies = [];
+let coState = { line: 'Systems nominal. Awaiting hostiles.', cls: '', cooldown: 0, spokeKey: null, lastKills: 0, lastSector: 1, lastLootCount: 0, lastPos: null };
+// Travel log — every distinct location (galaxy / milky way / omniverse / singularity) you pass through.
+let visitedLog = [];
+function renderTravelLog() {
+  const list = document.getElementById('travelList'); if (!list) return;
+  // Empty → hide entirely; non-empty → let CSS decide (shown on desktop, hidden on small screens).
+  document.getElementById('travelLog').style.display = visitedLog.length ? '' : 'none';
+  document.getElementById('travelCount').textContent = visitedLog.length ? '(' + visitedLog.length + ')' : '';
+  // Show the most recent ~14, newest last, current highlighted.
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const shown = visitedLog.slice(-14);
+  const base = visitedLog.length - shown.length;
+  list.innerHTML = shown.map((loc, i) => {
+    const n = base + i + 1;
+    const cur = (base + i) === visitedLog.length - 1;
+    return `<div class="trow${cur ? ' cur' : ''}"><span class="n">${n}.</span>${esc(loc)}</div>`;
+  }).join('');
+}
+const CO_LINES = {
+  idle:        ['All quiet on the scan.', 'Sensors clean.', 'Just say the word.'],
+  contact:     ['Contact, bearing %DIR%! Eyes up.', 'Hostile incoming.', 'Heads up — enemy contact.'],
+  closeThreat: ['They\'re ON us — break right!', 'Too close! Engage now!'],
+  lowHp:       ['Hull integrity critical!', 'We\'re bleeding atmosphere!', 'Pull back, captain!'],
+  killShot:    ['Splash one!', 'Scratch one bandit.', 'Boom. Next.'],
+  warp:        ['Warp engaged!', 'Light speed — punching it!', 'HOLD ON!'],
+  blackholeWarn:['Black hole — pull detected!', 'Gravity well — pull out!'],
+  wormhole:    ['Wormhole transit!', 'Spat out the other side.'],
+  // Fix 17-19: new co-pilot lines
+  bossNear:    ['BOSS on scope! All hands!', 'That\'s a big one — focus fire!', 'Boss incoming — don\'t die on me!'],
+  lootPickup:  ['Picked up a supply.', 'Got it.', 'Supply secured.'],
+  sectorUp:    ['Sector %S% — things are heating up.', 'Escalating to sector %S%.'],
+};
+function say(category, replace = {}, cls = '') {
+  if (coState.cooldown > 0) return;
+  // Don't randomly suppress critical warnings (low hull, close threat, boss).
+  if (cls !== 'danger' && coState.spokeKey === category && Math.random() < 0.5) return;
+  const arr = CO_LINES[category]; if (!arr) return;
+  let line = arr[Math.floor(Math.random() * arr.length)];
+  for (const k of Object.keys(replace)) line = line.replace('%' + k + '%', replace[k]);
+  coState.line = line; coState.cls = cls; coState.cooldown = 2.5; coState.spokeKey = category;
+  const el = document.getElementById('coLine');
+  el.textContent = line; el.className = 'line ' + cls;
+}
+function bearing(from, to) {
+  const dx = to.x - from.x, dy = to.y - from.y;
+  let rel = Math.atan2(dy, dx) - from.a;
+  rel = ((rel + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+  if (rel > -Math.PI/4 && rel <= Math.PI/4)    return 'bow';
+  if (rel > Math.PI/4 && rel <= 3*Math.PI/4)   return 'starboard';
+  if (rel > -3*Math.PI/4 && rel <= -Math.PI/4) return 'port';
+  return 'aft';
+}
+
+let inputIntervalId = null;
+function connect(name) {
+  // Bug 19: clear any prior input loop so reconnects don't accumulate
+  if (inputIntervalId) { clearInterval(inputIntervalId); inputIntervalId = null; }
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const host = location.host || ('localhost:8098');
+  ws = new WebSocket(`${proto}://${host}/`);
+  document.getElementById('connStatus').textContent = 'Connecting…';
+
+  ws.addEventListener('open', () => {
+    document.getElementById('connStatus').textContent = 'Connected';
+    ws.send(JSON.stringify({ type: 'name', name, class: selectedClass }));
+    sendTravel();   // apply the pilot's saved travel-scope toggles
+    document.getElementById('welcomeStatus').classList.remove('show');
+    document.getElementById('voiceBtn').style.display = '';
+    // Fix 30: show touch controls after connect on touch/small devices (inline style was permanently hiding them)
+    if (window.matchMedia('(pointer:coarse)').matches || window.innerWidth <= 768) {
+      document.getElementById('touchCtrl').style.display = '';
+    }
+    // Genuine watch-sized (NARROW) screens start in auto-pilot. Must be narrow — a
+    // merely short/wide laptop window must NOT auto-enable it (that made the ship fly
+    // itself "for no reason" and ignore the keyboard).
+    if (window.matchMedia('(max-width:300px)').matches) {
+      setAutoPilot(true);
+    }
+    inputIntervalId = setInterval(() => {
+      if (ws.readyState === 1) ws.send(JSON.stringify(inputPacket()));
+    }, 33);
+  });
+  ws.addEventListener('close', () => {
+    if (inputIntervalId) { clearInterval(inputIntervalId); inputIntervalId = null; }
+    document.getElementById('connStatus').textContent = 'Disconnected';
+    document.getElementById('welcomeStatus').classList.add('show');
+    document.getElementById('voiceBtn').style.display = 'none';
+    for (const id of [...peers.keys()]) closePeer(id);
+    if (myStream) { for (const t of myStream.getTracks()) t.stop(); myStream = null; isMuted = false; document.getElementById('voiceBtn').textContent = '🎤 Join Voice'; }
+    const btn = document.getElementById('joinBtn');
+    btn.disabled = false; btn.textContent = 'Join Game';
+    // Bug 18 fix: hide touch controls on disconnect — they were staying visible over the welcome modal
+    document.getElementById('touchCtrl').style.display = 'none';
+    // Bug 19 fix: close dock panel on disconnect
+    if (dockedPlanet) {
+      dockedPlanet = null;
+      document.getElementById('dockPanel').classList.remove('show');
+      const tc = document.querySelector('.touch-ctrl');
+      if (tc) { tc.style.opacity = ''; tc.style.pointerEvents = ''; }
+    }
+    // Bug 20 fix: reset coState so next session doesn't get stale sector/loot/pos alerts
+    coState.lastKills = 0; coState.lastSector = 1; coState.lastLootCount = 0; coState.lastPos = null;
+    // Reset identity + world so a reconnect doesn't briefly render the previous session.
+    myId = null;
+    state = { players: [], enemies: [], bullets: [], sector: 1 };
+    visitedLog = []; updateHUD._lastLocation = null; renderTravelLog();
+    document.getElementById('bossHud').style.display = 'none';
+  });
+  ws.addEventListener('error', () => {
+    document.getElementById('connStatus').textContent = 'Error: could not connect. Is the server running?';
+    const btn = document.getElementById('joinBtn');
+    btn.disabled = false; btn.textContent = 'Join Game';
+  });
+  ws.addEventListener('message', (e) => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }   // Bug fix: malformed payload no longer kills the handler
+    if (msg.type === 'welcome') {
+      myId = msg.id;
+      myColor = msg.color;
+      anomalies = msg.anomalies || [];
+    } else if (msg.type === 'state') {
+      state = msg;
+      snapshotTime = performance.now();
+      if (msg.anomalies) anomalies = msg.anomalies;
+      reconcileVoicePeers();
+    } else if (msg.type === 'boss_spawn') {
+      showBossAlert('⚠ BOSS INCOMING');
+      coState.cooldown = 0; say('bossNear', {}, 'danger');
+    } else if (msg.type === 'boss_phase2') {
+      showBossAlert('⚠ BOSS ENRAGED');
+      coState.cooldown = 0; say('bossNear', {}, 'danger');
+    } else if (msg.type === 'boss_dead') {
+      // Fix 45: hide boss HUD immediately on death, don't wait for next snapshot
+      document.getElementById('bossHud').style.display = 'none';
+      showBossAlert('BOSS DESTROYED');
+    } else if (msg.type === 'singularity') {
+      // Black hole spat us into the hidden pocket dimension
+      showBossAlert('◈ THE SINGULARITY ◈');
+      coState.line = 'We slipped through the event horizon… where ARE we?';
+      coState.cls = 'warn'; coState.cooldown = 3.5;
+    } else if (msg.type === 'merge_start') {
+      coState.cooldown = 0;
+      coState.line = 'Two black holes on a collision course — give them room!';
+      coState.cls = 'warn'; coState.cooldown = 3;
+      const el = document.getElementById('coLine'); el.textContent = coState.line; el.className = 'line warn';
+    } else if (msg.type === 'merge') {
+      showBossAlert('⚫ BLACK HOLE MERGER');
+      mergeFlashT = 0.5;
+      coState.cooldown = 0;
+      coState.line = 'Gravitational shockwave!'; coState.cls = 'danger';
+      const el = document.getElementById('coLine'); el.textContent = coState.line; el.className = 'line danger';
+    } else if (msg.type === 'rtc') {
+      handleSignal(msg.from, msg.payload);
+    }
+  });
+}
+
+// Class selection
+let selectedClass = 'gunship';
+document.querySelectorAll('.class-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.class-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedClass = card.dataset.class;
+  });
+});
+
+// Boss announcements
+// Fix 26: clear previous timeout so rapid calls don't stack hidden-timer callbacks
+let _bossAlertTimer = null;
+function showBossAlert(msg) {
+  const el = document.getElementById('bossAlert');
+  if (_bossAlertTimer) { clearTimeout(_bossAlertTimer); _bossAlertTimer = null; }
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.animation = 'none';
+  void el.offsetWidth; // reflow to restart animation
+  el.style.animation = '';
+  _bossAlertTimer = setTimeout(() => { el.style.display = 'none'; _bossAlertTimer = null; }, 2800);
+}
+
+document.getElementById('welcomeStatus').classList.add('show');
+document.getElementById('joinBtn').onclick = () => {
+  // Bug fix: don't allow a second WebSocket while one is already opening/open
+  if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
+  const name = ((document.getElementById('nameInput').value || '').trim()) || 'Pilot';
+  const btn = document.getElementById('joinBtn');
+  btn.disabled = true; btn.textContent = 'Connecting…';
+  connect(name);
+};
+document.getElementById('nameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('joinBtn').click();
+});
+
+// ── Render ──
+// Bug 21: safely add hex alpha to a color (handles both #RGB and #RRGGBB, ignores
+// existing alpha or rgba() forms)
+function withAlpha(color, hexAlpha) {
+  if (typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color)) return color + hexAlpha;
+  return color;
+}
+
+// Extrapolate an entity's position using its velocity and the time since the
+// last server snapshot — makes 30Hz network feel like 60Hz at the eyeball.
+// Bug fix: don't extrapolate dead players — their server vx/vy stay set
+// to whatever they had on death, causing the camera to drift on a corpse.
+// Bug 2 fix: use cached _frameNow instead of calling performance.now() per entity
+function rx(e) { if (e.alive === false) return e.x; const dt = Math.min(0.15, (_frameNow - snapshotTime) / 1000); return e.x + (e.vx || 0) * dt; }
+function ry(e) { if (e.alive === false) return e.y; const dt = Math.min(0.15, (_frameNow - snapshotTime) / 1000); return e.y + (e.vy || 0) * dt; }
+// Bug 3: culling helper — skip entities outside the viewport (using module-level camX/camY)
+function inView(x, y, pad) { return x+pad >= camX && x-pad <= camX+W && y+pad >= camY && y-pad <= camY+H; }
+
+// Visual flash for an active ability, plus a shimmer while invulnerable.
+function drawAbilityFx(px, py, p) {
+  const f = p.abilityFlash || 0;
+  if (f > 0) {
+    const t = 1 - f / 0.45;               // 0 → 1 over the flash duration
+    ctx.save();
+    if (p.abilityKind === 'tank') {
+      ctx.strokeStyle = `rgba(124,156,255,${(1 - t) * 0.85})`; ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.arc(px, py, 440 * t, 0, Math.PI*2); ctx.stroke();
+    } else if (p.abilityKind === 'support') {
+      ctx.strokeStyle = `rgba(0,212,160,${(1 - t) * 0.85})`; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(px, py, 460 * t, 0, Math.PI*2); ctx.stroke();
+    } else if (p.abilityKind === 'gunship') {
+      ctx.strokeStyle = `rgba(255,200,80,${(1 - t) * 0.8})`; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(px, py, 10 + 50 * t, 0, Math.PI*2); ctx.stroke();
+    } else if (p.abilityKind === 'fighter') {
+      ctx.fillStyle = `rgba(124,92,255,${f / 0.45 * 0.55})`;
+      ctx.beginPath(); ctx.arc(px, py, 28, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  if (p.invuln) {
+    ctx.save();
+    ctx.strokeStyle = `rgba(120,220,255,${0.4 + 0.3 * Math.sin(_frameNow/60)})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(px, py, 24, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// How big player ships are drawn (visual scale; hitbox unchanged).
+const SHIP_SCALE = 1.6;
+// Cursor-controlled turret on top of a ship — a rotating barrel + hub.
+function drawTurret(px, py, angle, color, scale = SHIP_SCALE) {
+  const len = 14 * scale, hub = 4 * scale;
+  ctx.save();
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5 * scale; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + Math.cos(angle) * len, py + Math.sin(angle) * len); ctx.stroke();
+  ctx.fillStyle = '#cdd6ff';
+  ctx.beginPath(); ctx.arc(px + Math.cos(angle) * len, py + Math.sin(angle) * len, 2 * scale, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#0a1024'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(px, py, hub, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+function drawShip(x, y, a, color, size = 1, shipClass = 'gunship') {
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(a); ctx.scale(size, size);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  if (shipClass === 'fighter') {
+    ctx.moveTo(20,0); ctx.lineTo(-8,7); ctx.lineTo(-4,0); ctx.lineTo(-8,-7);
+  } else if (shipClass === 'tank') {
+    ctx.moveTo(14,0); ctx.lineTo(6,14); ctx.lineTo(-14,12); ctx.lineTo(-14,-12); ctx.lineTo(6,-14);
+  } else {
+    ctx.moveTo(16,0); ctx.lineTo(-10,10); ctx.lineTo(-6,0); ctx.lineTo(-10,-10);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#1d164a';
+  ctx.beginPath(); ctx.arc(2, 0, 3.5, 0, Math.PI*2); ctx.fill();
+  if (shipClass === 'support') {
+    ctx.fillStyle = '#00d4a0';
+    ctx.fillRect(-1,-5,2,10); ctx.fillRect(-4,-1,8,2);
+  }
+  ctx.restore();
+}
+
+// ── Asteroid / Loot / Boss rendering ──
+const asteroidVertCache = new Map();
+function getAsteroidVerts(seed, r) {
+  const key = seed + ',' + r;
+  if (!asteroidVertCache.has(key)) {
+    const n = 7 + (seed % 5);
+    const verts = [];
+    for (let i = 0; i < n; i++) {
+      let s = (seed * (i+1) * 9301 + 49297) % 233280;
+      const angle = (i/n)*Math.PI*2 + (s/233280-0.5)*0.55;
+      s = (s*9301+49297)%233280;
+      verts.push([Math.cos(angle)*r*(0.6+0.4*(s/233280)), Math.sin(angle)*r*(0.6+0.4*(s/233280))]);
+    }
+    asteroidVertCache.set(key, verts);
+  }
+  return asteroidVertCache.get(key);
+}
+function drawAsteroid(a) {
+  const verts = getAsteroidVerts(a.seed, a.r);
+  const bright = 70 + Math.round(50*(a.hp/a.maxHp));
+  ctx.save();
+  ctx.translate(a.x, a.y); ctx.rotate(a.angle);
+  ctx.fillStyle = `rgb(${bright},${bright-8},${bright-18})`;
+  ctx.beginPath();
+  ctx.moveTo(verts[0][0], verts[0][1]);
+  for (let i = 1; i < verts.length; i++) ctx.lineTo(verts[i][0], verts[i][1]);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+const LOOT_COL  = { hp:'#00ff88', shield:'#5cd6ff', ammo:'#ffd700', speed:'#ff8844', warp:'#c47cff' };
+const LOOT_ICON = { hp:'♥', shield:'◈', ammo:'✦', speed:'▶', warp:'⚡' };
+function drawLoot(l) {
+  const col = LOOT_COL[l.type] || '#fff';
+  ctx.fillStyle = col + '44';
+  ctx.beginPath(); ctx.arc(l.x,l.y,15,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.arc(l.x,l.y,7,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#000'; ctx.font = 'bold 8px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(LOOT_ICON[l.type]||'?', l.x, l.y);
+  ctx.textBaseline = 'alphabetic';
+}
+function drawBoss(b) {
+  // Fix 25: use velocity extrapolation so boss moves smoothly between 30Hz snapshots
+  const bx = rx(b), by = ry(b);
+  ctx.save(); ctx.translate(bx,by); ctx.rotate(b.a);
+  ctx.fillStyle = b.phase===2 ? '#cc1010' : '#aa1818';
+  ctx.beginPath();
+  ctx.moveTo(55,0); ctx.lineTo(20,28); ctx.lineTo(-28,40); ctx.lineTo(-44,18);
+  ctx.lineTo(-40,0); ctx.lineTo(-44,-18); ctx.lineTo(-28,-40); ctx.lineTo(20,-28);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#200808';
+  ctx.beginPath(); ctx.arc(18,0,11,0,Math.PI*2); ctx.fill();
+  if (b.phase===2) {
+    ctx.strokeStyle='rgba(255,48,48,0.35)'; ctx.lineWidth=8;
+    ctx.beginPath(); ctx.arc(0,0,62,0,Math.PI*2); ctx.stroke();
+  }
+  ctx.restore();
+  // Bug 13 fix: save/restore around health bar so font+textAlign don't leak into render loop
+  ctx.save();
+  const hp = b.hp/b.maxHp, bw = 130;
+  ctx.fillStyle='#0a1024'; ctx.fillRect(bx-bw/2,by-76,bw,8);
+  ctx.fillStyle=hp>0.5?'#ff4444':'#ff1010'; ctx.fillRect(bx-bw/2,by-76,bw*hp,8);
+  ctx.fillStyle=b.phase===2?'#ff4444':'#fff'; ctx.font='bold 11px -apple-system,sans-serif';
+  ctx.textAlign='center'; ctx.fillText(b.phase===2?'⚠ BOSS ENRAGED':'⚠ BOSS',bx,by-82);
+  ctx.restore();
+}
+
+function render() {
+  // Bug 2 fix: stamp frame time once so all rx/ry calls share the same timestamp
+  _frameNow = performance.now();
+  ctx.fillStyle = '#05060d';
+  ctx.fillRect(0, 0, W, H);
+  if (state.hyperjumping) {
+    const tier = state.hyperjumping.tier;
+    const a = 0.7 + tier * 0.1;
+    ctx.fillStyle = `rgba(255,255,255,${a})`;
+    ctx.fillRect(0, 0, W, H);
+    return;
+  }
+  const me = state.players.find(p => p.id === myId);
+  const cx = me ? rx(me) : 0, cy = me ? ry(me) : 0;
+  // Bug 1 fix: update module-level camX/camY so inView() helper works
+  camX = cx - W/2; camY = cy - H/2;
+  // Stars (streak when warping). Bug 17: don't streak for a dead player.
+  const tile = Math.max(STAR_TILE, W + 200, H + 200);
+  const warping = me && me.alive && me.warpActive;
+  const sp = me ? Math.hypot(me.vx || 0, me.vy || 0) : 0;
+  const streak = warping ? 30 + 0.08 * sp : 0;
+  const streakA = streak ? Math.atan2(me.vy || 0, me.vx || 0) : 0;
+  for (const s of stars) {
+    const sx = ((s.x - camX * s.p) % tile + tile) % tile - tile/2 + W/2;
+    const sy = ((s.y - camY * s.p) % tile + tile) % tile - tile/2 + H/2;
+    if (streak) {
+      ctx.strokeStyle = s.p > 0.5 ? '#cdd6ff' : '#5663a8';
+      ctx.lineWidth = s.r;
+      ctx.beginPath(); ctx.moveTo(sx, sy);
+      ctx.lineTo(sx - Math.cos(streakA) * streak, sy - Math.sin(streakA) * streak); ctx.stroke();
+    } else {
+      ctx.fillStyle = s.p > 0.5 ? '#aab3e0' : '#3a4880';
+      ctx.fillRect(sx, sy, s.r, s.r);
+    }
+  }
+
+  ctx.save();
+  ctx.translate(-camX, -camY);
+
+  // Nebulas — Bug 4 fix: cull when entirely off-screen (radius up to 2700 units)
+  for (const a of anomalies) {
+    if (a.type !== 'nebula') continue;
+    if (!inView(a.x, a.y, a.r)) continue;
+    const g = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, a.r);
+    g.addColorStop(0, withAlpha(a.color, '55'));
+    g.addColorStop(0.5, withAlpha(a.color, '22'));
+    g.addColorStop(1, withAlpha(a.color, '00'));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI*2); ctx.fill();
+  }
+  // Wormholes — Bug 5 fix: cull off-screen; 5 strokes per wormhole is expensive
+  const tNow = _frameNow / 1000;
+  for (const a of anomalies) {
+    if (a.type !== 'wormhole') continue;
+    if (!inView(a.x, a.y, a.r + 30)) continue;
+    for (let k = 0; k < 5; k++) {
+      ctx.strokeStyle = `rgba(196, 124, 255, ${0.55 - k * 0.08})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, a.r - k * 5, tNow * 2 + k * 0.7, tNow * 2 + k * 0.7 + 1.6);
+      ctx.stroke();
+    }
+  }
+
+  // Sun (or central black hole)
+  if (state.sun) {
+    const c = state.sun;
+    if (c.type === 'blackhole') {
+      const halo = ctx.createRadialGradient(c.x, c.y, c.r * 1.3, c.x, c.y, c.pullRange || 1500);
+      halo.addColorStop(0, 'rgba(124,92,255,0.28)');
+      halo.addColorStop(1, 'rgba(124,92,255,0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.pullRange || 1500, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = c.hot || '#ffaa44';
+      ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r * 1.35, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
+    } else {
+      const corona = ctx.createRadialGradient(c.x, c.y, c.r, c.x, c.y, c.r * 3);
+      corona.addColorStop(0, withAlpha(c.color, 'cc'));
+      corona.addColorStop(0.5, withAlpha(c.color, '44'));
+      corona.addColorStop(1, withAlpha(c.color, '00'));
+      ctx.fillStyle = corona;
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r * 3, 0, Math.PI*2); ctx.fill();
+      const body = ctx.createRadialGradient(c.x - c.r*0.3, c.y - c.r*0.3, c.r*0.1, c.x, c.y, c.r);
+      body.addColorStop(0, c.hot || c.color);
+      body.addColorStop(0.7, c.color);
+      body.addColorStop(1, '#000');
+      ctx.fillStyle = body;
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle = c.hot || '#fff';
+    ctx.font = 'bold 14px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(c.name, c.x, c.y + c.r + 24);
+    ctx.textAlign = 'left'; // Fix 49: reset textAlign after sun label so other drawing isn't affected
+    ctx.strokeStyle = '#1d2a4a';
+    ctx.lineWidth = 1;
+    // Fix 29: cull orbit rings that are entirely off-screen (radius up to 33000 units)
+    for (const p of state.planets || []) {
+      if (p.rogue || !p.orbitRadius) continue;   // rogue planets orbit nothing — no ring
+      const orb = p.orbitRadius;
+      const sunX = c.x - camX, sunY = c.y - camY; // sun position in screen space
+      // Only draw if orbit ring intersects the viewport
+      if (sunX + orb < 0 || sunX - orb > W || sunY + orb < 0 || sunY - orb > H) continue;
+      ctx.beginPath(); ctx.arc(c.x, c.y, orb, 0, Math.PI*2); ctx.stroke();
+    }
+  }
+
+  // Planets — Bug 6 fix: skip 2 radial gradients per planet when off-screen
+  for (const p of state.planets || []) {
+    const px = rx(p), py = ry(p);
+    if (!inView(px, py, p.r * 1.6 + 20)) continue;
+    const halo = ctx.createRadialGradient(px, py, p.r * 0.7, px, py, p.r * 1.6);
+    halo.addColorStop(0, withAlpha(p.color, '88'));
+    halo.addColorStop(1, withAlpha(p.color, '00'));
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(px, py, p.r * 1.6, 0, Math.PI*2); ctx.fill();
+    const body = ctx.createRadialGradient(px - p.r*0.4, py - p.r*0.4, p.r*0.1, px, py, p.r);
+    body.addColorStop(0, p.color);
+    body.addColorStop(1, '#000');
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.arc(px, py, p.r, 0, Math.PI*2); ctx.fill();
+    // Rogue planets get a faint dashed halo ring + a "rogue world" tag.
+    if (p.rogue) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(150,160,190,0.35)'; ctx.lineWidth = 1; ctx.setLineDash([4, 6]);
+      ctx.beginPath(); ctx.arc(px, py, p.r * 1.9, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.fillStyle = p.rogue ? '#aab3d0' : '#e6edf3';
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.name, px, py + p.r + 18);
+    if (p.rogue) { ctx.fillStyle = 'rgba(150,160,190,0.7)'; ctx.font = '10px -apple-system, sans-serif'; ctx.fillText('⊘ rogue world', px, py + p.r + 31); }
+  }
+  ctx.textAlign = 'left'; // Bug 7 fix: restore after planet labels
+
+  // Asteroids — skip off-screen ones
+  for (const a of state.asteroids || []) {
+    if (a.x + a.r < camX || a.x - a.r > camX + W || a.y + a.r < camY || a.y - a.r > camY + H) continue;
+    drawAsteroid(a);
+  }
+
+  // Loot — Bug 8 fix: skip off-screen loot (common when far from drop)
+  for (const l of state.loot || []) {
+    if (!inView(l.x, l.y, 20)) continue;
+    drawLoot(l);
+  }
+
+  // Enemies — Bug 9 fix: cull off-screen enemies (up to 20, scattered far)
+  for (const e of (state.enemies || [])) {
+    const ex = rx(e), ey = ry(e);
+    if (!inView(ex, ey, 60)) continue;
+    const size = e.kind === 'scout' ? 0.7 : e.kind === 'heavy' ? 1.5
+      : e.kind === 'kamikaze' ? 0.75 : e.kind === 'sniper' ? 0.95 : e.kind === 'swarm' ? 0.5 : 1.0;
+    const color = e.kind === 'scout' ? '#ff9b6b' : e.kind === 'heavy' ? '#c94545'
+      : e.kind === 'kamikaze' ? '#ffcc33' : e.kind === 'sniper' ? '#c47cff' : e.kind === 'swarm' ? '#8aff6b' : '#ff6b6b';
+    // Kamikazes get a pulsing danger ring so you can react to the rush.
+    if (e.kind === 'kamikaze') {
+      const pulse = 0.5 + 0.5 * Math.sin(_frameNow / 90);
+      ctx.strokeStyle = `rgba(255,80,40,${0.4 + 0.4 * pulse})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(ex, ey, 22 + 4 * pulse, 0, Math.PI*2); ctx.stroke();
+    }
+    drawShip(ex, ey, e.a, color, size);
+    const hp = e.hp / e.maxHp;
+    const w = 36 * size;
+    ctx.fillStyle = '#0a1024';
+    ctx.fillRect(ex - w/2, ey - 28 * size, w, 4);
+    ctx.fillStyle = color;
+    ctx.fillRect(ex - w/2, ey - 28 * size, w * hp, 4);
+  }
+
+  // Bullets — cull off-screen bullets (fast-moving, often far)
+  for (const b of state.bullets) {
+    const bx = rx(b), by = ry(b);
+    if (!inView(bx, by, 10)) continue;
+    // Bug 10 fix: boss bullets (ownerId=-1) are orange to distinguish from regular enemy bullets
+    ctx.strokeStyle = b.friendly ? '#7c5cff' : (b.ownerId === -1 ? '#ff8800' : '#ff6b6b');
+    ctx.lineWidth = b.ownerId === -1 ? 3 : 2;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx - (b.vx || 0) * 0.012, by - (b.vy || 0) * 0.012);
+    ctx.stroke();
+  }
+
+  // Other players — Bug 11 fix: cull off-screen; Bug 12 fix: reset textAlign after names
+  for (const p of state.players) {
+    if (p.id === myId) continue;
+    if (!p.alive) continue;
+    const px = rx(p), py = ry(p);
+    if (!inView(px, py, 60)) continue;
+    drawAbilityFx(px, py, p);
+    drawShip(px, py, p.a, p.color, SHIP_SCALE, p.shipClass);
+    drawTurret(px, py, p.turret != null ? p.turret : p.a, p.color);
+    ctx.fillStyle = '#0a1024';
+    ctx.fillRect(px - 22, py - 30, 44, 4);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(px - 22, py - 30, 44 * (p.hp / p.maxHp), 4);
+    ctx.fillStyle = p.color;
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.name, px, py + 30);
+  }
+  ctx.textAlign = 'left'; // Bug 12 fix: restore after player names
+
+  // Black holes — drawn on top of most things, dramatic
+  for (const a of anomalies) {
+    if (a.type !== 'blackhole') continue;
+    const halo = ctx.createRadialGradient(a.x, a.y, a.r * 1.4, a.x, a.y, a.pullRange);
+    halo.addColorStop(0, 'rgba(124,92,255,0.18)');
+    halo.addColorStop(1, 'rgba(124,92,255,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.pullRange, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#ffaa44'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.r * 1.45, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Boss
+  if (state.boss) drawBoss(state.boss);
+
+  // Me (drawn on top)
+  if (me && me.alive) {
+    const mx = rx(me), my2 = ry(me);
+    drawAbilityFx(mx, my2, me);
+    drawShip(mx, my2, me.a, myColor, SHIP_SCALE, me.shipClass);
+    // My turret follows the cursor directly (no snapshot lag).
+    const myTurret = mouseAimed ? Math.atan2(mouseY - H / 2, mouseX - W / 2) : (me.turret != null ? me.turret : me.a);
+    drawTurret(mx, my2, myTurret, myColor);
+    if (me.shield > 0) {
+      ctx.strokeStyle = `rgba(0, 212, 160, ${0.3 + 0.5 * (me.maxShield > 0 ? me.shield / me.maxShield : 0)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(mx, my2, 20 * SHIP_SCALE, 0, Math.PI*2); ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+
+  // Aim reticle at the cursor + faint line from the ship (screen space).
+  if (mouseAimed && me && me.alive && !state.hyperjumping) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(124,156,255,0.25)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(W / 2, H / 2); ctx.lineTo(mouseX, mouseY); ctx.stroke();
+    ctx.strokeStyle = 'rgba(205,214,255,0.8)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(mouseX, mouseY, 9, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(mouseX - 14, mouseY); ctx.lineTo(mouseX - 4, mouseY);
+    ctx.moveTo(mouseX + 4, mouseY); ctx.lineTo(mouseX + 14, mouseY);
+    ctx.moveTo(mouseX, mouseY - 14); ctx.lineTo(mouseX, mouseY - 4);
+    ctx.moveTo(mouseX, mouseY + 4); ctx.lineTo(mouseX, mouseY + 14);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Hyperjump flash overlay
+  if (state.hyperjumping) {
+    const tier = state.hyperjumping.tier;
+    const a = 0.7 + tier * 0.1;
+    ctx.fillStyle = `rgba(255,255,255,${a})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+  // Black-hole merger shockwave flash (purple, fades out)
+  if (mergeFlashT > 0) {
+    ctx.fillStyle = `rgba(176,107,255,${0.45 * (mergeFlashT / 0.5)})`;
+    ctx.fillRect(0, 0, W, H);
+    mergeFlashT = Math.max(0, mergeFlashT - 0.016);
+  }
+}
+
+function updateHUD() {
+  const me = state.players.find(p => p.id === myId);
+  if (me) {
+    // Bug 24 fix: cache bar widths — were setting style.width every frame even when unchanged
+    const hpW = (100 * me.hp / me.maxHp).toFixed(1) + '%';
+    const shW = (me.maxShield > 0 ? (100 * me.shield / me.maxShield) : 0).toFixed(1) + '%';
+    if (hpW !== updateHUD._lastHp) { updateHUD._lastHp = hpW; document.getElementById('hpBar').style.width = hpW; }
+    if (shW !== updateHUD._lastSh) { updateHUD._lastSh = shW; document.getElementById('shBar').style.width = shW; }
+    const killsText = me.kills + ' kills';
+    if (killsText !== updateHUD._lastKills) { updateHUD._lastKills = killsText; document.getElementById('killsStat').textContent = killsText; }
+    document.getElementById('respawnPanel').classList.toggle('show', !me.alive);
+    // Fix 33: clamp to 0.1 so it never shows "0.0s" just before the panel hides
+    if (!me.alive) document.getElementById('respawnTime').textContent = Math.max(0.1, me.respawnTimer).toFixed(1);
+    // Warp HUD — Fix 11: renamed ws→warpEl to avoid shadowing the global WebSocket variable
+    const warpEl = document.getElementById('warpStat');
+    const pct = Math.round(100 * me.warpCharge / me.maxWarpCharge);
+    const secs = (me.warpCharge / 100).toFixed(1);
+    if (me.warpActive) {
+      // Approximate hold time from charge consumed (server doesn't broadcast warpHoldTime).
+      // Player can see jump tier by watching how long they hold; this is a hint.
+      let jumpHint = '';
+      const held = (me.maxWarpCharge - me.warpCharge) / 100;
+      if (held >= 12.5)     jumpHint = ' · → OMNIVERSE';
+      else if (held >= 6.5) jumpHint = ' · → UNIVERSE';
+      else if (held >= 4.5) jumpHint = ' · → GALAXY';
+      else if (held >= 2.5) jumpHint = ' · → MILKY WAY';
+      warpEl.textContent = `⚡ WARP — ${secs}s left${jumpHint}`;
+      warpEl.style.color = held >= 12.5 ? '#ff447a' : held >= 6.5 ? '#c47cff' : held >= 4.5 ? '#7c5cff' : held >= 2.5 ? '#00d4a0' : '#ffb86b';
+    }
+    // Fix 12: don't show "0.0s ready" — charge below 60 can't warp
+    else if (me.warpCharge < 60) { warpEl.textContent = `⚡ ${pct}% (charging)`;      warpEl.style.color = '#8b97c4'; }
+    else                         { warpEl.textContent = `⚡ ${pct}% — ${secs}s ready`; warpEl.style.color = '#00d4a0'; }
+    // Ability cooldown indicator
+    const abEl = document.getElementById('abilityStat');
+    if (abEl) {
+      const name = ({ fighter: 'BLINK', gunship: 'BARRAGE', tank: 'SHOCKWAVE', support: 'REPAIR' })[me.shipClass] || 'ABILITY';
+      const cd = me.abilityCool || 0;
+      if (cd > 0.05) { abEl.textContent = `✦ ${name} ${cd.toFixed(1)}s`; abEl.style.color = '#5a6488'; }
+      else           { abEl.textContent = `✦ ${name} — READY (F)`; abEl.style.color = '#7c5cff'; }
+    }
+  }
+  // Boss HUD — Fix 34: show phase in label
+  const bossHud = document.getElementById('bossHud');
+  if (state.boss) {
+    bossHud.style.display = '';
+    document.getElementById('bossHpBar').style.width = (100 * state.boss.hp / state.boss.maxHp) + '%';
+    const bk = ({ dreadnought: 'DREADNOUGHT', interceptor: 'INTERCEPTOR', carrier: 'CARRIER' })[state.boss.kind] || 'BOSS';
+    bossHud.querySelector('.boss-label').textContent = state.boss.phase === 2 ? `⚠ ${bk} — ENRAGED` : `⚠ ${bk}`;
+    bossHud.style.borderColor = state.boss.phase === 2 ? '#ff8800' : '#ff4444';
+  } else {
+    bossHud.style.display = 'none';
+  }
+  // Fix 13: only update buff DOM when buffs actually change — was causing 60fps DOM thrash
+  const BUFF_LABEL = { ammo:'⚡×2 fire', speed:'▶×2 speed' };
+  const buffKey = me ? (me.buffs||[]).map(b=>`${b.type}${b.timeLeft.toFixed(0)}`).join(',') : '';
+  if (buffKey !== updateHUD._lastBuffKey) {
+    updateHUD._lastBuffKey = buffKey;
+    document.querySelectorAll('.hud .buff-stat').forEach(el => el.remove());
+    if (me) {
+      const hud = document.querySelector('.hud');
+      for (const b of (me.buffs||[])) {
+        const el = document.createElement('div');
+        el.className = 'stat buff-stat';
+        el.textContent = `${BUFF_LABEL[b.type]||b.type} ${b.timeLeft.toFixed(0)}s`;
+        hud.appendChild(el);
+      }
+    }
+  }
+  // Bug 23 fix: cache sector/location — were writing DOM every frame even when unchanged
+  const secText = 'Sector ' + (state.sector || 1);
+  if (secText !== updateHUD._lastSector) { updateHUD._lastSector = secText; document.getElementById('sectorStat').textContent = secText; }
+  if (state.location && state.location !== updateHUD._lastLocation) {
+    updateHUD._lastLocation = state.location;
+    document.getElementById('locationStat').textContent = state.location;
+    // Record the trip — skip only an immediate repeat so revisits still count.
+    if (visitedLog[visitedLog.length - 1] !== state.location) { visitedLog.push(state.location); renderTravelLog(); }
+  }
+  // Fix 14: only rebuild pilot list HTML when players actually change — was 30fps innerHTML thrash
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const pilotKey = state.players.map(p=>`${p.id}${p.name}${p.kills}${p.alive}${p.voice?1:0}`).join('|');
+  const list = document.getElementById('pilotList');
+  if (pilotKey !== updateHUD._lastPilotKey) {
+    updateHUD._lastPilotKey = pilotKey;
+    list.innerHTML = state.players.map(p => {
+      const mic = p.voice ? ' 🎙' : '';
+      const cls = p.id === myId ? ' style="color:var(--accent)"' : '';
+      return `<div class="row"${cls}><span class="swatch" style="background:${esc(p.color)}"></span>${esc(p.name)}${p.id === myId ? ' (you)' : ''}${mic} — ${p.kills|0}</div>`;
+    }).join('');
+  }
+  // Fix 15: show dock button on touch when near a planet
+  const dockBtn = document.getElementById('dockBtn');
+  if (dockBtn) dockBtn.style.display = nearestDockablePlanet() && me && me.alive ? '' : 'none';
+  // Fix 16: update dock prompt key hint for touch devices
+  const isTouchDevice = window.matchMedia('(pointer:coarse)').matches;
+  const dockKeyEl = document.getElementById('dockKey');
+  if (dockKeyEl) dockKeyEl.textContent = isTouchDevice ? 'E button' : 'E';
+}
+
+// ── Co-pilot ──
+let coLastT = performance.now();
+function updateCopilot() {
+  const t = performance.now();
+  const dt = Math.min(0.1, (t - coLastT) / 1000);
+  coLastT = t;
+  coState.cooldown = Math.max(0, coState.cooldown - dt);
+  const me = state.players.find(p => p.id === myId);
+  if (!me) return;
+  // React to warp engage event
+  if (me.warpJustEngaged) { coState.cooldown = 0; say('warp', {}, 'warn'); }
+  // Fix 20: kill counter — use >= to handle boss granting +2 kills at once
+  if (me.kills > coState.lastKills) { coState.lastKills = me.kills; coState.cooldown = 0; say('killShot'); }
+  if (me.kills < coState.lastKills) coState.lastKills = me.kills; // respawn reset
+  // Fix 21: sector increase notification
+  if ((state.sector||1) > coState.lastSector) { coState.lastSector = state.sector; coState.cooldown = 0; say('sectorUp', {S: state.sector}, 'warn'); }
+  if ((state.sector||1) < coState.lastSector) coState.lastSector = state.sector||1;
+  // Bug 15 fix: only track loot pickup when player is alive — dead players don't pick up loot
+  const lootNow = (state.loot||[]).length;
+  if (me.alive && lootNow < coState.lastLootCount && coState.lastLootCount > 0) say('lootPickup');
+  coState.lastLootCount = lootNow;
+  // Bug 16 fix: only update lastPos when alive — respawn causes large position jump that was
+  // falsely triggering the wormhole alert
+  const meXc = rx(me), meYc = ry(me);
+  // Drop the reference across hyperjumps so the teleport doesn't read as a wormhole.
+  if (state.hyperjumping) coState.lastPos = null;
+  if (me.alive && coState.lastPos && !state.hyperjumping) {
+    const jump = Math.hypot(meXc - coState.lastPos.x, meYc - coState.lastPos.y);
+    // A real wormhole exit drops speed to ~0.4×; a warp burst leaves a huge velocity,
+    // so require a big jump AND a non-warp speed to avoid false alerts on warp exit.
+    const sp = Math.hypot(me.vx || 0, me.vy || 0);
+    if (jump > 2000 && !me.warpActive && sp < 800) { coState.cooldown = 0; say('wormhole', {}, 'warn'); }
+  }
+  if (me.alive) coState.lastPos = { x: meXc, y: meYc };
+  // Bug 17 fix: low-HP is critical — bypass cooldown so it's never blocked by lesser messages
+  if (me.hp < me.maxHp * 0.3 && me.alive) { coState.cooldown = 0; say('lowHp', {}, 'danger'); return; }
+  // Fix 24: boss nearby warning
+  if (state.boss) {
+    const bd = Math.hypot(state.boss.x - meXc, state.boss.y - meYc);
+    if (bd < 800) { say('bossNear', {}, 'danger'); return; }
+  }
+  // Black hole proximity (use extrapolated ship position)
+  for (const a of anomalies) {
+    if (a.type !== 'blackhole') continue;
+    const d = Math.hypot(a.x - meXc, a.y - meYc);
+    if (d < a.pullRange * 0.7) { say('blackholeWarn', {}, 'danger'); return; }
+  }
+  // Nearest enemy logic
+  let nearest = null, nearestD = Infinity;
+  for (const e of (state.enemies || [])) {
+    const d2 = (e.x - meXc) ** 2 + (e.y - meYc) ** 2;
+    if (d2 < nearestD) { nearestD = d2; nearest = e; }
+  }
+  if (nearest) {
+    const nd = Math.sqrt(nearestD);
+    if (nd < 220) { say('closeThreat', {}, 'danger'); return; }
+    // Bug 20: 0.02/frame at 60fps was ~70% per-sec — way too spammy
+    if (nd > 350 && Math.random() < 0.003) {
+      say('contact', { DIR: bearing(me, nearest) }, 'warn');
+    }
+  } else if (Math.random() < 0.002) {
+    say('idle');
+  }
+}
+
+// ── Minimap ──
+const mmCtx = document.getElementById('minimap').getContext('2d');
+(function setupMM() {
+  const dpr = window.devicePixelRatio || 1;
+  const c = document.getElementById('minimap');
+  c.width = 180 * dpr; c.height = 180 * dpr;
+  c.style.width = '180px'; c.style.height = '180px';
+  mmCtx.scale(dpr, dpr);
+})();
+// Bug 14 fix: mmClamp defined outside renderMinimap — was allocating a new function object
+// every renderMinimap call (30× per frame)
+const MM_HALF = 90; // SIZE/2 = 180/2
+function mmClamp(wx, wy, margin) {
+  const d = Math.hypot(wx, wy);
+  const lim = MM_HALF - margin;
+  return d > lim ? [wx*lim/d, wy*lim/d, true] : [wx, wy, false];
+}
+
+function renderMinimap() {
+  const SIZE = 180, RANGE = 12000;
+  mmCtx.fillStyle = '#05060d';
+  mmCtx.fillRect(0, 0, SIZE, SIZE);
+  const me = state.players.find(p => p.id === myId);
+  if (!me) return;
+  const meX = rx(me), meY = ry(me);
+  const half = MM_HALF;
+  const scale = half / RANGE;
+
+  mmCtx.save();
+  mmCtx.translate(half, half);
+  mmCtx.rotate(-me.a - Math.PI/2);
+
+  // Range rings
+  mmCtx.strokeStyle = '#1d2a4a'; mmCtx.lineWidth = 1;
+  for (let i = 1; i <= 3; i++) {
+    mmCtx.beginPath(); mmCtx.arc(0, 0, half * i / 3.5, 0, Math.PI*2); mmCtx.stroke();
+  }
+
+  // Sun / central black hole — always edge-clamped
+  if (state.sun) {
+    const c = state.sun;
+    const [wx, wy, edge] = mmClamp((c.x-meX)*scale, (c.y-meY)*scale, 6);
+    if (c.type === 'blackhole') {
+      mmCtx.fillStyle = '#000';
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?5:7, 0, Math.PI*2); mmCtx.fill();
+      mmCtx.strokeStyle = c.hot||'#ffaa44'; mmCtx.lineWidth = 1.5;
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?6.5:9, 0, Math.PI*2); mmCtx.stroke();
+    } else {
+      const sg = mmCtx.createRadialGradient(wx,wy,1,wx,wy,10);
+      sg.addColorStop(0, c.hot||c.color); sg.addColorStop(1, withAlpha(c.color,'00'));
+      mmCtx.fillStyle = sg;
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?6:10, 0, Math.PI*2); mmCtx.fill();
+      mmCtx.fillStyle = c.color;
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?3.5:5, 0, Math.PI*2); mmCtx.fill();
+    }
+  }
+  // Fix 50: reset textAlign after sun rendering block
+  mmCtx.textAlign = 'left';
+
+  // Planets — always visible, edge-clamped when off-map
+  for (const p of state.planets || []) {
+    const [wx, wy, edge] = mmClamp((p.x-meX)*scale, (p.y-meY)*scale, 5);
+    mmCtx.fillStyle = p.color;
+    mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?2.5:4, 0, Math.PI*2); mmCtx.fill();
+  }
+
+  // Anomalies — all edge-clamped
+  for (const a of anomalies) {
+    const rawX = (a.x-meX)*scale, rawY = (a.y-meY)*scale;
+    const [wx, wy, edge] = mmClamp(rawX, rawY, 5);
+    if (a.type === 'blackhole') {
+      mmCtx.fillStyle = '#000';
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?4:5, 0, Math.PI*2); mmCtx.fill();
+      mmCtx.strokeStyle = '#ffaa44'; mmCtx.lineWidth = 1;
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?5.5:7, 0, Math.PI*2); mmCtx.stroke();
+    } else if (a.type === 'wormhole') {
+      mmCtx.strokeStyle = '#c47cff'; mmCtx.lineWidth = 1.5;
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, 3.5, 0, Math.PI*2); mmCtx.stroke();
+    }
+  }
+
+  // Asteroids — on-map only (too many to edge-clamp)
+  mmCtx.fillStyle = '#7a6a58';
+  for (const a of state.asteroids || []) {
+    const wx = (a.x-meX)*scale, wy = (a.y-meY)*scale;
+    if (Math.hypot(wx,wy) > half-4) continue;
+    const r = Math.max(1, a.r * scale * 0.9);
+    mmCtx.beginPath(); mmCtx.arc(wx, wy, r, 0, Math.PI*2); mmCtx.fill();
+  }
+
+  // Enemies
+  mmCtx.fillStyle = '#ff6b6b';
+  for (const e of (state.enemies || [])) {
+    const wx = (e.x-meX)*scale, wy = (e.y-meY)*scale;
+    if (Math.hypot(wx,wy) > half-4) continue;
+    mmCtx.fillRect(wx-1.5, wy-1.5, 3, 3);
+  }
+
+  // Boss — always edge-clamped, pulsing red
+  if (state.boss) {
+    const [wx, wy, edge] = mmClamp((state.boss.x-meX)*scale, (state.boss.y-meY)*scale, 6);
+    mmCtx.fillStyle = '#ff2020';
+    mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?4:7, 0, Math.PI*2); mmCtx.fill();
+    mmCtx.strokeStyle = state.boss.phase===2 ? '#ffaa00' : '#ff6060';
+    mmCtx.lineWidth = 2;
+    mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?6:10, 0, Math.PI*2); mmCtx.stroke();
+  }
+
+  // Other players — edge-clamped
+  for (const p of state.players) {
+    if (p.id === myId || !p.alive) continue;
+    const [wx, wy] = mmClamp((p.x-meX)*scale, (p.y-meY)*scale, 4);
+    mmCtx.fillStyle = p.color;
+    mmCtx.beginPath(); mmCtx.arc(wx, wy, 2.5, 0, Math.PI*2); mmCtx.fill();
+  }
+
+  mmCtx.restore();
+  // Me — triangle at center always pointing up
+  mmCtx.fillStyle = myColor;
+  mmCtx.beginPath();
+  mmCtx.moveTo(half, half-8); mmCtx.lineTo(half+5, half+5); mmCtx.lineTo(half-5, half+5);
+  mmCtx.closePath(); mmCtx.fill();
+}
+
+// ── Voice chat (WebRTC mesh) ─────────────────────────────────────────
+// Each player that joins voice creates an RTCPeerConnection to every other
+// voice-on player. SDP and ICE go through the WebSocket; audio goes peer-to-peer.
+let myStream = null;          // local mic MediaStream
+let isMuted = false;
+const peers = new Map();      // playerId -> { pc, audioEl }
+const ICE = { iceServers: [] }; // LAN host candidates work without STUN
+
+function sendRtc(to, payload) {
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'rtc', to, payload }));
+}
+
+function createPeer(peerId, initiator) {
+  if (peers.has(peerId)) return peers.get(peerId);
+  const pc = new RTCPeerConnection(ICE);
+  if (myStream) for (const t of myStream.getTracks()) pc.addTrack(t, myStream);
+  pc.onicecandidate = (e) => { if (e.candidate) sendRtc(peerId, { kind: 'ice', candidate: e.candidate }); };
+  pc.ontrack = (e) => {
+    let audio = document.getElementById('audio-' + peerId);
+    if (!audio) {
+      audio = document.createElement('audio');
+      audio.id = 'audio-' + peerId;
+      audio.autoplay = true;
+      audio.playsInline = true;
+      document.body.appendChild(audio);
+    }
+    audio.srcObject = e.streams[0];
+    audio.play().catch(() => {});
+  };
+  pc.onconnectionstatechange = () => {
+    if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) closePeer(peerId);
+  };
+  const entry = { pc };
+  peers.set(peerId, entry);
+  if (initiator) {
+    pc.createOffer()
+      .then(o => pc.setLocalDescription(o))
+      .then(() => sendRtc(peerId, { kind: 'offer', sdp: pc.localDescription }))
+      .catch(err => console.warn('offer failed', err));
+  }
+  return entry;
+}
+
+function closePeer(peerId) {
+  const entry = peers.get(peerId);
+  if (!entry) return;
+  try { entry.pc.close(); } catch {}
+  const audio = document.getElementById('audio-' + peerId);
+  if (audio) audio.remove();
+  peers.delete(peerId);
+}
+
+async function handleSignal(from, payload) {
+  // If we get an offer and aren't yet peered, build the peer as a receiver
+  if (payload.kind === 'offer' && !peers.has(from)) {
+    if (!myStream) return; // we haven't joined voice — ignore
+    createPeer(from, false);
+  }
+  const entry = peers.get(from);
+  if (!entry) return;
+  const pc = entry.pc;
+  try {
+    if (payload.kind === 'offer') {
+      await pc.setRemoteDescription(payload.sdp);
+      const ans = await pc.createAnswer();
+      await pc.setLocalDescription(ans);
+      sendRtc(from, { kind: 'answer', sdp: pc.localDescription });
+    } else if (payload.kind === 'answer') {
+      await pc.setRemoteDescription(payload.sdp);
+    } else if (payload.kind === 'ice' && payload.candidate) {
+      await pc.addIceCandidate(payload.candidate);
+    }
+  } catch (e) { console.warn('signal handle failed', e); }
+}
+
+// Called every state snapshot: open peers to new voice-on players, close peers
+// to anyone who left or muted-out.
+function reconcileVoicePeers() {
+  if (!myStream) return;
+  const voiceOn = new Set(state.players.filter(p => p.voice && p.id !== myId).map(p => p.id));
+  // Close peers to players that left or are no longer in voice
+  for (const id of [...peers.keys()]) if (!voiceOn.has(id)) closePeer(id);
+  // Open peers to new voice-on players — lower id initiates to avoid collision
+  for (const id of voiceOn) {
+    if (peers.has(id)) continue;
+    if (myId < id) createPeer(id, true);
+    // else wait for their offer
+  }
+}
+
+async function joinVoice() {
+  try {
+    myStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'voice', on: true }));
+    document.getElementById('voiceBtn').textContent = '🎙️ Voice ON (click to mute)';
+    reconcileVoicePeers();
+  } catch (e) {
+    alert('Mic permission denied or unavailable: ' + (e.message || e.name));
+  }
+}
+function toggleMute() {
+  if (!myStream) return;
+  isMuted = !isMuted;
+  for (const t of myStream.getAudioTracks()) t.enabled = !isMuted;
+  document.getElementById('voiceBtn').textContent = isMuted ? '🔇 Muted (click to unmute)' : '🎙️ Voice ON (click to mute)';
+}
+document.getElementById('voiceBtn').addEventListener('click', () => {
+  if (!myStream) joinVoice(); else toggleMute();
+});
+
+// ── Docking ──
+const DOCK_RANGE = 220;
+let dockedPlanet = null;
+function nearestDockablePlanet() {
+  const me = state.players.find(p => p.id === myId);
+  // Fix 27: dead players shouldn't see dock prompts
+  if (!me || !me.alive) return null;
+  const meX = rx(me), meY = ry(me);
+  let best = null, bestD = Infinity;
+  for (const p of state.planets || []) {
+    if (!p.upgrade) continue;
+    const px = rx(p), py = ry(p);
+    const d = Math.hypot(px - meX, py - meY) - p.r;
+    if (d < bestD) { bestD = d; best = p; }
+  }
+  if (!best) return null;
+  const bx = rx(best), by = ry(best);
+  return (Math.hypot(bx - meX, by - meY) - best.r < DOCK_RANGE) ? best : null;
+}
+function updateDockPrompt() {
+  // Fix 28: close dock panel if player died or hyperjump started
+  const me = state.players.find(p => p.id === myId);
+  if (dockedPlanet && (!me || !me.alive || state.hyperjumping)) {
+    dockedPlanet = null;
+    document.getElementById('dockPanel').classList.remove('show');
+    const tc = document.querySelector('.touch-ctrl');
+    if (tc) { tc.style.opacity = ''; tc.style.pointerEvents = ''; }
+  }
+  if (dockedPlanet) {
+    document.getElementById('dockPrompt').classList.remove('show');
+    // Bug fix: re-sync the install button with the server's authoritative
+    // upgradesTaken list so an optimistic "Installed" gets reverted if
+    // the server actually rejected the install.
+    const me = state.players.find(pl => pl.id === myId);
+    const taken = me && me.upgradesTaken && me.upgradesTaken.includes(dockedPlanet.name);
+    const btn = document.getElementById('dockInstall');
+    if (taken) { btn.disabled = true; btn.textContent = '✓ Installed'; }
+    else { btn.disabled = false; btn.textContent = '⚡ Install Upgrade  (Q)'; }
+    return;
+  }
+  const p = nearestDockablePlanet();
+  const el = document.getElementById('dockPrompt');
+  if (p) {
+    document.getElementById('dockPromptName').textContent = p.name;
+    el.classList.add('show');
+  } else {
+    el.classList.remove('show');
+  }
+}
+function tryDockOrDepart() {
+  if (dockedPlanet) {
+    dockedPlanet = null;
+    document.getElementById('dockPanel').classList.remove('show');
+    const tc0 = document.querySelector('.touch-ctrl');
+    if (tc0) { tc0.style.opacity = ''; tc0.style.pointerEvents = ''; }
+    return;
+  }
+  const p = nearestDockablePlanet();
+  if (!p) return;
+  dockedPlanet = p;
+  // Bug fix: dim and disable touch controls while the dock panel is up
+  const tc = document.querySelector('.touch-ctrl');
+  tc.style.opacity = '0.3';
+  tc.style.pointerEvents = 'none';
+  const me = state.players.find(pl => pl.id === myId);
+  const taken = me && me.upgradesTaken && me.upgradesTaken.includes(p.name);
+  document.getElementById('dockPlanetName').textContent = p.name;
+  document.getElementById('dockOrbit').textContent = 'orbital station';
+  document.getElementById('dockUpName').textContent = p.upgradeName || '(no upgrade)';
+  document.getElementById('dockUpDesc').textContent = p.upgradeDesc || '';
+  const btn = document.getElementById('dockInstall');
+  btn.disabled = !!taken;
+  btn.textContent = taken ? '✓ Already Installed' : '⚡ Install Upgrade  (Q)';
+  document.getElementById('dockPanel').classList.add('show');
+}
+// Install the docked planet's upgrade — or, if the dock panel isn't open, the
+// nearest dockable planet. Bound to both the button and the Q key so a single
+// press always installs whatever you're parked at.
+function installUpgrade() {
+  const planet = dockedPlanet || nearestDockablePlanet();
+  if (!planet || !planet.upgrade || !ws || ws.readyState !== 1) return;
+  ws.send(JSON.stringify({ type: 'install', planet: planet.name }));
+  // Reflect optimistically when the panel is showing
+  if (dockedPlanet) {
+    const btn = document.getElementById('dockInstall');
+    btn.disabled = true;
+    btn.textContent = '✓ Installed';
+  }
+}
+document.getElementById('dockInstall').addEventListener('click', installUpgrade);
+document.getElementById('dockDepart').addEventListener('click', tryDockOrDepart);
+
+function loop() {
+  _frameNow = performance.now(); // Bug 2 fix: single timestamp per frame, shared by rx/ry
+  render();
+  renderMinimap();
+  updateHUD();
+  updateCopilot();
+  updateDockPrompt();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

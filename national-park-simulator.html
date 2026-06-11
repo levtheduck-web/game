@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>YELLOWSTONE · National Park Simulator</title>
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:#0d120c;overflow:hidden;color:#eef3e6;
+    font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;user-select:none;}
+  #game{position:fixed;inset:0;display:block;cursor:crosshair;}
+  .hud{position:fixed;left:12px;top:10px;z-index:5;text-shadow:1px 2px 0 #000;pointer-events:none;}
+  .hud .row{margin-bottom:3px;font-weight:600;letter-spacing:.3px;}
+  .rank{color:#ffe08a;font-size:17px;} .sc{color:#bfe89a;}
+  #prompt{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:5;background:#10160d;
+    border:2px solid #3a4a2a;border-radius:999px;padding:7px 16px;font-size:13px;color:#cfe6a0;display:none;text-shadow:none;}
+  #toast{position:fixed;left:50%;top:22%;transform:translateX(-50%);z-index:6;font-size:20px;font-weight:700;
+    text-shadow:2px 2px 0 #000;opacity:0;transition:opacity .25s;pointer-events:none;text-align:center;}
+  #wep{position:fixed;left:12px;bottom:10px;z-index:5;text-shadow:1px 1px 0 #000;font-weight:600;}
+  #hint{position:fixed;right:12px;bottom:10px;z-index:5;color:#86a06a;text-align:right;text-shadow:1px 1px 0 #000;font-size:12px;}
+  /* ranger info card */
+  #card{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);width:min(640px,92vw);z-index:8;display:none;
+    background:#101a10;border:3px solid #6fae54;border-radius:10px;padding:14px 18px;}
+  #card .t{color:#9be08a;font-weight:700;letter-spacing:1px;margin-bottom:5px;}
+  #card .f{color:#dfeccf;font-size:15px;}
+  #card .x{position:absolute;right:12px;top:8px;color:#9aa;cursor:pointer;}
+  /* journal */
+  #book{position:fixed;inset:0;z-index:9;display:none;background:#06080699;}
+  #book .pg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(720px,95vw);max-height:88vh;overflow:auto;
+    background:#13200f;border:4px solid #6fae54;border-radius:10px;padding:18px 22px;}
+  #book h2{margin:0 0 2px;color:#ffe08a;letter-spacing:1px;} #book .meta{color:#8fae6f;margin-bottom:12px;font-size:13px;}
+  #book h3{color:#9be08a;margin:14px 0 6px;border-bottom:1px solid #2c3a22;padding-bottom:3px;}
+  #book .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+  #book .e{padding:5px 9px;border:1px solid #243018;border-radius:5px;font-size:13px;display:flex;gap:8px;align-items:center;}
+  #book .e.got{background:#1c2c14;border-color:#3f6b2a;color:#dfeccf;}
+  #book .e.miss{color:#5e7048;}
+  #book .x{position:absolute;right:16px;top:12px;color:#cde;cursor:pointer;}
+  #flash{position:fixed;inset:0;z-index:7;background:#fff;opacity:0;pointer-events:none;}
+  #start{position:fixed;inset:0;z-index:20;background:#0d120c;display:grid;place-items:center;text-align:center;}
+  #start h1{font-size:min(7vw,46px);margin:0;color:#ffe08a;text-shadow:3px 3px 0 #2c4a1a;letter-spacing:2px;}
+  #start .by{color:#8fae6f;margin:8px 0 22px;}
+  #start button{background:#6fae54;color:#0d120c;border:none;padding:14px 28px;font:bold 18px -apple-system,sans-serif;cursor:pointer;border-radius:6px;letter-spacing:1px;}
+  #start ul{color:#aac88c;text-align:left;display:inline-block;margin-top:20px;font-size:13px;line-height:1.7;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div class="hud">
+  <div class="row rank" id="hRank">Junior Ranger</div>
+  <div class="row sc">★ <span id="hScore">0</span> pts</div>
+  <div class="row">📷 <span id="hPhotos">0</span> photos</div>
+  <div class="row">🐾 wildlife <span id="hWild">0/6</span> · 📍 places <span id="hPlaces">0/0</span></div>
+</div>
+<div id="wep">🚶 on foot</div>
+<div id="hint">WASD walk · E enter car · MOUSE frame · CLICK 📷 photo · J journal</div>
+<div id="prompt"></div>
+<div id="toast"></div>
+
+<div id="card"><span class="x" id="cardX">✕</span><div class="t" id="cardT"></div><div class="f" id="cardF"></div></div>
+
+<div id="book"><div class="pg">
+  <span class="x" id="bookX">✕ (J)</span>
+  <h2>📔 PARK JOURNAL</h2>
+  <div class="meta" id="bookMeta"></div>
+  <h3>🐾 Wildlife photographed</h3><div class="grid" id="bookWild"></div>
+  <h3>📍 Places discovered</h3><div class="grid" id="bookPlaces"></div>
+</div></div>
+
+<div id="flash"></div>
+
+<div id="start"><div>
+  <h1>YELLOWSTONE</h1>
+  <div class="by">National Park Simulator · explore · photograph · discover</div>
+  <button id="startBtn">▶ ENTER THE PARK</button>
+  <ul>
+    <li><b>WASD</b> walk · <b>E</b> hop in a car to drive the Grand Loop</li>
+    <li><b>Move the mouse</b> to frame a shot, <b>click</b> to 📷 photograph wildlife, geysers &amp; views</li>
+    <li>Drive up to <b>landmarks</b> to discover them &amp; learn a ranger fact</li>
+    <li>Fill your <b>journal (J)</b> &amp; climb from Junior Ranger to Park Superintendent</li>
+    <li>🐻 Keep your distance from wildlife — don't get too close!</li>
+  </ul>
+</div></div>
+
+<script>
+const cv=document.getElementById('game'), ctx=cv.getContext('2d');
+let W,H,DPR=Math.min(2,devicePixelRatio||1);
+function resize(){ W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';ctx.setTransform(DPR,0,0,DPR,0,0); }
+addEventListener('resize',resize); resize();
+
+// ── World (accurate Yellowstone, topographic) ──
+const T=20, SC=4.0, DW=380, DH=320, MW=Math.round(DW*SC), MH=Math.round(DH*SC), q=v=>Math.round(v*SC);
+const GRASS=0,TREE=1,WATER=2,ROAD=3,WALL=4,FLOOR=5,GEYSER=6,SAND=7,TRAIL=8,MOUNTAIN=9;
+const SOLID={1:1,2:1,4:1,6:1,9:1};
+const map=new Int8Array(MW*MH);
+const tile=(x,y)=> (x<0||y<0||x>=MW||y>=MH)?WALL:map[y*MW+x];
+const setT=(x,y,v)=>{ if(x>=0&&y>=0&&x<MW&&y<MH) map[y*MW+x]=v; };
+const rint=(a,b)=>a+Math.floor(Math.random()*(b-a+1)), rng=(a,b)=>a+Math.random()*(b-a);
+
+const PLACES={
+  northEnt:{x:89,y:20,name:'NORTH ENTRANCE',ent:1}, mammoth:{x:94,y:50,name:'MAMMOTH HOT SPRINGS',vill:1},
+  tower:{x:159,y:56,name:'TOWER-ROOSEVELT',vill:1}, neEnt:{x:250,y:36,name:'NORTHEAST ENTRANCE',ent:1},
+  norris:{x:105,y:120,name:'NORRIS JCT'}, canyon:{x:146,y:120,name:'CANYON VILLAGE',vill:1},
+  madison:{x:74,y:146,name:'MADISON JCT'}, westEnt:{x:16,y:146,name:'WEST ENTRANCE',ent:1},
+  oldFaithful:{x:78,y:208,name:'OLD FAITHFUL',vill:1}, westThumb:{x:118,y:226,name:'WEST THUMB JCT'},
+  grant:{x:124,y:236,name:'GRANT VILLAGE',vill:1}, lake:{x:172,y:182,name:'LAKE VILLAGE',vill:1},
+  eastEnt:{x:255,y:188,name:'EAST ENTRANCE',ent:1}, southEnt:{x:120,y:308,name:'SOUTH ENTRANCE',ent:1},
+};
+for(const k in PLACES){ PLACES[k].x=q(PLACES[k].x); PLACES[k].y=q(PLACES[k].y); }
+const ROADS=[['mammoth','norris'],['norris','canyon'],['canyon','tower'],['tower','mammoth'],
+  ['norris','madison'],['madison','oldFaithful'],['oldFaithful','westThumb'],['westThumb','lake'],['lake','canyon'],
+  ['westThumb','grant'],['grant','southEnt'],['northEnt','mammoth'],['neEnt','tower'],['eastEnt','lake'],['westEnt','madison']];
+const FEATURES=[];
+function line(x0,y0,x1,y1,w,v){ const steps=Math.max(Math.abs(x1-x0),Math.abs(y1-y0))*2+1;
+  for(let i=0;i<=steps;i++){ const t=i/steps,cx=Math.round(x0+(x1-x0)*t),cy=Math.round(y0+(y1-y0)*t);
+    for(let oy=-w;oy<=w;oy++)for(let ox=-w;ox<=w;ox++) if(ox*ox+oy*oy<=w*w+1){ const tx=cx+ox,ty=cy+oy;
+      if(tx>=0&&ty>=0&&tx<MW&&ty<MH&&(v===ROAD||tile(tx,ty)!==ROAD)) setT(tx,ty,v); } } }
+function ellipse(cx,cy,rx,ry,v){ for(let y=-ry;y<=ry;y++)for(let x=-rx;x<=rx;x++)
+  if((x*x)/(rx*rx)+(y*y)/(ry*ry)<=1 && tile(cx+x,cy+y)!==ROAD) setT(cx+x,cy+y,v); }
+function clearTrees(cx,cy,r){ for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++) if(x*x+y*y<=r*r&&tile(cx+x,cy+y)===TREE) setT(cx+x,cy+y,GRASS); }
+function meadow(cx,cy,rx,ry,name){ for(let y=-ry;y<=ry;y++)for(let x=-rx;x<=rx;x++) if((x*x)/(rx*rx)+(y*y)/(ry*ry)<=1&&tile(cx+x,cy+y)===TREE) setT(cx+x,cy+y,GRASS); if(name) FEATURES.push({x:cx,y:cy,name,valley:1}); }
+function basin(cx,cy,r,name){ for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++){ if(x*x+y*y<=r*r){ const tv=tile(cx+x,cy+y); if(tv===GRASS||tv===TREE) setT(cx+x,cy+y,SAND); } }
+  for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++){ if(x*x+y*y<=r*r&&tile(cx+x,cy+y)===SAND){ const rl=Math.random(); if(rl<0.008) setT(cx+x,cy+y,GEYSER); else if(rl<0.05) setT(cx+x,cy+y,WATER); } }
+  FEATURES.push({x:cx,y:cy,name,geyser:1}); }
+function building(bx,by,bw,bh){ for(let y=by;y<by+bh;y++)for(let x=bx;x<bx+bw;x++){ if(x===bx||x===bx+bw-1||y===by||y===by+bh-1) setT(x,y,WALL); else setT(x,y,FLOOR);} setT(bx+(bw>>1),by+bh-1,FLOOR); }
+function genWorld(){
+  const clusters=Math.round(1200*SC*SC);
+  for(let i=0;i<clusters;i++){ const cx=rint(4,MW-4),cy=rint(4,MH-4),r=rint(2,6);
+    for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++) if(x*x+y*y<r*r&&Math.random()<0.72&&tile(cx+x,cy+y)===GRASS) setT(cx+x,cy+y,TREE); }
+  ellipse(q(167),q(200),q(40),q(30),WATER); ellipse(q(120),q(224),q(17),q(15),WATER);
+  ellipse(q(150),q(236),q(12),q(22),WATER); ellipse(q(189),q(233),q(11),q(20),WATER);
+  ellipse(q(112),q(270),q(7),q(10),WATER); ellipse(q(95),q(254),q(11),q(7),WATER);
+  line(q(166),q(178),q(146),q(121),q(1),WATER); line(q(146),q(119),q(118),q(60),q(1),WATER); line(q(116),q(58),q(90),q(22),q(1),WATER);
+  line(q(77),q(206),q(74),q(150),q(1),WATER); line(q(74),q(148),q(40),q(150),q(1),WATER);
+  line(q(105),q(124),q(76),q(148),q(1),WATER); line(q(112),q(280),q(118),q(306),q(1),WATER);
+  for(const p of [[150,90,'MT. WASHBURN'],[212,40,'ABIATHAR PEAK'],[58,40,'ELECTRIC PEAK'],[112,272,'MT. SHERIDAN'],[236,210,'AVALANCHE PEAK']]){
+    ellipse(q(p[0]),q(p[1]),q(3),q(3),MOUNTAIN); FEATURES.push({x:q(p[0]),y:q(p[1]),name:p[2],peak:1}); }
+  for(const [a,b] of ROADS){ const A=PLACES[a],B=PLACES[b]; line(A.x,A.y,B.x,B.y,q(1),ROAD); }
+  basin(q(80),q(209),q(7),'UPPER GEYSER BASIN'); basin(q(76),q(178),q(6),'MIDWAY & LOWER GEYSER BASIN');
+  basin(q(105),q(118),q(5),'NORRIS GEYSER BASIN'); basin(q(101),q(221),q(4),'WEST THUMB GEYSER BASIN'); basin(q(94),q(50),q(4),'MAMMOTH HOT SPRINGS');
+  setT(q(76),q(210),GEYSER); FEATURES.push({x:q(76),y:q(210),name:'OLD FAITHFUL',geyser:1,faithful:1});
+  for(const k in PLACES){ const p=PLACES[k]; if(p.vill){ clearTrees(p.x,p.y,q(5)); building(p.x+q(3),p.y-q(2),q(6),q(5)); building(p.x-q(7),p.y+q(1),q(5),q(4)); } else if(p.ent){ clearTrees(p.x,p.y,q(3)); building(p.x-q(2),p.y-q(2),q(5),q(4)); } }
+  meadow(q(156),q(150),q(15),q(26),'HAYDEN VALLEY'); meadow(q(200),q(46),q(28),q(11),'LAMAR VALLEY');
+  FEATURES.push({x:q(112),y:q(270),name:'LEWIS LAKE'}); FEATURES.push({x:q(95),y:q(254),name:'SHOSHONE LAKE'});
+  FEATURES.push({x:q(76),y:q(176),name:'GRAND PRISMATIC SPRING'}); FEATURES.push({x:q(167),y:q(200),name:'YELLOWSTONE LAKE'});
+  line(q(78),q(213),q(70),q(236),1,TRAIL); setT(q(70),q(237),GEYSER); FEATURES.push({x:q(70),y:q(238),name:'LONE STAR GEYSER (hike)'});
+  line(q(150),q(125),q(150),q(94),1,TRAIL); line(q(172),q(186),q(206),q(210),1,TRAIL);
+  line(q(130),q(232),q(135),q(280),1,TRAIL); ellipse(q(135),q(282),q(4),q(5),WATER); FEATURES.push({x:q(135),y:q(283),name:'HEART LAKE (hike)'});
+  FEATURES.push({x:q(150),y:q(128),name:'GRAND CANYON OF THE YELLOWSTONE'});
+}
+genWorld();
+let geysers=[]; for(let y=0;y<MH;y++)for(let x=0;x<MW;x++) if(tile(x,y)===GEYSER) geysers.push({x,y,t:rng(0,8),erupt:0,faithful:(x===q(76)&&y===q(210))});
+
+// ── Ranger facts ──
+const FACTS={
+ 'OLD FAITHFUL':"Erupts roughly every 90 minutes, jetting up to ~180 ft. One of the most predictable geysers on Earth.",
+ 'UPPER GEYSER BASIN':"Holds the densest concentration of geysers in the world — about a quarter of all of Earth's geysers.",
+ 'MIDWAY & LOWER GEYSER BASIN':"Home to the Firehole River's bubbling springs, fountains, and paint pots.",
+ 'GRAND PRISMATIC SPRING':"The largest hot spring in the U.S.; its rainbow rings come from heat-loving microbes.",
+ 'NORRIS GEYSER BASIN':"The hottest and most ever-changing thermal area in the park.",
+ 'MAMMOTH HOT SPRINGS':"Terraces of travertine, slowly built as hot spring water deposits limestone.",
+ 'WEST THUMB GEYSER BASIN':"Geysers and hot springs right on the shore of Yellowstone Lake.",
+ 'YELLOWSTONE LAKE':"The largest high-elevation lake in North America — and it sits atop a giant volcano.",
+ 'GRAND CANYON OF THE YELLOWSTONE':"Up to 1,200 ft deep; the Lower Falls plunge 308 ft — nearly twice Niagara.",
+ 'HAYDEN VALLEY':"A broad river valley and one of the best places to watch bison herds graze.",
+ 'LAMAR VALLEY':"Often called 'America's Serengeti' — prime habitat for wolves, bison and bears.",
+ 'MT. WASHBURN':"A 10,243-ft peak with sweeping views and a popular day hike.",
+ 'ELECTRIC PEAK':"At 10,969 ft, the tallest summit in the park's northwest Gallatin Range.",
+ 'MT. SHERIDAN':"A 10,308-ft peak rising above Heart Lake in the southern backcountry.",
+ 'AVALANCHE PEAK':"A steep 10,568-ft climb near the East Entrance with alpine wildflowers.",
+ 'ABIATHAR PEAK':"A rugged 10,928-ft Absaroka summit near the Northeast Entrance.",
+ 'LEWIS LAKE':"A serene lake along the South Entrance road, popular for canoeing.",
+ 'SHOSHONE LAKE':"The largest backcountry lake in the lower 48 with no road to its shore.",
+ 'HEART LAKE (hike)':"A backcountry gem reached only on foot, beneath Mt. Sheridan.",
+ 'LONE STAR GEYSER (hike)':"A backcountry geyser that erupts ~every 3 hours from a tall cone.",
+ 'NORTH ENTRANCE':"Marked by the historic Roosevelt Arch at Gardiner, Montana.",
+ 'NORTHEAST ENTRANCE':"The gateway through Lamar Valley from Cooke City.",
+ 'EAST ENTRANCE':"Crosses Sylvan Pass from Cody, Wyoming.",
+ 'SOUTH ENTRANCE':"Connects to Grand Teton National Park and Jackson.",
+ 'WEST ENTRANCE':"The park's busiest gate, at West Yellowstone, Montana.",
+ 'TOWER-ROOSEVELT':"A rustic junction near Tower Fall and the Lamar Valley road.",
+ 'CANYON VILLAGE':"The hub for the Grand Canyon of the Yellowstone and its waterfalls.",
+ 'MAMMOTH HOT SPRINGS VILLAGE':"Park headquarters, where elk often nap on the lawns.",
+};
+
+// ── Player / entities ──
+const player={ x:PLACES.oldFaithful.x*T+T/2, y:PLACES.oldFaithful.y*T+T/2, vx:0,vy:0, r:8, aim:0, car:null, dazed:0 };
+let npcs=[], cars=[], particles=[];
+let score=0, photos=0; const journal=new Set(), discovered=new Set();
+const SPECIES={ bison:{name:'Bison',pts:50,c:'#5a3a22'}, elk:{name:'Elk',pts:45,c:'#8a6a3a'},
+  blackbear:{name:'Black Bear',pts:70,c:'#2e1c10'}, grizzly:{name:'Grizzly Bear',pts:95,c:'#6a4828'},
+  wolf:{name:'Wolf',pts:120,c:'#8a8f96'}, coyote:{name:'Coyote',pts:55,c:'#b09060'} };
+const WILD_TYPES=Object.keys(SPECIES);
+
+function spawnTourist(x,y){ const cols=['#ff6ec7','#6ec7ff','#ffd86e','#9cff6e','#c76eff']; npcs.push({type:'tourist',x,y,vx:0,vy:0,r:7,color:cols[rint(0,4)],t:rng(0,3),dir:rng(0,6.28)}); }
+function spawnWild(type,x,y){ const big=type==='bison',bear=type==='blackbear'||type==='grizzly';
+  npcs.push({type,x,y,vx:0,vy:0,r:big?14:bear?11:9,t:rng(0,5),dir:rng(0,6.28),wild:1,_keep:1,spook:0,herd:type==='bison'||type==='elk'?1:0}); }
+// tourists at villages/basins
+const hot=[]; for(const k in PLACES){ const p=PLACES[k]; if(p.vill||p.ent) hot.push(p);} for(const f of FEATURES){ if(f.geyser) hot.push(f);}
+for(const h of hot){ const n=h.vill?14:6; for(let i=0;i<n;i++){ let tx,ty,tr=0; do{ tx=h.x+rint(-q(7),q(7)); ty=h.y+rint(-q(7),q(7)); tr++; }while(SOLID[tile(tx,ty)]&&tr<25); spawnTourist(tx*T+T/2,ty*T+T/2); } }
+for(const k in PLACES){ const p=PLACES[k]; cars.push({x:p.x*T+T/2,y:(p.y+1)*T+T/2,vx:0,vy:0,ang:0,occupied:false}); }
+// wildlife bubble
+function placeNear(cx,cy,minR,maxR,wantGrass){ for(let tr=0;tr<26;tr++){ const a=rng(0,6.28),d=rng(minR,maxR),tx=((cx+Math.cos(a)*d)/T)|0,ty=((cy+Math.sin(a)*d)/T)|0;
+  if(tx>2&&ty>2&&tx<MW-2&&ty<MH-2&&!SOLID[tile(tx,ty)]&&(!wantGrass||tile(tx,ty)===GRASS)) return {x:tx*T+T/2,y:ty*T+T/2}; } return {x:cx+rng(-300,300),y:cy+rng(-300,300)}; }
+const POP={bison:60,elk:40,coyote:20,blackbear:14,grizzly:8,wolf:10};
+for(const t in POP) for(let i=0;i<POP[t];i++){ const p=placeNear(player.x,player.y,260,1500,t==='bison'||t==='elk'); spawnWild(t,p.x,p.y); }
+let _wIdx=0;
+function recycleWildlife(){ const far=Math.max(W,H)*1.7, near=Math.max(W,H)*1.06;
+  for(let n=0;n<12;n++){ if(!npcs.length) break; _wIdx=(_wIdx+1)%npcs.length; const a=npcs[_wIdx]; if(!a.wild) continue;
+    if(Math.hypot(a.x-player.x,a.y-player.y)>far){ const p=placeNear(player.x,player.y,near,far*0.95,a.herd); a.x=p.x;a.y=p.y;a.vx=a.vy=0;a.spook=0; } } }
+
+// ── Input ──
+const keys={}; let mx=W/2,my=H/2,started=false;
+addEventListener('keydown',e=>{ keys[e.code]=true; if(e.code==='Space'){e.preventDefault(); takePhoto();}
+  if(e.code==='KeyE') interact(); if(e.code==='KeyJ') toggleBook(); if(e.code==='Escape'){ closeBook(); closeCard(); }
+  if(!actx&&started) startAudio(); });
+addEventListener('keyup',e=>{ keys[e.code]=false; });
+cv.addEventListener('mousemove',e=>{ mx=e.clientX; my=e.clientY; });
+cv.addEventListener('mousedown',e=>{ if(e.button===0){ if(!actx)startAudio(); takePhoto(); } });
+let camX=0,camY=0; const worldMouse=()=>({x:camX+mx,y:camY+my});
+
+// ── Interact (cars) ──
+function nearest(arr,maxD){ let best=null,bd=maxD; for(const a of arr){ if(a.dead)continue; const d=Math.hypot(a.x-player.x,a.y-player.y); if(d<bd){bd=d;best=a;} } return best; }
+function interact(){ if(!started||bookOpen) return;
+  if(player.car){ const c=player.car; player.car=null; c.occupied=false; player.x=c.x+rng(-20,20); player.y=c.y+24; toast('🚶 out for a stroll'); return; }
+  const c=nearest(cars,42); if(c){ player.car=c; c.occupied=true; toast('🚗 buckle up — 45 mph speed limit!'); } }
+
+// ── Photography ──
+const toastEl=document.getElementById('toast'); let toastT=0;
+function toast(m){ toastEl.textContent=m; toastEl.style.opacity=1; toastT=1.8; }
+function flashCam(){ const f=document.getElementById('flash'); f.style.transition='none'; f.style.opacity=0.85; requestAnimationFrame(()=>{ f.style.transition='opacity .35s'; f.style.opacity=0; }); }
+function takePhoto(){ if(!started||bookOpen) return; const wm=worldMouse(); const fw=170,fh=120;
+  let best=null,bestPts=0,bestKey=null;
+  for(const a of npcs){ if(a.dead) continue; if(Math.abs(a.x-wm.x)<fw&&Math.abs(a.y-wm.y)<fh){ const s=SPECIES[a.type]; let pts=s?s.pts:(a.type==='tourist'?5:0), key=a.type;
+    if(a.spook>0&&pts>5) pts=Math.floor(pts*0.4); // a fleeing animal is a worse shot — keep your distance!
+    if(pts>bestPts){ bestPts=pts; best=s?s.name:'Park Visitor'; bestKey='wild:'+key; } } }
+  for(const g of geysers){ if(g.erupt>0){ const gx=g.x*T,gy=g.y*T; if(Math.abs(gx-wm.x)<fw&&Math.abs(gy-wm.y)<fh){ const pts=g.faithful?110:75; if(pts>bestPts){ bestPts=pts; best=g.faithful?'Old Faithful erupting!':'a geyser erupting'; bestKey=g.faithful?'feat:OLD FAITHFUL':'erupt'; } } } }
+  for(const f of FEATURES){ const fx=f.x*T,fy=f.y*T; if(Math.abs(fx-wm.x)<fw*1.6&&Math.abs(fy-wm.y)<fh*1.6){ const pts=f.peak?45:f.valley?35:40; if(pts>bestPts){ bestPts=pts; best=f.name; bestKey='feat:'+f.name; } } }
+  photos++; flashCam(); sfx('shutter'); document.getElementById('hPhotos').textContent=photos;
+  if(!best){ toast('📷 …nice scenery, but nothing in frame'); return; }
+  let bonus=0; if(bestKey && !journal.has(bestKey)){ journal.add(bestKey); bonus=120; toast('📔 NEW: '+best+'   +'+(bestPts+bonus)+' pts'); sfx('chime'); }
+  else toast('📷 '+best+'   +'+bestPts+' pts');
+  score+=bestPts+bonus; refreshHUD();
+}
+
+// ── Discoveries (drive up to a landmark) ──
+function checkDiscover(){ for(const f of FEATURES){ if(discovered.has(f.name)) continue;
+  if(Math.hypot(f.x*T-player.x,f.y*T-player.y)<240){ discovered.add(f.name); score+=60; sfx('chime'); showCard(f.name, FACTS[f.name]||"A beautiful corner of Yellowstone."); refreshHUD(); } } }
+const card=document.getElementById('card');
+function showCard(t,f){ document.getElementById('cardT').textContent='📍 '+t; document.getElementById('cardF').textContent=f; card.style.display='block'; clearTimeout(showCard._h); showCard._h=setTimeout(closeCard,7000); }
+function closeCard(){ card.style.display='none'; }
+document.getElementById('cardX').onclick=closeCard;
+
+// ── Journal UI ──
+const book=document.getElementById('book'); let bookOpen=false;
+function toggleBook(){ bookOpen?closeBook():openBook(); }
+function openBook(){ bookOpen=true; book.style.display='block'; renderBook(); }
+function closeBook(){ bookOpen=false; book.style.display='none'; }
+document.getElementById('bookX').onclick=closeBook;
+function renderBook(){
+  const total=FEATURES.length, gotP=[...discovered].length, gotW=WILD_TYPES.filter(t=>journal.has('wild:'+t)).length;
+  document.getElementById('bookMeta').textContent='Rank: '+rankName()+'  ·  '+score+' pts  ·  '+photos+' photos  ·  '+Math.round((gotP+gotW)/(total+WILD_TYPES.length)*100)+'% complete';
+  const wb=document.getElementById('bookWild'); wb.innerHTML='';
+  for(const t of WILD_TYPES){ const got=journal.has('wild:'+t); const d=document.createElement('div'); d.className='e '+(got?'got':'miss'); d.innerHTML=(got?'📸 ':'▢ ')+SPECIES[t].name+' <span style="margin-left:auto;color:#8fae6f">'+SPECIES[t].pts+'pts</span>'; wb.appendChild(d); }
+  const pb=document.getElementById('bookPlaces'); pb.innerHTML='';
+  for(const f of FEATURES){ const got=discovered.has(f.name); const d=document.createElement('div'); d.className='e '+(got?'got':'miss'); d.textContent=(got?'✔ ':'▢ ')+f.name; pb.appendChild(d); }
+}
+
+// ── Rank / HUD ──
+const RANKS=[[0,'Junior Ranger'],[400,'Park Ranger'],[1100,'Senior Ranger'],[2200,'Park Naturalist'],[3800,'Chief Ranger'],[6000,'Park Superintendent']];
+function rankName(){ let r=RANKS[0][1]; for(const [s,n] of RANKS) if(score>=s) r=n; return r; }
+function refreshHUD(){ document.getElementById('hScore').textContent=score; document.getElementById('hRank').textContent=rankName();
+  document.getElementById('hWild').textContent=WILD_TYPES.filter(t=>journal.has('wild:'+t)).length+'/'+WILD_TYPES.length;
+  document.getElementById('hPlaces').textContent=discovered.size+'/'+FEATURES.length; document.getElementById('wep').textContent=player.car?'🚗 driving (E to park)':'🚶 on foot'; }
+
+// ── Update ──
+let last=performance.now();
+function moveCircle(o,dx,dy,r){ let nx=o.x+dx; if(!sol(nx-r,o.y)&&!sol(nx+r,o.y)&&!sol(nx,o.y-r)&&!sol(nx,o.y+r)) o.x=nx; let ny=o.y+dy; if(!sol(o.x-r,ny)&&!sol(o.x+r,ny)&&!sol(o.x,ny-r)&&!sol(o.x,ny+r)) o.y=ny; }
+function sol(px,py){ return SOLID[tile((px/T)|0,(py/T)|0)]?true:false; }
+function update(dt){ if(!started) return;
+  if(player.dazed>0){ player.dazed-=dt; if(player.dazed<=0){ const v=PLACES.canyon; player.x=v.x*T+T/2; player.y=(v.y+2)*T+T/2; player.car=null; toast('A ranger walked you back. Keep your distance next time!'); } camX+=((player.x-W/2)-camX)*dt*8; camY+=((player.y-H/2)-camY)*dt*8; return; }
+  let ix=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0), iy=(keys.KeyS||keys.ArrowDown?1:0)-(keys.KeyW||keys.ArrowUp?1:0);
+  const wm=worldMouse(); player.aim=Math.atan2(wm.y-player.y,wm.x-player.x);
+  if(player.car){ const c=player.car; c.vx+=ix*600*dt; c.vy+=iy*600*dt; c.vx*=0.92; c.vy*=0.92; const cs=Math.hypot(c.vx,c.vy),max=430; if(cs>max){c.vx*=max/cs;c.vy*=max/cs;} moveCircle(c,c.vx*dt,c.vy*dt,12); if(cs>4)c.ang=Math.atan2(c.vy,c.vx); player.x=c.x;player.y=c.y;
+    if(cs>140){ for(const n of npcs){ if(n.wild&&!n.dead&&Math.hypot(n.x-c.x,n.y-c.y)<60){ n.spook=2.5; n.dir=Math.atan2(n.y-c.y,n.x-c.x); if(Math.random()<dt*2) toast('🦬 SLOW DOWN — wildlife on the road!'); } } } }
+  else { const sp=250; if(ix||iy){ const m=Math.hypot(ix,iy); player.vx=ix/m*sp; player.vy=iy/m*sp; } else { player.vx*=0.6; player.vy*=0.6; } moveCircle(player,player.vx*dt,player.vy*dt,player.r); }
+  camX+=((player.x-W/2)-camX)*Math.min(1,dt*8); camY+=((player.y-H/2)-camY)*Math.min(1,dt*8);
+  recycleWildlife(); checkDiscover();
+  // npcs
+  for(const n of npcs){ if(n.dead) continue; const d=Math.hypot(player.x-n.x,player.y-n.y);
+    if(n.type==='tourist'){ n.t-=dt; if(n.t<=0){n.dir=rng(0,6.28);n.t=rng(1,3);} n.vx=Math.cos(n.dir)*38; n.vy=Math.sin(n.dir)*38; moveCircle(n,n.vx*dt,n.vy*dt,n.r); }
+    else { // wildlife
+      const bearish=n.type==='blackbear'||n.type==='grizzly';
+      if(n.spook>0){ n.spook-=dt; const a=Math.atan2(n.y-player.y,n.x-player.x); n.vx=Math.cos(a)*(n.type==='bison'?150:200); n.vy=Math.sin(a)*(n.type==='bison'?150:200); }
+      else if(d<70){ // you got too close — they get agitated
+        if(bearish||n.type==='bison'||n.type==='wolf'){ n.spook=0.1; const a=Math.atan2(player.y-n.y,player.x-n.x); n.vx=Math.cos(a)*120; n.vy=Math.sin(a)*120;
+          if(d<n.r+12 && player.dazed<=0){ player.dazed=1.6; toast('⚠ TOO CLOSE! You startled a '+SPECIES[n.type].name+'.'); sfx('thud'); }
+          if(Math.random()<dt*1.5){ document.getElementById('prompt').style.display='block'; document.getElementById('prompt').textContent='⚠ Stay 25 yds from wildlife (100 yds from bears/wolves)'; promptT=1.5; } }
+      } else { n.t-=dt; if(n.t<=0){n.dir=rng(0,6.28);n.t=rng(2,6);} const sp=n.type==='bison'?26:bearish?52:64; n.vx=Math.cos(n.dir)*sp; n.vy=Math.sin(n.dir)*sp; }
+      moveCircle(n,n.vx*dt,n.vy*dt,n.r);
+    } }
+  for(const p of particles){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=0.9; p.vy*=0.9; p.life-=dt; } particles=particles.filter(p=>p.life>0);
+  // geysers
+  for(const g of geysers){ const gx=g.x*T,gy=g.y*T; if(Math.abs(gx-player.x)>W+200||Math.abs(gy-player.y)>H+200) continue;
+    g.t-=dt; if(g.erupt>0){ g.erupt-=dt; } else if(g.t<=0){ g.erupt=g.faithful?2.0:1.0; g.t=g.faithful?rng(70,95):rng(9,20); if(Math.abs(gx-player.x)<W&&Math.abs(gy-player.y)<H){ sfx('steam'); for(let i=0;i<16;i++) particles.push({x:gx,y:gy,vx:rng(-30,30),vy:rng(-120,-40),life:rng(.5,1.1),c:'#e6f4fb'}); } } }
+  if(toastT>0){ toastT-=dt; if(toastT<=0) toastEl.style.opacity=0; }
+  if(promptT>0){ promptT-=dt; if(promptT<=0) document.getElementById('prompt').style.display='none'; }
+}
+let promptT=0;
+
+// ── Render (topographic) ──
+function hsh(i,j){ let h=(Math.imul(i,374761393)+Math.imul(j,668265263))|0; h=Math.imul(h^(h>>>13),1274126177); return ((h^(h>>>16))>>>0)/4294967295; }
+function vnoise(x,y){ const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),w=yf*yf*(3-2*yf); const a=hsh(xi,yi),b=hsh(xi+1,yi),c=hsh(xi,yi+1),d=hsh(xi+1,yi+1); return a+(b-a)*u+(c-a)*w+(a-b-c+d)*u*w; }
+function elev(x,y){ return vnoise(x*0.016,y*0.016)*0.62+vnoise(x*0.05,y*0.05)*0.28+vnoise(x*0.13,y*0.13)*0.10; }
+function draw(){ ctx.fillStyle='#33503a'; ctx.fillRect(0,0,W,H);
+  const x0=Math.max(0,(camX/T)|0),y0=Math.max(0,(camY/T)|0),x1=Math.min(MW,x0+(W/T|0)+2),y1=Math.min(MH,y0+(H/T|0)+2);
+  for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){ const v=tile(x,y),sx=x*T-camX,sy=y*T-camY;
+    if(v===WATER){ const shore=tile(x-1,y)!==WATER||tile(x+1,y)!==WATER||tile(x,y-1)!==WATER||tile(x,y+1)!==WATER; ctx.fillStyle=shore?'#5e97ae':'#39708f'; ctx.fillRect(sx,sy,T+1,T+1); continue; }
+    const e=elev(x,y); let sh=1+(elev(x-1,y)-elev(x+1,y)+elev(x,y-1)-elev(x,y+1))*4.6; sh=sh<0.55?0.55:(sh>1.45?1.45:sh); let r,g,b;
+    if(v===MOUNTAIN||e>0.80){ const t=Math.min(1,Math.max(0,(e-0.62)/0.38)); r=150+98*t;g=154+100*t;b=160+95*t; }
+    else if(v===SAND||v===GEYSER){ r=214;g=215;b=205; } else if(v===TREE){ r=50+e*6;g=88-e*24;b=46+e*4; }
+    else if(v===TRAIL){ r=158;g=134;b=96; } else if(v===ROAD){ r=180;g=172;b=156; } else if(v===WALL){ r=122;g=106;b=82; } else if(v===FLOOR){ r=152;g=134;b=106; }
+    else { const t=e; r=150+30*t;g=168-22*t;b=108+8*t; }
+    ctx.fillStyle='rgb('+((r*sh)|0)+','+((g*sh)|0)+','+((b*sh)|0)+')'; ctx.fillRect(sx,sy,T+1,T+1);
+    if(v===ROAD){ ctx.fillStyle='rgba(184,80,64,0.45)'; ctx.fillRect(sx,sy,T+1,T+1); } }
+  // geyser plumes
+  for(const g of geysers){ if(g.erupt>0){ const sx=g.x*T-camX+T/2,sy=g.y*T-camY+T/2,hgt=(g.faithful?120:60)*g.erupt/(g.faithful?2:1)+18; if(sx<-30||sy<-200||sx>W+30||sy>H+30) continue; ctx.fillStyle='rgba(228,244,251,0.75)'; ctx.fillRect(sx-5,sy-hgt,10,hgt); ctx.beginPath(); ctx.arc(sx,sy-hgt,10,0,6.3); ctx.fill(); } }
+  for(const c of cars){ drawCar(c.x-camX,c.y-camY,c.ang,c.occupied?'#c23a3a':'#3a6bc2'); }
+  for(const n of npcs){ if(n.dead) continue; const sx=n.x-camX,sy=n.y-camY; if(sx<-40||sy<-40||sx>W+40||sy>H+40) continue;
+    if(n.type==='tourist') drawPerson(sx,sy,n.color); else drawAnimal(sx,sy,n.type,n.spook>0); }
+  // player
+  const px=player.x-camX,py=player.y-camY;
+  if(player.car) drawCar(px,py,player.car.ang,'#ffe14d'); else drawPerson(px,py,'#d2e7c0',true);
+  if(player.dazed>0){ ctx.fillStyle='rgba(0,0,0,'+(0.5*Math.min(1,player.dazed))+')'; ctx.fillRect(0,0,W,H); }
+  // viewfinder (the photo frame around the cursor)
+  if(!bookOpen){ const fw=340,fh=240; ctx.strokeStyle='rgba(255,255,255,0.55)'; ctx.lineWidth=2; ctx.strokeRect(mx-fw/2,my-fh/2,fw,fh);
+    ctx.beginPath(); ctx.moveTo(mx-8,my);ctx.lineTo(mx+8,my);ctx.moveTo(mx,my-8);ctx.lineTo(mx,my+8); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.font='11px monospace'; ctx.fillText('📷',mx-fw/2,my-fh/2-4); }
+  for(const p of particles){ ctx.fillStyle=p.c; ctx.globalAlpha=Math.max(0,p.life); ctx.fillRect(p.x-camX-2,p.y-camY-2,4,4);} ctx.globalAlpha=1;
+  drawLabels(); drawMinimap(); drawScale();
+}
+function drawPerson(x,y,col,isP){ ctx.fillStyle='rgba(0,0,0,0.3)';ctx.beginPath();ctx.ellipse(x,y+8,7,3,0,0,6.3);ctx.fill();
+  ctx.fillStyle=col;ctx.fillRect(x-4,y-2,8,9); ctx.fillStyle='#f2c79a';ctx.fillRect(x-3,y-9,6,6); ctx.fillStyle='#000';ctx.fillRect(x-2,y-7,1,1);ctx.fillRect(x+1,y-7,1,1);
+  if(isP){ ctx.fillStyle='#3a2a1a'; ctx.fillRect(x-4,y-11,8,2); } } // ranger hat
+function drawAnimal(x,y,type,spook){ const c=SPECIES[type].c;
+  if(type==='bison'){ ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(x,y+12,18,5,0,0,6.3);ctx.fill();
+    ctx.fillStyle='#1a110a';for(const lx of[-14,-5,6,12])ctx.fillRect(x+lx,y+5,3,9); ctx.fillStyle=c;ctx.fillRect(x-15,y-6,28,12);
+    ctx.fillStyle='#3a2616';ctx.beginPath();ctx.ellipse(x-6,y-7,9,7,0,0,6.3);ctx.fill(); ctx.fillStyle='#241509';ctx.fillRect(x-22,y-3,8,8); ctx.fillStyle='#cbb89a';ctx.fillRect(x-23,y-4,2,3); }
+  else if(type==='elk'){ ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(x,y+11,13,4,0,0,6.3);ctx.fill();
+    ctx.fillStyle='#1a110a';for(const lx of[-9,-2,5,10])ctx.fillRect(x+lx,y+3,2,9); ctx.fillStyle=c;ctx.fillRect(x-11,y-5,22,10); ctx.fillStyle='#6a4a26';ctx.fillRect(x-17,y-9,6,7);
+    ctx.strokeStyle='#caa86a';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x-15,y-9);ctx.lineTo(x-19,y-17);ctx.moveTo(x-15,y-9);ctx.lineTo(x-13,y-17);ctx.stroke(); }
+  else if(type==='wolf'||type==='coyote'){ const big=type==='wolf'; ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(x,y+8,big?11:9,3,0,0,6.3);ctx.fill();
+    ctx.fillStyle=c;ctx.beginPath();ctx.ellipse(x,y,big?12:10,big?6:5,0,0,6.3);ctx.fill(); ctx.beginPath();ctx.arc(x-(big?12:10),y-2,big?5:4,0,6.3);ctx.fill();
+    ctx.fillStyle='#000';ctx.fillRect(x-(big?14:12),y-3,1.5,1.5); ctx.fillStyle=c;ctx.fillRect(x-(big?15:13),y-7,2,3); ctx.fillStyle='#1a110a';for(const lx of[-7,0,6])ctx.fillRect(x+lx,y+4,2,5); }
+  else { // bears (black / grizzly)
+    ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(x,y+10,14,4,0,0,6.3);ctx.fill();
+    ctx.fillStyle='#1a0f08';for(const lx of[-10,0,8])ctx.fillRect(x+lx,y+5,3,6); ctx.fillStyle=spook?'#7a4828':c;ctx.beginPath();ctx.ellipse(x,y,14,9,0,0,6.3);ctx.fill();
+    ctx.fillStyle=c;ctx.beginPath();ctx.arc(x-13,y-3,6,0,6.3);ctx.fill(); ctx.fillStyle='#1a0f08';ctx.beginPath();ctx.arc(x-16,y-8,2.5,0,6.3);ctx.arc(x-10,y-9,2.5,0,6.3);ctx.fill();
+    ctx.fillStyle='#000';ctx.fillRect(x-15,y-4,2,2);
+    if(spook){ ctx.fillStyle='#ffcf4d';ctx.font='bold 11px monospace';ctx.textAlign='center';ctx.fillText('!',x,y-15);ctx.textAlign='left'; } } }
+function drawCar(x,y,ang,col){ ctx.save();ctx.translate(x,y);ctx.rotate(ang); ctx.fillStyle='rgba(0,0,0,.3)';ctx.fillRect(-18,-12,38,26);
+  ctx.fillStyle=col;ctx.fillRect(-18,-11,36,22); ctx.fillStyle='#0a0e14';ctx.fillRect(2,-8,8,16);ctx.fillStyle='#bcd';ctx.fillRect(11,-8,4,16);
+  ctx.fillStyle='#111';ctx.fillRect(-16,-13,8,4);ctx.fillRect(-16,9,8,4);ctx.fillRect(8,-13,8,4);ctx.fillRect(8,9,8,4); ctx.restore(); }
+function drawLabels(){ ctx.textAlign='center';ctx.font='bold 12px monospace';
+  for(const k in PLACES){ const p=PLACES[k],sx=p.x*T-camX,sy=p.y*T-camY; if(sx<-70||sy<-30||sx>W+70||sy>H+30) continue;
+    ctx.fillStyle=p.ent?'#ff8a4d':'#ffe14d';ctx.fillRect(sx-3,sy-3,6,6); ctx.fillStyle='#000';ctx.fillText(p.name,sx+1,sy-9); ctx.fillStyle=p.ent?'#ff8a4d':'#ffe14d';ctx.fillText(p.name,sx,sy-10); }
+  ctx.font='bold 11px monospace';
+  for(const f of FEATURES){ const sx=f.x*T-camX,sy=f.y*T-camY; if(sx<-70||sy<-30||sx>W+70||sy>H+30) continue; const got=discovered.has(f.name);
+    const col=f.peak?'#cfd6e0':f.geyser?'#9be0ff':f.valley?'#bfe89a':'#9cf0d0'; ctx.fillStyle='#000';ctx.fillText((got?'✔ ':'')+f.name,sx+1,sy+19); ctx.fillStyle=col;ctx.fillText((got?'✔ ':'')+f.name,sx,sy+18); }
+  ctx.textAlign='left'; }
+function drawMinimap(){ const mw=204,mh=172,ox=W-mw-12,oy=12; ctx.fillStyle='#0a140add';ctx.fillRect(ox,oy,mw,mh);ctx.strokeStyle='#5a6b3a';ctx.lineWidth=2;ctx.strokeRect(ox,oy,mw,mh);
+  const sx=v=>ox+(v/MW)*mw,sy=v=>oy+(v/MH)*mh; ctx.fillStyle='#39708f';
+  for(const e of [[q(167),q(200),q(40),q(30)],[q(120),q(224),q(17),q(15)],[q(150),q(236),q(12),q(22)],[q(189),q(233),q(11),q(20)]]) { ctx.beginPath();ctx.ellipse(sx(e[0]),sy(e[1]),(e[2]/MW)*mw,(e[3]/MH)*mh,0,0,6.3);ctx.fill(); }
+  ctx.strokeStyle='#c25a44';ctx.lineWidth=2; for(const [a,b] of ROADS){ const A=PLACES[a],B=PLACES[b]; ctx.beginPath();ctx.moveTo(sx(A.x),sy(A.y));ctx.lineTo(sx(B.x),sy(B.y));ctx.stroke(); }
+  for(const f of FEATURES){ ctx.fillStyle=discovered.has(f.name)?'#9be08a':'#5a6b3a'; ctx.fillRect(sx(f.x)-1,sy(f.y)-1,3,3); }
+  for(const k in PLACES){ const p=PLACES[k]; ctx.fillStyle=p.ent?'#ff8a4d':'#ffe14d'; ctx.fillRect(sx(p.x)-2,sy(p.y)-2,4,4); }
+  ctx.fillStyle='#fff';ctx.fillRect(sx(player.x/T)-2,sy(player.y/T)-2,5,5);
+  ctx.strokeStyle='#ffffff55';ctx.lineWidth=1;ctx.strokeRect(sx(camX/T),sy(camY/T),(W/T/MW)*mw,(H/T/MH)*mh);
+  ctx.fillStyle='#8aa06a';ctx.font='9px monospace';ctx.fillText('GRAND LOOP RD',ox+8,oy+mh-7); }
+function drawScale(){ const barPx=200/0.32, ox=12,oy=H-30; ctx.fillStyle='rgba(8,16,8,.7)';ctx.fillRect(ox-6,oy-20,260,30);
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(ox+barPx,oy);ctx.moveTo(ox,oy-4);ctx.lineTo(ox,oy+4);ctx.moveTo(ox+barPx,oy-4);ctx.lineTo(ox+barPx,oy+4);ctx.stroke();
+  ctx.fillStyle='#fff';ctx.font='11px monospace';ctx.fillText('200 m',ox+barPx/2-14,oy-6); }
+
+// ── Loop ──
+function loop(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; update(dt); draw(); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+
+// ── Audio (gentle) ──
+let actx,mg;
+function startAudio(){ if(actx) return; actx=new (AudioContext||webkitAudioContext)(); mg=actx.createGain(); mg.gain.value=0.12; mg.connect(actx.destination); ambient(); }
+function note(f,t,d,ty,g){ const o=actx.createOscillator(),ga=actx.createGain(); o.type=ty||'sine';o.frequency.value=f; ga.gain.setValueAtTime(0,t);ga.gain.linearRampToValueAtTime(g||0.2,t+0.02);ga.gain.exponentialRampToValueAtTime(0.001,t+d); o.connect(ga);ga.connect(mg);o.start(t);o.stop(t+d+0.02); }
+function ambient(){ if(!actx) return; const scale=[261.6,293.7,329.6,392,440,523.3]; let i=0;
+  function step(){ const t=actx.currentTime+0.05; note(scale[i%scale.length],t,2.4,'sine',0.10); note(scale[(i+2)%scale.length]/2,t,3.2,'triangle',0.06); i++; setTimeout(step,2400); } step(); }
+function sfx(k){ if(!actx) return; const t=actx.currentTime;
+  if(k==='shutter'){ note(1200,t,0.03,'square',0.12); note(300,t+0.02,0.05,'square',0.10); }
+  else if(k==='chime'){ note(660,t,0.12,'sine',0.18); note(990,t+0.08,0.18,'sine',0.16); note(1320,t+0.16,0.2,'sine',0.12); }
+  else if(k==='steam'){ note(70,t,0.7,'sawtooth',0.10); }
+  else if(k==='thud'){ note(110,t,0.18,'sine',0.2); } }
+
+document.getElementById('startBtn').onclick=()=>{ document.getElementById('start').style.display='none'; started=true; startAudio(); refreshHUD(); toast('Welcome to Yellowstone! 🏞️ Snap some photos.'); };
+</script>
+</body>
+</html>

@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Case Board</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#0e0d1a;
+  --surface:#18172a;
+  --surface2:#201f34;
+  --amber:#f4c530;
+  --amber-dim:#c9a020;
+  --amber-glow:rgba(244,197,48,0.1);
+  --green:#3ddc84;
+  --red:#ff5252;
+  --gray:#7777aa;
+  --text:#e8e0d0;
+  --muted:#9090b0;
+  --border:#2a2840;
+  --border2:#3a3860;
+  --card:#fdf8ee;
+  --card-text:#2a2520;
+  --card-muted:#6a6050;
+  --card-border:#e0d5b8;
+}
+
+body{font-family:'Georgia',serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── SCREENS ── */
+.screen{display:none}
+
+/* ── START ── */
+#screen-start{
+  flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:2rem;min-height:100vh;
+  background:radial-gradient(ellipse at 50% 40%,#1e1c35 0%,var(--bg) 65%);
+}
+.logo{font-size:3.2rem;margin-bottom:1rem}
+.app-title{
+  font-size:2.6rem;font-weight:bold;letter-spacing:4px;
+  text-transform:uppercase;color:var(--amber);
+  text-shadow:0 0 40px rgba(244,197,48,0.2);margin-bottom:.4rem;
+}
+.app-sub{
+  font-size:.8rem;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:3rem;
+}
+.mode-row{display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center;margin-bottom:2.5rem}
+.mode-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:2rem 1.5rem;width:210px;cursor:pointer;transition:all .2s;text-align:center;
+}
+.mode-card:hover{border-color:var(--amber);transform:translateY(-3px);box-shadow:0 0 24px rgba(244,197,48,.12)}
+.mode-emoji{font-size:2.2rem;margin-bottom:.75rem}
+.mode-name{font-size:1rem;font-weight:bold;color:var(--amber);margin-bottom:.4rem}
+.mode-desc{font-size:.78rem;color:var(--muted);line-height:1.5}
+.fair-play{font-size:.78rem;color:var(--muted);font-style:italic;max-width:360px;line-height:1.6}
+
+/* ── SETUP ── */
+#screen-setup{min-height:100vh;padding:2.5rem 1.5rem}
+.page-wrap{max-width:660px;margin:0 auto}
+.screen-top{margin-bottom:2.5rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border)}
+.role-tag{
+  display:inline-block;font-size:.67rem;letter-spacing:2px;text-transform:uppercase;
+  color:var(--amber);background:var(--amber-glow);border:1px solid rgba(244,197,48,.2);
+  border-radius:20px;padding:.2rem .75rem;margin-bottom:.75rem;
+}
+.page-title{font-size:1.7rem;margin-bottom:.3rem}
+.page-sub{font-size:.85rem;color:var(--muted);line-height:1.5}
+
+.field{margin-bottom:2rem}
+.label{
+  display:block;font-size:.7rem;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:.55rem;
+}
+input.fi,textarea.fi{
+  width:100%;background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:.75rem 1rem;color:var(--text);
+  font-family:inherit;font-size:.95rem;transition:border-color .2s;
+}
+input.fi:focus,textarea.fi:focus{outline:none;border-color:var(--amber-dim)}
+textarea.fi{resize:vertical;min-height:88px}
+
+.add-row{display:flex;gap:.75rem;margin-bottom:.75rem}
+.add-row input{flex:1}
+#suspect-list{list-style:none}
+.s-item{
+  display:flex;align-items:center;gap:.75rem;padding:.7rem 1rem;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;margin-bottom:.5rem;animation:slin .18s ease;
+}
+@keyframes slin{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.s-num{
+  width:24px;height:24px;border-radius:50%;background:var(--amber);color:#111;
+  font-size:.68rem;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.s-name{flex:1;font-size:.92rem}
+.btn-x{
+  background:none;border:none;color:var(--muted);cursor:pointer;
+  font-size:.85rem;padding:.25rem .5rem;border-radius:4px;transition:all .15s;
+}
+.btn-x:hover{color:var(--red);background:rgba(255,82,82,.1)}
+.empty{
+  padding:1.25rem;text-align:center;color:var(--muted);font-size:.85rem;
+  font-style:italic;background:var(--surface);border:1px dashed var(--border);border-radius:8px;
+}
+
+/* ── BUTTONS ── */
+.btn{
+  display:inline-flex;align-items:center;gap:.4rem;padding:.7rem 1.4rem;
+  border-radius:8px;border:none;font-family:inherit;font-size:.88rem;
+  font-weight:bold;cursor:pointer;transition:all .18s;letter-spacing:.3px;
+}
+.btn-p{background:var(--amber);color:#111}
+.btn-p:hover{background:var(--amber-dim);transform:translateY(-1px)}
+.btn-s{background:var(--surface);color:var(--muted);border:1px solid var(--border)}
+.btn-s:hover{border-color:var(--amber-dim);color:var(--amber)}
+.btn-sm{padding:.48rem 1rem;font-size:.78rem}
+.btn-full{width:100%;justify-content:center}
+.btn-row{display:flex;gap:1rem;margin-top:2rem;flex-wrap:wrap}
+
+/* ── HANDOFF ── */
+#screen-handoff{
+  flex-direction:column;align-items:center;justify-content:center;
+  min-height:100vh;padding:2rem;text-align:center;
+}
+.handoff-box{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;padding:3rem 2.5rem;max-width:420px;width:100%;
+}
+.handoff-emoji{font-size:4rem;margin-bottom:1.25rem}
+.handoff-title{font-size:1.8rem;color:var(--amber);margin-bottom:.75rem}
+.handoff-text{color:var(--muted);line-height:1.7;margin-bottom:2rem}
+.handoff-text strong{color:var(--text)}
+
+/* ── INVESTIGATION ── */
+#screen-investigate{height:100vh;overflow:hidden}
+
+.sidebar{
+  width:220px;flex-shrink:0;
+  background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;height:100vh;
+}
+.sidebar-hd{
+  padding:1.25rem 1rem .9rem;border-bottom:1px solid var(--border);
+  font-size:.65rem;letter-spacing:2px;text-transform:uppercase;color:var(--amber);
+}
+.sidebar-body{flex:1;overflow-y:auto;padding:.9rem}
+.ev-entry{
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:.65rem .8rem;margin-bottom:.6rem;cursor:pointer;transition:border-color .15s;
+}
+.ev-entry:hover{border-color:var(--amber-dim)}
+.ev-name{font-size:.82rem;font-weight:bold;margin-bottom:.4rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mmo-pills{display:flex;gap:3px}
+.pill{
+  flex:1;text-align:center;padding:2px 0;border-radius:4px;
+  font-size:.58rem;font-weight:bold;
+}
+.p-yes{background:rgba(61,220,132,.12);color:var(--green);border:1px solid rgba(61,220,132,.3)}
+.p-no {background:rgba(255,82,82,.12);color:var(--red);border:1px solid rgba(255,82,82,.3)}
+.p-unk{background:rgba(119,119,170,.12);color:var(--gray);border:1px solid rgba(119,119,170,.3)}
+.sidebar-ft{padding:.9rem;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:.5rem}
+
+.inv-main{flex:1;height:100vh;overflow-y:auto;padding:2rem}
+
+.mystery-bar{
+  background:var(--surface);border:1px solid var(--border);
+  border-left:3px solid var(--amber);border-radius:0 10px 10px 0;
+  padding:1rem 1.5rem;margin-bottom:2rem;
+}
+.mystery-lbl{font-size:.63rem;letter-spacing:2px;text-transform:uppercase;color:var(--amber);margin-bottom:.3rem}
+.mystery-txt{font-size:1.05rem;line-height:1.5}
+
+/* Suspect cards (light) */
+.s-card{
+  background:var(--card);color:var(--card-text);border-radius:12px;
+  padding:1.5rem;margin-bottom:1.5rem;
+  box-shadow:0 4px 24px rgba(0,0,0,.35);border:1px solid var(--card-border);
+}
+.s-card-hd{
+  display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;
+  padding-bottom:1rem;border-bottom:1px solid var(--card-border);
+}
+.s-avatar{
+  width:44px;height:44px;border-radius:50%;background:#1a1928;
+  color:var(--amber);display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;font-weight:bold;flex-shrink:0;letter-spacing:.5px;
+}
+.s-card-name{font-size:1.25rem;font-weight:bold}
+.s-card-sub{font-size:.72rem;color:var(--card-muted)}
+
+.mmo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+@media(max-width:640px){.mmo-grid{grid-template-columns:1fr}}
+
+.mmo-box{
+  border:1px solid var(--card-border);border-radius:8px;
+  padding:.9rem;background:rgba(255,255,255,.5);
+}
+.mmo-hd{display:flex;align-items:flex-start;gap:.5rem;margin-bottom:.75rem}
+.mmo-icon{font-size:1.05rem;line-height:1.2}
+.mmo-lbl{font-size:.7rem;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#333}
+.mmo-hint{font-size:.66rem;color:var(--card-muted);margin-top:1px}
+
+.tog-row{display:flex;gap:4px;margin-bottom:.7rem}
+.tog{
+  flex:1;padding:5px 2px;border-radius:5px;border:1px solid #ccc;
+  background:#f0f0f0;color:#777;font-size:.67rem;font-weight:bold;
+  cursor:pointer;font-family:inherit;transition:all .12s;
+}
+.tog:hover{border-color:#aaa}
+.t-yes{background:#e6f9ef;border-color:var(--green);color:#1a7a42}
+.t-no {background:#fff0f0;border-color:var(--red);color:#b02020}
+.t-unk{background:#f0f0f8;border-color:#aaa;color:#555}
+
+.note-ta{
+  width:100%;border:1px solid #ddd;border-radius:6px;
+  padding:6px 8px;font-family:inherit;font-size:.76rem;
+  color:var(--card-text);background:#fafaf6;resize:vertical;min-height:52px;
+  transition:border-color .15s;
+}
+.note-ta:focus{outline:none;border-color:#bbb}
+
+/* ── CONCLUSION ── */
+#screen-conclusion{min-height:100vh;padding:2.5rem 1.5rem}
+.verdict-top{text-align:center;padding:1.5rem 1rem 2rem;margin-bottom:1.5rem}
+.v-icon{font-size:3.5rem;margin-bottom:.75rem}
+.v-heading{font-size:1.9rem;color:var(--amber);margin-bottom:.5rem}
+.v-body{color:var(--muted);font-size:.9rem;max-width:460px;margin:0 auto;line-height:1.65}
+
+.results{margin-bottom:2rem}
+.r-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:1.2rem 1.5rem;margin-bottom:.85rem;
+  display:flex;align-items:flex-start;gap:1rem;
+}
+.r-card.prime{border-color:var(--amber);background:rgba(244,197,48,.04)}
+.r-rank{font-size:1.35rem;font-weight:bold;color:var(--muted);min-width:26px;padding-top:2px}
+.r-card.prime .r-rank{color:var(--amber)}
+.r-body{flex:1}
+.r-name{font-size:1.02rem;font-weight:bold;margin-bottom:.45rem;display:flex;align-items:center;flex-wrap:wrap;gap:.45rem}
+.prime-tag{
+  font-size:.63rem;letter-spacing:1px;text-transform:uppercase;
+  background:var(--amber);color:#111;padding:.15rem .6rem;border-radius:20px;font-weight:bold;
+}
+.r-pills{display:flex;gap:.4rem;margin-bottom:.55rem;flex-wrap:wrap}
+.rp{
+  display:inline-flex;align-items:center;gap:.2rem;font-size:.7rem;
+  font-weight:bold;padding:.2rem .55rem;border-radius:20px;
+}
+.rp-yes{background:rgba(61,220,132,.12);color:var(--green)}
+.rp-no {background:rgba(255,82,82,.12);color:var(--red)}
+.rp-unk{background:rgba(119,119,170,.12);color:var(--gray)}
+.r-reason{font-size:.82rem;color:var(--muted);line-height:1.6}
+
+.tip-box{
+  background:var(--surface);border:1px solid var(--border);
+  border-left:3px solid var(--gray);border-radius:0 8px 8px 0;
+  padding:1.2rem 1.5rem;margin-bottom:2rem;
+}
+.tip-title{color:var(--amber);font-weight:bold;margin-bottom:.6rem;font-size:.92rem}
+.tip-body{color:var(--muted);font-size:.85rem;line-height:1.7}
+.tip-body ul{padding-left:1.2rem}
+.tip-body li{margin-bottom:.4rem}
+
+.ethics{
+  background:var(--amber-glow);border:1px solid rgba(244,197,48,.15);
+  border-radius:8px;padding:1rem 1.25rem;font-size:.78rem;
+  color:var(--muted);font-style:italic;text-align:center;
+  line-height:1.65;margin-bottom:2rem;
+}
+
+/* ── MOBILE ── */
+@media(max-width:700px){
+  #screen-investigate{height:auto;overflow:visible;flex-direction:column}
+  .sidebar{width:100%;height:auto;border-right:none;border-bottom:1px solid var(--border)}
+  .sidebar-body{max-height:160px}
+  .inv-main{height:auto;overflow:visible}
+}
+</style>
+</head>
+<body>
+
+<!-- START -->
+<div id="screen-start" class="screen">
+  <div class="logo">🔍</div>
+  <div class="app-title">The Case Board</div>
+  <div class="app-sub">Real-life mystery investigation tool</div>
+  <div class="mode-row">
+    <div class="mode-card" onclick="pickMode('solo')">
+      <div class="mode-emoji">🕵️</div>
+      <div class="mode-name">Solo Detective</div>
+      <div class="mode-desc">Set up and investigate the mystery yourself.</div>
+    </div>
+    <div class="mode-card" onclick="pickMode('2p')">
+      <div class="mode-emoji">🤝</div>
+      <div class="mode-name">Case Partners</div>
+      <div class="mode-desc">Case Master sets the scene. Detective uncovers the truth.</div>
+    </div>
+  </div>
+  <div class="fair-play">For figuring things out fairly — not accusing anyone without evidence.</div>
+</div>
+
+<!-- SETUP -->
+<div id="screen-setup" class="screen">
+  <div class="page-wrap">
+    <div class="screen-top">
+      <div class="role-tag" id="setup-role">🕵️ Detective's Notebook</div>
+      <div class="page-title">Set Up the Case</div>
+      <div class="page-sub" id="setup-sub">Describe what happened and add the suspects.</div>
+    </div>
+    <div class="field">
+      <label class="label" for="mystery-in">The Mystery — What happened?</label>
+      <textarea class="fi" id="mystery-in" placeholder="e.g. Someone ate my leftover pasta from the fridge on Thursday evening. Who did it?"></textarea>
+    </div>
+    <div class="field">
+      <label class="label" for="when-in">When did it happen?</label>
+      <input class="fi" type="text" id="when-in" placeholder="e.g. Thursday around 6pm, last night, Monday morning…">
+    </div>
+    <div class="field">
+      <label class="label">Suspects</label>
+      <div class="add-row">
+        <input class="fi" type="text" id="suspect-in" placeholder="Type a name, press Enter or Add…" maxlength="50">
+        <button class="btn btn-p btn-sm" onclick="addSuspect()">+ Add</button>
+      </div>
+      <ul id="suspect-list"></ul>
+      <div class="empty" id="suspect-empty">No suspects yet — add at least one to continue.</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-s" onclick="go('start')">← Back</button>
+      <button class="btn btn-p" onclick="beginCase()">Begin Investigation →</button>
+    </div>
+  </div>
+</div>
+
+<!-- HANDOFF -->
+<div id="screen-handoff" class="screen">
+  <div class="handoff-box">
+    <div class="handoff-emoji">📋</div>
+    <div class="handoff-title">Case File Sealed</div>
+    <div class="handoff-text">
+      The mystery and suspects have been set by the Case Master.<br><br>
+      <strong>Pass the screen to the Detective now.</strong>
+    </div>
+    <button class="btn btn-p btn-full" onclick="launchInv()">I'm the Detective — Let's Go 🔍</button>
+  </div>
+</div>
+
+<!-- INVESTIGATION -->
+<div id="screen-investigate" class="screen">
+  <div class="sidebar">
+    <div class="sidebar-hd">📌 Evidence Board</div>
+    <div class="sidebar-body" id="ev-board"></div>
+    <div class="sidebar-ft">
+      <button class="btn btn-p btn-full" onclick="solve()">🔓 Solve It</button>
+      <button class="btn btn-s btn-full btn-sm" onclick="go('setup')">← Edit Setup</button>
+    </div>
+  </div>
+  <div class="inv-main">
+    <div class="mystery-bar">
+      <div class="mystery-lbl">🗂 Active Case</div>
+      <div class="mystery-txt" id="mystery-disp"></div>
+      <div id="when-disp" style="margin-top:.4rem;font-size:.82rem;color:var(--muted);display:none"></div>
+    </div>
+    <div id="s-cards"></div>
+  </div>
+</div>
+
+<!-- CONCLUSION -->
+<div id="screen-conclusion" class="screen">
+  <div class="page-wrap" style="max-width:740px">
+    <div class="verdict-top">
+      <div class="v-icon" id="v-icon">🔍</div>
+      <div class="v-heading" id="v-heading">Case Analysis</div>
+      <div class="v-body" id="v-body"></div>
+    </div>
+    <div class="results" id="results"></div>
+    <div class="tip-box" id="tip-box" style="display:none">
+      <div class="tip-title">💡 What to Investigate Next</div>
+      <div class="tip-body" id="tip-body"></div>
+    </div>
+    <div class="ethics">
+      This tool helps you organise evidence — it doesn't replace honest conversation.<br>
+      Investigate missing pieces before drawing firm conclusions.
+    </div>
+    <div class="btn-row" style="justify-content:center">
+      <button class="btn btn-s" onclick="go('investigate')">← Keep Investigating</button>
+      <button class="btn btn-p" onclick="fresh()">🔄 New Case</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────
+let state = { mode:'solo', mystery:'', when:'', suspects:[] };
+let _uid = 0;
+const nid = () => 's' + (++_uid);
+
+const MMO = [
+  { key:'motive',      icon:'💭', lbl:'Motive',      hint:'Why would they do it?' },
+  { key:'means',       icon:'🛠',  lbl:'Means',       hint:'Could they physically do it?' },
+  { key:'opportunity', icon:'⏰', lbl:'Opportunity', hint:'Were they there at the right time?' }
+];
+
+// ─── SCREENS ─────────────────────────────────────────
+const FLEX = new Set(['start','handoff','investigate']);
+function go(name) {
+  document.querySelectorAll('.screen').forEach(el => el.style.display = 'none');
+  const el = document.getElementById('screen-' + name);
+  el.style.display = FLEX.has(name) ? 'flex' : 'block';
+  window.scrollTo(0, 0);
+  if (name === 'setup') renderSetupList();
+}
+
+// ─── MODE ────────────────────────────────────────────
+function pickMode(m) {
+  state.mode = m;
+  if (m === '2p') {
+    document.getElementById('setup-role').textContent = '📋 Case Master\'s Turn';
+    document.getElementById('setup-sub').textContent = 'Set up the mystery and suspects. The Detective won\'t see this screen.';
+  } else {
+    document.getElementById('setup-role').textContent = '🕵️ Detective\'s Notebook';
+    document.getElementById('setup-sub').textContent = 'Describe what happened and add everyone who might be involved.';
+  }
+  go('setup');
+}
+
+// ─── SUSPECTS ────────────────────────────────────────
+function addSuspect() {
+  const inp = document.getElementById('suspect-in');
+  const name = inp.value.trim();
+  if (!name) return;
+  state.suspects.push({ id:nid(), name,
+    motive:      { status:'unsure', note:'' },
+    means:       { status:'unsure', note:'' },
+    opportunity: { status:'unsure', note:'' }
+  });
+  inp.value = ''; inp.focus();
+  renderSetupList();
+}
+
+function removeSuspect(id) {
+  state.suspects = state.suspects.filter(s => s.id !== id);
+  renderSetupList();
+}
+
+function renderSetupList() {
+  const list = document.getElementById('suspect-list');
+  const empty = document.getElementById('suspect-empty');
+  if (!state.suspects.length) { list.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+  list.innerHTML = state.suspects.map((s,i) => `
+    <li class="s-item">
+      <div class="s-num">${i+1}</div>
+      <div class="s-name">${x(s.name)}</div>
+      <button class="btn-x" onclick="removeSuspect('${s.id}')" title="Remove">✕</button>
+    </li>`).join('');
+}
+
+// ─── BEGIN / HANDOFF ─────────────────────────────────
+function beginCase() {
+  const mystery = document.getElementById('mystery-in').value.trim();
+  if (!mystery) { alert('Please describe the mystery first!'); return; }
+  if (!state.suspects.length) { alert('Add at least one suspect to continue.'); return; }
+  state.mystery = mystery;
+  state.when = document.getElementById('when-in').value.trim();
+  state.mode === '2p' ? go('handoff') : launchInv();
+}
+
+// ─── INVESTIGATION ───────────────────────────────────
+function launchInv() {
+  document.getElementById('mystery-disp').textContent = state.mystery;
+  const whenEl = document.getElementById('when-disp');
+  if (state.when) { whenEl.textContent = '🕐 ' + state.when; whenEl.style.display = ''; }
+  else whenEl.style.display = 'none';
+  renderCards();
+  renderEvBoard();
+  go('investigate');
+}
+
+function renderCards() {
+  document.getElementById('s-cards').innerHTML = state.suspects.map((s,i) => buildCard(s,i)).join('');
+}
+
+function buildCard(s, idx) {
+  const ini = s.name.split(/\s+/).map(w=>w[0]||'').join('').toUpperCase().slice(0,2) || '?';
+  const sections = MMO.map(m => {
+    const f = s[m.key];
+    return `
+      <div class="mmo-box" id="mb-${s.id}-${m.key}">
+        <div class="mmo-hd">
+          <div class="mmo-icon">${m.icon}</div>
+          <div><div class="mmo-lbl">${m.lbl}</div><div class="mmo-hint">${m.hint}</div></div>
+        </div>
+        <div class="tog-row">
+          <button class="tog ${f.status==='yes'?'t-yes':''}"
+            onclick="setSt('${s.id}','${m.key}','yes')">✓ Yes</button>
+          <button class="tog ${f.status==='no'?'t-no':''}"
+            onclick="setSt('${s.id}','${m.key}','no')">✗ No</button>
+          <button class="tog ${f.status==='unsure'?'t-unk':''}"
+            onclick="setSt('${s.id}','${m.key}','unsure')">? Unsure</button>
+        </div>
+        <textarea class="note-ta"
+          placeholder="Notes on ${m.lbl.toLowerCase()}…"
+          oninput="setNote('${s.id}','${m.key}',this.value)"
+        >${x(f.note)}</textarea>
+      </div>`;
+  }).join('');
+  return `
+    <div class="s-card" id="card-${s.id}">
+      <div class="s-card-hd">
+        <div class="s-avatar">${ini}</div>
+        <div><div class="s-card-name">${x(s.name)}</div><div class="s-card-sub">Suspect #${idx+1}</div></div>
+      </div>
+      <div class="mmo-grid">${sections}</div>
+    </div>`;
+}
+
+function setSt(sid, field, status) {
+  const s = state.suspects.find(s => s.id === sid); if (!s) return;
+  s[field].status = status;
+  const box = document.getElementById(`mb-${sid}-${field}`);
+  if (box) {
+    const b = box.querySelectorAll('.tog');
+    b[0].className = 'tog' + (status==='yes'   ?' t-yes':'');
+    b[1].className = 'tog' + (status==='no'    ?' t-no' :'');
+    b[2].className = 'tog' + (status==='unsure'?' t-unk':'');
+  }
+  renderEvBoard();
+}
+
+function setNote(sid, field, val) {
+  const s = state.suspects.find(s => s.id === sid); if (s) s[field].note = val;
+}
+
+function renderEvBoard() {
+  document.getElementById('ev-board').innerHTML = state.suspects.map(s => {
+    const pills = MMO.map(m => {
+      const st = s[m.key].status;
+      const cls = st==='yes'?'p-yes':st==='no'?'p-no':'p-unk';
+      const sym = st==='yes'?'✓':st==='no'?'✗':'?';
+      return `<div class="pill ${cls}">${m.lbl[0]} ${sym}</div>`;
+    }).join('');
+    return `
+      <div class="ev-entry" onclick="scrollTo_('${s.id}')">
+        <div class="ev-name">${x(s.name)}</div>
+        <div class="mmo-pills">${pills}</div>
+      </div>`;
+  }).join('');
+}
+
+function scrollTo_(id) {
+  const main = document.querySelector('.inv-main');
+  const card = document.getElementById('card-' + id);
+  if (main && card) main.scrollTo({ top: card.offsetTop - 16, behavior:'smooth' });
+}
+
+// ─── SOLVE ───────────────────────────────────────────
+function solve() {
+  const scored = state.suspects.map(s => {
+    const yes = MMO.filter(m => s[m.key].status==='yes').length;
+    const no  = MMO.filter(m => s[m.key].status==='no').length;
+    const unk = MMO.filter(m => s[m.key].status==='unsure').length;
+    return { ...s, yes, no, unk };
+  }).sort((a,b) => b.yes-a.yes || a.no-b.no || a.unk-b.unk);
+
+  const top = scored[0];
+  const isPrime   = top.yes === 3;
+  const isBlank   = scored.every(s => s.yes===0 && s.no===0);
+
+  document.getElementById('v-icon').textContent    = isPrime?'🔓':isBlank?'🔒':'🔍';
+  document.getElementById('v-heading').textContent = isPrime?'Case Cracked!':isBlank?'No Evidence Yet':'Investigation In Progress';
+  document.getElementById('v-body').textContent    = isPrime
+    ? 'The evidence locks in a prime suspect — all three pillars confirmed.'
+    : isBlank
+    ? 'No findings recorded yet. Head back and start gathering evidence.'
+    : 'Partial evidence exists, but no one has all three pillars confirmed yet.';
+
+  document.getElementById('results').innerHTML = scored.map((s,i) => {
+    const prime = i===0 && s.yes===3;
+    const pills = MMO.map(m => {
+      const st = s[m.key].status;
+      const cls = st==='yes'?'rp-yes':st==='no'?'rp-no':'rp-unk';
+      const sym = st==='yes'?'✓':st==='no'?'✗':'?';
+      const note = s[m.key].note ? ` — "${trunc(s[m.key].note,38)}"` : '';
+      return `<span class="rp ${cls}">${sym} ${m.lbl}${note}</span>`;
+    }).join('');
+    return `
+      <div class="r-card ${prime?'prime':''}">
+        <div class="r-rank">${i+1}</div>
+        <div class="r-body">
+          <div class="r-name">${x(s.name)}${prime?'<span class="prime-tag">Prime Suspect</span>':''}</div>
+          <div class="r-pills">${pills}</div>
+          <div class="r-reason">${reason(s)}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const tipBox = document.getElementById('tip-box');
+  if (!isPrime) {
+    tipBox.style.display = '';
+    document.getElementById('tip-body').innerHTML = buildTip(scored[0]);
+  } else {
+    tipBox.style.display = 'none';
+  }
+
+  go('conclusion');
+}
+
+function reason(s) {
+  const yes = MMO.filter(m => s[m.key].status==='yes').map(m=>m.lbl);
+  const no  = MMO.filter(m => s[m.key].status==='no').map(m=>m.lbl);
+  const unk = MMO.filter(m => s[m.key].status==='unsure').map(m=>m.lbl);
+  if (yes.length===3) return `<strong>${x(s.name)}</strong> has confirmed Motive, Means, and Opportunity — all three pillars.`;
+  const parts = [];
+  if (yes.length) parts.push('Confirmed: ' + yes.join(', ') + '.');
+  if (no.length)  parts.push('Ruled out: '  + no.join(', ') + '.');
+  if (unk.length) parts.push('Still unknown: ' + unk.join(', ') + '.');
+  return parts.length ? parts.join(' ') : 'No evidence gathered yet.';
+}
+
+function buildTip(top) {
+  const missing = MMO.filter(m => top[m.key].status==='unsure');
+  if (!missing.length && top.no === 3)
+    return '<p>All three pillars are ruled out for your top suspect. Consider whether there are other suspects, or whether any "No" findings need re-examining.</p>';
+  let h = `<p>To crack the case, fill in the gaps for <strong>${x(top.name)}</strong>:</p><ul>`;
+  if (missing.length) {
+    missing.forEach(m => { h += `<li><strong>${m.lbl}</strong> — ${m.hint} Look for witnesses, physical access, or timeline clues.</li>`; });
+  } else {
+    h += '<li>Review your existing evidence for contradictions or anything marked incorrectly.</li>';
+    h += '<li>Consider whether there are other suspects who haven\'t been added yet.</li>';
+  }
+  return h + '</ul>';
+}
+
+// ─── UTILS ───────────────────────────────────────────
+function x(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function trunc(s, n) { return s.length>n ? s.slice(0,n)+'…' : s; }
+
+function fresh() {
+  state = { mode:'solo', mystery:'', when:'', suspects:[] };
+  _uid = 0;
+  document.getElementById('mystery-in').value = '';
+  document.getElementById('when-in').value = '';
+  renderSetupList();
+  go('start');
+}
+
+// ─── KEYBOARD ────────────────────────────────────────
+document.getElementById('suspect-in').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); addSuspect(); }
+});
+
+// init
+go('start');
+</script>
+</body>
+</html>

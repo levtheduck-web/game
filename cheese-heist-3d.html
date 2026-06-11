@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Cheese Heist 3D</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #eee; overflow: hidden;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  canvas { display: block; }
+
+  #hud {
+    position: fixed; inset: 0; pointer-events: none; z-index: 10;
+  }
+  .corner {
+    position: absolute;
+    padding: 12px 16px;
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(255,212,0,0.4);
+    border-radius: 8px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-size: 13px;
+    backdrop-filter: blur(4px);
+  }
+  #score  { top: 16px; left: 16px; color: #ffd400; }
+  #status { top: 16px; right: 16px; color: #00ffd0; }
+  #status.alert { color: #ff3030; border-color: #ff3030; animation: blink 0.4s infinite; }
+  @keyframes blink { 50% { opacity: 0.3; } }
+
+  .crosshair {
+    position: absolute; left: 50%; top: 50%; width: 18px; height: 18px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+  .crosshair::before, .crosshair::after {
+    content: ""; position: absolute; background: rgba(255,255,255,0.75);
+    box-shadow: 0 0 6px rgba(0,255,208,0.8);
+  }
+  .crosshair::before { left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); }
+  .crosshair::after  { top: 50%; left: 0; right: 0; height: 2px; transform: translateY(-50%); }
+
+  #prompt {
+    position: absolute; left: 50%; bottom: 80px; transform: translateX(-50%);
+    padding: 10px 16px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid #ffd400; color: #ffd400;
+    border-radius: 8px; font-size: 13px; letter-spacing: 0.15em;
+    text-transform: uppercase; display: none;
+  }
+
+  #suspicion {
+    position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%);
+    width: 240px; height: 8px; background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2); border-radius: 4px;
+    overflow: hidden;
+  }
+  #suspicion > div {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #ffd400, #ff3030);
+    transition: width 0.1s linear;
+  }
+
+  #overlay {
+    position: fixed; inset: 0; z-index: 50;
+    display: grid; place-items: center;
+    background: radial-gradient(circle at center, rgba(0,0,0,0.7), rgba(0,0,0,0.95));
+    color: #eee; text-align: center; padding: 24px;
+  }
+  #overlay h1 {
+    font-size: clamp(28px, 6vw, 56px);
+    letter-spacing: 0.15em; margin: 0 0 12px;
+    color: #ffd400;
+    text-shadow: 0 0 12px #ffd400, 2px 2px 0 #ff3df0;
+  }
+  #overlay p { color: #aaa; max-width: 480px; line-height: 1.6; }
+  #overlay button {
+    pointer-events: auto;
+    margin-top: 20px;
+    background: transparent; color: #00ffd0;
+    border: 1px solid #00ffd0;
+    padding: 10px 22px; font: inherit;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    border-radius: 6px; cursor: pointer;
+  }
+  #overlay button:hover {
+    background: #00ffd0; color: #000;
+    box-shadow: 0 0 24px rgba(0,255,208,0.6);
+  }
+  #overlay.hidden { display: none; }
+  .keys { color: #00ffd0; font-size: 12px; letter-spacing: 0.2em;
+          margin-top: 16px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="corner" id="score">Cheese: 0 / 0</div>
+  <div class="corner" id="status">Sneaking</div>
+  <div class="crosshair"></div>
+  <div id="prompt">[E] Grab Cheese</div>
+  <div id="suspicion"><div id="susBar"></div></div>
+</div>
+
+<div id="overlay">
+  <div>
+    <h1 id="title">Cheese Heist 3D</h1>
+    <p id="msg">Sneak through the mansion. Steal every wheel of cheese.<br>
+       Avoid the guards' yellow vision cones. Reach the green exit.</p>
+    <div class="keys">WASD move &middot; Mouse look &middot; E grab &middot; Shift sprint &middot; C crouch</div>
+    <button id="startBtn">Click to play</button>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ---------- audio ----------
+const audio = (() => {
+  let ctx = null;
+  const ensure = () => {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  };
+
+  function tone({ freq=440, dur=0.2, type='sine', vol=0.2, attack=0.005, slide=0 }) {
+    const c = ensure();
+    const t = c.currentTime;
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    if (slide) osc.frequency.linearRampToValueAtTime(Math.max(20, freq + slide), t + dur);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(vol, t + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain).connect(c.destination);
+    osc.start(t);
+    osc.stop(t + dur + 0.05);
+  }
+
+  function noise({ dur=0.2, vol=0.2, filterFreq=2000, filterQ=1 }) {
+    const c = ensure();
+    const t = c.currentTime;
+    const buf = c.createBuffer(1, Math.max(1, Math.floor(c.sampleRate * dur)), c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i=0; i<data.length; i++) data[i] = (Math.random()*2-1);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const filter = c.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = filterFreq;
+    filter.Q.value = filterQ;
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(vol, t + 0.005);
+    gain.gain.linearRampToValueAtTime(0, t + dur);
+    src.connect(filter).connect(gain).connect(c.destination);
+    src.start(t);
+    src.stop(t + dur);
+  }
+
+  let ambientNodes = null;
+  function startAmbient() {
+    stopAmbient();
+    const c = ensure();
+    const t = c.currentTime;
+    const o1 = c.createOscillator(); o1.type='sawtooth'; o1.frequency.value=55;
+    const o2 = c.createOscillator(); o2.type='sawtooth'; o2.frequency.value=82.5; o2.detune.value=8;
+    const filter = c.createBiquadFilter(); filter.type='lowpass'; filter.frequency.value=320; filter.Q.value=2;
+    const gain = c.createGain(); gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.05, t+2);
+    o1.connect(filter); o2.connect(filter); filter.connect(gain).connect(c.destination);
+    o1.start(); o2.start();
+    ambientNodes = { o1, o2, gain };
+  }
+  function stopAmbient() {
+    if (!ambientNodes) return;
+    const c = ensure();
+    const t = c.currentTime;
+    ambientNodes.gain.gain.cancelScheduledValues(t);
+    ambientNodes.gain.gain.linearRampToValueAtTime(0, t+0.4);
+    ambientNodes.o1.stop(t+0.5);
+    ambientNodes.o2.stop(t+0.5);
+    ambientNodes = null;
+  }
+
+  return {
+    resume: ensure,
+    pickup() {
+      tone({ freq: 880,  dur: 0.09, type: 'triangle', vol: 0.18 });
+      setTimeout(() => tone({ freq: 1320, dur: 0.18, type: 'triangle', vol: 0.18 }), 70);
+    },
+    footstep(crouch=false, sprint=false) {
+      noise({
+        dur: 0.07,
+        vol: crouch ? 0.04 : (sprint ? 0.14 : 0.10),
+        filterFreq: crouch ? 220 : (sprint ? 700 : 480),
+      });
+    },
+    alert() {
+      tone({ freq: 660, dur: 0.10, type: 'square', vol: 0.18 });
+      setTimeout(() => tone({ freq: 990, dur: 0.18, type: 'square', vol: 0.18 }), 110);
+    },
+    susTick() {
+      tone({ freq: 1100, dur: 0.04, type: 'square', vol: 0.05 });
+    },
+    caught() {
+      tone({ freq: 240, dur: 0.55, type: 'sawtooth', vol: 0.22, slide: -160 });
+      setTimeout(() => tone({ freq: 120, dur: 0.7, type: 'sawtooth', vol: 0.22, slide: -50 }), 220);
+      noise({ dur: 0.6, vol: 0.15, filterFreq: 600 });
+    },
+    win() {
+      const notes = [523, 659, 784, 1047];
+      notes.forEach((f, i) => setTimeout(() => tone({ freq: f, dur: 0.16, type: 'triangle', vol: 0.2 }), i*110));
+      setTimeout(() => tone({ freq: 1568, dur: 0.55, type: 'triangle', vol: 0.22 }), 470);
+    },
+    startAmbient, stopAmbient,
+  };
+})();
+
+// ---------- scene ----------
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x05050a);
+scene.fog = new THREE.Fog(0x05050a, 6, 28);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.1, 200);
+camera.position.set(0, 1.6, 0);
+
+// ambient & moonlight
+scene.add(new THREE.HemisphereLight(0x445566, 0x080808, 0.35));
+const moon = new THREE.DirectionalLight(0x8899ff, 0.4);
+moon.position.set(-10, 20, 8);
+scene.add(moon);
+
+// ---------- mansion layout ----------
+// Single floor, multiple rooms separated by walls. The world is a grid.
+// We'll define rooms and walls procedurally.
+
+const WALL_HEIGHT = 3;
+const FLOOR_W = 36;
+const FLOOR_D = 28;
+
+const floorMat = new THREE.MeshStandardMaterial({ color: 0x2a2018, roughness: 0.9 });
+const wallMat  = new THREE.MeshStandardMaterial({ color: 0x453225, roughness: 0.8 });
+const trimMat  = new THREE.MeshStandardMaterial({ color: 0x6b4a2b, roughness: 0.7 });
+
+const floor = new THREE.Mesh(new THREE.BoxGeometry(FLOOR_W, 0.2, FLOOR_D), floorMat);
+floor.position.y = -0.1;
+floor.receiveShadow = true;
+scene.add(floor);
+
+const ceiling = new THREE.Mesh(new THREE.BoxGeometry(FLOOR_W, 0.2, FLOOR_D),
+  new THREE.MeshStandardMaterial({ color: 0x1a1410, roughness: 1 }));
+ceiling.position.y = WALL_HEIGHT;
+scene.add(ceiling);
+
+// Walls are axis-aligned boxes. Each wall is also stored as an AABB for collision.
+const walls = []; // { mesh, min:Vec3, max:Vec3 }
+
+function addWall(x, z, w, d, h = WALL_HEIGHT, mat = wallMat) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, h/2, z);
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m);
+  walls.push({
+    min: new THREE.Vector3(x - w/2, 0, z - d/2),
+    max: new THREE.Vector3(x + w/2, h, z + d/2),
+  });
+  return m;
+}
+
+// outer walls
+addWall(0, -FLOOR_D/2, FLOOR_W, 0.4);
+addWall(0,  FLOOR_D/2, FLOOR_W, 0.4);
+addWall(-FLOOR_W/2, 0, 0.4, FLOOR_D);
+addWall( FLOOR_W/2, 0, 0.4, FLOOR_D);
+
+// Interior layout: 4 rooms + corridor
+// Vertical wall splitting at x=-6 (with door gap), x=6 (with door gap)
+// Horizontal wall at z=-4 (with gaps)
+
+function addWallWithDoor(x, z, w, d, axis, doorPos, doorWidth) {
+  // axis 'x' => wall runs along x, length = w; gap centered at doorPos along x
+  // axis 'z' => wall runs along z, length = d; gap centered at doorPos along z
+  if (axis === 'x') {
+    const leftEnd = -w/2;
+    const rightEnd = w/2;
+    const gapL = doorPos - doorWidth/2;
+    const gapR = doorPos + doorWidth/2;
+    const lenL = gapL - leftEnd;
+    const lenR = rightEnd - gapR;
+    if (lenL > 0.1) addWall(x + (leftEnd + lenL/2), z, lenL, d);
+    if (lenR > 0.1) addWall(x + (gapR + lenR/2), z, lenR, d);
+  } else {
+    const botEnd = -d/2;
+    const topEnd = d/2;
+    const gapB = doorPos - doorWidth/2;
+    const gapT = doorPos + doorWidth/2;
+    const lenB = gapB - botEnd;
+    const lenT = topEnd - gapT;
+    if (lenB > 0.1) addWall(x, z + (botEnd + lenB/2), w, lenB);
+    if (lenT > 0.1) addWall(x, z + (gapT + lenT/2), w, lenT);
+  }
+}
+
+// inner vertical walls (running along z)
+addWallWithDoor(-6, 0, 0.3, FLOOR_D, 'z', 6, 2.5);
+addWallWithDoor( 6, 0, 0.3, FLOOR_D, 'z', -6, 2.5);
+
+// inner horizontal wall splitting top half (running along x), at z=-2, only from x=-6 to x=6
+// We'll build separately as two segments
+function addInnerHWall(z) {
+  // wall from x=-6 to x=6 with a door in the middle
+  addWallWithDoor(0, z, 12, 0.3, 'x', 2, 2.5);
+}
+addInnerHWall(-4);
+addInnerHWall(6);
+
+// Decor: a few pillars
+for (const [px, pz] of [[-12, -10],[12,-10],[-12,10],[12,10],[0,0]]) {
+  addWall(px, pz, 1.2, 1.2, WALL_HEIGHT, trimMat);
+}
+
+// ---------- exit pad ----------
+const exitPad = new THREE.Mesh(
+  new THREE.BoxGeometry(3, 0.05, 3),
+  new THREE.MeshStandardMaterial({ color: 0x00ff80, emissive: 0x00ff80, emissiveIntensity: 0.5 })
+);
+exitPad.position.set(-15, 0.03, -12);
+scene.add(exitPad);
+const exitLight = new THREE.PointLight(0x00ff80, 1.2, 6);
+exitLight.position.set(-15, 1.5, -12);
+scene.add(exitLight);
+
+// ---------- cheese ----------
+const cheeses = [];
+const cheeseMat = new THREE.MeshStandardMaterial({
+  color: 0xffd400, emissive: 0x553300, emissiveIntensity: 0.4, roughness: 0.5
+});
+
+function placeCheese(x, z) {
+  const g = new THREE.CylinderGeometry(0.35, 0.35, 0.25, 24);
+  const m = new THREE.Mesh(g, cheeseMat);
+  m.position.set(x, 0.7, z);
+  m.castShadow = true;
+  // pedestal
+  const ped = new THREE.Mesh(
+    new THREE.BoxGeometry(0.7, 1, 0.7),
+    new THREE.MeshStandardMaterial({ color: 0x2a1810, roughness: 0.9 })
+  );
+  ped.position.set(x, 0.5, z);
+  ped.receiveShadow = true;
+  scene.add(ped); scene.add(m);
+
+  const halo = new THREE.PointLight(0xffd400, 0.5, 3);
+  halo.position.set(x, 1.2, z);
+  scene.add(halo);
+
+  cheeses.push({ mesh: m, halo, taken: false, x, z });
+}
+placeCheese(-12, -10);
+placeCheese( 12, -10);
+placeCheese( 14, 10);
+placeCheese(-10, 10);
+placeCheese( 0, 8);
+
+// flickering candles/lamps
+const lampPositions = [
+  [-12, 0, -4], [12, 0, -4], [0, 0, -12], [-14, 0, 4], [14, 0, 4],
+];
+for (const [x,y,z] of lampPositions) {
+  const l = new THREE.PointLight(0xffaa44, 0.8, 9);
+  l.position.set(x, 2.4, z);
+  scene.add(l);
+  l.userData = { base: 0.8, phase: Math.random()*10 };
+  scene.add(l);
+}
+
+// ---------- guards ----------
+const guards = [];
+const guardBodyMat = new THREE.MeshStandardMaterial({ color: 0x222227, roughness: 0.6 });
+const guardHeadMat = new THREE.MeshStandardMaterial({ color: 0xddc89a, roughness: 0.5 });
+const coneMat = new THREE.MeshBasicMaterial({
+  color: 0xffd400, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false
+});
+const coneMatAlert = new THREE.MeshBasicMaterial({
+  color: 0xff2040, transparent: true, opacity: 0.32, side: THREE.DoubleSide, depthWrite: false
+});
+
+function makeGuard(path) {
+  const root = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.4, 1.4, 12), guardBodyMat);
+  body.position.y = 0.7;
+  body.castShadow = true;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 12), guardHeadMat);
+  head.position.y = 1.55;
+  head.castShadow = true;
+  // hat
+  const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.18, 12),
+    new THREE.MeshStandardMaterial({ color: 0x101015 }));
+  hat.position.y = 1.78;
+  // brim
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.04, 16),
+    new THREE.MeshStandardMaterial({ color: 0x101015 }));
+  brim.position.y = 1.7;
+  root.add(body); root.add(head); root.add(hat); root.add(brim);
+
+  // vision cone (a wedge made from a CircleGeometry slice)
+  const VIEW_DIST = 7;
+  const VIEW_ANGLE = THREE.MathUtils.degToRad(55);
+  const segments = 16;
+  const verts = [0, 0, 0];
+  for (let i = 0; i <= segments; i++) {
+    const a = -VIEW_ANGLE/2 + (VIEW_ANGLE * i / segments);
+    verts.push(Math.sin(a) * VIEW_DIST, 0, Math.cos(a) * VIEW_DIST);
+  }
+  const idx = [];
+  for (let i = 1; i <= segments; i++) idx.push(0, i, i + 1);
+  const coneGeo = new THREE.BufferGeometry();
+  coneGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  coneGeo.setIndex(idx);
+  coneGeo.computeVertexNormals();
+  const cone = new THREE.Mesh(coneGeo, coneMat);
+  cone.position.y = 0.05;
+  root.add(cone);
+
+  // spotlight on the floor too
+  const spot = new THREE.SpotLight(0xffd400, 0.6, VIEW_DIST + 1, VIEW_ANGLE/1.6, 0.4);
+  spot.position.set(0, 1.6, 0);
+  const target = new THREE.Object3D();
+  target.position.set(0, 0, VIEW_DIST);
+  root.add(spot); root.add(target);
+  spot.target = target;
+
+  root.position.copy(path[0]);
+  scene.add(root);
+
+  guards.push({
+    root, cone, spot, path, segment: 0, t: 0,
+    speed: 1.3, facing: new THREE.Vector3(0, 0, 1),
+    viewDist: VIEW_DIST, viewAngle: VIEW_ANGLE,
+    alert: 0,
+  });
+}
+
+// guard patrol paths (between waypoints, loop)
+makeGuard([
+  new THREE.Vector3(-12, 0, 8),
+  new THREE.Vector3(-12, 0, -8),
+  new THREE.Vector3(-2, 0, -8),
+  new THREE.Vector3(-2, 0, 8),
+]);
+makeGuard([
+  new THREE.Vector3(12, 0, -8),
+  new THREE.Vector3(12, 0, 8),
+  new THREE.Vector3(3, 0, 8),
+  new THREE.Vector3(3, 0, -8),
+]);
+makeGuard([
+  new THREE.Vector3(-14, 0, 11),
+  new THREE.Vector3(14, 0, 11),
+]);
+
+// ---------- player ----------
+const player = {
+  pos: new THREE.Vector3(0, 0, 11),
+  vel: new THREE.Vector3(),
+  height: 1.6,
+  crouchHeight: 1.0,
+  crouching: false,
+  radius: 0.3,
+};
+camera.position.copy(player.pos);
+camera.position.y = player.height;
+
+const yaw = new THREE.Object3D();
+const pitchObj = new THREE.Object3D();
+yaw.add(pitchObj);
+pitchObj.add(camera);
+scene.add(yaw);
+yaw.position.copy(player.pos);
+camera.position.set(0, player.height, 0);
+
+// ---------- input ----------
+const keys = new Set();
+let pointerLocked = false;
+
+document.addEventListener('keydown', (e) => {
+  keys.add(e.code);
+  if (e.code === 'KeyE') tryGrab();
+});
+document.addEventListener('keyup', (e) => keys.delete(e.code));
+
+document.addEventListener('mousemove', (e) => {
+  if (!pointerLocked) return;
+  yaw.rotation.y -= e.movementX * 0.0022;
+  pitchObj.rotation.x -= e.movementY * 0.0022;
+  pitchObj.rotation.x = Math.max(-Math.PI/2 + 0.05, Math.min(Math.PI/2 - 0.05, pitchObj.rotation.x));
+});
+
+document.addEventListener('pointerlockchange', () => {
+  pointerLocked = (document.pointerLockElement === renderer.domElement);
+});
+
+// ---------- collision ----------
+function collide(nextPos) {
+  const r = player.radius;
+  const out = nextPos.clone();
+  for (const w of walls) {
+    const cx = Math.max(w.min.x, Math.min(out.x, w.max.x));
+    const cz = Math.max(w.min.z, Math.min(out.z, w.max.z));
+    const dx = out.x - cx, dz = out.z - cz;
+    const d2 = dx*dx + dz*dz;
+    if (d2 < r*r) {
+      const d = Math.sqrt(d2) || 0.0001;
+      const push = (r - d) / d;
+      out.x += dx * push;
+      out.z += dz * push;
+    }
+  }
+  // arena bounds
+  out.x = Math.max(-FLOOR_W/2 + r, Math.min(FLOOR_W/2 - r, out.x));
+  out.z = Math.max(-FLOOR_D/2 + r, Math.min(FLOOR_D/2 - r, out.z));
+  return out;
+}
+
+// ---------- line of sight between guard and player ----------
+const ray = new THREE.Raycaster();
+const wallMeshes = []; // collect wall meshes for LOS
+scene.traverse(o => {
+  if (o.isMesh && o !== floor && o !== ceiling && o !== exitPad) {
+    if (o.geometry?.type === 'BoxGeometry' &&
+        (o.material === wallMat || o.material === trimMat)) {
+      wallMeshes.push(o);
+    }
+  }
+});
+
+function hasLineOfSight(from, to) {
+  const dir = to.clone().sub(from);
+  const dist = dir.length();
+  dir.normalize();
+  ray.set(from, dir);
+  ray.far = dist;
+  const hits = ray.intersectObjects(wallMeshes, false);
+  return hits.length === 0;
+}
+
+// ---------- grab ----------
+let nearestCheese = null;
+const promptEl = document.getElementById('prompt');
+const scoreEl = document.getElementById('score');
+const statusEl = document.getElementById('status');
+const susBar = document.getElementById('susBar');
+
+function tryGrab() {
+  if (nearestCheese && !nearestCheese.taken) {
+    nearestCheese.taken = true;
+    scene.remove(nearestCheese.mesh);
+    scene.remove(nearestCheese.halo);
+    audio.pickup();
+    updateScore();
+  }
+}
+
+function updateScore() {
+  const got = cheeses.filter(c => c.taken).length;
+  scoreEl.textContent = `Cheese: ${got} / ${cheeses.length}`;
+}
+updateScore();
+
+// ---------- game state ----------
+let state = 'menu'; // menu | playing | won | lost
+let suspicion = 0;
+
+function endGame(won) {
+  state = won ? 'won' : 'lost';
+  audio.stopAmbient();
+  if (won) audio.win(); else audio.caught();
+  document.exitPointerLock?.();
+  const got = cheeses.filter(c => c.taken).length;
+  const ov = document.getElementById('overlay');
+  ov.classList.remove('hidden');
+  document.getElementById('title').textContent = won ? 'Heist Successful' : 'Caught!';
+  document.getElementById('msg').innerHTML = won
+    ? `You escaped with <b>${got}</b> wheel${got===1?'':'s'} of cheese.<br>The Cheesefather is pleased.`
+    : `The guards got you. You had <b>${got}</b> wheel${got===1?'':'s'} of cheese.`;
+  document.getElementById('startBtn').textContent = 'Try again';
+}
+
+// ---------- main loop ----------
+const clock = new THREE.Clock();
+let lastPromptTarget = null;
+let footstepTimer = 0;
+let prevSeen = false;
+let susTickTimer = 0;
+
+function update(dt) {
+  if (state !== 'playing') return;
+
+  // movement
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(yaw.quaternion);
+  forward.y = 0; forward.normalize();
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(yaw.quaternion);
+  right.y = 0; right.normalize();
+
+  const sprint = keys.has('ShiftLeft') || keys.has('ShiftRight');
+  player.crouching = keys.has('KeyC');
+  let speed = player.crouching ? 1.6 : (sprint ? 5.4 : 3.4);
+
+  const move = new THREE.Vector3();
+  if (keys.has('KeyW') || keys.has('ArrowUp'))    move.add(forward);
+  if (keys.has('KeyS') || keys.has('ArrowDown'))  move.sub(forward);
+  if (keys.has('KeyD') || keys.has('ArrowRight')) move.add(right);
+  if (keys.has('KeyA') || keys.has('ArrowLeft'))  move.sub(right);
+  if (move.lengthSq() > 0) move.normalize().multiplyScalar(speed * dt);
+
+  const next = player.pos.clone().add(move);
+  const prevPos = player.pos.clone();
+  player.pos.copy(collide(next));
+  yaw.position.copy(player.pos);
+
+  // footsteps based on actual distance traveled
+  const traveled = player.pos.distanceTo(prevPos);
+  if (traveled > 0.001) {
+    const stride = player.crouching ? 0.55 : (sprint ? 0.7 : 0.85);
+    footstepTimer += traveled;
+    if (footstepTimer >= stride) {
+      footstepTimer = 0;
+      audio.footstep(player.crouching, sprint);
+    }
+  } else {
+    footstepTimer = Math.max(0, footstepTimer - dt);
+  }
+
+  const targetHeight = player.crouching ? player.crouchHeight : player.height;
+  camera.position.y += (targetHeight - camera.position.y) * Math.min(1, dt * 12);
+
+  // guards
+  let seen = false;
+  for (const g of guards) {
+    // patrol
+    const a = g.path[g.segment];
+    const b = g.path[(g.segment + 1) % g.path.length];
+    const seg = b.clone().sub(a);
+    const segLen = seg.length();
+    seg.normalize();
+
+    g.t += g.speed * dt;
+    if (g.t >= segLen) {
+      g.t = 0;
+      g.segment = (g.segment + 1) % g.path.length;
+    }
+    const pos = a.clone().add(seg.clone().multiplyScalar(g.t));
+    g.root.position.copy(pos);
+
+    // face direction of travel (smoothed)
+    g.facing.lerp(seg, 0.08).normalize();
+    g.root.rotation.y = Math.atan2(g.facing.x, g.facing.z);
+
+    // detection
+    const playerHead = new THREE.Vector3(player.pos.x, camera.position.y, player.pos.z);
+    const eye = new THREE.Vector3(pos.x, 1.55, pos.z);
+    const toPlayer = playerHead.clone().sub(eye);
+    const dist = toPlayer.length();
+    const flat = new THREE.Vector3(toPlayer.x, 0, toPlayer.z);
+    const flatDist = flat.length();
+    flat.normalize();
+
+    const dot = flat.dot(g.facing);
+    const inCone = (flatDist < g.viewDist) && (dot > Math.cos(g.viewAngle/2));
+
+    let detects = false;
+    if (inCone) {
+      // proximity bonus: if very close, see even outside cone
+      if (hasLineOfSight(eye, playerHead)) detects = true;
+    } else if (flatDist < 1.6 && hasLineOfSight(eye, playerHead)) {
+      detects = true;
+    }
+
+    // crouching reduces effective view distance
+    if (detects && player.crouching && flatDist > g.viewDist * 0.55) detects = false;
+
+    if (detects) {
+      seen = true;
+      g.alert = Math.min(1, g.alert + dt * 2.5);
+      g.cone.material = coneMatAlert;
+      g.spot.color.set(0xff2040);
+    } else {
+      g.alert = Math.max(0, g.alert - dt * 1.2);
+      g.cone.material = coneMat;
+      g.spot.color.set(0xffd400);
+    }
+  }
+
+  // alert sting on first detection
+  if (seen && !prevSeen) audio.alert();
+  prevSeen = seen;
+
+  // suspicion meter
+  if (seen) suspicion = Math.min(1, suspicion + dt * 0.7);
+  else      suspicion = Math.max(0, suspicion - dt * 0.35);
+  susBar.style.width = (suspicion * 100) + '%';
+
+  // suspicion ticks while being watched
+  if (seen) {
+    susTickTimer -= dt;
+    if (susTickTimer <= 0) {
+      audio.susTick();
+      susTickTimer = Math.max(0.08, 0.28 - suspicion * 0.22);
+    }
+  } else {
+    susTickTimer = 0;
+  }
+
+  if (suspicion >= 1) {
+    endGame(false);
+    return;
+  }
+
+  statusEl.textContent = seen ? 'SPOTTED' : (suspicion > 0.05 ? 'Suspicious' : 'Sneaking');
+  statusEl.classList.toggle('alert', seen || suspicion > 0.5);
+
+  // nearest cheese prompt
+  let nearest = null, nearestD = 1.6;
+  for (const c of cheeses) {
+    if (c.taken) continue;
+    const d = Math.hypot(c.x - player.pos.x, c.z - player.pos.z);
+    if (d < nearestD) { nearest = c; nearestD = d; }
+  }
+  nearestCheese = nearest;
+  promptEl.style.display = nearest ? 'block' : 'none';
+
+  // win condition: all cheese taken AND on exit pad
+  const onExit = Math.abs(player.pos.x - exitPad.position.x) < 1.5 &&
+                 Math.abs(player.pos.z - exitPad.position.z) < 1.5;
+  const allTaken = cheeses.every(c => c.taken);
+  if (allTaken && onExit) {
+    endGame(true);
+  }
+
+  // exit pulse hint
+  exitLight.intensity = allTaken ? (1.6 + Math.sin(performance.now()*0.005)*0.6) : 0.8;
+
+  // lamp flicker
+  scene.children.forEach(o => {
+    if (o.isPointLight && o.userData?.base) {
+      o.intensity = o.userData.base + Math.sin(performance.now()*0.003 + o.userData.phase) * 0.15
+                                    + (Math.random() - 0.5) * 0.05;
+    }
+  });
+
+  // cheese spin
+  for (const c of cheeses) {
+    if (!c.taken) c.mesh.rotation.y += dt * 1.2;
+  }
+}
+
+function loop() {
+  const dt = Math.min(0.05, clock.getDelta());
+  update(dt);
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+loop();
+
+// ---------- start ----------
+const overlay = document.getElementById('overlay');
+document.getElementById('startBtn').addEventListener('click', () => {
+  if (state === 'won' || state === 'lost') {
+    // reset
+    for (const c of cheeses) {
+      if (c.taken) {
+        c.taken = false;
+        scene.add(c.mesh);
+        scene.add(c.halo);
+      }
+    }
+    updateScore();
+    player.pos.set(0, 0, 11);
+    yaw.position.copy(player.pos);
+    yaw.rotation.y = 0;
+    pitchObj.rotation.x = 0;
+    suspicion = 0;
+    susBar.style.width = '0%';
+    for (const g of guards) { g.segment = 0; g.t = 0; g.alert = 0; }
+    prevSeen = false;
+  }
+  state = 'playing';
+  overlay.classList.add('hidden');
+  audio.resume();
+  audio.startAmbient();
+  renderer.domElement.requestPointerLock?.();
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Nothing Machine</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #080808;
+    color: #fff;
+    font-family: 'Georgia', serif;
+    height: 100vh;
+    overflow: hidden;
+    cursor: none;
+    user-select: none;
+  }
+
+  /* Breathing background */
+  @keyframes breathe {
+    0%   { opacity: 0.03; }
+    50%  { opacity: 0.07; }
+    100% { opacity: 0.03; }
+  }
+  #bg-glow {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 50%, #6644aa, transparent 70%);
+    animation: breathe 8s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  /* Cursor dot */
+  #cursor {
+    position: fixed;
+    width: 6px; height: 6px;
+    background: #ffffff22;
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    transition: background 0.3s;
+  }
+
+  /* Timer */
+  #timer {
+    position: fixed;
+    bottom: 24px; right: 28px;
+    font-size: 11px;
+    color: #333;
+    letter-spacing: 2px;
+    font-family: monospace;
+    transition: color 1s;
+  }
+
+  /* Judgment text */
+  #judgment {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 13px;
+    color: #444;
+    letter-spacing: 1px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    text-align: center;
+  }
+
+  /* Achievement list */
+  #achieved {
+    position: fixed;
+    top: 28px; left: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .achieved-item {
+    font-size: 11px;
+    color: #443300;
+    letter-spacing: 1px;
+    opacity: 0;
+    animation: fadeInItem 1s forwards;
+  }
+  .achieved-item span { color: #aa7700; }
+  @keyframes fadeInItem {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  /* Achievement popup */
+  #popup {
+    position: fixed;
+    right: -420px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 360px;
+    border: 1px solid #aa770044;
+    background: #0d0d0d;
+    padding: 22px 28px;
+    transition: right 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  #popup.show { right: 24px; }
+  #popup-label {
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: #aa7700;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  #popup-title {
+    font-size: 22px;
+    color: #ffcc00;
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+  #popup-desc {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.6;
+  }
+  #popup-icon {
+    font-size: 36px;
+    float: right;
+    margin-left: 16px;
+    margin-top: -4px;
+  }
+
+  /* Particle canvas */
+  #particles { position: fixed; inset: 0; pointer-events: none; }
+
+  /* Total count */
+  #count {
+    position: fixed;
+    bottom: 24px; left: 28px;
+    font-size: 10px;
+    color: #222;
+    letter-spacing: 1px;
+    font-family: monospace;
+  }
+
+  /* Souls in the void */
+  #souls {
+    position: fixed;
+    top: 24px; right: 28px;
+    font-size: 11px;
+    color: #2d2438;
+    letter-spacing: 2px;
+    font-family: monospace;
+    text-align: right;
+    transition: color 2s;
+  }
+  #souls .n { color: #6b5a8a; }
+
+  /* Other-cursor ghosts */
+  .ghost {
+    position: fixed;
+    width: 6px; height: 6px;
+    background: #6644aa22;
+    border: 1px solid #6644aa44;
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    transition: left 1.2s linear, top 1.2s linear, opacity 1s;
+  }
+  .ghost .gname {
+    position: absolute;
+    left: 10px; top: 10px;
+    font-size: 9px;
+    color: #4a3a66;
+    font-family: monospace;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    opacity: 0.5;
+  }
+
+  /* Peer achievement broadcast (left side, drifts up) */
+  .peer-ach {
+    position: fixed;
+    left: 28px;
+    font-size: 10px;
+    color: #443300;
+    letter-spacing: 1px;
+    font-family: monospace;
+    pointer-events: none;
+    opacity: 0;
+    animation: peerAchFade 8s linear forwards;
+  }
+  @keyframes peerAchFade {
+    0%   { opacity: 0; transform: translateY(10px); }
+    10%  { opacity: 0.6; transform: translateY(0); }
+    80%  { opacity: 0.6; transform: translateY(-30px); }
+    100% { opacity: 0;   transform: translateY(-40px); }
+  }
+</style>
+</head>
+<body>
+
+<div id="bg-glow"></div>
+<canvas id="particles"></canvas>
+<div id="cursor"></div>
+<div id="timer">0:00</div>
+<div id="judgment"></div>
+<div id="achieved"></div>
+<div id="count"></div>
+<div id="souls"><span class="n">1</span> soul in the void</div>
+
+<div id="popup">
+  <div id="popup-icon"></div>
+  <div id="popup-label">Achievement Unlocked</div>
+  <div id="popup-title"></div>
+  <div id="popup-desc"></div>
+</div>
+
+<script>
+// ── Achievements ────────────────────────────────────────────────────────────
+const ACHIEVEMENTS = [
+  { t:  5,   icon: '👁️',  title: 'Still Here',             desc: 'You remained. That\'s something. Actually, that\'s nothing. Never mind.' },
+  { t:  12,  icon: '🪑',  title: 'Committed',               desc: 'Most people left by now. You are not most people. You are fewer people.' },
+  { t:  20,  icon: '🤔',  title: 'Are You OK?',             desc: 'Genuinely asking. You don\'t have to answer. Please don\'t answer.' },
+  { t:  30,  icon: '⏱️',  title: 'Veteran of Nothing',      desc: 'Half a minute of pure, uncut void. The monks would be mildly impressed.' },
+  { t:  45,  icon: '🧘',  title: 'The Monks Nod',           desc: 'A single monk, somewhere far away, nods slowly in your direction.' },
+  { t:  60,  icon: '🕐',  title: 'One Whole Minute',        desc: 'A complete, perfect unit of nothing. 60 seconds. You spent them here.' },
+  { t:  90,  icon: '💼',  title: 'Your Boss Would Be Horrified', desc: 'Imagine explaining this on your performance review.' },
+  { t:  120, icon: '🌫️',  title: 'Becoming the Void',       desc: 'You and the nothing are merging. Or you just need a snack.' },
+  { t:  180, icon: '👁️',  title: 'The Void Stares Back',    desc: 'And it\'s proud of you. That\'s the saddest sentence ever written.' },
+  { t:  240, icon: '🏆',  title: 'Four Minutes',            desc: 'This is your life now. This has always been your life.' },
+  { t:  300, icon: '😐',  title: 'Five Minutes?!',          desc: 'We need to talk. Not now. Just... soon. Maybe. Actually, don\'t worry about it.' },
+  { t:  420, icon: '🌑',  title: 'Seven Minutes in Heaven', desc: 'It\'s nothing like heaven. It is exactly like nothing.' },
+  { t:  600, icon: '🎓',  title: 'Master of the Art',       desc: 'Ten full minutes. You have achieved peak uselessness. Frame this.' },
+  { t:  900, icon: '🚑',  title: 'We\'re Worried',          desc: 'Please drink some water. Please look at a window. Please.' },
+  { t: 1200, icon: '🏛️',  title: 'Historical',              desc: 'Twenty minutes. Historians will argue over what you were thinking.' },
+  { t: 1800, icon: '🌌',  title: 'Transcended',             desc: 'Half an hour. You have left the mortal plane. Please come back.' },
+  { t: 3600, icon: '👑',  title: 'THE CHOSEN ONE',          desc: 'One hour. We don\'t have words. There are no words. There is only you, and the nothing.' },
+];
+
+// ── Judgment messages ────────────────────────────────────────────────────────
+const MOUSE_JUDGMENTS = [
+  'mouse movement detected',
+  'interesting use of the mouse',
+  'the cursor stirs',
+  'motion. noted.',
+  'restless.',
+  'still moving?',
+  'the void notices your mouse',
+  'unnecessary.',
+];
+const CLICK_JUDGMENTS = [
+  'a click. why.',
+  'nothing happened. correctly.',
+  'bold choice.',
+  'that did nothing',
+  'the click echoes into the void',
+  'clicking won\'t help',
+  'noted. ignored.',
+];
+const KEY_JUDGMENTS = [
+  'a key was pressed',
+  'the keyboard suffers',
+  'letters mean nothing here',
+  'stop typing',
+  'the keys don\'t matter',
+  'your keyboard is confused',
+];
+
+// ── State ───────────────────────────────────────────────────────────────────
+let elapsed = 0;
+let nextAchIdx = 0;
+let unlocked = [];
+let popupQueue = [];
+let showingPopup = false;
+let totalActions = 0;
+let mouseMovements = 0;
+let lastMouseTime = 0;
+
+// ── Particles ────────────────────────────────────────────────────────────────
+const pCanvas = document.getElementById('particles');
+const pCtx = pCanvas.getContext('2d');
+pCanvas.width = window.innerWidth;
+pCanvas.height = window.innerHeight;
+
+const dots = Array.from({length: 40}, () => ({
+  x: Math.random() * pCanvas.width,
+  y: Math.random() * pCanvas.height,
+  vx: (Math.random() - 0.5) * 0.15,
+  vy: (Math.random() - 0.5) * 0.15,
+  r: Math.random() * 1.5 + 0.3,
+  a: Math.random() * 0.12 + 0.02,
+}));
+
+function drawParticles() {
+  pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+  dots.forEach(d => {
+    d.x += d.vx; d.y += d.vy;
+    if (d.x < 0) d.x = pCanvas.width;
+    if (d.x > pCanvas.width) d.x = 0;
+    if (d.y < 0) d.y = pCanvas.height;
+    if (d.y > pCanvas.height) d.y = 0;
+    pCtx.fillStyle = `rgba(255,255,255,${d.a})`;
+    pCtx.beginPath();
+    pCtx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+    pCtx.fill();
+  });
+}
+
+// ── Timer display ─────────────────────────────────────────────────────────────
+function fmtTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
+// ── Popup queue ───────────────────────────────────────────────────────────────
+function showNextPopup() {
+  if (popupQueue.length === 0) { showingPopup = false; return; }
+  showingPopup = true;
+  const a = popupQueue.shift();
+  document.getElementById('popup-icon').textContent = a.icon;
+  document.getElementById('popup-title').textContent = a.title;
+  document.getElementById('popup-desc').textContent = a.desc;
+  const popup = document.getElementById('popup');
+  popup.classList.add('show');
+
+  // Add to list
+  const item = document.createElement('div');
+  item.className = 'achieved-item';
+  item.innerHTML = `<span>${a.icon} ${a.title}</span>`;
+  document.getElementById('achieved').appendChild(item);
+
+  setTimeout(() => {
+    popup.classList.remove('show');
+    setTimeout(showNextPopup, 600);
+  }, 4000);
+}
+
+function queueAchievement(a) {
+  popupQueue.push(a);
+  if (!showingPopup) showNextPopup();
+}
+
+// ── Judgment text ─────────────────────────────────────────────────────────────
+let judgmentTimeout = null;
+function showJudgment(msgs) {
+  const el = document.getElementById('judgment');
+  el.textContent = msgs[Math.floor(Math.random() * msgs.length)];
+  el.style.opacity = '1';
+  if (judgmentTimeout) clearTimeout(judgmentTimeout);
+  judgmentTimeout = setTimeout(() => { el.style.opacity = '0'; }, 2000);
+}
+
+// ── Cursor ────────────────────────────────────────────────────────────────────
+const cursor = document.getElementById('cursor');
+document.addEventListener('mousemove', e => {
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top  = e.clientY + 'px';
+  const now = Date.now();
+  if (now - lastMouseTime > 1500) {
+    mouseMovements++;
+    totalActions++;
+    showJudgment(MOUSE_JUDGMENTS);
+    updateCount();
+  }
+  lastMouseTime = now;
+});
+
+document.addEventListener('click', e => {
+  totalActions++;
+  showJudgment(CLICK_JUDGMENTS);
+  updateCount();
+  // Small burst effect
+  burst(e.clientX, e.clientY);
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'F5' || e.key === 'F12') return;
+  totalActions++;
+  showJudgment(KEY_JUDGMENTS);
+  updateCount();
+});
+
+function burst(x, y) {
+  for (let i = 0; i < 6; i++) {
+    const d = {
+      x, y,
+      vx: (Math.random() - 0.5) * 2,
+      vy: (Math.random() - 0.5) * 2,
+      r: 1.5,
+      a: 0.3,
+    };
+    dots.push(d);
+    setTimeout(() => { const idx = dots.indexOf(d); if (idx > -1) dots.splice(idx, 1); }, 2000);
+  }
+}
+
+function updateCount() {
+  const el = document.getElementById('count');
+  if (totalActions === 0) { el.textContent = ''; return; }
+  const word = totalActions === 1 ? 'action' : 'actions';
+  el.textContent = `${totalActions} unnecessary ${word} taken`;
+}
+
+// ── Main loop ─────────────────────────────────────────────────────────────────
+let last = performance.now();
+function loop(now) {
+  const dt = (now - last) / 1000;
+  last = now;
+  elapsed += dt;
+
+  // Check achievements
+  while (nextAchIdx < ACHIEVEMENTS.length && elapsed >= ACHIEVEMENTS[nextAchIdx].t) {
+    queueAchievement(ACHIEVEMENTS[nextAchIdx]);
+    nextAchIdx++;
+  }
+
+  // Update timer color as time goes on
+  const timerEl = document.getElementById('timer');
+  timerEl.textContent = fmtTime(elapsed);
+  const brightness = Math.min(40 + Math.floor(elapsed / 10) * 4, 140);
+  timerEl.style.color = `hsl(40, 30%, ${brightness / 3}%)`;
+
+  drawParticles();
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+
+// ── Multiplayer: shared void via ntfy.sh pub/sub ────────────────────────────
+// Everyone subscribes to the same hidden topic. Each client publishes a small
+// heartbeat with id/name/elapsed/cursor; we maintain a local roster and render
+// ghost cursors + "souls in the void" count. Achievements get broadcast too.
+const VOID_TOPIC = 'lev-nothing-void-7f9k2';
+const VOID_BASE  = 'https://ntfy.sh/' + VOID_TOPIC;
+
+const VOID_FIRST = ['Silent','Hollow','Pale','Drifting','Distant','Quiet','Weary','Lone','Faint','Vacant'];
+const VOID_LAST  = ['Watcher','Cursor','Witness','Soul','Echo','Wanderer','Specter','Ember','Vapor','Thought'];
+const myVoidId   = Math.random().toString(36).slice(2, 10);
+const myVoidName = VOID_FIRST[Math.floor(Math.random()*VOID_FIRST.length)] + ' ' +
+                   VOID_LAST[Math.floor(Math.random()*VOID_LAST.length)];
+
+const peers = new Map(); // id -> { name, elapsed, x, y, lastSeen, el }
+let lastCursorX = window.innerWidth / 2;
+let lastCursorY = window.innerHeight / 2;
+
+document.addEventListener('mousemove', e => {
+  lastCursorX = e.clientX;
+  lastCursorY = e.clientY;
+});
+
+function voidPublish(msg) {
+  // Fire-and-forget; ignore failures so it never blocks the page
+  try {
+    fetch(VOID_BASE, { method: 'POST', body: JSON.stringify(msg), keepalive: true })
+      .catch(() => {});
+  } catch {}
+}
+
+function heartbeat() {
+  voidPublish({
+    type: 'hb',
+    id: myVoidId,
+    name: myVoidName,
+    elapsed: Math.floor(elapsed),
+    // Send as fractions of viewport so different screen sizes still map cleanly
+    x: lastCursorX / window.innerWidth,
+    y: lastCursorY / window.innerHeight,
+  });
+}
+
+function ensurePeerEl(id) {
+  let p = peers.get(id);
+  if (p && p.el) return p;
+  const el = document.createElement('div');
+  el.className = 'ghost';
+  const name = document.createElement('div');
+  name.className = 'gname';
+  el.appendChild(name);
+  document.body.appendChild(el);
+  if (!p) p = {};
+  p.el = el;
+  p.nameEl = name;
+  peers.set(id, p);
+  return p;
+}
+
+function handleVoidMsg(m) {
+  if (!m || !m.id || m.id === myVoidId) return;
+  if (m.type === 'hb') {
+    const p = ensurePeerEl(m.id);
+    p.name = m.name || 'Unknown';
+    p.elapsed = m.elapsed || 0;
+    p.lastSeen = Date.now();
+    if (typeof m.x === 'number' && typeof m.y === 'number') {
+      p.el.style.left = (m.x * window.innerWidth) + 'px';
+      p.el.style.top  = (m.y * window.innerHeight) + 'px';
+    }
+    p.nameEl.textContent = p.name;
+  } else if (m.type === 'ach') {
+    showPeerAch(m.name || 'Someone', m.title || '???');
+  }
+}
+
+function showPeerAch(name, title) {
+  const el = document.createElement('div');
+  el.className = 'peer-ach';
+  el.textContent = `${name} achieved "${title}"`;
+  // Stack above the existing #count line
+  el.style.bottom = (44 + (document.querySelectorAll('.peer-ach').length * 18)) + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 8500);
+}
+
+function pruneAndRenderSouls() {
+  const now = Date.now();
+  for (const [id, p] of peers) {
+    if (now - (p.lastSeen || 0) > 14000) {
+      if (p.el) p.el.remove();
+      peers.delete(id);
+    }
+  }
+  const count = peers.size + 1;
+  const noun = count === 1 ? 'soul' : 'souls';
+  document.getElementById('souls').innerHTML =
+    `<span class="n">${count}</span> ${noun} in the void`;
+}
+
+// Subscribe via SSE
+function voidSubscribe() {
+  const es = new EventSource(VOID_BASE + '/sse');
+  es.onmessage = (ev) => {
+    try {
+      const env = JSON.parse(ev.data);
+      // ntfy wraps messages; the payload we sent lives in env.message
+      if (env.event !== 'message') return;
+      const m = JSON.parse(env.message);
+      handleVoidMsg(m);
+    } catch {}
+  };
+  es.onerror = () => {
+    // Reconnect after a beat; EventSource auto-retries but be defensive
+    setTimeout(voidSubscribe, 4000);
+    es.close();
+  };
+}
+voidSubscribe();
+
+// Heartbeat every ~4s; ghost-prune every 2s
+heartbeat();
+setInterval(heartbeat, 4000);
+setInterval(pruneAndRenderSouls, 2000);
+
+// Broadcast my own achievements (hook into queueAchievement)
+const _origQueueAch = queueAchievement;
+queueAchievement = function(a) {
+  _origQueueAch(a);
+  voidPublish({ type: 'ach', id: myVoidId, name: myVoidName, title: a.title });
+};
+
+// Say goodbye on unload (best-effort)
+window.addEventListener('beforeunload', () => {
+  voidPublish({ type: 'bye', id: myVoidId });
+});
+</script>
+</body>
+</html>

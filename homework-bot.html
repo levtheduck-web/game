@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Homework Bot</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --panel-2: #1d242d;
+    --border: #2a313c;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #7c5cff;
+    --accent-2: #00d4a0;
+    --danger: #ff6b6b;
+    --user: #1f6feb;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: radial-gradient(1200px 600px at 20% -10%, #1a1230 0%, transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, #0a3a2e 0%, transparent 55%),
+                var(--bg);
+    color: var(--text);
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100vh;
+  }
+  header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(14,17,22,0.7);
+    backdrop-filter: blur(8px);
+  }
+  header .logo {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center;
+    font-size: 18px;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: 0.2px; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  header .spacer { flex: 1; }
+  header button.icon {
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 10px; cursor: pointer; font-size: 13px;
+  }
+  header button.icon:hover { border-color: var(--accent); }
+
+  main {
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .msg {
+    max-width: 760px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .msg.user {
+    background: linear-gradient(180deg, #14233e, #122036);
+    border-color: #2b4b80;
+  }
+  .msg.bot { background: var(--panel-2); }
+  .msg .role {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .msg .role .dot { width:8px; height:8px; border-radius:50%; background: var(--accent); }
+  .msg.user .role .dot { background: var(--user); }
+  .msg img.attach {
+    max-width: 280px; max-height: 220px;
+    display: block; margin-top: 8px;
+    border-radius: 8px; border: 1px solid var(--border);
+  }
+  .msg pre {
+    background: #0a0d12;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    font: 13px ui-monospace, Menlo, monospace;
+  }
+  .msg code { font: 13px ui-monospace, Menlo, monospace; background: #0a0d12; padding: 1px 5px; border-radius: 4px; }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 12px 20px 16px;
+    background: rgba(14,17,22,0.85);
+    backdrop-filter: blur(8px);
+  }
+  .composer {
+    max-width: 760px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  select, .pill-btn, .file-btn {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  select:hover, .pill-btn:hover, .file-btn:hover { border-color: var(--accent); }
+  .file-btn input { display: none; }
+  .thumb-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .thumb { position: relative; }
+  .thumb img { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+  .thumb button {
+    position: absolute; top: -6px; right: -6px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--danger); color: white; border: none;
+    cursor: pointer; font-size: 11px; line-height: 1;
+  }
+  .input-row { display: flex; gap: 8px; align-items: flex-end; }
+  textarea {
+    flex: 1;
+    resize: none;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font: inherit;
+    min-height: 52px;
+    max-height: 220px;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  button.send {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white; border: none; border-radius: 10px;
+    padding: 12px 18px; cursor: pointer; font-weight: 600;
+    min-width: 90px;
+  }
+  button.send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 60px 20px;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  .empty h2 { color: var(--text); font-size: 22px; margin-bottom: 8px; }
+  .examples {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .ex {
+    text-align: left;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    cursor: pointer;
+    color: var(--text);
+    font-size: 13px;
+  }
+  .ex:hover { border-color: var(--accent); }
+  .ex strong { display: block; margin-bottom: 4px; }
+
+  /* Settings dialog */
+  dialog {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 460px;
+    width: 90%;
+  }
+  dialog::backdrop { background: rgba(0,0,0,0.6); }
+  dialog h3 { margin: 0 0 12px; }
+  dialog label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  dialog input[type="password"], dialog input[type="text"] {
+    width: 100%; padding: 8px 10px;
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    font: inherit;
+    margin-bottom: 12px;
+  }
+  dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+  dialog button { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 7px 14px; cursor: pointer; }
+  dialog button.primary { background: var(--accent); border-color: var(--accent); }
+  dialog small { color: var(--muted); font-size: 12px; display: block; margin-top: -6px; margin-bottom: 12px; }
+  .err { color: var(--danger); font-size: 12px; margin-top: 4px; }
+
+  .cursor::after {
+    content: "▍";
+    animation: blink 1s infinite;
+    color: var(--accent);
+    margin-left: 2px;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">📚</div>
+  <div>
+    <h1>Homework Bot</h1>
+    <div class="sub">Paste an assignment, upload a worksheet — get answers.</div>
+  </div>
+  <div class="spacer"></div>
+  <button class="icon" id="watchBtn" title="Capture your screen and solve what's visible">👁 Watch Screen</button>
+  <button class="icon" id="solveBtn" title="Solve what's on screen now" style="display:none">⚡ Solve Now</button>
+  <label class="icon" id="autoLbl" title="Re-solve every 10 seconds" style="display:none;cursor:pointer">
+    <input type="checkbox" id="autoChk" style="vertical-align:middle" /> Auto
+  </label>
+  <button class="icon" id="clearBtn" title="Clear conversation">Clear</button>
+  <button class="icon" id="settingsBtn" title="Settings">⚙️ Settings</button>
+</header>
+
+<main id="main">
+  <div class="empty" id="empty">
+    <h2>Hi. What's the assignment?</h2>
+    <p>Paste the question, attach a photo of the worksheet, or describe what you need. I'll show the work.</p>
+    <div class="examples">
+      <button class="ex" data-fill="Solve for x: 3(x - 4) + 2x = 5x - 12 + 2x. Show every step.">
+        <strong>Algebra</strong>
+        Solve a linear equation step by step
+      </button>
+      <button class="ex" data-fill="Write a 300-word analytical paragraph on the symbolism of the green light in The Great Gatsby.">
+        <strong>English essay</strong>
+        Short analytical paragraph
+      </button>
+      <button class="ex" data-fill="Explain photosynthesis in terms a 7th grader would understand. Include the equation and the role of chlorophyll.">
+        <strong>Biology</strong>
+        Explain a concept clearly
+      </button>
+      <button class="ex" data-fill="Translate to Spanish and explain the grammar: 'I have been studying for three hours and I am exhausted.'">
+        <strong>Spanish</strong>
+        Translate + explain grammar
+      </button>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="composer">
+    <div class="controls">
+      <select id="subject" title="Subject">
+        <option value="auto">Auto-detect subject</option>
+        <option value="math">Math / Algebra / Calculus</option>
+        <option value="science">Science / Physics / Chem / Bio</option>
+        <option value="english">English / Essay / Literature</option>
+        <option value="history">History / Social Studies</option>
+        <option value="cs">Computer Science / Programming</option>
+        <option value="language">Foreign Language</option>
+        <option value="other">Other</option>
+      </select>
+      <select id="mode" title="Answer style">
+        <option value="full">Full solution + steps</option>
+        <option value="brief">Just the answer</option>
+        <option value="hints">Hints only (no answer)</option>
+        <option value="essay">Essay / long-form draft</option>
+      </select>
+      <select id="grade" title="Grade level">
+        <option value="auto">Grade level: auto</option>
+        <option value="elementary">Elementary</option>
+        <option value="middle">Middle school</option>
+        <option value="high">High school</option>
+        <option value="college">College</option>
+      </select>
+      <label class="file-btn" title="Attach worksheet photo">
+        📎 Attach
+        <input type="file" id="fileInput" accept="image/*" multiple />
+      </label>
+    </div>
+    <div class="thumb-row" id="thumbs"></div>
+    <div class="input-row">
+      <textarea id="input" placeholder="Paste the question, or describe the assignment..." rows="2"></textarea>
+      <button class="send" id="sendBtn">Solve</button>
+    </div>
+  </div>
+</footer>
+
+<dialog id="settings">
+  <h3>Settings</h3>
+  <label for="apiKey">Anthropic API key</label>
+  <input type="password" id="apiKey" placeholder="sk-ant-api03-..." />
+  <small>Get one at console.anthropic.com (requires credits). Stored in your browser's localStorage.</small>
+  <label for="model">Model</label>
+  <input type="text" id="model" value="claude-sonnet-4-6" />
+  <small>Default: claude-sonnet-4-6. Try claude-opus-4-7 for harder problems (5× cost), or claude-haiku-4-5-20251001 for cheaper.</small>
+  <div class="row">
+    <button id="closeSettings">Cancel</button>
+    <button class="primary" id="saveSettings">Save</button>
+  </div>
+</dialog>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const main = $('main'), empty = $('empty');
+const input = $('input'), sendBtn = $('sendBtn'), thumbs = $('thumbs');
+const fileInput = $('fileInput'), subjectSel = $('subject'), modeSel = $('mode'), gradeSel = $('grade');
+const settings = $('settings'), apiKeyInput = $('apiKey'), modelInput = $('model');
+
+let conversation = []; // Gemini format: {role: 'user'|'model', parts: [{text}|{inline_data:{mime_type,data}}]}
+let attachments = []; // {dataUrl, mediaType, base64}
+
+// --- Settings persistence ---
+function loadSettings() {
+  apiKeyInput.value = localStorage.getItem('hw_claude_key') || '';
+  modelInput.value = localStorage.getItem('hw_claude_model') || 'claude-sonnet-4-6';
+}
+loadSettings();
+$('settingsBtn').onclick = () => settings.showModal();
+$('closeSettings').onclick = (e) => { e.preventDefault(); settings.close(); };
+$('saveSettings').onclick = (e) => {
+  e.preventDefault();
+  localStorage.setItem('hw_claude_key', apiKeyInput.value.trim());
+  localStorage.setItem('hw_claude_model', modelInput.value.trim() || 'claude-sonnet-4-6');
+  settings.close();
+};
+
+// --- Examples ---
+document.querySelectorAll('.ex').forEach(b => {
+  b.onclick = () => { input.value = b.dataset.fill; input.focus(); autoresize(); };
+});
+
+// --- Textarea autoresize ---
+function autoresize() {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 220) + 'px';
+}
+input.addEventListener('input', autoresize);
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+});
+
+// --- File attachments ---
+fileInput.addEventListener('change', async () => {
+  for (const f of fileInput.files) {
+    if (!f.type.startsWith('image/')) continue;
+    const dataUrl = await new Promise(res => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.readAsDataURL(f);
+    });
+    const base64 = dataUrl.split(',')[1];
+    attachments.push({ dataUrl, mediaType: f.type, base64 });
+  }
+  fileInput.value = '';
+  renderThumbs();
+});
+function renderThumbs() {
+  thumbs.innerHTML = '';
+  attachments.forEach((a, i) => {
+    const d = document.createElement('div');
+    d.className = 'thumb';
+    d.innerHTML = `<img src="${a.dataUrl}" /><button title="Remove">×</button>`;
+    d.querySelector('button').onclick = () => { attachments.splice(i,1); renderThumbs(); };
+    thumbs.appendChild(d);
+  });
+}
+
+// --- Clear ---
+$('clearBtn').onclick = () => {
+  conversation = [];
+  attachments = [];
+  renderThumbs();
+  main.innerHTML = '';
+  main.appendChild(empty);
+};
+
+// --- Rendering ---
+function mdToHtml(text) {
+  // Minimal safe markdown: escape then format
+  const esc = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let html = esc(text);
+  // code blocks ```
+  html = html.replace(/```([\s\S]*?)```/g, (_, c) => `<pre>${c}</pre>`);
+  // inline code
+  html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  // bold **x**
+  html = html.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  // italics *x*
+  html = html.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+  // headings ###
+  html = html.replace(/^### (.*)$/gm, '<h4 style="margin:8px 0 4px">$1</h4>');
+  html = html.replace(/^## (.*)$/gm, '<h3 style="margin:10px 0 4px">$1</h3>');
+  return html;
+}
+
+function addMessage(role, text, images = []) {
+  if (empty.parentNode) empty.remove();
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.innerHTML = `<div class="role"><span class="dot"></span>${role === 'user' ? 'You' : 'Homework Bot'}</div><div class="body"></div>`;
+  const body = div.querySelector('.body');
+  body.innerHTML = mdToHtml(text);
+  images.forEach(src => {
+    const img = document.createElement('img');
+    img.className = 'attach';
+    img.src = src;
+    div.appendChild(img);
+  });
+  main.appendChild(div);
+  main.scrollTop = main.scrollHeight;
+  return body;
+}
+
+// --- System prompt ---
+function buildSystem() {
+  const subject = subjectSel.value;
+  const mode = modeSel.value;
+  const grade = gradeSel.value;
+  const modeInstr = {
+    full:  "Provide a complete solution with clear step-by-step reasoning. Show all work.",
+    brief: "Give just the final answer. No explanation unless absolutely necessary.",
+    hints: "Do NOT give the final answer. Give 2-3 progressive hints that nudge the student toward the solution.",
+    essay: "Write a polished long-form draft. Use clear structure (intro, body, conclusion if appropriate)."
+  }[mode];
+  const gradeInstr = grade === 'auto' ? '' : `Target the explanation at a ${grade}-school level (use age-appropriate vocabulary).`;
+  const subjectInstr = subject === 'auto' ? 'Detect the subject from the question.' : `The subject is: ${subject}.`;
+  return `You are Homework Bot, a fast, accurate homework helper.
+
+${subjectInstr}
+${modeInstr}
+${gradeInstr}
+
+Formatting:
+- Use markdown. Use **bold** for final answers.
+- For math, write equations inline like x = 5 or in code blocks. Don't use LaTeX delimiters; use plain ASCII math.
+- Be concise. No filler like "Great question!" or "I'd be happy to help!".
+- If the user uploads a photo of a worksheet, transcribe the relevant question first, then solve it.
+- If a problem is ambiguous, state your assumption in one line and proceed.`;
+}
+
+// --- Send ---
+async function send() {
+  const text = input.value.trim();
+  if (!text && attachments.length === 0) return;
+  const apiKey = localStorage.getItem('hw_claude_key');
+  if (!apiKey) {
+    settings.showModal();
+    return;
+  }
+  const model = localStorage.getItem('hw_claude_model') || 'claude-sonnet-4-6';
+
+  // Build user content (Anthropic format)
+  const userContent = [];
+  for (const a of attachments) {
+    userContent.push({
+      type: 'image',
+      source: { type: 'base64', media_type: a.mediaType || 'image/png', data: a.base64 }
+    });
+  }
+  if (text) userContent.push({ type: 'text', text });
+
+  // Render user message
+  addMessage('user', text || '(image)', attachments.map(a => a.dataUrl));
+  conversation.push({ role: 'user', content: userContent });
+
+  // Clear input
+  input.value = '';
+  attachments = [];
+  renderThumbs();
+  autoresize();
+
+  // Render placeholder bot message
+  const botBody = addMessage('bot', '');
+  botBody.classList.add('cursor');
+  sendBtn.disabled = true;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 4096,
+        stream: true,
+        system: buildSystem(),
+        messages: conversation
+      })
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`API ${resp.status}: ${errText.slice(0, 400)}`);
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let full = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if (!data || data === '[DONE]') continue;
+        try {
+          const ev = JSON.parse(data);
+          if (ev.type === 'content_block_delta' && ev.delta && ev.delta.type === 'text_delta') {
+            full += ev.delta.text;
+            botBody.innerHTML = mdToHtml(full);
+            main.scrollTop = main.scrollHeight;
+          }
+        } catch {}
+      }
+    }
+    botBody.classList.remove('cursor');
+    conversation.push({ role: 'assistant', content: [{ type: 'text', text: full }] });
+  } catch (err) {
+    botBody.classList.remove('cursor');
+    botBody.innerHTML = `<span class="err">⚠ ${err.message}</span><br><br>If this is a 401/403, check your API key in Settings. Get one at console.anthropic.com (needs credits).`;
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+sendBtn.onclick = send;
+
+// Prompt for API key on first load
+if (!localStorage.getItem('hw_claude_key')) {
+  setTimeout(() => settings.showModal(), 300);
+}
+
+// ---------- Screen-watching mode ----------
+let screenStream = null;
+let screenVideo = null;
+let autoTimer = null;
+let lastSolvedHash = null;
+
+const watchBtn = $('watchBtn'), solveBtn = $('solveBtn');
+const autoLbl = $('autoLbl'), autoChk = $('autoChk');
+
+watchBtn.onclick = async () => {
+  if (screenStream) { stopWatching(); return; }
+  try {
+    screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: 1 },
+      audio: false
+    });
+    screenVideo = document.createElement('video');
+    screenVideo.srcObject = screenStream;
+    screenVideo.muted = true;
+    await screenVideo.play();
+    screenStream.getVideoTracks()[0].addEventListener('ended', stopWatching);
+
+    watchBtn.textContent = '⏹ Stop Watching';
+    watchBtn.style.borderColor = '#ff6b6b';
+    solveBtn.style.display = '';
+    autoLbl.style.display = '';
+  } catch (e) {
+    addMessage('bot', `⚠ Couldn't start screen capture: ${e.message}`);
+  }
+};
+
+function stopWatching() {
+  if (screenStream) {
+    screenStream.getTracks().forEach(t => t.stop());
+    screenStream = null;
+    screenVideo = null;
+  }
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  autoChk.checked = false;
+  watchBtn.textContent = '👁 Watch Screen';
+  watchBtn.style.borderColor = '';
+  solveBtn.style.display = 'none';
+  autoLbl.style.display = 'none';
+}
+
+function captureFrame() {
+  if (!screenVideo) return null;
+  const w = screenVideo.videoWidth, h = screenVideo.videoHeight;
+  if (!w || !h) return null;
+  // Downscale to keep payload small (max 1600px wide)
+  const scale = Math.min(1, 1600 / w);
+  const cw = Math.round(w * scale), ch = Math.round(h * scale);
+  const canvas = document.createElement('canvas');
+  canvas.width = cw; canvas.height = ch;
+  canvas.getContext('2d').drawImage(screenVideo, 0, 0, cw, ch);
+  return canvas.toDataURL('image/jpeg', 0.8);
+}
+
+async function solveScreen(silent = false) {
+  const dataUrl = captureFrame();
+  if (!dataUrl) return;
+  const base64 = dataUrl.split(',')[1];
+
+  // Cheap dedupe: skip if frame is byte-identical to last solved
+  const hash = base64.length + ':' + base64.slice(0, 64) + base64.slice(-64);
+  if (silent && hash === lastSolvedHash) return;
+  lastSolvedHash = hash;
+
+  // Push as an attachment and auto-send
+  attachments = [{ dataUrl, mediaType: 'image/jpeg', base64 }];
+  if (!input.value.trim()) {
+    input.value = silent
+      ? "Look at this screenshot. If there's a homework question, exercise, quiz, or problem visible, solve it. If there's nothing to solve, reply with just: NO_QUESTION"
+      : "Solve whatever homework question is visible in this screenshot. Transcribe the question first, then answer it.";
+  }
+  await send();
+}
+
+solveBtn.onclick = () => solveScreen(false);
+
+autoChk.onchange = () => {
+  if (autoChk.checked) {
+    autoTimer = setInterval(() => solveScreen(true), 10000);
+  } else if (autoTimer) {
+    clearInterval(autoTimer); autoTimer = null;
+  }
+};
+</script>
+</body>
+</html>

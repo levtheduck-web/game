@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Homework Bot — Bookmarklet Generator</title>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #161b22; --panel-2: #1d242d;
+    --border: #2a313c; --text: #e6edf3; --muted: #8b949e;
+    --accent: #7c5cff; --accent-2: #00d4a0; --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: radial-gradient(1200px 600px at 20% -10%, #1a1230 0%, transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, #0a3a2e 0%, transparent 55%),
+                var(--bg);
+    color: var(--text);
+    margin: 0; padding: 40px 20px; min-height: 100vh;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { margin: 0 0 6px; font-size: 26px; }
+  .sub { color: var(--muted); margin-bottom: 28px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px; margin-bottom: 18px;
+  }
+  .card h2 { margin: 0 0 12px; font-size: 16px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 4px; }
+  label.row { display: flex; align-items: center; gap: 8px; color: var(--text); cursor: pointer; margin: 12px 0 0; }
+  input[type="password"], input[type="text"] {
+    width: 100%; padding: 10px 12px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; font: inherit;
+  }
+  small { color: var(--muted); font-size: 12px; display: block; margin-top: 4px; }
+  small a { color: var(--accent); }
+  button.primary {
+    margin-top: 18px; padding: 11px 22px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white; border: none; border-radius: 8px;
+    cursor: pointer; font: inherit; font-weight: 600; font-size: 15px;
+  }
+  .drag-area {
+    margin-top: 18px; padding: 24px; text-align: center;
+    background: var(--panel-2); border: 2px dashed var(--accent);
+    border-radius: 10px;
+  }
+  .drag-area.empty { border-style: dashed; opacity: 0.5; }
+  .bookmark-link {
+    display: inline-block; padding: 14px 28px; font-size: 17px; font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white !important; text-decoration: none; border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(124, 92, 255, 0.3); cursor: grab;
+    user-select: none;
+  }
+  .bookmark-link:active { cursor: grabbing; }
+  .steps {
+    counter-reset: step;
+    list-style: none; padding: 0; margin: 0;
+  }
+  .steps li {
+    counter-increment: step;
+    padding: 10px 0 10px 42px; position: relative;
+    border-bottom: 1px solid var(--border);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .steps li::before {
+    content: counter(step);
+    position: absolute; left: 0; top: 10px;
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px;
+  }
+  .kbd { background: var(--panel-2); padding: 2px 6px; border-radius: 4px; font: 12px ui-monospace; }
+  .warn {
+    background: rgba(255, 107, 107, 0.1); border: 1px solid rgba(255, 107, 107, 0.3);
+    color: #ffb3b3; padding: 12px 14px; border-radius: 8px; font-size: 13px; margin-top: 14px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>📚 Homework Bot — Bookmarklet</h1>
+<div class="sub">No install. Works on school-managed Chrome. Drag the link to your bookmarks bar, click it on any homework page.</div>
+
+<div class="card">
+  <h2>1. Configure</h2>
+
+  <label for="apiKey">Anthropic API key</label>
+  <input type="password" id="apiKey" placeholder="sk-ant-api03-..." />
+  <small>Get one at <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a> (needs credits)</small>
+
+  <label for="model">Model</label>
+  <input type="text" id="model" value="claude-sonnet-4-6" />
+  <small>Default: <code>claude-sonnet-4-6</code>. Use <code>claude-opus-4-7</code> for harder problems.</small>
+
+  <label class="row"><input type="checkbox" id="autoFill" checked /> Auto-type the answer into the field</label>
+  <label class="row"><input type="checkbox" id="typeSlow" /> Type character-by-character (for Khan Academy / IXL / MathQuill)</label>
+
+  <button class="primary" id="generate">Generate Bookmarklet →</button>
+
+  <div class="warn">
+    ⚠ Your API key is embedded in the bookmark. Anyone who sees your bookmarks can copy it. Don't share screenshots of your bookmarks bar.
+  </div>
+</div>
+
+<div class="card">
+  <h2>2. Drag to your bookmarks bar</h2>
+  <div class="drag-area empty" id="dragArea">
+    <span style="color:var(--muted)">Fill in your API key above, then click "Generate".</span>
+  </div>
+  <small style="margin-top:14px">If you don't see your bookmarks bar in Chrome, press <span class="kbd">⌘⇧B</span> (Mac) or <span class="kbd">Ctrl+Shift+B</span> (Win) to show it.</small>
+</div>
+
+<div class="card">
+  <h2>3. Use it</h2>
+  <ol class="steps">
+    <li>Open your homework in Google Classroom, Khan Academy, IXL, Canvas, myhrw, etc.</li>
+    <li>Click in the answer field (so it's focused).</li>
+    <li>Click the <b>📚 Homework Bot</b> bookmark.</li>
+    <li>It reads the question, asks Claude, and auto-types the answer for you.</li>
+  </ol>
+</div>
+
+</div>
+
+<script>
+// ---- The bookmarklet source ----
+// This function gets stringified, encoded, and prefixed with javascript:
+// Placeholders __KEY__, __MODEL__, __AUTO__, __SLOW__ are replaced before encoding.
+function HWBOT_SOURCE() {
+  if (window.__hwbotRunning) return;
+  window.__hwbotRunning = true;
+
+  var KEY = '__KEY__', MODEL = '__MODEL__';
+  var AUTO_FILL = __AUTO__, TYPE_SLOW = __SLOW__;
+
+  // ---- Overlay ----
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;bottom:20px;right:20px;width:360px;max-height:70vh;background:#161b22;color:#e6edf3;border:1px solid #2a313c;border-radius:12px;z-index:2147483647;font:14px/1.5 -apple-system,sans-serif;box-shadow:0 8px 32px rgba(0,0,0,.5);overflow:hidden;display:flex;flex-direction:column';
+  ov.innerHTML =
+    '<div style="padding:10px 14px;background:#1d242d;border-bottom:1px solid #2a313c;display:flex;justify-content:space-between;align-items:center">' +
+      '<span style="font-weight:600">📚 Homework Bot</span>' +
+      '<button id="hwbX" style="background:none;border:none;color:#8b949e;font-size:22px;cursor:pointer;line-height:1">×</button>' +
+    '</div>' +
+    '<div id="hwbBody" style="padding:14px;overflow-y:auto;flex:1">' +
+      '<span style="display:inline-block;width:12px;height:12px;border:2px solid #2a313c;border-top-color:#7c5cff;border-radius:50%;vertical-align:middle;margin-right:6px;animation:hwbSpin .8s linear infinite"></span> Reading the page...' +
+    '</div>';
+  document.body.appendChild(ov);
+
+  var style = document.createElement('style');
+  style.textContent = '@keyframes hwbSpin{to{transform:rotate(360deg)}}';
+  document.head.appendChild(style);
+
+  ov.querySelector('#hwbX').onclick = function () {
+    ov.remove(); style.remove(); window.__hwbotRunning = false;
+  };
+
+  // ---- Extract page content + answer fields ----
+  function clean(s) { return (s || '').replace(/\s+/g, ' ').trim(); }
+  function visible(el) {
+    var r = el.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) return false;
+    var s = getComputedStyle(el);
+    return s.display !== 'none' && s.visibility !== 'hidden';
+  }
+  var sel = 'input[type="text"],input[type="number"],input[type="search"],input:not([type]),textarea,[contenteditable="true"],[contenteditable=""]';
+  var inputs = [].slice.call(document.querySelectorAll(sel))
+    .filter(visible).slice(0, 30)
+    .map(function (el, i) {
+      var id = 'hwb-' + i;
+      el.setAttribute('data-hwb-id', id);
+      var label = (el.labels && el.labels[0] && el.labels[0].innerText) ||
+                  el.getAttribute('aria-label') || el.placeholder || '';
+      if (!label && el.id) {
+        var lbl = document.querySelector('label[for="' + el.id + '"]');
+        if (lbl) label = lbl.innerText;
+      }
+      return { id: id, label: clean(label).slice(0, 200), tag: el.tagName.toLowerCase() };
+    });
+  var focused = (document.activeElement && document.activeElement.getAttribute &&
+                 document.activeElement.getAttribute('data-hwb-id')) || null;
+  var main = document.querySelector('main, [role="main"], article') || document.body;
+  var pageText = clean(main.innerText || '').slice(0, 8000);
+
+  var inputList = inputs.length
+    ? inputs.map(function (i) { return '  - ' + i.id + ' (' + i.tag + '): "' + (i.label || '(no label)') + '"'; }).join('\n')
+    : '  (none detected)';
+
+  var system =
+    'You are Homework Bot. The user is doing homework on a web page. Identify the homework question visible in the page text and solve it correctly.\n\n' +
+    'Reply in EXACTLY this format (no markdown, no extra text):\n' +
+    'QUESTION: <one-line restatement>\n' +
+    'ANSWER: <the final answer, terse>\n' +
+    'EXPLANATION: <1-3 sentence reason, or empty>\n' +
+    'FILL: <exact text to type into the answer field, or empty if multiple-choice>\n' +
+    'TARGET: <the input id from the list, or empty if none>\n\n' +
+    'Rules:\n' +
+    '- If multiple questions are visible, solve the one whose input is focused; otherwise the first unanswered one.\n' +
+    '- For multiple-choice, ANSWER is the choice; FILL/TARGET stay empty.\n' +
+    '- For math, use plain ASCII (x^2, not x²) unless the page uses unicode.\n' +
+    '- Be concise.\n\n' +
+    'Visible input fields:\n' + inputList + '\n' +
+    'Currently focused: ' + (focused || '(none)');
+
+  // ---- Call Claude (Anthropic) ----
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 1024,
+      system: system,
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'URL: ' + location.href + '\nTitle: ' + document.title + '\n\nPage text:\n' + pageText }] }]
+    })
+  })
+  .then(function (r) {
+    if (!r.ok) return r.text().then(function (t) { throw new Error(r.status + ': ' + t.slice(0, 200)); });
+    return r.json();
+  })
+  .then(function (data) {
+    var raw = (data.content && data.content[0] && data.content[0].text) || '';
+    function get(k) {
+      var re = new RegExp('^' + k + ':\\s*([\\s\\S]*?)(?=\\n(?:QUESTION|ANSWER|EXPLANATION|FILL|TARGET):|$)', 'mi');
+      var m = raw.match(re);
+      return m ? m[1].trim() : '';
+    }
+    var ans = {
+      question: get('QUESTION'), answer: get('ANSWER'),
+      explanation: get('EXPLANATION'), fill: get('FILL'), target: get('TARGET')
+    };
+
+    function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    var html = '';
+    if (ans.question) html += '<div style="color:#8b949e;font-size:13px;margin-bottom:8px">' + esc(ans.question) + '</div>';
+    if (ans.answer)   html += '<div style="margin-bottom:8px;font-size:15px"><b style="color:#00d4a0">Answer:</b> ' + esc(ans.answer) + '</div>';
+    if (ans.explanation) html += '<div style="color:#8b949e;font-size:13px">' + esc(ans.explanation) + '</div>';
+    if (!html) html = '<pre style="white-space:pre-wrap;font-family:inherit;font-size:13px">' + esc(raw) + '</pre>';
+    if (ans.fill) {
+      html += '<div style="display:flex;gap:8px;margin-top:12px">' +
+              '<button id="hwbFill" style="flex:1;padding:8px;background:linear-gradient(135deg,#7c5cff,#00d4a0);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;font:inherit">⚡ Type Answer</button>' +
+              '<button id="hwbCopy" style="flex:1;padding:8px;background:#1d242d;color:#e6edf3;border:1px solid #2a313c;border-radius:6px;cursor:pointer;font:inherit">📋 Copy</button>' +
+              '</div>';
+    }
+    ov.querySelector('#hwbBody').innerHTML = html;
+
+    if (ans.fill) {
+      var fillBtn = ov.querySelector('#hwbFill');
+      var copyBtn = ov.querySelector('#hwbCopy');
+      var doFill = function () { fillField(ans.target, ans.fill, TYPE_SLOW, fillBtn); };
+      fillBtn.onclick = doFill;
+      copyBtn.onclick = function () {
+        navigator.clipboard.writeText(ans.fill);
+        copyBtn.textContent = '✓ Copied';
+        setTimeout(function () { copyBtn.textContent = '📋 Copy'; }, 1200);
+      };
+      if (AUTO_FILL) setTimeout(doFill, 100);
+    }
+  })
+  .catch(function (e) {
+    ov.querySelector('#hwbBody').innerHTML = '<div style="color:#ff6b6b">⚠ ' + (e.message || e) + '</div>';
+  });
+
+  // ---- Fill / type ----
+  function setNative(el, value) {
+    var proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    var setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+    setter.call(el, value);
+  }
+  function flash(el) {
+    var orig = el.style.boxShadow;
+    el.style.transition = 'box-shadow .3s';
+    el.style.boxShadow = '0 0 0 3px #00d4a0';
+    setTimeout(function () { el.style.boxShadow = orig; }, 800);
+  }
+  function findField(targetId) {
+    var el = targetId && document.querySelector('[data-hwb-id="' + targetId + '"]');
+    if (!el) el = document.activeElement;
+    if (!el || el === document.body) {
+      el = document.querySelector('input[type="text"],input[type="number"],input:not([type]),textarea,[contenteditable="true"]');
+    }
+    return el;
+  }
+  function fillField(targetId, value, slow, btn) {
+    var el = findField(targetId);
+    if (!el) { if (btn) { btn.textContent = '✗ No field'; setTimeout(function () { btn.textContent = '⚡ Type Answer'; }, 1500); } return; }
+    el.focus();
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+
+    if (slow) {
+      typeChars(el, value).then(function () {
+        flash(el);
+        if (btn) { btn.textContent = '✓ Typed in'; setTimeout(function () { btn.textContent = '⚡ Type Answer'; }, 1500); }
+      });
+    } else {
+      try {
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+          setNative(el, value);
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        } else if (el.isContentEditable) {
+          document.execCommand('selectAll', false, null);
+          document.execCommand('insertText', false, value);
+        }
+        flash(el);
+        if (btn) { btn.textContent = '✓ Typed in'; setTimeout(function () { btn.textContent = '⚡ Type Answer'; }, 1500); }
+      } catch (e) {
+        if (btn) { btn.textContent = '✗ ' + (e.message || '').slice(0, 20); }
+      }
+    }
+  }
+  function typeChars(el, value) {
+    var p = Promise.resolve();
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+      setNative(el, ''); el.dispatchEvent(new Event('input', { bubbles: true }));
+    } else if (el.isContentEditable) {
+      el.focus(); document.execCommand('selectAll', false, null); document.execCommand('delete', false, null);
+    }
+    value.split('').forEach(function (ch) {
+      p = p.then(function () {
+        var k = { key: ch, char: ch, bubbles: true, cancelable: true };
+        el.dispatchEvent(new KeyboardEvent('keydown', k));
+        el.dispatchEvent(new KeyboardEvent('keypress', k));
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+          setNative(el, (el.value || '') + ch);
+          el.dispatchEvent(new InputEvent('input', { bubbles: true, data: ch, inputType: 'insertText' }));
+        } else if (el.isContentEditable) {
+          document.execCommand('insertText', false, ch);
+        }
+        el.dispatchEvent(new KeyboardEvent('keyup', k));
+        return new Promise(function (res) { setTimeout(res, 35 + Math.random() * 40); });
+      });
+    });
+    return p.then(function () { el.dispatchEvent(new Event('change', { bubbles: true })); });
+  }
+}
+
+// ---- Generator ----
+const $ = (id) => document.getElementById(id);
+
+// Restore previous values
+try {
+  const prev = JSON.parse(localStorage.getItem('hwb_gen') || '{}');
+  if (prev.key) $('apiKey').value = prev.key;
+  if (prev.model) $('model').value = prev.model;
+  if (typeof prev.autoFill === 'boolean') $('autoFill').checked = prev.autoFill;
+  if (typeof prev.typeSlow === 'boolean') $('typeSlow').checked = prev.typeSlow;
+} catch {}
+
+$('generate').onclick = () => {
+  const key = $('apiKey').value.trim();
+  const model = $('model').value.trim() || 'claude-sonnet-4-6';
+  const autoFill = $('autoFill').checked;
+  const typeSlow = $('typeSlow').checked;
+
+  if (!key) {
+    alert('Paste your Anthropic API key first.');
+    $('apiKey').focus();
+    return;
+  }
+
+  localStorage.setItem('hwb_gen', JSON.stringify({ key, model, autoFill, typeSlow }));
+
+  // Build bookmarklet source
+  let src = HWBOT_SOURCE.toString();
+  // Wrap as IIFE
+  src = '(' + src + ')()';
+  // Substitute placeholders (JSON-stringified so quotes/escapes are safe)
+  src = src
+    .replace("'__KEY__'", JSON.stringify(key))
+    .replace("'__MODEL__'", JSON.stringify(model))
+    .replace("__AUTO__", autoFill ? 'true' : 'false')
+    .replace("__SLOW__", typeSlow ? 'true' : 'false');
+
+  const bookmarklet = 'javascript:' + encodeURIComponent(src);
+
+  const area = $('dragArea');
+  area.classList.remove('empty');
+  area.innerHTML = `
+    <a class="bookmark-link" href="${bookmarklet.replace(/"/g, '&quot;')}" onclick="event.preventDefault(); alert('Drag me to your bookmarks bar — don\\'t click me here.');">📚 Homework Bot</a>
+    <div style="margin-top:14px;color:var(--muted);font-size:13px">↑ Drag this link to your bookmarks bar.</div>
+    <div style="margin-top:6px;color:var(--muted);font-size:12px">Bookmarklet size: ${(bookmarklet.length / 1024).toFixed(1)} KB</div>
+  `;
+};
+</script>
+</body>
+</html>

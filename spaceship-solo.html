@@ -1,0 +1,3249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Spaceship — Solo (offline)</title>
+<style>
+  :root {
+    --bg: #05060d; --panel: #0e1322cc; --border: #1d2a4a;
+    --text: #e6edf3; --muted: #8b97c4; --hp: #00d4a0; --danger: #ff6b6b; --accent: #7c5cff;
+  }
+  * { box-sizing: border-box; user-select: none; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  canvas { display: block; position: fixed; inset: 0; cursor: crosshair; }
+  .hud { position: fixed; top: 14px; left: 14px; display: flex; gap: 10px; align-items: center; pointer-events: none; flex-wrap: wrap; max-width: calc(100vw - 360px); }
+  .hud .bar { width: 150px; height: 14px; background: #0a1024; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  /* On desktop the travel log shows the current location (highlighted), so the HUD
+     location chip is redundant and just makes the HUD wrap — hide it there. */
+  @media (min-width: 769px) { #locationStat { display: none; } }
+  .hud .bar > div { height: 100%; background: linear-gradient(90deg, var(--hp), var(--accent)); transition: width 0.15s; }
+  /* Solid (opaque) so the bright world behind the HUD doesn't show through and make
+     the buttons look overlapped/hard to find. */
+  .hud .stat { background: #0e1322; padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .hud .autoBtn { pointer-events: auto; cursor: pointer; color: var(--text); font: inherit; font-size: 13px; font-weight: 600; background: #141a30; border-color: var(--accent); }
+  .hud .autoBtn:hover { background: #1c2440; }
+  .hud .autoBtn.on { background: linear-gradient(135deg, var(--accent), var(--hp)); border-color: transparent; color: #fff; font-weight: 700; }
+  .legend { position: fixed; top: 14px; right: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: var(--muted); max-width: 320px; }
+  .legend b { color: var(--text); }
+  .legend .row { display: flex; gap: 10px; }
+  .copilot { position: fixed; bottom: 14px; left: 14px; max-width: 340px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(6px); }
+  .copilot h3 { margin: 0 0 6px; font-size: 13px; color: var(--accent); }
+  .copilot .line { font-size: 13px; min-height: 32px; color: var(--text); }
+  .copilot .line.warn { color: #ffb86b; }
+  .copilot .line.danger { color: var(--danger); }
+  .panel { position: fixed; top: 130px; right: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; min-width: 200px; max-width: 220px; max-height: calc(100vh - 340px); overflow-y: auto; }
+  /* Anchored to the bottom-left (above the co-pilot) and grows upward, so it can
+     never collide with the top-left HUD no matter how many rows the HUD wraps to. */
+  .travelLog { position: fixed; bottom: 132px; left: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px 11px; min-width: 190px; max-width: 240px; max-height: calc(100vh - 360px); overflow-y: auto; font-size: 12px; z-index: 4; display: flex; flex-direction: column; }
+  .travelLog #travelList { overflow-y: auto; }
+  .travelLog h3 { margin: 0 0 6px; font-size: 12px; color: var(--accent); letter-spacing: 0.5px; }
+  .travelLog #travelCount { color: var(--muted); font-weight: 400; }
+  .travelLog .trow { color: var(--muted); padding: 2px 0; display: flex; gap: 6px; align-items: baseline; line-height: 1.3; }
+  .travelLog .trow.cur { color: var(--text); font-weight: 600; }
+  .travelLog .trow .n { color: #5663a8; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .minimap {
+    position: fixed; bottom: 14px; right: 14px;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    z-index: 5;                 /* above the side panels so they can't poke into the radar */
+    background: #05060d;
+    border: 3px solid var(--border);
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(124, 92, 255, 0.15), 0 4px 14px rgba(0,0,0,0.4);
+  }
+  .minimap canvas { display: block; width: 100%; height: 100%; }
+  /* Travel-scope settings modal */
+  .travelModal { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); background: var(--panel); border: 1px solid var(--accent); border-radius: 12px; padding: 18px 22px; z-index: 9; display: none; min-width: 280px; max-width: 92vw; backdrop-filter: blur(8px); }
+  .travelModal.show { display: block; }
+  .travelModal h3 { margin: 0 0 6px; color: var(--accent); }
+  .travelModal .tm-meta { color: var(--muted); font-size: 12px; margin-bottom: 12px; line-height: 1.4; }
+  .travelModal .tm-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin-bottom: 6px; background: #0a1024; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+  .travelModal .tm-row span { flex: 1; font-size: 14px; }
+  .travelModal .tm-row em { color: var(--muted); font-size: 11px; font-style: normal; }
+  .travelModal .tm-row input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+  .travelModal #travelClose { margin-top: 8px; width: 100%; padding: 9px; background: linear-gradient(135deg, var(--accent), var(--hp)); color: #fff; border: none; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 600; }
+  /* On short windows the bottom-anchored minimap would rise into the top HUD — shrink it,
+     and hide it entirely when the window is too short to fit it clear of the health bars. */
+  @media (max-height: 620px) { .minimap { width: 140px; height: 140px; } }
+  @media (max-height: 470px) { .minimap { display: none; } }
+  /* On a short window the bottom-right minimap rises up into the top-right panels —
+     drop those non-essential panels so the minimap has the right column to itself. */
+  @media (max-height: 760px) {
+    .legend { display: none; }
+    .panel { display: none; }
+    #voiceBtn { display: none !important; }
+  }
+  .minimap .compass {
+    position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
+    color: var(--accent); font-size: 11px; font-weight: 700;
+    background: var(--panel); padding: 1px 6px; border-radius: 4px;
+    pointer-events: none;
+  }
+  .panel h3 { margin: 0 0 6px; font-size: 12px; color: var(--accent); }
+  .panel .row { font-size: 12px; display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+  .panel .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .status { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 22px 30px; text-align: center; z-index: 6; display: none; }
+  .status.show { display: block; }
+  .status h2 { margin: 0 0 6px; }
+  .status .meta { color: var(--muted); font-size: 13px; }
+  .status input { background: #0a1024; border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; color: var(--text); font: inherit; width: 200px; }
+  .status button { margin-top: 12px; padding: 9px 22px; background: linear-gradient(135deg, var(--accent), var(--hp)); color: white; border: none; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 600; }
+  .respawn { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(5,6,13,0.85); border: 1px solid var(--danger); border-radius: 12px; padding: 18px 28px; z-index: 5; display: none; text-align: center; }
+  .respawn.show { display: block; }
+  .respawn h2 { margin: 0 0 4px; color: var(--danger); }
+  .respawn .t { color: var(--text); font-size: 16px; }
+
+  /* ── Touch controls ── */
+  .touch-ctrl { display: none; }
+  /* Any touch device shows touch controls AND pushes UI out of the touch zones */
+  @media (pointer: coarse) {
+    .touch-ctrl { display: block; }
+    .legend { display: none; }                   /* keyboard hints not useful on touch */
+    .copilot { bottom: 200px; }                   /* clear the joystick */
+    .minimap { bottom: 240px; }                   /* clear the fire/warp/brake stack */
+  }
+  /* Phone-size: shrink everything */
+  @media (max-width: 768px) {
+    .touch-ctrl { display: block; }
+    .legend { display: none; }
+    .panel, .travelLog { display: none; }          /* side panels eat too much space */
+    .copilot { max-width: 220px; padding: 6px 10px; bottom: 200px; left: 8px; }
+    .copilot h3 { font-size: 11px; }
+    .copilot .line { font-size: 11px; min-height: 24px; }
+    .minimap { width: 130px; height: 130px; bottom: 200px; right: 8px; }
+    .hud { top: 8px; left: 8px; gap: 6px; flex-wrap: wrap; max-width: calc(100vw - 130px); }
+    .hud .bar { width: 90px; height: 10px; }
+    .hud .stat { padding: 2px 6px; font-size: 11px; }
+    /* Bug fix: voice button needs to clear the wrapped HUD on phones */
+    #voiceBtn { top: 8px !important; right: 8px !important; padding: 4px 8px !important; font-size: 11px !important; }
+  }
+  /* iPad-style — touch device with a roomy screen. Bump up touch target sizes. */
+  @media (pointer: coarse) and (min-width: 768px) {
+    .joystick { width: 180px; height: 180px; bottom: 40px; left: 40px; }
+    .joystick-knob { width: 76px; height: 76px; margin-left: -38px; margin-top: -38px; }
+    .touch-btn { width: 110px; height: 110px; font-size: 38px; }
+    .touch-btn.fire { bottom: 40px; right: 40px; }
+    .touch-btn.warp { bottom: 170px; right: 50px; width: 84px; height: 84px; font-size: 28px; }
+    .touch-btn.brake { bottom: 40px; right: 170px; width: 84px; height: 84px; font-size: 28px; }
+    .touch-btn.ability { bottom: 140px; right: 170px; width: 56px; height: 56px; font-size: 24px; }
+    .copilot { bottom: 240px; }
+    .minimap { bottom: 270px; }
+  }
+  /* ⌚ Watch-size screens (~200px) — ultra-compact; auto-pilot is on by default */
+  @media (max-width: 300px), (max-height: 300px) {
+    .hud { top: 2px; left: 2px; gap: 3px; max-width: calc(100vw - 4px); }
+    .hud .bar { width: 36px; height: 7px; }
+    .hud .stat { padding: 1px 4px; font-size: 8px; }
+    .hud .autoBtn { font-size: 8px; padding: 2px 5px; }
+    #sectorStat, #warpStat, #abilityStat, #locationStat { display: none; }
+    .legend, .panel, .copilot, .minimap, .travelLog { display: none; }
+    #voiceBtn { display: none !important; }
+    .joystick { width: 60px; height: 60px; bottom: 4px; left: 4px; border-width: 1px; }
+    .joystick-knob { width: 26px; height: 26px; margin-left: -13px; margin-top: -13px; }
+    .touch-btn { width: 38px; height: 38px; font-size: 15px; border-width: 1px; }
+    .touch-btn.fire { bottom: 4px; right: 4px; }
+    .touch-btn.warp { bottom: 48px; right: 4px; width: 34px; height: 34px; font-size: 13px; }
+    .touch-btn.brake { display: none; }
+    .touch-btn.ability { bottom: 90px; right: 6px; width: 32px; height: 32px; font-size: 13px; }
+    /* dock button: inline right:230px would be off a ~200px watch face — recenter it */
+    #dockBtn { left: 50% !important; right: auto !important; bottom: 6px !important; transform: translateX(-50%); width: 38px !important; height: 38px !important; font-size: 14px !important; }
+    /* welcome modal shrunk to fit a watch face */
+    .status { padding: 8px; border-radius: 8px; }
+    #welcomeStatus { min-width: 0 !important; width: 96vw !important; max-height: 96vh; overflow-y: auto; }
+    .status h2 { font-size: 13px; margin-bottom: 2px; }
+    .meta { font-size: 8px; }
+    #nameInput { padding: 4px 6px; font-size: 11px; margin-bottom: 6px !important; }
+    .class-grid { gap: 3px; margin: 5px 0; }
+    .class-card { padding: 4px 3px; border-width: 1px; }
+    .class-card .cls-icon { font-size: 15px; }
+    .class-card .cls-name { font-size: 9px; margin: 1px 0; }
+    .class-card .cls-desc, .class-card .cls-stats { display: none; }
+    #joinBtn { padding: 6px; font-size: 12px; }
+    .boss-alert { font-size: 15px; }
+    .dockPanel { min-width: 0; width: 92vw; padding: 10px 12px; }
+    .dockPrompt { font-size: 11px; padding: 5px 10px; }
+  }
+  .joystick {
+    position: fixed; bottom: 30px; left: 30px;
+    width: 140px; height: 140px;
+    background: rgba(14, 19, 34, 0.55);
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    touch-action: none;
+    z-index: 9;
+  }
+  .joystick-knob {
+    position: absolute; left: 50%; top: 50%;
+    width: 60px; height: 60px;
+    margin-left: -30px; margin-top: -30px;
+    background: var(--accent);
+    border-radius: 50%;
+    opacity: 0.85;
+    pointer-events: none;
+    transition: transform 0.04s linear;
+  }
+  .touch-btn {
+    position: fixed; right: 30px;
+    width: 88px; height: 88px;
+    background: rgba(14, 19, 34, 0.55);
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px;
+    touch-action: none;
+    user-select: none;
+    color: var(--text);
+    z-index: 9;
+  }
+  .touch-btn.fire { bottom: 30px; }
+  .touch-btn.warp { bottom: 140px; right: 40px; width: 68px; height: 68px; font-size: 24px; border-color: var(--hp); }
+  .touch-btn.brake { bottom: 30px; right: 140px; width: 68px; height: 68px; font-size: 24px; border-color: var(--muted); }
+  /* Ability (✦) tucked between the brake and warp buttons, clear of the minimap */
+  .touch-btn.ability { bottom: 104px; right: 150px; width: 46px; height: 46px; font-size: 20px; border-color: var(--accent); }
+  .touch-btn:active, .touch-btn.pressed { background: rgba(124, 92, 255, 0.5); }
+
+  /* Dock prompt + panel */
+  .dockPrompt { position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--accent); border-radius: 8px; padding: 8px 16px; font-size: 14px; display: none; z-index: 5; pointer-events: none; }
+  .dockPrompt.show { display: block; }
+  .dockPrompt b { color: var(--accent); }
+  .dockPanel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 22px 28px; display: none; z-index: 6; max-width: 360px; min-width: 280px; }
+  .dockPanel.show { display: block; }
+  .dockPanel h3 { margin: 0 0 6px; text-align: center; }
+  .dockPanel .biome { color: var(--muted); text-align: center; font-size: 12px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .dockPanel .upName { color: var(--accent); font-weight: 600; margin-bottom: 4px; font-size: 15px; }
+  .dockPanel .upDesc { color: var(--text); font-size: 13px; margin-bottom: 16px; }
+  .dockPanel .actions { display: flex; flex-direction: column; gap: 8px; }
+  .dockPanel button { padding: 10px; background: #0a1024; color: var(--text); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font: inherit; font-size: 13px; }
+  .dockPanel button:hover:not(:disabled) { border-color: var(--accent); }
+  .dockPanel button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .dockPanel .install { background: linear-gradient(135deg, var(--accent), var(--hp)); border: none; font-weight: 600; }
+
+  /* Class selection */
+  .class-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: 10px 0; }
+  .class-card { background: #0a1024; border: 2px solid var(--border); border-radius: 8px; padding: 9px 8px; cursor: pointer; text-align: center; transition: border-color 0.12s; }
+  .class-card:hover { border-color: var(--muted); }
+  /* Fixes 1-3: class card active state, selected glow, stat line */
+  .class-card:active { background: #1a1040; }
+  .class-card.selected { border-color: var(--accent); background: #120d30; box-shadow: 0 0 0 1px var(--accent); }
+  .class-card .cls-icon { font-size: 22px; }
+  .class-card .cls-name { font-weight: 700; font-size: 13px; margin: 3px 0 2px; }
+  .class-card .cls-desc { font-size: 10px; color: var(--muted); }
+  .class-card .cls-stats { font-size: 9px; color: #5cd6ff; margin-top: 3px; }
+
+  /* Fix 4-5: boss HUD above copilot, clear of touch controls on mobile */
+  .boss-hud { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); display: none;
+    background: var(--panel); border: 1px solid #ff4444; border-radius: 8px; padding: 5px 14px; text-align: center; z-index: 7; }
+  @media (pointer: coarse) { .boss-hud { bottom: 230px; } }
+  @media (max-width: 768px)  { .boss-hud { bottom: 230px; } }
+  .boss-hud .boss-label { font-size: 11px; color: #ff4444; font-weight: 700; letter-spacing: 1px; }
+  .boss-hud .bar { width: 260px; height: 10px; }
+  .boss-hud .bar > div { background: linear-gradient(90deg, #ff4444, #ff0000); }
+
+  /* Boss alert */
+  .boss-alert { position: fixed; top: 38%; left: 50%; transform: translate(-50%,-50%);
+    font-size: 32px; font-weight: 900; color: #ff3030; pointer-events: none; z-index: 10; display: none;
+    text-shadow: 0 0 20px rgba(255,48,48,0.9); animation: bossFlash 2.8s ease-out forwards; }
+  @keyframes bossFlash {
+    0%   { opacity: 1; transform: translate(-50%,-50%) scale(1.5); }
+    40%  { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%,-50%) scale(1); }
+  }
+
+  .stat.buff-stat { color: var(--hp); font-size: 11px; }
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div class="hud">
+  <button class="stat autoBtn" id="autoBtn" title="Auto-pilot (P)">🤖 AUTO</button>
+  <button class="stat autoBtn" id="travelBtn" title="Choose travel scopes">⚙ TRAVEL</button>
+  <div class="bar" title="Hull"><div id="hpBar" style="width:100%"></div></div>
+  <div class="bar" title="Shield"><div id="shBar" style="width:100%; background: linear-gradient(90deg, #00d4a0, #5cd6ff)"></div></div>
+  <div class="stat" id="killsStat">0 kills</div>
+  <div class="stat" id="sectorStat">Sector 1</div>
+  <div class="stat" id="warpStat" style="color:#00d4a0">⚡ WARP READY</div>
+  <div class="stat" id="abilityStat" style="color:#7c5cff">✦ ABILITY</div>
+  <div class="stat" id="locationStat">🌌 …</div>
+</div>
+
+<div class="legend">
+  <div class="row"><b>W</b> thrust · <b>S</b> brake · <b>Shift</b> warp · <b>F</b> ability</div>
+  <div class="row"><b>A / D</b> rotate · <b>Mouse</b> aim · <b>Click/Space</b> fire</div>
+  <div class="row"><b>E</b> dock · <b>Q</b> install</div>
+</div>
+
+<!-- Bug 22 fix: z-index raised to 8 so it sits above boss HUD (z-index 7) -->
+<button id="voiceBtn" style="position:fixed; top:84px; right:14px; padding:8px 14px; background:var(--panel); border:1px solid var(--border); border-radius:8px; color:var(--text); font:inherit; font-size:13px; cursor:pointer; z-index:8; display:none">🎤 Join Voice</button>
+
+<div class="copilot">
+  <h3>🤖 CO-PILOT</h3>
+  <div class="line" id="coLine">Systems nominal. Awaiting hostiles.</div>
+</div>
+
+<div class="minimap">
+  <canvas id="minimap" width="180" height="180"></canvas>
+  <div class="compass">N</div>
+</div>
+
+<div class="panel">
+  <h3>👥 PILOTS ONLINE</h3>
+  <div id="pilotList"></div>
+</div>
+
+<div class="travelLog" id="travelLog" style="display:none">
+  <h3>🧭 TRAVELED <span id="travelCount"></span></h3>
+  <div id="travelList"></div>
+</div>
+
+<div class="travelModal" id="travelModal">
+  <h3>⚙ Travel Scope</h3>
+  <div class="tm-meta">Hold <b>warp</b> to jump. Enable the destinations you want to reach — longer holds reach farther:</div>
+  <label class="tm-row"><input type="checkbox" id="ttMilky"><span>🌑 Milky Ways</span><em>hold ~2.5s</em></label>
+  <label class="tm-row"><input type="checkbox" id="ttGalaxy"><span>🌌 Galaxies</span><em>hold ~4.5s</em></label>
+  <label class="tm-row"><input type="checkbox" id="ttUniverse"><span>✦ Universes</span><em>hold ~6.5s</em></label>
+  <label class="tm-row"><input type="checkbox" id="ttOmni"><span>⚫ Omniverse</span><em>hold ~12.5s</em></label>
+  <button id="travelClose">Done</button>
+</div>
+
+<div class="status" id="welcomeStatus" style="min-width:320px">
+  <h2>🚀 Spaceship — Solo</h2>
+  <div class="meta">Pick a callsign and ship class</div>
+  <!-- Fix 9: autocomplete=off prevents browser autofill injecting weird callsigns -->
+  <input id="nameInput" placeholder="Callsign" maxlength="20" autofocus autocomplete="off" spellcheck="false" style="margin-bottom:10px" />
+  <div class="class-grid">
+    <!-- Fix 6: class cards now show stat numbers for comparison -->
+    <div class="class-card selected" data-class="gunship"><div class="cls-icon">🚀</div><div class="cls-name">Gunship</div><div class="cls-desc">Balanced · ✦ Barrage</div><div class="cls-stats">HP 120 · Fire ×1.0 · Spd ×1.0</div></div>
+    <div class="class-card" data-class="fighter"><div class="cls-icon">⚡</div><div class="cls-name">Fighter</div><div class="cls-desc">Glass cannon · ✦ Blink</div><div class="cls-stats">HP 50 · Fire ×1.6 · Spd ×1.3 · Warp 2×</div></div>
+    <div class="class-card" data-class="tank"><div class="cls-icon">🛡️</div><div class="cls-name">Tank</div><div class="cls-desc">Tough hull · ✦ Shockwave</div><div class="cls-stats">HP 220 · Fire ×0.65 · Spd ×0.72</div></div>
+    <div class="class-card" data-class="support"><div class="cls-icon">💚</div><div class="cls-name">Support</div><div class="cls-desc">Heals crew · ✦ Repair</div><div class="cls-stats">HP 110 · Heals allies · Spd ×1.05</div></div>
+  </div>
+  <button id="joinBtn">Join Game</button>
+  <div class="meta" id="connStatus" style="margin-top:10px"></div>
+  <div id="lanInfo" style="display:none; margin-top:12px; padding-top:10px; border-top:1px solid var(--border); font-size:12px; color:var(--muted); text-align:center">
+    <b style="color:var(--text)">Play without internet</b>
+    <div style="color:var(--muted); margin:3px 0 8px">Create a hotspot on this device, friends connect to it, then scan:</div>
+    <img id="lanQr" style="display:none; border-radius:8px; margin-bottom:6px" />
+    <div id="lanUrls"></div>
+  </div>
+</div>
+
+<!-- Fix 10: dock prompt text set dynamically to show correct key vs touch button hint -->
+<div class="dockPrompt" id="dockPrompt">Press <b id="dockKey">E</b> to dock at <b id="dockPromptName"></b></div>
+<div class="dockPanel" id="dockPanel">
+  <h3 id="dockPlanetName"></h3>
+  <div class="biome" id="dockOrbit"></div>
+  <div class="upName" id="dockUpName"></div>
+  <div class="upDesc" id="dockUpDesc"></div>
+  <div class="actions">
+    <button class="install" id="dockInstall">⚡ Install Upgrade</button>
+    <button id="dockDepart">↑ Depart (E)</button>
+  </div>
+</div>
+
+<div class="boss-hud" id="bossHud">
+  <div class="boss-label">⚠ BOSS</div>
+  <div class="bar"><div id="bossHpBar" style="width:100%"></div></div>
+</div>
+<div class="boss-alert" id="bossAlert"></div>
+
+<div class="respawn" id="respawnPanel">
+  <h2>SHIP DESTROYED</h2>
+  <div class="t">Respawning in <span id="respawnTime">4.0</span>s</div>
+</div>
+
+<!-- Touch controls — hidden on desktop, shown on coarse-pointer / small-width devices.
+     `connected` class is added once the WebSocket opens so they don't fire from
+     accidental taps in the welcome modal. -->
+<!-- Fix 7: inline style="display:none" overrode CSS media query — touch controls were permanently
+     hidden on mobile. Now hidden via JS until connect(), so media queries work properly. -->
+<div class="touch-ctrl" id="touchCtrl" style="display:none">
+  <div class="joystick" id="joystick">
+    <div class="joystick-knob" id="joystickKnob"></div>
+  </div>
+  <div class="touch-btn warp" id="warpBtn">⚡</div>
+  <div class="touch-btn brake" id="brakeBtn">S</div>
+  <!-- Fix 8: dock button for touch devices — shows when near a planet -->
+  <div class="touch-btn" id="dockBtn" style="bottom:30px;right:230px;width:54px;height:54px;font-size:18px;border-color:var(--accent);display:none">E</div>
+  <div class="touch-btn fire" id="fireBtn">🔥</div>
+  <div class="touch-btn ability" id="abilityBtn">✦</div>
+</div>
+
+<script>
+/* ===== Embedded simulation (from spaceship-server.js) — runs in-page, no network ===== */
+const LocalServer = (function () {
+const PORT = 8098;
+const TICK_HZ = 60;
+const NET_HZ = 30;  // broadcast snapshots 30× per second so client can extrapolate smoothly
+
+// ── World state ──────────────────────────────────────────────────────
+const players = new Map();        // id -> player
+const enemies = [];
+const bullets = [];
+let nextPlayerId = 1;
+let nextEntityId = 1;
+let spawnTimer = 3;
+let sector = 1;
+let totalKills = 0;
+
+const loot = [];
+let asteroids = [];
+let boss = null;
+let bossKillCounter = 0;
+
+// ── Hierarchy: UNIVERSES → galaxies → milkyWays → (sun + orbiting planets) ──
+const _S = (name, r, color, hot, type, pullRange) =>
+  ({ name, x: 0, y: 0, r, color, hot, type: type || 'sun', pullRange: pullRange || 0 });
+const _P = (name, orbitRadius, orbitAngle, orbitSpeed, r, color, upgrade, upgradeName, upgradeDesc) =>
+  ({ name, orbitRadius, orbitAngle, orbitSpeed, r, color, x: 0, y: 0, upgrade, upgradeName, upgradeDesc });
+// Map of upgrade key → modifier function that mutates a player's stats
+const UPGRADES = {
+  hull:      { name: 'Heat-Resistant Plating', desc: '+25 max HULL', apply: p => { p.maxHp += 25; p.hp = p.maxHp; } },
+  warpCap:   { name: 'Warp Capacitor',         desc: '+150 max warp + refill', apply: p => { p.maxWarpCharge += 150; p.warpCharge = p.maxWarpCharge; } },
+  shields:   { name: 'Reinforced Shield Array',desc: '+50 max SHIELD',         apply: p => { p.maxShield += 50; p.shield = p.maxShield; p.shieldRegen = (p.shieldRegen || 14) + 6; } },
+  fireRate:  { name: 'Plasma Cannon Retrofit', desc: '+50% fire rate',         apply: p => { p.fireRateMul = (p.fireRateMul || 1) * 1.5; } },
+  damage:    { name: 'Military Munitions',     desc: '+50% damage',            apply: p => { p.dmgMul = (p.dmgMul || 1) * 1.5; } },
+  warpSpeed: { name: 'Crystal-Tuned Warp',     desc: '+50% warp speed/regen',  apply: p => { p.warpSpeedMul = (p.warpSpeedMul || 1) * 1.5; p.warpRegenMul = (p.warpRegenMul || 1) * 1.5; } },
+};
+
+const BOSS_EVERY = 15;
+const MAX_ENEMIES = 20;   // single source of truth for the live-enemy cap
+const CLASSES = {
+  fighter: { maxHp: 50,  maxShield: 60,  fireRateMul: 1.6,  speedMul: 1.3,  warpSpeedMul: 1.2, shieldRegen: 10, dmgMul: 1.2, maxWarpCharge: 600 },
+  tank:    { maxHp: 220, maxShield: 130, fireRateMul: 0.65, speedMul: 0.72, warpSpeedMul: 0.8, shieldRegen: 20, dmgMul: 0.9, maxWarpCharge: 300 },
+  support: { maxHp: 110, maxShield: 110, fireRateMul: 0.85, speedMul: 1.05, warpSpeedMul: 1.0, shieldRegen: 25, dmgMul: 0.8, maxWarpCharge: 300 },
+  gunship: { maxHp: 120, maxShield: 80,  fireRateMul: 1.0,  speedMul: 1.0,  warpSpeedMul: 1.0, shieldRegen: 14, dmgMul: 1.0, maxWarpCharge: 300 },
+};
+
+// Active ability per class — triggered with F (one-shot, cooldown-gated). See fireAbility().
+const ABILITIES = {
+  fighter: { name: 'Blink',        cool: 6  },   // teleport forward + brief i-frames
+  gunship: { name: 'Barrage',      cool: 7  },   // 360° bullet burst
+  tank:    { name: 'Shockwave',    cool: 11 },   // AoE damage + knockback + damage-resist window
+  support: { name: 'Repair Pulse', cool: 9  },   // heal + refill shield for self & nearby allies
+};
+
+const LOOT_TYPES = ['hp', 'shield', 'ammo', 'speed', 'warp'];
+
+const UNIVERSES = [
+  { name: 'Local Universe', galaxies: [
+    { name: 'Andromeda Cluster', milkyWays: [
+      { name: 'Andromeda Reach', sun: _S('Andromeda Sun', 400, '#ffd54d', '#ffeb88'), planets: [
+        _P('Helios Prime', 8000, 0.2, 0.025, 90, '#ffb86b', 'hull', UPGRADES.hull.name, UPGRADES.hull.desc),
+        _P('Vega Station', 14000, 1.8, 0.018, 70, '#7c5cff', 'warpCap', UPGRADES.warpCap.name, UPGRADES.warpCap.desc),
+        _P('Nereus', 21000, 3.4, 0.013, 100, '#00d4a0', 'shields', UPGRADES.shields.name, UPGRADES.shields.desc),
+        _P('Krylo', 28000, 5.0, 0.009, 110, '#ff6b6b', 'fireRate', UPGRADES.fireRate.name, UPGRADES.fireRate.desc),
+      ]},
+      { name: 'Frontier Belt', sun: _S('Frontier Sun', 280, '#a8d8ff', '#ddedff'), planets: [
+        _P('Bastion', 7500, 0.5, 0.027, 80, '#8b97c4', 'damage', UPGRADES.damage.name, UPGRADES.damage.desc),
+        _P('Vellam', 13500, 2.0, 0.018, 95, '#c47cff', 'warpSpeed', UPGRADES.warpSpeed.name, UPGRADES.warpSpeed.desc),
+        _P('Calix', 20500, 3.7, 0.013, 90, '#ffd56b', 'hull', UPGRADES.hull.name, UPGRADES.hull.desc),
+        _P('Pyranthe', 27500, 5.4, 0.010, 110, '#ff5b5b', 'damage', UPGRADES.damage.name, UPGRADES.damage.desc),
+      ]},
+    ]},
+    { name: 'Sirius Cluster', milkyWays: [
+      { name: 'Calix System', sun: _S('Calix Sun', 320, '#ffd56b', '#ffe9aa'), planets: [
+        _P('Calix Outpost', 9000, 0.4, 0.024, 90, '#ffd56b'),
+        _P('Pyranthe', 15500, 1.9, 0.018, 110, '#ff5b5b'),
+        _P('Orisa-7-Calix', 22500, 3.6, 0.013, 80, '#5cd6ff'),
+        _P('Mirror Loop', 29500, 5.4, 0.009, 95, '#e6edf3'),
+      ]},
+      { name: 'Mirror Drift', sun: _S('Mirror Sun', 360, '#a0ff7c', '#d6ffaa'), planets: [
+        _P('Helga\'s Drift', 8500, 0.3, 0.026, 100, '#a0ff7c'),
+        _P('Mirrorhaven', 15000, 2.0, 0.017, 95, '#e6edf3'),
+        _P('Glimmer', 22000, 3.7, 0.013, 75, '#cccccc'),
+        _P('Spar', 29000, 5.4, 0.009, 90, '#ffaaee'),
+      ]},
+    ]},
+    { name: 'Pegasus Spur', milkyWays: [
+      { name: 'Pegasus Hub', sun: _S('Pegasi Sun', 500, '#ff8b5b', '#ffb088'), planets: [
+        _P('Orisa-7', 9000, 0.7, 0.024, 80, '#5cd6ff'),
+        _P('Helga\'s Drift', 16000, 2.3, 0.017, 100, '#a0ff7c'),
+        _P('Mirrorhaven', 23000, 4.1, 0.012, 95, '#e6edf3'),
+        _P('Tarsis', 30000, 5.8, 0.009, 85, '#ff9bd6'),
+      ]},
+      { name: 'Lyra Drift', sun: _S('Lyra Sun', 350, '#6ba8ff', '#aacfff'), planets: [
+        _P('Orion\'s Anvil', 8000, 0.4, 0.026, 95, '#ffaa44'),
+        _P('Vega\'s Crown', 15000, 2.0, 0.018, 100, '#5cffd6'),
+        _P('Magnetic Hub', 22000, 3.6, 0.013, 80, '#ffd956'),
+        _P('Polaris', 29000, 5.3, 0.009, 75, '#dddddd'),
+      ]},
+    ]},
+  ]},
+  { name: 'Outer Universe', galaxies: [
+    { name: 'Void Reaches', milkyWays: [
+      { name: 'Aphelion Edge', sun: _S('Void Sun', 700, '#7c5cff', '#c47cff'), planets: [
+        _P('Aphelion', 10000, 0.3, 0.022, 70, '#c47cff'),
+        _P('Null Station', 17000, 2.0, 0.016, 60, '#7c5cff'),
+        _P('Last Light', 24000, 3.7, 0.012, 130, '#ffb86b'),
+        _P('Echoes', 31000, 5.4, 0.009, 85, '#aabbff'),
+      ]},
+    ]},
+    { name: 'Phoenix Arm', milkyWays: [
+      { name: 'Phoenix Drift', sun: _S('Phoenix Sun', 500, '#ff6b1a', '#ffaa44'), planets: [
+        _P('Embertail', 9000, 0.6, 0.024, 90, '#ff6b1a'),
+        _P('Lupus', 16000, 2.2, 0.017, 100, '#aa4ad6'),
+        _P('Pyre', 23000, 3.9, 0.012, 75, '#ff447a'),
+        _P('Flarewatch', 30000, 5.5, 0.009, 95, '#ffcc44'),
+      ]},
+    ]},
+    { name: 'Hydra Sweep', milkyWays: [
+      { name: 'Hydra Veil', sun: _S('Hydra Sun', 380, '#3cf08a', '#88ffba'), planets: [
+        _P('Snake Reef', 8500, 0.5, 0.025, 110, '#3cf08a'),
+        _P('Hydra\'s Eye', 15500, 2.1, 0.017, 95, '#ffcc44'),
+        _P('Coilstead', 22500, 3.8, 0.012, 75, '#7ca0ff'),
+        _P('Serpent\'s Eye', 29500, 5.5, 0.009, 100, '#aaffaa'),
+      ]},
+      { name: 'Crescent Arc', sun: _S('Crescent Sun', 250, '#bbe6ff', '#ddf0ff'), planets: [
+        _P('Moonshade', 7500, 0.4, 0.026, 85, '#aabbcc'),
+        _P('Frostfall', 14500, 2.0, 0.018, 95, '#aaeeff'),
+        _P('Tideglass', 21500, 3.6, 0.013, 110, '#88ddee'),
+        _P('Arcwell', 28500, 5.3, 0.010, 85, '#ddddff'),
+      ]},
+    ]},
+  ]},
+  { name: 'Deep Universe', galaxies: [
+    { name: 'Cygnus Spiral', milkyWays: [
+      { name: 'Cygnus Heart', sun: _S('Cygnus Sun', 800, '#5cd6ff', '#aaeeff'), planets: [
+        _P('Centerstone', 11000, 0.3, 0.020, 130, '#5cd6ff'),
+        _P('Black Hub', 18000, 2.0, 0.015, 70, '#7c5cff'),
+        _P('Singularity', 25000, 3.7, 0.011, 90, '#ff447a'),
+        _P('Twilight', 32000, 5.4, 0.008, 100, '#c47cff'),
+      ]},
+      { name: 'Far Reach', sun: _S('Reach Sun', 350, '#ff6b6b', '#ff9988'), planets: [
+        _P('Whisper', 9000, 0.5, 0.024, 85, '#aaffff'),
+        _P('Outpost-99', 16000, 2.1, 0.017, 95, '#ff447a'),
+        _P('Vortex', 23000, 3.8, 0.012, 105, '#7ca0ff'),
+        _P('Nightfall', 30000, 5.5, 0.009, 95, '#444466'),
+      ]},
+    ]},
+    { name: 'Cassiopeia Drift', milkyWays: [
+      { name: 'Cassiopeia Pearl', sun: _S('Cassiopeia Sun', 550, '#ff88cc', '#ffaadd'), planets: [
+        _P('The Pearl', 9500, 0.4, 0.024, 110, '#ffd6f0'),
+        _P('Riftrim', 16500, 2.0, 0.017, 105, '#d6ffaa'),
+        _P('Lighthouse', 23500, 3.7, 0.012, 75, '#ffeeaa'),
+        _P('Crown Drift', 30500, 5.4, 0.009, 100, '#ffaadd'),
+      ]},
+      { name: 'Endrim', sun: _S('Endrim Star', 1000, '#ffffff', '#ffffff'), planets: [
+        _P('Endsong', 12000, 0.5, 0.019, 140, '#ffffff'),
+        _P('Ashveil', 19000, 2.1, 0.014, 95, '#aaaaaa'),
+        _P('Lastpoint', 26000, 3.7, 0.011, 85, '#7c5cff'),
+        _P('Trueblood', 33000, 5.3, 0.008, 100, '#ff447a'),
+      ]},
+    ]},
+  ]},
+  { name: 'The Omniverse', galaxies: [
+    { name: 'Chaos Spiral', milkyWays: [
+      { name: 'Void Heart', sun: _S('Void Sphere', 500, '#000000', '#7c5cff', 'blackhole', 2500), planets: [
+        _P('Endpoint', 9000, 0.3, 0.026, 90, '#7c5cff'),
+        _P('Final', 16000, 1.9, 0.018, 100, '#ff447a'),
+        _P('Maw', 23000, 3.6, 0.013, 85, '#ff6b1a'),
+        _P('Ash', 30000, 5.3, 0.009, 105, '#aaaaaa'),
+      ]},
+      { name: 'Annihilation Arc', sun: _S('Annihilator', 700, '#000000', '#ff6b1a', 'blackhole', 3000), planets: [
+        _P('Rest', 10000, 0.4, 0.024, 95, '#ffd6f0'),
+        _P('Quiet', 17000, 2.0, 0.017, 80, '#aaffff'),
+        _P('Truth', 24000, 3.7, 0.012, 100, '#5cffd6'),
+        _P('Beginning', 31000, 5.4, 0.009, 120, '#ffffff'),
+      ]},
+    ]},
+  ]},
+];
+const OMNIVERSE_INDEX = UNIVERSES.length - 1;
+const NORMAL_UNIVERSES = UNIVERSES.length - 1;
+
+// ◈ The Singularity ◈ — a hidden pocket dimension reachable ONLY by surviving a
+// black hole down to 1 HP. A calm, enemy-free reward zone with its own exotic
+// sun and four upgrade planets. Not part of the normal hyperjump cycle.
+const SINGULARITY_MW = {
+  name: 'The Singularity',
+  sun: _S('Singularity Core', 360, '#c9a8ff', '#ece0ff', 'sun', 0),
+  planets: [
+    _P('Eventide',   8000,  0.5, 0.020,  95, '#b388ff', 'shields',  UPGRADES.shields.name,  UPGRADES.shields.desc),
+    _P('Paradox',    12000, 2.2, 0.016, 110, '#e0c8ff', 'warpCap',  UPGRADES.warpCap.name,  UPGRADES.warpCap.desc),
+    _P('Hollow',     16000, 3.8, 0.013,  90, '#9a7cff', 'fireRate', UPGRADES.fireRate.name, UPGRADES.fireRate.desc),
+    _P('Zero Point', 21000, 5.1, 0.011, 130, '#ffffff', 'damage',   UPGRADES.damage.name,   UPGRADES.damage.desc),
+  ],
+};
+
+let currentUniverse = 0, currentGalaxy = 0, currentMilkyWay = 0;
+let inSingularity = false;
+let pendingSingularity = false;
+function curMW() {
+  if (inSingularity) return SINGULARITY_MW;
+  return UNIVERSES[currentUniverse].galaxies[currentGalaxy].milkyWays[currentMilkyWay];
+}
+function locationLabel() {
+  if (inSingularity) return '◈ The Singularity — Pocket Void ◈';
+  const u = UNIVERSES[currentUniverse], g = u.galaxies[currentGalaxy], m = g.milkyWays[currentMilkyWay];
+  return `🌌 ${m.name} — ${g.name}`;
+}
+
+let planetsState = [];
+const UPGRADE_KEYS = Object.keys(UPGRADES);
+const ROGUE_NAMES = ['Wanderer', 'Nomad', 'Drifter', 'Outcast', 'Exile', 'Vagrant', 'Stray', 'Forsaken', 'Errant', 'Pariah'];
+function loadCurrentMilkyWay() {
+  planetsState = curMW().planets.map(p => ({ ...p }));
+  const sun = curMW().sun;
+  planetsState.forEach((p, i) => {
+    p.x = sun.x + Math.cos(p.orbitAngle) * p.orbitRadius;
+    p.y = sun.y + Math.sin(p.orbitAngle) * p.orbitRadius;
+    // Every planet should be dockable. Most milky ways ship no hand-authored
+    // upgrades, which made other universes dead ends — you couldn't interact with
+    // anything. Assign a deterministic upgrade (by planet name) to any planet that
+    // lacks one so all 64 planets across every universe are interactable.
+    if (!p.upgrade) {
+      let h = i;
+      for (let k = 0; k < p.name.length; k++) h = (h * 31 + p.name.charCodeAt(k)) >>> 0;
+      const key = UPGRADE_KEYS[h % UPGRADE_KEYS.length];
+      p.upgrade = key;
+      p.upgradeName = UPGRADES[key].name;
+      p.upgradeDesc = UPGRADES[key].desc;
+    }
+  });
+  // Rogue planets — 2 per milky way that orbit nothing: fixed, motionless points in
+  // deep space (no orbit ring). Deterministic per region so they're stable across visits.
+  let seed = (currentUniverse * 7919 + currentGalaxy * 131 + currentMilkyWay * 17 + 1) >>> 0;
+  for (const ch of sun.name) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+  for (let r = 0; r < 2; r++) {
+    const h = (seed + r * 104729) >>> 0;
+    const ang = (h % 3600) * Math.PI / 1800;
+    const dist = 22000 + (h % 13000);                         // deep-space, still reachable
+    const key = UPGRADE_KEYS[(h >>> 5) % UPGRADE_KEYS.length];
+    planetsState.push({
+      name: ROGUE_NAMES[(h >>> 3) % ROGUE_NAMES.length] + (r ? ' II' : ' I'),
+      rogue: true,
+      x: sun.x + Math.cos(ang) * dist, y: sun.y + Math.sin(ang) * dist,
+      orbitRadius: 0, orbitAngle: ang, orbitSpeed: 0,
+      r: 70 + (h % 50), color: '#5a6072',                     // cold, unlit grey-blue
+      upgrade: key, upgradeName: UPGRADES[key].name, upgradeDesc: UPGRADES[key].desc,
+    });
+  }
+  asteroids = generateAsteroids();
+}
+
+function generateAsteroids() {
+  const list = [];
+  // Fix 35: reduced count for performance; fix 36: min dist clears sun radius + pullRange
+  const sun = curMW().sun;
+  const sunClear = Math.max(sun.r, sun.pullRange || 0) + 1800;
+  const count = 15 + Math.floor(Math.random() * 11);
+  for (let i = 0; i < count; i++) {
+    const r = 22 + Math.random() * 58;
+    const angle = Math.random() * Math.PI * 2;
+    const dist = sunClear + Math.random() * 26000;
+    list.push({
+      id: nextEntityId++,
+      x: Math.cos(angle) * dist, y: Math.sin(angle) * dist,
+      vx: (Math.random() - 0.5) * 22, vy: (Math.random() - 0.5) * 22,
+      r, hp: Math.round(r * 2.5), maxHp: Math.round(r * 2.5),
+      seed: Math.floor(Math.random() * 100000),
+      angle: Math.random() * Math.PI * 2,
+      spin: (Math.random() - 0.5) * 0.4,
+    });
+  }
+  return list;
+}
+
+function updatePlanetOrbits(dt) {
+  const sun = curMW().sun;
+  for (const p of planetsState) {
+    if (p.rogue) continue;   // rogue planets orbit nothing — fixed in space
+    p.orbitAngle += p.orbitSpeed * dt;
+    p.x = sun.x + Math.cos(p.orbitAngle) * p.orbitRadius;
+    p.y = sun.y + Math.sin(p.orbitAngle) * p.orbitRadius;
+  }
+}
+
+// Procedurally generated anomalies (BH, wormholes, nebulas). Static — generated once.
+function generateAnomalies() {
+  let seed = Math.floor(Math.random() * 1e9);
+  const rng = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  const list = [];
+  const placeAway = (range) => {
+    for (let t = 0; t < 16; t++) {
+      const x = (rng() - 0.5) * range, y = (rng() - 0.5) * range;
+      if (Math.hypot(x, y) > 2000) return [x, y];
+    }
+    return [(rng() - 0.5) * range, (rng() - 0.5) * range];
+  };
+  // 2-3 black holes
+  const bhCount = 2 + Math.floor(rng() * 2);
+  for (let i = 0; i < bhCount; i++) {
+    const [x, y] = placeAway(60000);
+    list.push({ id: nextEntityId++, type: 'blackhole', x, y, r: 80 + rng() * 80, pullRange: 1400 + rng() * 600 });
+  }
+  // 1-2 wormhole pairs
+  const whPairs = 1 + Math.floor(rng() * 2);
+  for (let i = 0; i < whPairs; i++) {
+    const [x1, y1] = placeAway(50000);
+    const [x2, y2] = placeAway(50000);
+    list.push({ id: nextEntityId++, type: 'wormhole', x: x1, y: y1, r: 40, destX: x2, destY: y2 });
+    list.push({ id: nextEntityId++, type: 'wormhole', x: x2, y: y2, r: 40, destX: x1, destY: y1 });
+  }
+  // 1-2 nebulas
+  const nebulaColors = ['#5cd6ff', '#c47cff', '#ff5b5b', '#3cf08a', '#ffd66b'];
+  const neb = 1 + Math.floor(rng() * 2);
+  for (let i = 0; i < neb; i++) {
+    list.push({
+      id: nextEntityId++, type: 'nebula',
+      x: (rng() - 0.5) * 60000, y: (rng() - 0.5) * 60000,
+      r: 1500 + rng() * 1200,
+      color: nebulaColors[Math.floor(rng() * nebulaColors.length)],
+    });
+  }
+  return list;
+}
+let anomalies = generateAnomalies();
+loadCurrentMilkyWay();
+
+let hyperjumping = null;       // null OR { tier, age, maxAge }
+
+// ── Black-hole mergers ──────────────────────────────────────────────────
+// Two black holes spawn, spiral together, and slam into one bigger hole that
+// fires a gravitational shockwave (push + damage). Random in normal galaxies;
+// every ~10s in the Omniverse. The pocket Singularity stays calm (none there).
+let mergeEvent = null;          // null OR { a, b, cx, cy, baseAng, sep, age, maxAge }
+let mergeTimer = 14;            // seconds until the next merger
+let mergeHoles = [];            // persistent black holes left behind by mergers (capped)
+const MAX_MERGE_HOLES = 4;
+function scheduleNextMerge() {
+  mergeTimer = (currentUniverse === OMNIVERSE_INDEX && !inSingularity) ? 10 : rand(28, 65);
+}
+function removeAnoms(list) {
+  for (const x of list) { const i = anomalies.indexOf(x); if (i >= 0) anomalies.splice(i, 1); }
+}
+function startMerge() {
+  const alive = [...players.values()].filter(p => p.alive);
+  let cx = 0, cy = 0;
+  if (alive.length) {
+    // Form NEAR a player, not on top of them, so they can see it and dodge.
+    const t = alive[Math.floor(Math.random() * alive.length)];
+    const oa = Math.random() * Math.PI * 2;
+    cx = t.x + Math.cos(oa) * 2800; cy = t.y + Math.sin(oa) * 2800;
+  }
+  // Nudge the center off the sun so the holes don't spawn inside the star.
+  const sun = curMW().sun;
+  const dsun = Math.hypot(cx - sun.x, cy - sun.y);
+  if (dsun < (sun.pullRange || sun.r || 0) + 2500) { const a = Math.random() * Math.PI * 2; cx = sun.x + Math.cos(a) * 4000; cy = sun.y + Math.sin(a) * 4000; }
+  const sep = 1700, baseAng = Math.random() * Math.PI * 2;
+  const mk = (sign) => ({ id: nextEntityId++, type: 'blackhole', merge: true,
+    x: cx + Math.cos(baseAng) * sep * sign, y: cy + Math.sin(baseAng) * sep * sign, r: 170, pullRange: 1000, color: '#7c5cff' });
+  const a = mk(1), b = mk(-1);
+  anomalies.push(a, b);
+  mergeEvent = { a, b, cx, cy, baseAng, sep, age: 0, maxAge: 3.4, merged: null, mergedLife: 0 };
+  for (const p of players.values()) if (p.ws.readyState === 1) p.ws.send(JSON.stringify({ type: 'merge_start' }));
+}
+function mergeShockwave(cx, cy, R) {
+  for (const p of players.values()) {
+    if (!p.alive) continue;
+    const dx = p.x - cx, dy = p.y - cy, d = Math.hypot(dx, dy) || 1;
+    if (d < R) {
+      const k = 1 - d / R;
+      p.vx += (dx / d) * 6500 * k; p.vy += (dy / d) * 6500 * k;   // hurled outward
+      if (p.invuln <= 0) {
+        let dmg = 42 * k; if (p.abilityActive > 0) dmg *= 0.4;
+        if (p.shield > 0) { const ab = Math.min(p.shield, dmg); p.shield -= ab; dmg -= ab; }
+        p.hp -= dmg;
+        if (p.hp <= 0 && p.alive) { p.alive = false; p.respawnTimer = 4; p.warpActive = false; }
+      }
+    }
+  }
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i], dx = e.x - cx, dy = e.y - cy, d = Math.hypot(dx, dy) || 1;
+    if (d < R) { const k = 1 - d / R; e.vx += (dx / d) * 5500 * k; e.vy += (dy / d) * 5500 * k; e.hp -= 80 * k; if (e.hp <= 0) enemies.splice(i, 1); }
+  }
+  if (boss) { const d = Math.hypot(boss.x - cx, boss.y - cy); if (d < R) boss.hp -= 130 * (1 - d / R); }
+  for (let i = bullets.length - 1; i >= 0; i--) { const b = bullets[i]; if ((b.x - cx) ** 2 + (b.y - cy) ** 2 < R * R * 0.55) bullets.splice(i, 1); }
+}
+function updateMerge(dt) {
+  if (inSingularity) { if (mergeEvent) { removeAnoms([mergeEvent.a, mergeEvent.b]); mergeEvent = null; } return; }
+  if (!mergeEvent) {
+    mergeTimer -= dt;
+    if (mergeTimer <= 0 && players.size > 0) { startMerge(); scheduleNextMerge(); }
+    return;
+  }
+  const e = mergeEvent;
+  e.age += dt;
+  const t = Math.min(1, e.age / e.maxAge);
+  const rad = e.sep * (1 - t * t);                 // ease inward
+  const ang = e.baseAng + t * Math.PI * 3.5;       // ~1.75 rotations
+  e.a.x = e.cx + Math.cos(ang) * rad;       e.a.y = e.cy + Math.sin(ang) * rad;
+  e.b.x = e.cx + Math.cos(ang + Math.PI) * rad; e.b.y = e.cy + Math.sin(ang + Math.PI) * rad;
+  if (t >= 1) {
+    // The two holes fuse into one bigger black hole that STAYS (a lasting hazard).
+    removeAnoms([e.a, e.b]);
+    const merged = { id: nextEntityId++, type: 'blackhole', merge: true, x: e.cx, y: e.cy, r: 300, pullRange: 1600, color: '#b06bff' };
+    anomalies.push(merged);
+    mergeHoles.push(merged);
+    // Cap how many persistent merge-holes can pile up (the omniverse merges every 10s).
+    while (mergeHoles.length > MAX_MERGE_HOLES) { removeAnoms([mergeHoles.shift()]); }
+    mergeShockwave(e.cx, e.cy, 2000);
+    for (const p of players.values()) if (p.ws.readyState === 1) p.ws.send(JSON.stringify({ type: 'merge', x: Math.round(e.cx), y: Math.round(e.cy) }));
+    mergeEvent = null;   // event over — the merged hole persists in `anomalies`
+  }
+}
+
+function triggerHyperjump(tier) {
+  if (hyperjumping) return;
+  hyperjumping = { tier, age: 0, maxAge: 0.8 + tier * 0.35 };
+  // End any active warps; clients see the flash
+  for (const p of players.values()) {
+    p.warpActive = false;
+    p.warpHoldTime = 0;
+    // Clear the rising-edge latches so a player still holding Shift/F across the
+    // jump can warp/use abilities again without releasing the key first.
+    p.shiftWasDown = false;
+    p.abilityWasDown = false;
+  }
+}
+
+function doHyperjump(tier) {
+  inSingularity = false;   // warping always returns you to normal space
+  if (tier === 3) {
+    // Bug 29 fix: tier-3 toggled to Omniverse OR back — was a one-way trap
+    currentUniverse = (currentUniverse === OMNIVERSE_INDEX) ? 0 : OMNIVERSE_INDEX;
+    currentGalaxy = 0; currentMilkyWay = 0;
+  } else if (tier === 2) {
+    // Bug 30 fix: removed dead code check — modulo NORMAL_UNIVERSES can never equal OMNIVERSE_INDEX
+    currentUniverse = (currentUniverse + 1) % NORMAL_UNIVERSES;
+    currentGalaxy = 0; currentMilkyWay = 0;
+  } else if (tier === 1) {
+    const gs = UNIVERSES[currentUniverse].galaxies;
+    currentGalaxy = (currentGalaxy + 1) % gs.length;
+    currentMilkyWay = 0;
+  } else {
+    const ms = UNIVERSES[currentUniverse].galaxies[currentGalaxy].milkyWays;
+    currentMilkyWay = (currentMilkyWay + 1) % ms.length;
+  }
+  loadCurrentMilkyWay();
+  anomalies = generateAnomalies();
+  mergeEvent = null; mergeHoles = []; scheduleNextMerge();   // fresh region — drop mergers
+  enemies.length = 0;
+  bullets.length = 0;
+  loot.length = 0;
+  boss = null;
+  bossKillCounter = 0;
+  sector = 1;
+  totalKills = 0;
+  spawnTimer = 3;
+  // Reset all players to a safe ring around the new sun, fully revived
+  const sun = curMW().sun;
+  const safe = Math.max(sun.r, sun.pullRange || 0) + 1500;
+  let i = 0;
+  for (const p of players.values()) {
+    const ang = (i++ * 1.2);
+    p.x = sun.x + Math.cos(ang) * safe;
+    p.y = sun.y + Math.sin(ang) * safe;
+    p.a = ang + Math.PI;
+    p.vx = 0; p.vy = 0;
+    p.warpCharge = p.maxWarpCharge;
+    p.warpActive = false;
+    p.warpHoldTime = 0;
+    p.shiftWasDown = false;
+    p.fireCool = 0;
+    p.wormholeCool = 0;
+    p.hp = p.maxHp; p.shield = p.maxShield;
+    p.alive = true;          // revive anyone who was respawning
+    p.respawnTimer = 0;
+    // Reset upgrades + base stats fully (each region is its own progression)
+    p.upgradesTaken.clear();
+    p.buffs = [];
+    const cls = CLASSES[p.shipClass] || CLASSES.gunship;
+    p.fireRateMul = cls.fireRateMul; p.dmgMul = cls.dmgMul;
+    p.warpSpeedMul = cls.warpSpeedMul; p.warpRegenMul = 1;
+    p.shieldRegen = cls.shieldRegen; p.speedMul = cls.speedMul;
+    p.maxHp = cls.maxHp; p.hp = cls.maxHp;
+    p.maxShield = cls.maxShield; p.shield = cls.maxShield;
+    p.maxWarpCharge = cls.maxWarpCharge || 300; p.warpCharge = p.maxWarpCharge;
+    p.abilityMaxCool = (ABILITIES[p.shipClass] || ABILITIES.gunship).cool;
+    p.abilityCool = 0; p.invuln = 0; p.abilityActive = 0; p.abilityFlash = 0; p.abilityWasDown = false;
+    // Re-apply permanent Singularity upgrades — they survive the per-region reset
+    // (one-time-ever reward), so they persist after you warp back to normal space.
+    for (const name of p.singularityTaken) {
+      const sp = SINGULARITY_MW.planets.find(pl => pl.name === name);
+      if (sp && UPGRADES[sp.upgrade]) UPGRADES[sp.upgrade].apply(p);
+    }
+    p.aimAngle = null;
+  }
+}
+
+function rand(a, b) { return a + Math.random() * (b - a); }
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+function addPlayer(ws) {
+  const id = nextPlayerId++;
+  const p = {
+    id, ws,
+    name: `Pilot ${id}`,
+    // Real spawn position is computed in the welcome handler based on the current sun
+    x: 0, y: 0,
+    vx: 0, vy: 0,
+    a: 0,
+    hp: 120, maxHp: 120,
+    shield: 80, maxShield: 80,
+    fireCool: 0,
+    kills: 0,
+    color: ['#7c5cff', '#ff6b6b', '#00d4a0', '#ffb86b'][(id - 1) % 4],
+    keys: {},
+    turretAngle: null,       // cursor-controlled turret aim (null = fire toward ship facing)
+    alive: true,
+    respawnTimer: 0,
+    // Warp
+    warpActive: false,
+    warpCharge: 300, maxWarpCharge: 300,
+    warpJustEngaged: false,
+    shiftWasDown: false,
+    wormholeCool: 0,
+    warpHoldTime: 0,  // Bug 25 fix: was undefined — caused (undefined||0)+dt on first warp
+    voice: false,
+    shipClass: 'gunship',
+    speedMul: 1,
+    buffs: [],
+    // Per-player upgrade modifiers (default neutral)
+    fireRateMul: 1, dmgMul: 1, warpSpeedMul: 1, warpRegenMul: 1, shieldRegen: 14,
+    upgradesTaken: new Set(),
+    // Singularity upgrades are permanent & one-time-ever — never cleared on hyperjump,
+    // so you can't farm them by bouncing in and out of the pocket dimension.
+    singularityTaken: new Set(),
+    // Active ability state
+    abilityCool: 0, abilityMaxCool: 7, abilityWasDown: false,
+    invuln: 0, abilityActive: 0, abilityFlash: 0, abilityKind: null,
+    // Which hyperjump scopes this pilot has enabled: 0=milky way,1=galaxy,2=universe,3=omniverse.
+    travelTiers: { 0: true, 1: true, 2: true, 3: true },
+  };
+  players.set(id, p);
+  return p;
+}
+
+function removePlayer(id) {
+  players.delete(id);
+  // Bug 32 fix: remove orphaned friendly bullets from disconnected player so they don't
+  // float and credit kills to a missing player object
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    if (bullets[i].friendly && bullets[i].ownerId === id) bullets.splice(i, 1);
+  }
+}
+
+function spawnEnemy() {
+  const alive = [...players.values()].filter(p => p.alive);
+  if (alive.length === 0) return;
+  const target = alive[Math.floor(Math.random() * alive.length)];
+  const angle = rand(0, Math.PI * 2);
+  // Bug 26 fix: enemies could spawn inside the sun — enforce minimum clearance
+  const sun = curMW().sun;
+  const sunClear = Math.max(sun.r, sun.pullRange || 0) + 500;
+  const d = Math.max(700 + rand(0, 400), sunClear);
+  const r = Math.random();
+  let kind;
+  // Tougher kinds unlock as the sector climbs so early game stays gentle.
+  if      (sector >= 4 && r < 0.12) kind = 'kamikaze';
+  else if (sector >= 5 && r < 0.22) kind = 'sniper';
+  else if (sector >= 3 && r < 0.34) kind = 'swarm';
+  else if (r < 0.55) kind = 'scout';
+  else if (r < 0.85) kind = 'gunship';
+  else kind = 'heavy';
+  const baseHp = 30 + sector * 6;
+  const profile = {
+    scout:    { hp: baseHp * 0.5, speed: 110 + sector * 10, fireDelay: [0.5, 1.2], bulletSp: 480, size: 0.7,  dmg: 8 },
+    gunship:  { hp: baseHp,        speed: 60  + sector * 8,  fireDelay: [1.2, 2.6], bulletSp: 420, size: 1.0,  dmg: 8 },
+    heavy:    { hp: baseHp * 2.2,  speed: 35  + sector * 4,  fireDelay: [2.0, 3.4], bulletSp: 360, size: 1.5,  dmg: 12 },
+    kamikaze: { hp: baseHp * 0.7,  speed: 210 + sector * 12, fireDelay: [99, 99],   bulletSp: 0,   size: 0.75, dmg: 0,  ram: true },
+    sniper:   { hp: baseHp * 0.8,  speed: 80  + sector * 5,  fireDelay: [1.8, 2.8], bulletSp: 950, size: 0.95, dmg: 20, range: 1300, keepDist: 850 },
+    swarm:    { hp: baseHp * 0.3,  speed: 170 + sector * 10, fireDelay: [0.8, 1.6], bulletSp: 460, size: 0.5,  dmg: 6 },
+  }[kind];
+  // Swarm arrives as a small pack; everything else is a single ship.
+  const count = kind === 'swarm' ? 4 : 1;
+  for (let s = 0; s < count; s++) {
+    if (enemies.length >= MAX_ENEMIES) break;
+    const offD = s === 0 ? 0 : rand(-180, 180);
+    const offA = s === 0 ? 0 : rand(-0.4, 0.4);
+    enemies.push({
+      id: nextEntityId++,
+      x: target.x + Math.cos(angle + offA) * (d + offD),
+      y: target.y + Math.sin(angle + offA) * (d + offD),
+      vx: 0, vy: 0, a: 0,
+      kind,
+      hp: profile.hp, maxHp: profile.hp,
+      fireCool: rand(profile.fireDelay[0], profile.fireDelay[1]),
+      fireDelay: profile.fireDelay,
+      speed: profile.speed,
+      bulletSp: profile.bulletSp,
+      size: profile.size,
+      dmg: profile.dmg,
+      ram: !!profile.ram,
+      range: profile.range || 700,
+      keepDist: profile.keepDist || 0,
+    });
+  }
+}
+
+function nearestPlayerTo(x, y) {
+  let best = null, bestD = Infinity;
+  for (const p of players.values()) {
+    if (!p.alive) continue;
+    const dx = p.x - x, dy = p.y - y;
+    const d = dx*dx + dy*dy;
+    if (d < bestD) { bestD = d; best = p; }
+  }
+  return best;
+}
+
+function spawnBoss() {
+  if (boss) return;
+  const alive = [...players.values()].filter(p => p.alive);
+  if (!alive.length) return;
+  const target = alive[Math.floor(Math.random() * alive.length)];
+  const ang = Math.random() * Math.PI * 2;
+  // Pick a boss archetype: bruiser / fast-glass-cannon / minion-summoner.
+  const kind = ['dreadnought', 'interceptor', 'carrier'][Math.floor(Math.random() * 3)];
+  const hpBase = 1200 + sector * 150;
+  const hp = kind === 'interceptor' ? hpBase * 0.7 : kind === 'carrier' ? hpBase * 0.9 : hpBase;
+  // Fix 37: spawn offset must clear sun radius+pullRange so boss doesn't appear inside star
+  const sun = curMW().sun;
+  const spawnDist = Math.max(1800, (sun.pullRange || sun.r || 0) + 1500);
+  boss = { id: nextEntityId++, kind, x: target.x + Math.cos(ang) * spawnDist, y: target.y + Math.sin(ang) * spawnDist,
+    vx: 0, vy: 0, a: 0, hp, maxHp: hp, fireCool: 2, minCool: 6, phase: 1 };
+  for (const p of players.values()) {
+    if (p.ws.readyState === 1) p.ws.send(JSON.stringify({ type: 'boss_spawn' }));
+  }
+}
+
+function updateBoss(dt) {
+  if (!boss) return;
+  if (boss.hp <= 0) {
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      loot.push({ id: nextEntityId++, x: boss.x + Math.cos(a)*70, y: boss.y + Math.sin(a)*70,
+        type: ['hp','shield','ammo','speed','warp'][Math.floor(Math.random()*5)], life: 20 });
+    }
+    for (const p of players.values()) if (p.alive) p.kills += 2;
+    // Fix 38: broadcast boss_dead so client HUD clears immediately, not after next 30Hz snapshot
+    for (const p of players.values()) {
+      if (p.ws.readyState === 1) p.ws.send(JSON.stringify({ type: 'boss_dead' }));
+    }
+    boss = null;
+    return;
+  }
+  if (boss.phase === 1 && boss.hp < boss.maxHp * 0.5) {
+    boss.phase = 2;
+    for (const p of players.values()) {
+      if (p.ws.readyState === 1) p.ws.send(JSON.stringify({ type: 'boss_phase2' }));
+    }
+  }
+  const target = nearestPlayerTo(boss.x, boss.y);
+  if (!target) return;
+  const dx = target.x - boss.x, dy = target.y - boss.y;
+  const d = Math.hypot(dx, dy);
+  const targetA = Math.atan2(dy, dx);
+  let dA = targetA - boss.a;
+  while (dA > Math.PI) dA -= Math.PI*2;
+  while (dA < -Math.PI) dA += Math.PI*2;
+  const enraged = boss.phase === 2;
+  const kind = boss.kind || 'dreadnought';
+
+  // Turn + move — interceptors are nimble and close in; carriers hang back.
+  const turnSp = (kind === 'interceptor' ? 1.8 : kind === 'carrier' ? 0.7 : 0.9) * (enraged ? 1.5 : 1);
+  boss.a += clamp(dA, -turnSp*dt, turnSp*dt);
+  const closeDist = kind === 'interceptor' ? 260 : kind === 'carrier' ? 700 : 400;
+  if (d > closeDist) {
+    const spd = (kind === 'interceptor' ? 90 : kind === 'carrier' ? 34 : 42) * (enraged ? 1.4 : 1);
+    boss.vx += Math.cos(boss.a) * spd * dt * 1.6;
+    boss.vy += Math.sin(boss.a) * spd * dt * 1.6;
+  } else if (kind === 'carrier' && d < closeDist - 150) {
+    boss.vx -= Math.cos(boss.a) * 30 * dt * 1.6;   // back off to keep range
+    boss.vy -= Math.sin(boss.a) * 30 * dt * 1.6;
+  }
+  const maxSp = (kind === 'interceptor' ? 210 : kind === 'carrier' ? 80 : 90) * (enraged ? 1.45 : 1);
+  const sp = Math.hypot(boss.vx, boss.vy);
+  if (sp > maxSp) { boss.vx *= maxSp/sp; boss.vy *= maxSp/sp; }
+  boss.x += boss.vx*dt; boss.y += boss.vy*dt;
+
+  boss.fireCool -= dt;
+  if (boss.fireCool <= 0 && d < 1100 && Math.abs(dA) < 0.7) {
+    let offsets, bsp, cool;
+    if (kind === 'interceptor') {            // tight, rapid bursts
+      offsets = enraged ? [-0.08, 0.08] : [0]; bsp = 560; cool = enraged ? 0.5 : 0.8;
+    } else if (kind === 'carrier') {         // wide slow spread
+      offsets = enraged ? [-0.4,-0.2,0,0.2,0.4] : [-0.25,0,0.25]; bsp = 340; cool = enraged ? 1.3 : 1.9;
+    } else {                                  // dreadnought (original)
+      offsets = enraged ? [-0.3,-0.15,0,0.15,0.3] : [-0.2,0,0.2]; bsp = 390; cool = enraged ? 1.1 : 1.7;
+    }
+    for (const off of offsets) {
+      const a = boss.a + off;
+      // Fix 46: ownerId:-1 marks boss bullets (rendered orange)
+      bullets.push({ id: nextEntityId++, x: boss.x+Math.cos(a)*55, y: boss.y+Math.sin(a)*55,
+        vx: Math.cos(a)*bsp, vy: Math.sin(a)*bsp, life: 2.5, friendly: false, ownerId: -1, dmg: 14 });
+    }
+    boss.fireCool = cool;
+  }
+
+  // Minions — carriers summon from the start; others only when enraged.
+  if (kind === 'carrier' || enraged) {
+    boss.minCool -= dt;
+    // Fix 39/40: cap enemy count + require alive players
+    const aliveCount = [...players.values()].filter(p => p.alive).length;
+    const cap = kind === 'carrier' ? MAX_ENEMIES : MAX_ENEMIES - 2;
+    if (boss.minCool <= 0 && enemies.length < cap && aliveCount > 0) {
+      const n = kind === 'carrier' ? 3 : 2;
+      for (let i = 0; i < n; i++) {
+        const a = Math.random()*Math.PI*2;
+        enemies.push({ id: nextEntityId++, x: boss.x+Math.cos(a)*130, y: boss.y+Math.sin(a)*130,
+          vx:0,vy:0,a:0, kind:'scout', hp:20,maxHp:20, fireCool:1, fireDelay:[0.5,1.2],
+          speed:120+sector*10, bulletSp:480, size:0.7, dmg:8 });
+      }
+      boss.minCool = kind === 'carrier' ? 4 : 5;
+    } else if (boss.minCool <= 0) {
+      boss.minCool = 2; // retry sooner if capped
+    }
+  }
+}
+
+function applyLoot(p, type) {
+  if      (type==='hp')     p.hp     = Math.min(p.maxHp,     p.hp     + 40);
+  else if (type==='shield') p.shield = Math.min(p.maxShield, p.shield + 50);
+  else if (type==='warp')   p.warpCharge = Math.min(p.maxWarpCharge, p.warpCharge + 120);
+  else if (type==='ammo') {
+    // Fix 42: don't stack duplicate ammo buffs — replace existing one
+    p.buffs = p.buffs.filter(b => b.type !== 'ammo');
+    p.buffs.push({ type:'ammo', timeLeft: 8 });
+  }
+  else if (type==='speed') {
+    // Fix 43: same for speed — replace, don't stack
+    p.buffs = p.buffs.filter(b => b.type !== 'speed');
+    p.buffs.push({ type:'speed', timeLeft: 6 });
+  }
+}
+
+function updateLoot(dt) {
+  for (let i = loot.length-1; i >= 0; i--) {
+    loot[i].life -= dt;
+    if (loot[i].life <= 0) { loot.splice(i,1); continue; }
+    const l = loot[i];
+    for (const p of players.values()) {
+      if (!p.alive) continue;
+      if (Math.hypot(l.x-p.x, l.y-p.y) < 28) { applyLoot(p, l.type); loot.splice(i,1); break; }
+    }
+  }
+}
+
+function updateAsteroids(dt) {
+  for (const a of asteroids) {
+    a.x += a.vx*dt; a.y += a.vy*dt;
+    a.angle += a.spin*dt;
+    // Damage players on collision
+    for (const p of players.values()) {
+      if (!p.alive) continue;
+      const d = Math.hypot(a.x-p.x, a.y-p.y);
+      if (d < a.r + 12) {
+        let dmg = 18*dt;
+        if (p.shield>0) { const ab=Math.min(p.shield,dmg); p.shield-=ab; dmg-=ab; }
+        p.hp -= dmg;
+        // Bug 31 fix: asteroid death didn't reset warpActive — ship showed as warping while dead
+        if (p.hp<=0 && p.alive) { p.alive=false; p.respawnTimer=4; p.warpActive=false; }
+      }
+    }
+  }
+}
+
+// Shared enemy-death bookkeeping: credit kill, advance sector, trigger boss, drop loot.
+function onEnemyKilled(e, owner) {
+  if (owner) owner.kills++;
+  totalKills++;
+  bossKillCounter++;
+  if (totalKills % 5 === 0 && sector < 30) sector++;
+  if (bossKillCounter >= BOSS_EVERY && !boss) { spawnBoss(); bossKillCounter = 0; }
+  if (loot.length < 40 && Math.random() < 0.3) {
+    loot.push({ id: nextEntityId++, x: e.x, y: e.y, type: LOOT_TYPES[Math.floor(Math.random() * LOOT_TYPES.length)], life: 12 });
+  }
+}
+
+// Trigger a class's active ability. Sets cooldown + a short visual flash the client renders.
+function fireAbility(p) {
+  const cfg = ABILITIES[p.shipClass] || ABILITIES.gunship;
+  p.abilityCool = cfg.cool;
+  p.abilityFlash = 0.45;
+  p.abilityKind = p.shipClass;
+  if (p.shipClass === 'fighter') {
+    // Blink: jump forward, with brief invulnerability to punch through fire
+    p.x += Math.cos(p.a) * 680;
+    p.y += Math.sin(p.a) * 680;
+    p.invuln = 0.8;
+  } else if (p.shipClass === 'gunship') {
+    // Barrage: 360° ring of bullets
+    const N = 18;
+    for (let i = 0; i < N; i++) {
+      const a = p.a + (i / N) * Math.PI * 2;
+      bullets.push({ id: nextEntityId++, x: p.x + Math.cos(a) * 16, y: p.y + Math.sin(a) * 16,
+        vx: Math.cos(a) * 820 + p.vx, vy: Math.sin(a) * 820 + p.vy, life: 1.3, friendly: true, ownerId: p.id });
+    }
+  } else if (p.shipClass === 'tank') {
+    // Shockwave: damage + knockback enemies, wipe nearby hostile bullets, gain a resist window
+    const R = 440;
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      const e = enemies[j];
+      const dx = e.x - p.x, dy = e.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d < R) {
+        e.hp -= 70 * (p.dmgMul || 1);
+        const k = (1 - d / R) * 1100;
+        e.vx += (dx / d) * k; e.vy += (dy / d) * k;
+        if (e.hp <= 0) { enemies.splice(j, 1); onEnemyKilled(e, p); }
+      }
+    }
+    if (boss) { const dx = boss.x - p.x, dy = boss.y - p.y; if (Math.hypot(dx, dy) < R) boss.hp -= 90 * (p.dmgMul || 1); }
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      if (!b.friendly && (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < R * R) bullets.splice(i, 1);
+    }
+    p.abilityActive = 3;          // damage-resist window
+    p.shockR = R;
+  } else if (p.shipClass === 'support') {
+    // Repair Pulse: heal + refill shield for self and nearby allies
+    p.hp = Math.min(p.maxHp, p.hp + 70);
+    p.shield = p.maxShield;
+    for (const o of players.values()) {
+      if (o.id === p.id || !o.alive) continue;
+      if (Math.hypot(o.x - p.x, o.y - p.y) < 460) { o.hp = Math.min(o.maxHp, o.hp + 70); o.shield = o.maxShield; }
+    }
+  }
+}
+
+function updatePlayers(dt) {
+  // Defer hyperjump trigger until after the player loop finishes —
+  // triggerHyperjump mutates every player's warp state which would
+  // race with this iteration.
+  let pendingJumpTier = -1;
+  // Bug fix: reset the per-tick heal flag so each ally is healed by at most ONE
+  // support per tick (the original "Bug 35 fix" set the flag but never read it,
+  // so N supports still stacked N× healing).
+  for (const p of players.values()) p._healedThisTick = false;
+  for (const p of players.values()) {
+    if (!p.alive) {
+      p.respawnTimer -= dt;
+      if (p.respawnTimer <= 0) {
+        // Respawn at a safe ring around the current sun, not the origin
+        // (which could be inside a big sun or central black hole)
+        p.alive = true;
+        p.hp = p.maxHp; p.shield = p.maxShield;
+        const sun = curMW().sun;
+        const safe = Math.max(sun.r, sun.pullRange || 0) + 1500;
+        const ang = Math.random() * Math.PI * 2;
+        p.x = sun.x + Math.cos(ang) * safe;
+        p.y = sun.y + Math.sin(ang) * safe;
+        p.a = ang + Math.PI;
+        p.vx = 0; p.vy = 0;
+        // Defensive: reset transient fields so a stale aim/warpHold doesn't carry
+        p.fireCool = 0;
+        p.warpActive = false;
+        p.warpHoldTime = 0;
+        p.shiftWasDown = false;
+        p.aimAngle = null;
+        p.wormholeCool = 0;
+      }
+      continue;
+    }
+    // Warp drive (afterburner)
+    if (p.wormholeCool > 0) p.wormholeCool = Math.max(0, p.wormholeCool - dt);
+    const shiftDown = !!p.keys.warp;
+    const justPressed = shiftDown && !p.shiftWasDown;
+    p.shiftWasDown = shiftDown;
+    if (justPressed && !p.warpActive && p.warpCharge >= 60) {
+      p.warpActive = true;
+      p.warpJustEngaged = true;
+      // Instant burst forward
+      p.vx += Math.cos(p.a) * 8000;
+      p.vy += Math.sin(p.a) * 8000;
+    }
+    if (p.warpActive) {
+      if (!shiftDown || p.warpCharge <= 0) {
+        const heldFor = p.warpHoldTime || 0;
+        p.warpActive = false;
+        p.warpHoldTime = 0;
+        // Hyperjump tier check when any player releases warp
+        let reached = -1;
+        if (heldFor >= 12.5)     reached = 3;
+        else if (heldFor >= 6.5) reached = 2;
+        else if (heldFor >= 4.5) reached = 1;
+        else if (heldFor >= 2.5) reached = 0;
+        // Downgrade to the highest scope this pilot has ENABLED (so you can turn off
+        // jumping to galaxies/universes/omniverses and only travel where you want).
+        const tt = p.travelTiers || { 0: true, 1: true, 2: true, 3: true };
+        let tier = -1;
+        for (let k = reached; k >= 0; k--) { if (tt[k]) { tier = k; break; } }
+        if (tier > pendingJumpTier) pendingJumpTier = tier;
+      } else {
+        p.warpCharge = Math.max(0, p.warpCharge - 100 * dt);
+        p.warpHoldTime = (p.warpHoldTime || 0) + dt;
+      }
+    } else {
+      p.warpCharge = Math.min(p.maxWarpCharge, p.warpCharge + 25 * dt * (p.warpRegenMul || 1));
+    }
+    // Active ability (F) — fires once on rising edge when off cooldown
+    const abilityDown = !!p.keys.ability;
+    if (abilityDown && !p.abilityWasDown && p.abilityCool <= 0) fireAbility(p);
+    p.abilityWasDown = abilityDown;
+    if (p.abilityCool   > 0) p.abilityCool   = Math.max(0, p.abilityCool   - dt);
+    if (p.invuln        > 0) p.invuln        = Math.max(0, p.invuln        - dt);
+    if (p.abilityActive > 0) p.abilityActive = Math.max(0, p.abilityActive - dt);
+    if (p.abilityFlash  > 0) p.abilityFlash  = Math.max(0, p.abilityFlash  - dt);
+    // Black hole gravity (also caps speed near event horizon)
+    let bhInf = 0;
+    for (const a of anomalies) {
+      if (a.type !== 'blackhole') continue;
+      const dx = a.x - p.x, dy = a.y - p.y;
+      const d = Math.hypot(dx, dy);
+      if (d > 0 && d < a.pullRange) {
+        const pull = 2800 * (1 - d / a.pullRange);
+        p.vx += (dx / d) * pull * dt;
+        p.vy += (dy / d) * pull * dt;
+        const t = 1 - Math.max(0, (d - a.r) / Math.max(1, a.pullRange - a.r));
+        if (t > bhInf) bhInf = t;
+      }
+      if (d < a.r && p.invuln <= 0) {
+        let dmg = 60 * dt;
+        if (p.abilityActive > 0) dmg *= 0.4;   // Tank shockwave resist applies to hazards too
+        if (p.shield > 0) { const ab = Math.min(p.shield, dmg); p.shield -= ab; dmg -= ab; }
+        p.hp -= dmg;
+        // Survive to 1 HP inside the hole → it spits you into The Singularity.
+        if (p.hp <= 1 && !inSingularity) { p.hp = 1; pendingSingularity = true; }
+      }
+    }
+    // Bug 13: also slow warp near a CENTRAL black hole (omniverse milky ways)
+    {
+      const c = curMW().sun;
+      if (c.type === 'blackhole') {
+        const pr = c.pullRange || 1500;
+        const d = Math.hypot(c.x - p.x, c.y - p.y);
+        if (d < pr) {
+          const t = 1 - Math.max(0, (d - c.r) / Math.max(1, pr - c.r));
+          if (t > bhInf) bhInf = t;
+        }
+      }
+    }
+    const bhSlowdown = 1 - 0.9 * bhInf;
+    // Steering + thrust (slowed near black holes)
+    const turnRate = p.warpActive ? 1.0 : 3.4;
+    if (p.keys.left)  p.a -= turnRate * dt;
+    if (p.keys.right) p.a += turnRate * dt;
+    // Touch joystick aim: smoothly turn toward the target angle if no keyboard turn pressed
+    if (p.aimAngle != null && !p.keys.left && !p.keys.right) {
+      let dA = p.aimAngle - p.a;
+      while (dA > Math.PI)  dA -= Math.PI * 2;
+      while (dA < -Math.PI) dA += Math.PI * 2;
+      p.a += clamp(dA, -turnRate * dt, turnRate * dt);
+    }
+    // Buff timers
+    for (let i = p.buffs.length-1; i >= 0; i--) {
+      p.buffs[i].timeLeft -= dt;
+      if (p.buffs[i].timeLeft <= 0) p.buffs.splice(i,1);
+    }
+    const speedBuff  = p.buffs.some(b => b.type==='speed') ? 2 : 1;
+    const effSpeedMul = (p.speedMul||1) * speedBuff;
+    const thrustAccel = (p.warpActive ? 12000 : 300 * effSpeedMul) * bhSlowdown;
+    if (p.keys.thrust) {
+      p.vx += Math.cos(p.a) * thrustAccel * dt;
+      p.vy += Math.sin(p.a) * thrustAccel * dt;
+    }
+    if (!p.warpActive) {
+      const drag = p.keys.brake ? 1.4 : 0.05;
+      p.vx -= p.vx * drag * dt * 1.6;
+      p.vy -= p.vy * drag * dt * 1.6;
+    }
+    const sp = Math.hypot(p.vx, p.vy);
+    const normalMax = 380 * effSpeedMul;
+    let MAX;
+    if (p.warpActive) {
+      // Black-hole gravity drags light-speed down toward normal cruising speed.
+      // At the event horizon (bhInf→1) warp is throttled all the way to a normal
+      // aircraft's top speed, so you can't just warp straight out of the well.
+      const warpMax = 22000 * (p.warpSpeedMul || 1);
+      MAX = warpMax + (normalMax - warpMax) * bhInf;
+    } else {
+      MAX = normalMax * bhSlowdown;
+    }
+    if (sp > MAX) { p.vx *= MAX / sp; p.vy *= MAX / sp; }
+    // Support heal — Bug 35 fix: each support player healed independently, so 3 supports gave 3×
+    // the heal. Now cap the heal received per ally per tick regardless of how many supports are near.
+    if (p.shipClass === 'support') {
+      for (const other of players.values()) {
+        if (other.id===p.id || !other.alive || other._healedThisTick) continue;
+        if (Math.hypot(other.x-p.x, other.y-p.y) < 350) {
+          other.hp = Math.min(other.maxHp, other.hp + 5*dt);
+          other._healedThisTick = true;
+        }
+      }
+    }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    // Wormhole teleport
+    if (p.wormholeCool <= 0) {
+      for (const a of anomalies) {
+        if (a.type !== 'wormhole') continue;
+        if (Math.hypot(a.x - p.x, a.y - p.y) < a.r + 14) {
+          const speed = Math.hypot(p.vx, p.vy);
+          const ux = speed > 1 ? p.vx / speed : Math.cos(p.a);
+          const uy = speed > 1 ? p.vy / speed : Math.sin(p.a);
+          // Bug 36 fix: exit offset was a.r+30 — player exiting toward the destination wormhole
+          // could immediately re-enter it. Use a larger offset (a.r + 200) to clear the wormhole.
+          const off = a.r + 200;
+          p.x = a.destX + ux * off; p.y = a.destY + uy * off;
+          p.vx *= 0.4; p.vy *= 0.4;
+          p.wormholeCool = 1.5; // also increased from 1.0 to 1.5s for extra safety
+          break;
+        }
+      }
+    }
+    if (p.hp <= 0 && p.alive) { p.alive = false; p.respawnTimer = 4; p.warpActive = false; }
+
+    // Fire
+    p.fireCool -= dt;
+    if (p.keys.fire && p.fireCool <= 0) {
+      // Fire toward the cursor-controlled turret (falls back to ship facing for touch).
+      const fa = (p.turretAngle != null) ? p.turretAngle : p.a;
+      bullets.push({
+        id: nextEntityId++,
+        x: p.x + Math.cos(fa) * 16, y: p.y + Math.sin(fa) * 16,
+        vx: Math.cos(fa) * 700 + p.vx,
+        vy: Math.sin(fa) * 700 + p.vy,
+        life: 1.5, friendly: true, ownerId: p.id,
+      });
+      const ammoBuff = p.buffs.some(b => b.type==='ammo') ? 2 : 1;
+      p.fireCool = 0.18 / ((p.fireRateMul||1) * ammoBuff);
+    }
+    // Shield regen
+    p.shield = clamp(p.shield + (p.shieldRegen || 14) * dt, 0, p.maxShield);
+    // Bug 12: clamp HP/shield so they never go negative
+    if (p.hp < 0) p.hp = 0;
+    if (p.shield < 0) p.shield = 0;
+    // Safety: never let physics drift to NaN/Infinity (would spin/teleport the ship)
+    if (!isFinite(p.a)) p.a = 0;
+    if (!isFinite(p.vx)) p.vx = 0;
+    if (!isFinite(p.vy)) p.vy = 0;
+    if (!isFinite(p.x) || !isFinite(p.y)) { const s = curMW().sun; p.x = s.x + 1500; p.y = s.y; }
+  }
+  if (pendingJumpTier >= 0) triggerHyperjump(pendingJumpTier);
+}
+
+function updateEnemies(dt) {
+  // Index loop so kamikazes can splice themselves on detonation.
+  for (let idx = enemies.length - 1; idx >= 0; idx--) {
+    const e = enemies[idx];
+    const target = nearestPlayerTo(e.x, e.y);
+    if (!target) continue;
+    const dx = target.x - e.x, dy = target.y - e.y;
+    const d = Math.hypot(dx, dy);
+    const targetA = Math.atan2(dy, dx);
+    let dA = targetA - e.a;
+    while (dA > Math.PI) dA -= Math.PI*2;
+    while (dA < -Math.PI) dA += Math.PI*2;
+    const turn = e.kind === 'kamikaze' ? 3.2 : 2.2;
+    e.a += clamp(dA, -turn*dt, turn*dt);
+    if (e.kind === 'sniper') {
+      // Snipers hold range: back off when crowded, ease in when too far, else strafe.
+      const kd = e.keepDist || 850;
+      if (d < kd - 80) { e.vx -= Math.cos(e.a) * e.speed * dt * 1.6; e.vy -= Math.sin(e.a) * e.speed * dt * 1.6; }
+      else if (d > kd + 120) { e.vx += Math.cos(e.a) * e.speed * dt * 1.6; e.vy += Math.sin(e.a) * e.speed * dt * 1.6; }
+      else { e.vx += Math.cos(e.a + Math.PI/2) * 50 * dt; e.vy += Math.sin(e.a + Math.PI/2) * 50 * dt; }
+    } else if (e.kind === 'kamikaze') {
+      e.vx += Math.cos(e.a) * e.speed * dt * 2.2;   // full-throttle ram
+      e.vy += Math.sin(e.a) * e.speed * dt * 2.2;
+    } else if (d > 220) {
+      e.vx += Math.cos(e.a) * e.speed * dt * 1.6;
+      e.vy += Math.sin(e.a) * e.speed * dt * 1.6;
+    } else {
+      e.vx += Math.cos(e.a + Math.PI/2) * 40 * dt;
+      e.vy += Math.sin(e.a + Math.PI/2) * 40 * dt;
+    }
+    const sp = Math.hypot(e.vx, e.vy);
+    // Per-kind speed caps (Bug 27 fix kept; new kinds added)
+    const maxEsp = e.kind === 'kamikaze' ? 360 : e.kind === 'scout' ? 280 : e.kind === 'swarm' ? 300
+      : e.kind === 'heavy' ? 120 : e.kind === 'sniper' ? 200 : 180;
+    if (sp > maxEsp) { e.vx *= maxEsp/sp; e.vy *= maxEsp/sp; }
+    e.x += e.vx * dt; e.y += e.vy * dt;
+    // Kamikaze detonates on contact (i-frames negate it)
+    if (e.ram && d < 26 + e.size * 14) {
+      if (target.invuln <= 0) {
+        let dmg = 42 + sector * 2;
+        if (target.shield > 0) { const ab = Math.min(target.shield, dmg); target.shield -= ab; dmg -= ab; }
+        target.hp -= dmg;
+        if (target.hp <= 0 && target.alive) { target.alive = false; target.respawnTimer = 4; target.warpActive = false; }
+      }
+      enemies.splice(idx, 1);
+      continue;
+    }
+    e.fireCool -= dt;
+    if (!e.ram && e.fireCool <= 0 && d < (e.range || 700) && Math.abs(dA) < 0.4) {
+      const shots = e.kind === 'heavy' ? [-0.18, 0.18] : [0];
+      for (const off of shots) {
+        const ang = e.a + off;
+        bullets.push({
+          id: nextEntityId++,
+          x: e.x + Math.cos(ang) * 14, y: e.y + Math.sin(ang) * 14,
+          vx: Math.cos(ang) * e.bulletSp, vy: Math.sin(ang) * e.bulletSp,
+          life: e.kind === 'sniper' ? 2.6 : 2.0, friendly: false, ownerId: 0, dmg: e.dmg || 8,
+        });
+      }
+      e.fireCool = rand(e.fireDelay[0], e.fireDelay[1]);
+    }
+  }
+  // Spawn
+  spawnTimer -= dt;
+  // The Singularity is a peaceful reward pocket — no enemies spawn there.
+  if (inSingularity) { spawnTimer = 3; }
+  // Fix 41: cap enemies at 20 so the game doesn't become unplayable
+  else if (spawnTimer <= 0 && players.size > 0 && enemies.length < MAX_ENEMIES) {
+    spawnEnemy();
+    spawnTimer = Math.max(2, 8 - sector * 0.3 - players.size * 0.5);
+  } else if (spawnTimer <= 0) {
+    spawnTimer = 2;
+  }
+}
+
+function updateBullets(dt) {
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    // Bug fix: black hole gravity also pulls bullets, and event horizon consumes them
+    for (const a of anomalies) {
+      if (a.type !== 'blackhole') continue;
+      const dx = a.x - b.x, dy = a.y - b.y;
+      const bd = Math.hypot(dx, dy);
+      if (bd > 0 && bd < a.pullRange) {
+        const pull = 500 * (1 - bd / a.pullRange);
+        b.vx += (dx / bd) * pull * dt;
+        b.vy += (dy / bd) * pull * dt;
+      }
+      if (bd < a.r) { b.life = 0; break; }
+    }
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    b.life -= dt;
+    if (b.life <= 0) { bullets.splice(i, 1); continue; }
+    // Asteroid collision (all bullets)
+    let asteroidHit = false;
+    for (let j = asteroids.length-1; j >= 0; j--) {
+      const a = asteroids[j];
+      if ((b.x-a.x)**2+(b.y-a.y)**2 < a.r*a.r) {
+        const owner = b.friendly ? players.get(b.ownerId) : null;
+        a.hp -= 8 * (owner ? (owner.dmgMul||1) : 0.5);
+        if (a.hp <= 0) {
+          // Fix 47-48: respect loot cap for asteroid drops (richer inside the Singularity)
+          if (loot.length < 40 && Math.random() < (inSingularity ? 0.75 : 0.35)) loot.push({ id:nextEntityId++, x:a.x, y:a.y,
+            type:['hp','shield','ammo','speed','warp'][Math.floor(Math.random()*5)], life:12 });
+          asteroids.splice(j,1);
+        }
+        bullets.splice(i,1); asteroidHit=true; break;
+      }
+    }
+    if (asteroidHit) continue;
+    // Boss collision (friendly bullets only)
+    if (b.friendly && boss) {
+      const dx=b.x-boss.x, dy=b.y-boss.y;
+      if (dx*dx+dy*dy < 55*55) {
+        const owner = players.get(b.ownerId);
+        boss.hp -= 12 * (owner ? (owner.dmgMul||1) : 1);
+        bullets.splice(i,1); continue;
+      }
+    }
+    if (b.friendly) {
+      for (let j = enemies.length - 1; j >= 0; j--) {
+        const e = enemies[j];
+        const dx = b.x - e.x, dy = b.y - e.y;
+        if (dx*dx + dy*dy < 18*18) {
+          const owner = players.get(b.ownerId);
+          e.hp -= 12 * (owner ? (owner.dmgMul || 1) : 1);
+          bullets.splice(i, 1);
+          if (e.hp <= 0) { enemies.splice(j, 1); onEnemyKilled(e, owner); }
+          break;
+        }
+      }
+    } else {
+      for (const p of players.values()) {
+        if (!p.alive) continue;
+        const dx = b.x - p.x, dy = b.y - p.y;
+        if (dx*dx + dy*dy < 16*16) {
+          if (p.invuln > 0) { bullets.splice(i, 1); break; }   // Blink i-frames
+          let dmg = (b.dmg || 8);
+          if (p.abilityActive > 0) dmg *= 0.4;                 // Tank shockwave resist window
+          if (p.shield > 0) {
+            const absorbed = Math.min(p.shield, dmg);
+            p.shield -= absorbed; dmg -= absorbed;
+          }
+          p.hp -= dmg;
+          bullets.splice(i, 1);
+          if (p.hp <= 0) {
+            p.alive = false;
+            p.respawnTimer = 4;
+          }
+          break;
+        }
+      }
+    }
+  }
+}
+
+function updateSunCollision(dt) {
+  const c = curMW().sun;
+  for (const p of players.values()) {
+    if (!p.alive) continue;
+    const dx = c.x - p.x, dy = c.y - p.y;
+    const d = Math.hypot(dx, dy);
+    if (c.type === 'blackhole') {
+      const pr = c.pullRange || 1500;
+      if (d > 0 && d < pr) {
+        // Match the strong anomaly-black-hole pull so the omniverse's central
+        // black holes are just as inescapable (warp also throttles to normal here).
+        const pull = 2800 * (1 - d / pr);
+        p.vx += (dx / d) * pull * dt;
+        p.vy += (dy / d) * pull * dt;
+      }
+      if (d < c.r && p.invuln <= 0) {
+        let dmg = 80 * dt;
+        if (p.abilityActive > 0) dmg *= 0.4;   // Tank shockwave resist applies to hazards too
+        if (p.shield > 0) { const ab = Math.min(p.shield, dmg); p.shield -= ab; dmg -= ab; }
+        p.hp -= dmg;
+        // Survive to 1 HP inside the hole → it spits you into The Singularity.
+        if (p.hp <= 1 && !inSingularity) { p.hp = 1; pendingSingularity = true; }
+        else if (p.hp <= 0 && p.alive) { p.alive = false; p.respawnTimer = 4; }
+      }
+    } else if (d < c.r + 12) {
+      let dmg = 80 * dt;
+      if (p.shield > 0) { const ab = Math.min(p.shield, dmg); p.shield -= ab; dmg -= ab; }
+      p.hp -= dmg;
+      const ux = dx / (d || 1), uy = dy / (d || 1);
+      p.vx -= ux * 400 * dt; p.vy -= uy * 400 * dt;
+      if (p.hp <= 0 && p.alive) { p.alive = false; p.respawnTimer = 4; }
+    }
+    // Bug 15: clamp after sun damage too
+    if (p.hp < 0) p.hp = 0;
+    if (p.shield < 0) p.shield = 0;
+  }
+
+  // Enemies and the boss take the same environmental damage (sun + black holes)
+  // and get pulled by black-hole gravity, just like the player.
+  function applyHazards(ent) {
+    // Central sun / black hole
+    const dx = c.x - ent.x, dy = c.y - ent.y;
+    const d = Math.hypot(dx, dy);
+    if (c.type === 'blackhole') {
+      const pr = c.pullRange || 1500;
+      if (d > 0 && d < pr) { const pull = 2800 * (1 - d / pr); ent.vx += (dx / d) * pull * dt; ent.vy += (dy / d) * pull * dt; }
+      if (d < c.r) ent.hp -= 80 * dt;
+    } else if (d < c.r + 12) {
+      ent.hp -= 80 * dt;
+    }
+    // Anomaly black holes
+    for (const a of anomalies) {
+      if (a.type !== 'blackhole') continue;
+      const adx = a.x - ent.x, ady = a.y - ent.y;
+      const ad = Math.hypot(adx, ady);
+      if (ad > 0 && ad < a.pullRange) { const pull = 2800 * (1 - ad / a.pullRange); ent.vx += (adx / ad) * pull * dt; ent.vy += (ady / ad) * pull * dt; }
+      if (ad < a.r) ent.hp -= 60 * dt;
+    }
+  }
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    applyHazards(enemies[i]);
+    if (enemies[i].hp <= 0) enemies.splice(i, 1);   // burned up / crushed — no kill credit
+  }
+  if (boss) applyHazards(boss);   // boss death handled in updateBoss when hp <= 0
+}
+
+function updateHyperjump(dt) {
+  if (!hyperjumping) return;
+  hyperjumping.age += dt;
+  if (hyperjumping.age >= hyperjumping.maxAge) {
+    doHyperjump(hyperjumping.tier);
+    hyperjumping = null;
+  }
+}
+
+// Yank everyone into The Singularity — triggered when a black hole drains a player
+// to 1 HP. Clears the field, drops a reward loot ring, heals + repositions players.
+function enterSingularity() {
+  inSingularity = true;
+  loadCurrentMilkyWay();
+  anomalies = [];          // calm pocket — no black holes to re-trap you
+  mergeEvent = null; mergeHoles = [];   // no mergers in the Singularity
+  enemies.length = 0;
+  bullets.length = 0;
+  loot.length = 0;
+  if (boss) { for (const pl of players.values()) if (pl.ws.readyState === 1) pl.ws.send(JSON.stringify({ type: 'boss_dead' })); }
+  boss = null;
+  bossKillCounter = 0;
+  const sun = curMW().sun;
+  // Reward loot ring (richer than normal drops)
+  const types = ['hp', 'hp', 'shield', 'shield', 'warp', 'ammo', 'speed', 'hp'];
+  for (let i = 0; i < types.length; i++) {
+    const a = (i / types.length) * Math.PI * 2;
+    loot.push({ id: nextEntityId++, x: sun.x + Math.cos(a) * 900, y: sun.y + Math.sin(a) * 900, type: types[i], life: 90 });
+  }
+  // Players arrived on the brink — reposition, heal, and grant brief grace.
+  const safe = sun.r + 1400;
+  let i = 0;
+  for (const p of players.values()) {
+    const ang = (i++ * 1.4);
+    p.x = sun.x + Math.cos(ang) * safe;
+    p.y = sun.y + Math.sin(ang) * safe;
+    p.a = ang + Math.PI;
+    p.vx = 0; p.vy = 0;
+    p.alive = true; p.respawnTimer = 0;
+    p.hp = p.maxHp; p.shield = p.maxShield;
+    p.warpActive = false; p.warpHoldTime = 0; p.warpCharge = p.maxWarpCharge;
+    p.invuln = 1.5;
+    if (p.ws.readyState === 1) p.ws.send(JSON.stringify({ type: 'singularity' }));
+  }
+}
+
+function tick() {
+  const dt = 1 / TICK_HZ;
+  updateHyperjump(dt);
+  if (hyperjumping) return;
+  updatePlanetOrbits(dt);
+  updateSunCollision(dt);
+  updatePlayers(dt);
+  updateEnemies(dt);
+  updateBullets(dt);
+  updateBoss(dt);
+  updateLoot(dt);
+  updateAsteroids(dt);
+  updateMerge(dt);
+  if (pendingSingularity) { pendingSingularity = false; enterSingularity(); }
+}
+
+function buildSnapshot() {
+  const sun = curMW().sun;
+  return {
+    type: 'state',
+    sector,
+    location: locationLabel(),
+    sun: { x: sun.x, y: sun.y, r: sun.r, color: sun.color, hot: sun.hot, name: sun.name, type: sun.type, pullRange: sun.pullRange },
+    planets: planetsState.map(p => {
+      // Tangent velocity of the orbit so the client can extrapolate planet
+      // position between snapshots (otherwise they visibly stutter at 30Hz).
+      const tangent = p.orbitSpeed * p.orbitRadius;
+      const vx = Math.round(-Math.sin(p.orbitAngle) * tangent);
+      const vy = Math.round( Math.cos(p.orbitAngle) * tangent);
+      return { name: p.name, x: Math.round(p.x), y: Math.round(p.y), vx, vy, r: p.r, color: p.color, orbitRadius: p.orbitRadius, rogue: p.rogue, upgrade: p.upgrade, upgradeName: p.upgradeName, upgradeDesc: p.upgradeDesc };
+    }),
+    hyperjumping: hyperjumping ? { tier: hyperjumping.tier, t: hyperjumping.age / hyperjumping.maxAge } : null,
+    anomalies,
+    players: [...players.values()].map(p => {
+      const justEng = p.warpJustEngaged; p.warpJustEngaged = false;
+      return {
+        id: p.id, name: p.name, color: p.color,
+        turret: +(p.turretAngle != null ? p.turretAngle : p.a).toFixed(3),
+        x: Math.round(p.x), y: Math.round(p.y), a: +p.a.toFixed(3),
+        vx: Math.round(p.vx), vy: Math.round(p.vy),
+        hp: Math.round(p.hp), maxHp: p.maxHp,
+        shield: Math.round(p.shield), maxShield: p.maxShield,
+        kills: p.kills, alive: p.alive,
+        respawnTimer: p.alive ? 0 : +p.respawnTimer.toFixed(1),
+        warpActive: p.warpActive,
+        warpCharge: Math.round(p.warpCharge),
+        maxWarpCharge: p.maxWarpCharge,
+        warpJustEngaged: justEng,
+        voice: p.voice,
+        shipClass: p.shipClass,
+        buffs: p.buffs.map(b => ({ type: b.type, timeLeft: +b.timeLeft.toFixed(1) })),
+        upgradesTaken: [...p.upgradesTaken, ...p.singularityTaken],
+        abilityCool: +p.abilityCool.toFixed(1),
+        abilityMaxCool: p.abilityMaxCool,
+        invuln: p.invuln > 0,
+        abilityFlash: +(p.abilityFlash || 0).toFixed(2),
+        abilityKind: p.abilityKind,
+      };
+    }),
+    enemies: enemies.map(e => ({
+      id: e.id, x: Math.round(e.x), y: Math.round(e.y), a: +e.a.toFixed(3),
+      vx: Math.round(e.vx), vy: Math.round(e.vy),
+      kind: e.kind, hp: Math.round(e.hp), maxHp: e.maxHp,
+    })),
+    bullets: bullets.map(b => ({
+      id: b.id, x: Math.round(b.x), y: Math.round(b.y),
+      vx: Math.round(b.vx), vy: Math.round(b.vy),
+      friendly: b.friendly, ownerId: b.ownerId,
+    })),
+    boss: boss ? { id: boss.id, kind: boss.kind, x: Math.round(boss.x), y: Math.round(boss.y), a: +boss.a.toFixed(3),
+      vx: Math.round(boss.vx), vy: Math.round(boss.vy), hp: Math.round(boss.hp), maxHp: boss.maxHp, phase: boss.phase } : null,
+    loot: loot.map(l => ({ id: l.id, x: Math.round(l.x), y: Math.round(l.y), type: l.type })),
+    asteroids: asteroids.map(a => ({ id: a.id, x: Math.round(a.x), y: Math.round(a.y),
+      r: a.r, hp: Math.round(a.hp), maxHp: a.maxHp, seed: a.seed, angle: +a.angle.toFixed(3) })),
+  };
+}
+
+function broadcast() {
+  const snap = JSON.stringify(buildSnapshot());
+  for (const p of players.values()) {
+    if (p.ws.readyState === 1) p.ws.send(snap);
+  }
+}
+
+  // ---- Loopback glue: replaces the HTTP/WebSocket layer ----
+  let _loopStarted = false;
+  function _startLoops() {
+    if (_loopStarted) return;
+    _loopStarted = true;
+    setInterval(tick, 1000 / TICK_HZ);
+    setInterval(broadcast, 1000 / NET_HZ);
+  }
+
+  // Called when the client "opens" a connection. serverWs is a fake socket whose
+  // .send(str) pushes a message to the client; addPlayer stores it as p.ws so all
+  // existing p.ws.send(...) calls (snapshots, boss events) reach the client.
+  function connect(serverWs) {
+    const p = addPlayer(serverWs);
+    serverWs._player = p;
+    serverWs.send(JSON.stringify({ type: 'welcome', id: p.id, color: p.color, anomalies }));
+    const sun = curMW().sun;
+    const safe = Math.max(sun.r, sun.pullRange || 0) + 1500;
+    const ang = (p.id * 1.2) % (Math.PI * 2);
+    p.x = sun.x + Math.cos(ang) * safe;
+    p.y = sun.y + Math.sin(ang) * safe;
+    p.a = ang + Math.PI;
+    _startLoops();
+    return p;
+  }
+
+  // Mirror of the server's ws 'message' handler — applies a client packet to its player.
+  function fromClient(serverWs, msg) {
+    const p = serverWs._player;
+    if (!p) return;
+    if (msg.type === 'input' && msg.keys) {
+      p.keys = msg.keys;
+      p.aimAngle = (typeof msg.aim === 'number') ? msg.aim : null;
+      if (typeof msg.turret === 'number') p.turretAngle = msg.turret;
+    } else if (msg.type === 'name' && typeof msg.name === 'string') {
+      p.name = msg.name.slice(0, 20);
+      const cls = CLASSES[msg.class] || CLASSES.gunship;
+      p.shipClass = msg.class in CLASSES ? msg.class : 'gunship';
+      p.hp = cls.maxHp; p.maxHp = cls.maxHp;
+      p.shield = cls.maxShield; p.maxShield = cls.maxShield;
+      p.fireRateMul = cls.fireRateMul; p.dmgMul = cls.dmgMul;
+      p.warpSpeedMul = cls.warpSpeedMul; p.shieldRegen = cls.shieldRegen;
+      p.speedMul = cls.speedMul;
+      p.maxWarpCharge = cls.maxWarpCharge || 300; p.warpCharge = p.maxWarpCharge;
+      p.abilityMaxCool = (ABILITIES[p.shipClass] || ABILITIES.gunship).cool;
+      p.warpRegenMul = 1; p.upgradesTaken.clear();
+      for (const sn of p.singularityTaken) { const sp = SINGULARITY_MW.planets.find(pl => pl.name === sn); if (sp && UPGRADES[sp.upgrade]) UPGRADES[sp.upgrade].apply(p); }
+    } else if (msg.type === 'travel' && msg.tiers && typeof msg.tiers === 'object') {
+      p.travelTiers = { 0: !!msg.tiers[0], 1: !!msg.tiers[1], 2: !!msg.tiers[2], 3: !!msg.tiers[3] };
+    } else if (msg.type === 'voice' && typeof msg.on === 'boolean') {
+      p.voice = msg.on;
+    } else if (msg.type === 'install' && typeof msg.planet === 'string') {
+      if (!p.alive) return;
+      const planet = planetsState.find(pl => pl.name === msg.planet);
+      if (!planet || !planet.upgrade) return;
+      // Generous range + per-planet keying (see spaceship-server.js): several
+      // planets share an upgrade key, so keying by planet name lets each be installed.
+      const inRange = Math.hypot(planet.x - p.x, planet.y - p.y) - planet.r < 360;
+      if (!inRange) return;
+      // Singularity installs go in a permanent set (no re-farming); else per-region.
+      const taken = inSingularity ? p.singularityTaken : p.upgradesTaken;
+      if (taken.has(planet.name)) return;
+      const up = UPGRADES[planet.upgrade];
+      if (!up) return;
+      up.apply(p);
+      taken.add(planet.name);
+    }
+    // 'rtc' (voice signaling) intentionally ignored — solo has no peers.
+  }
+
+  return { connect, fromClient };
+})();
+
+// A fake WebSocket pair linking the client (clientSocket) to LocalServer (serverWs).
+function createLoopback() {
+  const L = { open: [], message: [], close: [], error: [] };
+  const clientSocket = {
+    readyState: 0,
+    addEventListener: (ev, fn) => { (L[ev] || (L[ev] = [])).push(fn); },
+    send: (str) => { let m; try { m = JSON.parse(str); } catch { return; } LocalServer.fromClient(serverWs, m); },
+    close: () => { clientSocket.readyState = 3; for (const fn of L.close) fn(); },
+  };
+  const serverWs = {
+    readyState: 1,
+    send: (str) => { for (const fn of L.message) fn({ data: str }); },
+  };
+  clientSocket._fireOpen = () => { clientSocket.readyState = 1; for (const fn of L.open) fn(); };
+  return { clientSocket, serverWs };
+}
+</script>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W, H;
+// Bug 1: camX/camY were local to render() — made module-level so culling helpers can use them
+let camX = 0, camY = 0;
+// Bug 2: rx/ry called performance.now() in tight per-entity loops — cache once per frame
+let _frameNow = 0;
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize); resize();
+
+// Show QR code + LAN URL so friends can connect without internet
+fetch('/info').then(r => r.json()).then(info => {
+  if (!info.ips.length) return;
+  const el = document.getElementById('lanInfo');
+  if (info.qr) {
+    const img = document.getElementById('lanQr');
+    img.src = info.qr;
+    img.style.display = '';
+  }
+  document.getElementById('lanUrls').innerHTML = info.ips
+    .map(ip => `<code style="display:block;margin-top:3px;color:var(--accent);user-select:text">http://${ip}:${info.port}/</code>`)
+    .join('');
+  el.style.display = '';
+}).catch(() => {});
+
+// ── State ──
+const KEYS = {};
+let ws = null;
+let myId = null;
+let myColor = '#7c5cff';
+let state = { players: [], enemies: [], bullets: [], sector: 1 };
+let snapshotTime = performance.now();
+let stars = [];
+// Tile must cover the largest viewport dimension or large monitors show an
+// un-starred band (stars only populated a 2400px tile but draw across max(W,H)).
+const STAR_TILE = Math.max(2400, (window.screen ? Math.max(screen.width, screen.height) : 0) + 200);
+for (let i = 0; i < 220; i++) stars.push({ x: Math.random()*STAR_TILE, y: Math.random()*STAR_TILE, r: Math.random()*0.6 + 0.4, p: 0.3 });
+for (let i = 0; i < 70; i++)  stars.push({ x: Math.random()*STAR_TILE, y: Math.random()*STAR_TILE, r: Math.random()*1.0 + 0.8, p: 0.7 });
+
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') e.preventDefault();
+  if (e.repeat) { KEYS[e.code] = true; return; }
+  KEYS[e.code] = true;
+  if (e.code === 'KeyE') tryDockOrDepart();
+  // Q installs the upgrade of the nearest/docked planet — always works in one press.
+  if (e.code === 'KeyQ') installUpgrade();
+  // P toggles auto-pilot (AI flies the ship)
+  if (e.code === 'KeyP') setAutoPilot(!autoPilot);
+  // Any flight input takes back manual control — you can never get stuck on auto-pilot.
+  if (autoPilot && ['KeyW','KeyA','KeyS','KeyD','Space','ShiftLeft','ShiftRight'].includes(e.code)) setAutoPilot(false);
+  // Bug 21 fix: Escape closes the dock panel (was uncloseable without E key or button)
+  if (e.code === 'Escape' && dockedPlanet) tryDockOrDepart();
+});
+window.addEventListener('keyup', e => { KEYS[e.code] = false; });
+// Bug fix: when the window loses focus while keys/touches are held, keyup/touchend
+// may never fire. Clear all input so the ship doesn't fly off on its own.
+window.addEventListener('blur', () => {
+  for (const k of Object.keys(KEYS)) KEYS[k] = false;
+  touchAim = null; touchThrust = false;
+  touchFire = false; touchBrake = false; touchWarp = false; touchAbility = false;
+});
+
+// ── Touch controls ──
+let touchAim = null;        // radians, null when no joystick contact
+let touchThrust = false;
+let touchFire = false;
+let touchBrake = false;
+let touchWarp = false;
+let touchAbility = false;
+// Cursor-controlled turret aim. The ship renders at screen-centre, so the world
+// aim angle is just the cursor's offset from centre.
+let mouseX = 0, mouseY = 0, mouseAimed = false, mouseFire = false;
+window.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; mouseAimed = true; });
+// Left-click on the game area fires (UI buttons sit above the canvas, so they aren't affected).
+canvas.addEventListener('mousedown', e => { if (e.button === 0) { mouseFire = true; mouseX = e.clientX; mouseY = e.clientY; mouseAimed = true; if (autoPilot) setAutoPilot(false); } });
+window.addEventListener('mouseup', e => { if (e.button === 0) mouseFire = false; });
+let autoPilot = false;   // AI flies the ship — toggle with the AUTO button or P
+let _apTick = 0;          // autopilot frame counter (used to pulse the ability key)
+let mergeFlashT = 0;      // black-hole-merger shockwave flash timer
+
+(function setupTouch() {
+  const joystick = document.getElementById('joystick');
+  const knob = document.getElementById('joystickKnob');
+  let joyTouchId = null;
+
+  function joyUpdate(x, y) {
+    const r = joystick.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const dx = x - cx, dy = y - cy;
+    const d = Math.hypot(dx, dy);
+    const max = r.width / 2 - 10;
+    const clamped = Math.min(d, max);
+    const kx = d > 0 ? (dx / d) * clamped : 0;
+    const ky = d > 0 ? (dy / d) * clamped : 0;
+    knob.style.transform = `translate(${kx}px, ${ky}px)`;
+    if (d > 15) {
+      touchAim = Math.atan2(dy, dx);
+      touchThrust = d > 30;
+    } else {
+      touchAim = null;
+      touchThrust = false;
+    }
+  }
+  function joyEnd() {
+    joyTouchId = null;
+    touchAim = null;
+    touchThrust = false;
+    knob.style.transform = '';
+  }
+
+  joystick.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (joyTouchId !== null) return;
+    const t = e.changedTouches[0];
+    joyTouchId = t.identifier;
+    joyUpdate(t.clientX, t.clientY);
+  }, { passive: false });
+  joystick.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) if (t.identifier === joyTouchId) joyUpdate(t.clientX, t.clientY);
+  }, { passive: false });
+  ['touchend', 'touchcancel'].forEach(ev => joystick.addEventListener(ev, e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) if (t.identifier === joyTouchId) joyEnd();
+  }, { passive: false }));
+
+  function bindBtn(id, setter) {
+    const el = document.getElementById(id);
+    const press = e => { e.preventDefault(); setter(true);  el.classList.add('pressed'); };
+    const release = e => { e.preventDefault(); setter(false); el.classList.remove('pressed'); };
+    el.addEventListener('touchstart', press, { passive: false });
+    el.addEventListener('mousedown', press);
+    ['touchend', 'touchcancel'].forEach(ev => el.addEventListener(ev, release, { passive: false }));
+    el.addEventListener('mouseup', release);
+    el.addEventListener('mouseleave', release);
+  }
+  bindBtn('fireBtn',  v => touchFire = v);
+  bindBtn('warpBtn',  v => touchWarp = v);
+  bindBtn('brakeBtn', v => touchBrake = v);
+  bindBtn('abilityBtn', v => touchAbility = v);
+  // Fix 31: bind the touch dock button
+  const dockBtnEl = document.getElementById('dockBtn');
+  if (dockBtnEl) {
+    dockBtnEl.addEventListener('touchstart', e => { e.preventDefault(); tryDockOrDepart(); }, { passive: false });
+    dockBtnEl.addEventListener('mousedown', () => tryDockOrDepart());
+  }
+})();
+
+// Auto-pilot: a simple combat AI that aims at the nearest threat, fires when lined
+// up, dodges incoming bullets, grabs loot, and uses the class ability. Returns an
+// input packet (the server turns toward `aim` just like the touch joystick).
+function autoInput() {
+  if (!state || !state.players) return null;
+  const me = state.players.find(p => p.id === myId);
+  if (!me || !me.alive) return null;
+  const mx = me.x, my = me.y;
+  const keys = { thrust: false, brake: false, left: false, right: false, fire: false, warp: false, ability: false };
+  const angTo = (ox, oy) => Math.atan2(oy - my, ox - mx);
+  const lowHp = me.hp < me.maxHp * 0.35;
+
+  // nearest target (enemy or boss)
+  let tgt = null, tgtD = Infinity;
+  for (const e of state.enemies || []) { const d = Math.hypot(e.x - mx, e.y - my); if (d < tgtD) { tgtD = d; tgt = e; } }
+  if (state.boss) { const d = Math.hypot(state.boss.x - mx, state.boss.y - my); if (d < tgtD) { tgtD = d; tgt = state.boss; } }
+  // nearest incoming hostile bullet
+  let thr = null, thrD = Infinity;
+  for (const b of state.bullets || []) { if (b.friendly) continue; const d = Math.hypot(b.x - mx, b.y - my); if (d < thrD) { thrD = d; thr = b; } }
+  // nearest loot
+  let lt = null, ltD = Infinity;
+  for (const l of state.loot || []) { const d = Math.hypot(l.x - mx, l.y - my); if (d < ltD) { ltD = d; lt = l; } }
+
+  let aim = me.a, turretAim = me.a, wantAbility = false;
+  // Only treat a bullet as a threat if it's actually closing on us.
+  const closing = thr && ((thr.x - mx) * (thr.vx || 0) + (thr.y - my) * (thr.vy || 0)) < 0;
+  if (thr && thrD < 150 && closing) {
+    // Dodge — fly away from the bullet; Fighter blinks clear
+    aim = angTo(2 * mx - thr.x, 2 * my - thr.y);
+    if (tgt) turretAim = angTo(tgt.x, tgt.y);   // keep shooting while dodging
+    keys.thrust = true;
+    if ((me.abilityCool || 0) <= 0 && me.shipClass === 'fighter') wantAbility = true;
+  } else if (tgt) {
+    turretAim = angTo(tgt.x, tgt.y);            // turret fires straight at the target
+    aim = turretAim;
+    if (tgtD < 820) keys.fire = true;           // turret aims, so no need to face it first
+    if (tgtD > 360) keys.thrust = true; else if (tgtD < 180) keys.brake = true;
+    if ((me.abilityCool || 0) <= 0 && tgtD < 600) wantAbility = true;
+    if (lowHp) { aim = angTo(2 * mx - tgt.x, 2 * my - tgt.y); keys.thrust = true; keys.brake = false; }  // retreat, keep firing
+  } else if (lt && ltD < 2600) {
+    aim = angTo(lt.x, lt.y); keys.thrust = true;   // go collect loot
+  } else {
+    keys.thrust = true;                            // drift forward, exploring
+  }
+  // Pulse the ability key (server fires on rising edge) so it re-triggers off cooldown.
+  keys.ability = wantAbility && (_apTick++ % 2 === 0);
+  return { type: 'input', keys, aim, turret: turretAim };
+}
+
+function inputPacket() {
+  // Grabbing the joystick (touch) takes back manual control from auto-pilot.
+  if (autoPilot && typeof touchAim === 'number' && isFinite(touchAim)) setAutoPilot(false);
+  if (autoPilot) { const ap = autoInput(); if (ap) return ap; }
+  const out = {
+    type: 'input',
+    keys: {
+      thrust: !!KEYS['KeyW'] || touchThrust,
+      brake:  !!KEYS['KeyS'] || touchBrake,
+      left:   !!KEYS['KeyA'],
+      right:  !!KEYS['KeyD'],
+      fire:   !!KEYS['Space'] || touchFire || mouseFire,
+      warp:   !!KEYS['ShiftLeft'] || !!KEYS['ShiftRight'] || touchWarp,
+      ability: !!KEYS['KeyF'] || touchAbility,
+    },
+  };
+  // Fix 32: only include aim when it's a valid number — null would serialize as missing anyway
+  // but explicitly guard to avoid sending NaN or undefined
+  if (typeof touchAim === 'number' && isFinite(touchAim)) out.aim = touchAim;
+  // Cursor turret: fire toward the mouse (ship is at screen centre W/2,H/2).
+  if (mouseAimed) out.turret = Math.atan2(mouseY - H / 2, mouseX - W / 2);
+  return out;
+}
+
+function setAutoPilot(on) {
+  autoPilot = on;
+  const btn = document.getElementById('autoBtn');
+  if (btn) { btn.classList.toggle('on', on); btn.textContent = on ? '🤖 AUTO ●' : '🤖 AUTO'; }
+}
+document.getElementById('autoBtn').addEventListener('click', () => setAutoPilot(!autoPilot));
+
+// ── Travel-scope toggles (which hyperjump destinations are enabled) ──
+let travelTiers = (() => {
+  try { const s = JSON.parse(localStorage.getItem('spaceshipTravelTiers')); if (s) return { 0:!!s[0], 1:!!s[1], 2:!!s[2], 3:!!s[3] }; } catch {}
+  return { 0:true, 1:true, 2:true, 3:true };
+})();
+function sendTravel() { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type:'travel', tiers: travelTiers })); }
+const ttBoxes = { 0:'ttMilky', 1:'ttGalaxy', 2:'ttUniverse', 3:'ttOmni' };
+function syncTravelUI() { for (const k in ttBoxes) { const el = document.getElementById(ttBoxes[k]); if (el) el.checked = !!travelTiers[k]; } }
+syncTravelUI();
+for (const k in ttBoxes) {
+  document.getElementById(ttBoxes[k]).addEventListener('change', (e) => {
+    travelTiers[k] = e.target.checked;
+    try { localStorage.setItem('spaceshipTravelTiers', JSON.stringify(travelTiers)); } catch {}
+    sendTravel();
+  });
+}
+document.getElementById('travelBtn').addEventListener('click', () => { syncTravelUI(); document.getElementById('travelModal').classList.toggle('show'); });
+document.getElementById('travelClose').addEventListener('click', () => document.getElementById('travelModal').classList.remove('show'));
+
+let anomalies = [];
+let coState = { line: 'Systems nominal. Awaiting hostiles.', cls: '', cooldown: 0, spokeKey: null, lastKills: 0, lastSector: 1, lastLootCount: 0, lastPos: null };
+// Travel log — every distinct location (galaxy / milky way / omniverse / singularity) you pass through.
+let visitedLog = [];
+function renderTravelLog() {
+  const list = document.getElementById('travelList'); if (!list) return;
+  // Empty → hide entirely; non-empty → let CSS decide (shown on desktop, hidden on small screens).
+  document.getElementById('travelLog').style.display = visitedLog.length ? '' : 'none';
+  document.getElementById('travelCount').textContent = visitedLog.length ? '(' + visitedLog.length + ')' : '';
+  // Show the most recent ~14, newest last, current highlighted.
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const shown = visitedLog.slice(-14);
+  const base = visitedLog.length - shown.length;
+  list.innerHTML = shown.map((loc, i) => {
+    const n = base + i + 1;
+    const cur = (base + i) === visitedLog.length - 1;
+    return `<div class="trow${cur ? ' cur' : ''}"><span class="n">${n}.</span>${esc(loc)}</div>`;
+  }).join('');
+}
+const CO_LINES = {
+  idle:        ['All quiet on the scan.', 'Sensors clean.', 'Just say the word.'],
+  contact:     ['Contact, bearing %DIR%! Eyes up.', 'Hostile incoming.', 'Heads up — enemy contact.'],
+  closeThreat: ['They\'re ON us — break right!', 'Too close! Engage now!'],
+  lowHp:       ['Hull integrity critical!', 'We\'re bleeding atmosphere!', 'Pull back, captain!'],
+  killShot:    ['Splash one!', 'Scratch one bandit.', 'Boom. Next.'],
+  warp:        ['Warp engaged!', 'Light speed — punching it!', 'HOLD ON!'],
+  blackholeWarn:['Black hole — pull detected!', 'Gravity well — pull out!'],
+  wormhole:    ['Wormhole transit!', 'Spat out the other side.'],
+  // Fix 17-19: new co-pilot lines
+  bossNear:    ['BOSS on scope! All hands!', 'That\'s a big one — focus fire!', 'Boss incoming — don\'t die on me!'],
+  lootPickup:  ['Picked up a supply.', 'Got it.', 'Supply secured.'],
+  sectorUp:    ['Sector %S% — things are heating up.', 'Escalating to sector %S%.'],
+};
+function say(category, replace = {}, cls = '') {
+  if (coState.cooldown > 0) return;
+  // Don't randomly suppress critical warnings (low hull, close threat, boss).
+  if (cls !== 'danger' && coState.spokeKey === category && Math.random() < 0.5) return;
+  const arr = CO_LINES[category]; if (!arr) return;
+  let line = arr[Math.floor(Math.random() * arr.length)];
+  for (const k of Object.keys(replace)) line = line.replace('%' + k + '%', replace[k]);
+  coState.line = line; coState.cls = cls; coState.cooldown = 2.5; coState.spokeKey = category;
+  const el = document.getElementById('coLine');
+  el.textContent = line; el.className = 'line ' + cls;
+}
+function bearing(from, to) {
+  const dx = to.x - from.x, dy = to.y - from.y;
+  let rel = Math.atan2(dy, dx) - from.a;
+  rel = ((rel + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+  if (rel > -Math.PI/4 && rel <= Math.PI/4)    return 'bow';
+  if (rel > Math.PI/4 && rel <= 3*Math.PI/4)   return 'starboard';
+  if (rel > -3*Math.PI/4 && rel <= -Math.PI/4) return 'port';
+  return 'aft';
+}
+
+let inputIntervalId = null;
+function connect(name) {
+  // Bug 19: clear any prior input loop so reconnects don't accumulate
+  if (inputIntervalId) { clearInterval(inputIntervalId); inputIntervalId = null; }
+  const { clientSocket, serverWs } = createLoopback();
+  ws = clientSocket;
+  document.getElementById('connStatus').textContent = 'Connecting…';
+
+  ws.addEventListener('open', () => {
+    document.getElementById('connStatus').textContent = 'Connected';
+    ws.send(JSON.stringify({ type: 'name', name, class: selectedClass }));
+    sendTravel();   // apply the pilot's saved travel-scope toggles
+    document.getElementById('welcomeStatus').classList.remove('show');
+    document.getElementById('voiceBtn').style.display = '';
+    // Fix 30: show touch controls after connect on touch/small devices (inline style was permanently hiding them)
+    if (window.matchMedia('(pointer:coarse)').matches || window.innerWidth <= 768) {
+      document.getElementById('touchCtrl').style.display = '';
+    }
+    // Genuine watch-sized (NARROW) screens start in auto-pilot. Must be narrow — a
+    // merely short/wide laptop window must NOT auto-enable it (that made the ship fly
+    // itself "for no reason" and ignore the keyboard).
+    if (window.matchMedia('(max-width:300px)').matches) {
+      setAutoPilot(true);
+    }
+    inputIntervalId = setInterval(() => {
+      if (ws.readyState === 1) ws.send(JSON.stringify(inputPacket()));
+    }, 33);
+  });
+  ws.addEventListener('close', () => {
+    if (inputIntervalId) { clearInterval(inputIntervalId); inputIntervalId = null; }
+    document.getElementById('connStatus').textContent = 'Disconnected';
+    document.getElementById('welcomeStatus').classList.add('show');
+    document.getElementById('voiceBtn').style.display = 'none';
+    for (const id of [...peers.keys()]) closePeer(id);
+    if (myStream) { for (const t of myStream.getTracks()) t.stop(); myStream = null; isMuted = false; document.getElementById('voiceBtn').textContent = '🎤 Join Voice'; }
+    const btn = document.getElementById('joinBtn');
+    btn.disabled = false; btn.textContent = 'Join Game';
+    // Bug 18 fix: hide touch controls on disconnect — they were staying visible over the welcome modal
+    document.getElementById('touchCtrl').style.display = 'none';
+    // Bug 19 fix: close dock panel on disconnect
+    if (dockedPlanet) {
+      dockedPlanet = null;
+      document.getElementById('dockPanel').classList.remove('show');
+      const tc = document.querySelector('.touch-ctrl');
+      if (tc) { tc.style.opacity = ''; tc.style.pointerEvents = ''; }
+    }
+    // Bug 20 fix: reset coState so next session doesn't get stale sector/loot/pos alerts
+    coState.lastKills = 0; coState.lastSector = 1; coState.lastLootCount = 0; coState.lastPos = null;
+    // Reset identity + world so a reconnect doesn't briefly render the previous session.
+    myId = null;
+    state = { players: [], enemies: [], bullets: [], sector: 1 };
+    visitedLog = []; updateHUD._lastLocation = null; renderTravelLog();
+    document.getElementById('bossHud').style.display = 'none';
+  });
+  ws.addEventListener('error', () => {
+    document.getElementById('connStatus').textContent = 'Error: could not connect. Is the server running?';
+    const btn = document.getElementById('joinBtn');
+    btn.disabled = false; btn.textContent = 'Join Game';
+  });
+  ws.addEventListener('message', (e) => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }   // Bug fix: malformed payload no longer kills the handler
+    if (msg.type === 'welcome') {
+      myId = msg.id;
+      myColor = msg.color;
+      anomalies = msg.anomalies || [];
+    } else if (msg.type === 'state') {
+      state = msg;
+      snapshotTime = performance.now();
+      if (msg.anomalies) anomalies = msg.anomalies;
+      reconcileVoicePeers();
+    } else if (msg.type === 'boss_spawn') {
+      showBossAlert('⚠ BOSS INCOMING');
+      coState.cooldown = 0; say('bossNear', {}, 'danger');
+    } else if (msg.type === 'boss_phase2') {
+      showBossAlert('⚠ BOSS ENRAGED');
+      coState.cooldown = 0; say('bossNear', {}, 'danger');
+    } else if (msg.type === 'boss_dead') {
+      // Fix 45: hide boss HUD immediately on death, don't wait for next snapshot
+      document.getElementById('bossHud').style.display = 'none';
+      showBossAlert('BOSS DESTROYED');
+    } else if (msg.type === 'singularity') {
+      // Black hole spat us into the hidden pocket dimension
+      showBossAlert('◈ THE SINGULARITY ◈');
+      coState.line = 'We slipped through the event horizon… where ARE we?';
+      coState.cls = 'warn'; coState.cooldown = 3.5;
+    } else if (msg.type === 'merge_start') {
+      coState.cooldown = 0;
+      coState.line = 'Two black holes on a collision course — give them room!';
+      coState.cls = 'warn'; coState.cooldown = 3;
+      const el = document.getElementById('coLine'); el.textContent = coState.line; el.className = 'line warn';
+    } else if (msg.type === 'merge') {
+      showBossAlert('⚫ BLACK HOLE MERGER');
+      mergeFlashT = 0.5;
+      coState.cooldown = 0;
+      coState.line = 'Gravitational shockwave!'; coState.cls = 'danger';
+      const el = document.getElementById('coLine'); el.textContent = coState.line; el.className = 'line danger';
+    } else if (msg.type === 'rtc') {
+      handleSignal(msg.from, msg.payload);
+    }
+  });
+  LocalServer.connect(serverWs);
+  setTimeout(() => clientSocket._fireOpen(), 0);
+}
+
+// Class selection
+let selectedClass = 'gunship';
+document.querySelectorAll('.class-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.class-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedClass = card.dataset.class;
+  });
+});
+
+// Boss announcements
+// Fix 26: clear previous timeout so rapid calls don't stack hidden-timer callbacks
+let _bossAlertTimer = null;
+function showBossAlert(msg) {
+  const el = document.getElementById('bossAlert');
+  if (_bossAlertTimer) { clearTimeout(_bossAlertTimer); _bossAlertTimer = null; }
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.animation = 'none';
+  void el.offsetWidth; // reflow to restart animation
+  el.style.animation = '';
+  _bossAlertTimer = setTimeout(() => { el.style.display = 'none'; _bossAlertTimer = null; }, 2800);
+}
+
+document.getElementById('welcomeStatus').classList.add('show');
+document.getElementById('joinBtn').onclick = () => {
+  // Bug fix: don't allow a second WebSocket while one is already opening/open
+  if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
+  const name = ((document.getElementById('nameInput').value || '').trim()) || 'Pilot';
+  const btn = document.getElementById('joinBtn');
+  btn.disabled = true; btn.textContent = 'Connecting…';
+  connect(name);
+};
+document.getElementById('nameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('joinBtn').click();
+});
+
+// ── Render ──
+// Bug 21: safely add hex alpha to a color (handles both #RGB and #RRGGBB, ignores
+// existing alpha or rgba() forms)
+function withAlpha(color, hexAlpha) {
+  if (typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color)) return color + hexAlpha;
+  return color;
+}
+
+// Extrapolate an entity's position using its velocity and the time since the
+// last server snapshot — makes 30Hz network feel like 60Hz at the eyeball.
+// Bug fix: don't extrapolate dead players — their server vx/vy stay set
+// to whatever they had on death, causing the camera to drift on a corpse.
+// Bug 2 fix: use cached _frameNow instead of calling performance.now() per entity
+function rx(e) { if (e.alive === false) return e.x; const dt = Math.min(0.15, (_frameNow - snapshotTime) / 1000); return e.x + (e.vx || 0) * dt; }
+function ry(e) { if (e.alive === false) return e.y; const dt = Math.min(0.15, (_frameNow - snapshotTime) / 1000); return e.y + (e.vy || 0) * dt; }
+// Bug 3: culling helper — skip entities outside the viewport (using module-level camX/camY)
+function inView(x, y, pad) { return x+pad >= camX && x-pad <= camX+W && y+pad >= camY && y-pad <= camY+H; }
+
+// Visual flash for an active ability, plus a shimmer while invulnerable.
+function drawAbilityFx(px, py, p) {
+  const f = p.abilityFlash || 0;
+  if (f > 0) {
+    const t = 1 - f / 0.45;               // 0 → 1 over the flash duration
+    ctx.save();
+    if (p.abilityKind === 'tank') {
+      ctx.strokeStyle = `rgba(124,156,255,${(1 - t) * 0.85})`; ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.arc(px, py, 440 * t, 0, Math.PI*2); ctx.stroke();
+    } else if (p.abilityKind === 'support') {
+      ctx.strokeStyle = `rgba(0,212,160,${(1 - t) * 0.85})`; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(px, py, 460 * t, 0, Math.PI*2); ctx.stroke();
+    } else if (p.abilityKind === 'gunship') {
+      ctx.strokeStyle = `rgba(255,200,80,${(1 - t) * 0.8})`; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(px, py, 10 + 50 * t, 0, Math.PI*2); ctx.stroke();
+    } else if (p.abilityKind === 'fighter') {
+      ctx.fillStyle = `rgba(124,92,255,${f / 0.45 * 0.55})`;
+      ctx.beginPath(); ctx.arc(px, py, 28, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  if (p.invuln) {
+    ctx.save();
+    ctx.strokeStyle = `rgba(120,220,255,${0.4 + 0.3 * Math.sin(_frameNow/60)})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(px, py, 24, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// How big player ships are drawn (visual scale; hitbox unchanged).
+const SHIP_SCALE = 1.6;
+// Cursor-controlled turret on top of a ship — a rotating barrel + hub.
+function drawTurret(px, py, angle, color, scale = SHIP_SCALE) {
+  const len = 14 * scale, hub = 4 * scale;
+  ctx.save();
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5 * scale; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + Math.cos(angle) * len, py + Math.sin(angle) * len); ctx.stroke();
+  ctx.fillStyle = '#cdd6ff';
+  ctx.beginPath(); ctx.arc(px + Math.cos(angle) * len, py + Math.sin(angle) * len, 2 * scale, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#0a1024'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(px, py, hub, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+function drawShip(x, y, a, color, size = 1, shipClass = 'gunship') {
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(a); ctx.scale(size, size);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  if (shipClass === 'fighter') {
+    ctx.moveTo(20,0); ctx.lineTo(-8,7); ctx.lineTo(-4,0); ctx.lineTo(-8,-7);
+  } else if (shipClass === 'tank') {
+    ctx.moveTo(14,0); ctx.lineTo(6,14); ctx.lineTo(-14,12); ctx.lineTo(-14,-12); ctx.lineTo(6,-14);
+  } else {
+    ctx.moveTo(16,0); ctx.lineTo(-10,10); ctx.lineTo(-6,0); ctx.lineTo(-10,-10);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#1d164a';
+  ctx.beginPath(); ctx.arc(2, 0, 3.5, 0, Math.PI*2); ctx.fill();
+  if (shipClass === 'support') {
+    ctx.fillStyle = '#00d4a0';
+    ctx.fillRect(-1,-5,2,10); ctx.fillRect(-4,-1,8,2);
+  }
+  ctx.restore();
+}
+
+// ── Asteroid / Loot / Boss rendering ──
+const asteroidVertCache = new Map();
+function getAsteroidVerts(seed, r) {
+  const key = seed + ',' + r;
+  if (!asteroidVertCache.has(key)) {
+    const n = 7 + (seed % 5);
+    const verts = [];
+    for (let i = 0; i < n; i++) {
+      let s = (seed * (i+1) * 9301 + 49297) % 233280;
+      const angle = (i/n)*Math.PI*2 + (s/233280-0.5)*0.55;
+      s = (s*9301+49297)%233280;
+      verts.push([Math.cos(angle)*r*(0.6+0.4*(s/233280)), Math.sin(angle)*r*(0.6+0.4*(s/233280))]);
+    }
+    asteroidVertCache.set(key, verts);
+  }
+  return asteroidVertCache.get(key);
+}
+function drawAsteroid(a) {
+  const verts = getAsteroidVerts(a.seed, a.r);
+  const bright = 70 + Math.round(50*(a.hp/a.maxHp));
+  ctx.save();
+  ctx.translate(a.x, a.y); ctx.rotate(a.angle);
+  ctx.fillStyle = `rgb(${bright},${bright-8},${bright-18})`;
+  ctx.beginPath();
+  ctx.moveTo(verts[0][0], verts[0][1]);
+  for (let i = 1; i < verts.length; i++) ctx.lineTo(verts[i][0], verts[i][1]);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+const LOOT_COL  = { hp:'#00ff88', shield:'#5cd6ff', ammo:'#ffd700', speed:'#ff8844', warp:'#c47cff' };
+const LOOT_ICON = { hp:'♥', shield:'◈', ammo:'✦', speed:'▶', warp:'⚡' };
+function drawLoot(l) {
+  const col = LOOT_COL[l.type] || '#fff';
+  ctx.fillStyle = col + '44';
+  ctx.beginPath(); ctx.arc(l.x,l.y,15,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.arc(l.x,l.y,7,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#000'; ctx.font = 'bold 8px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(LOOT_ICON[l.type]||'?', l.x, l.y);
+  ctx.textBaseline = 'alphabetic';
+}
+function drawBoss(b) {
+  // Fix 25: use velocity extrapolation so boss moves smoothly between 30Hz snapshots
+  const bx = rx(b), by = ry(b);
+  ctx.save(); ctx.translate(bx,by); ctx.rotate(b.a);
+  ctx.fillStyle = b.phase===2 ? '#cc1010' : '#aa1818';
+  ctx.beginPath();
+  ctx.moveTo(55,0); ctx.lineTo(20,28); ctx.lineTo(-28,40); ctx.lineTo(-44,18);
+  ctx.lineTo(-40,0); ctx.lineTo(-44,-18); ctx.lineTo(-28,-40); ctx.lineTo(20,-28);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#200808';
+  ctx.beginPath(); ctx.arc(18,0,11,0,Math.PI*2); ctx.fill();
+  if (b.phase===2) {
+    ctx.strokeStyle='rgba(255,48,48,0.35)'; ctx.lineWidth=8;
+    ctx.beginPath(); ctx.arc(0,0,62,0,Math.PI*2); ctx.stroke();
+  }
+  ctx.restore();
+  // Bug 13 fix: save/restore around health bar so font+textAlign don't leak into render loop
+  ctx.save();
+  const hp = b.hp/b.maxHp, bw = 130;
+  ctx.fillStyle='#0a1024'; ctx.fillRect(bx-bw/2,by-76,bw,8);
+  ctx.fillStyle=hp>0.5?'#ff4444':'#ff1010'; ctx.fillRect(bx-bw/2,by-76,bw*hp,8);
+  ctx.fillStyle=b.phase===2?'#ff4444':'#fff'; ctx.font='bold 11px -apple-system,sans-serif';
+  ctx.textAlign='center'; ctx.fillText(b.phase===2?'⚠ BOSS ENRAGED':'⚠ BOSS',bx,by-82);
+  ctx.restore();
+}
+
+function render() {
+  // Bug 2 fix: stamp frame time once so all rx/ry calls share the same timestamp
+  _frameNow = performance.now();
+  ctx.fillStyle = '#05060d';
+  ctx.fillRect(0, 0, W, H);
+  if (state.hyperjumping) {
+    const tier = state.hyperjumping.tier;
+    const a = 0.7 + tier * 0.1;
+    ctx.fillStyle = `rgba(255,255,255,${a})`;
+    ctx.fillRect(0, 0, W, H);
+    return;
+  }
+  const me = state.players.find(p => p.id === myId);
+  const cx = me ? rx(me) : 0, cy = me ? ry(me) : 0;
+  // Bug 1 fix: update module-level camX/camY so inView() helper works
+  camX = cx - W/2; camY = cy - H/2;
+  // Stars (streak when warping). Bug 17: don't streak for a dead player.
+  const tile = Math.max(STAR_TILE, W + 200, H + 200);
+  const warping = me && me.alive && me.warpActive;
+  const sp = me ? Math.hypot(me.vx || 0, me.vy || 0) : 0;
+  const streak = warping ? 30 + 0.08 * sp : 0;
+  const streakA = streak ? Math.atan2(me.vy || 0, me.vx || 0) : 0;
+  for (const s of stars) {
+    const sx = ((s.x - camX * s.p) % tile + tile) % tile - tile/2 + W/2;
+    const sy = ((s.y - camY * s.p) % tile + tile) % tile - tile/2 + H/2;
+    if (streak) {
+      ctx.strokeStyle = s.p > 0.5 ? '#cdd6ff' : '#5663a8';
+      ctx.lineWidth = s.r;
+      ctx.beginPath(); ctx.moveTo(sx, sy);
+      ctx.lineTo(sx - Math.cos(streakA) * streak, sy - Math.sin(streakA) * streak); ctx.stroke();
+    } else {
+      ctx.fillStyle = s.p > 0.5 ? '#aab3e0' : '#3a4880';
+      ctx.fillRect(sx, sy, s.r, s.r);
+    }
+  }
+
+  ctx.save();
+  ctx.translate(-camX, -camY);
+
+  // Nebulas — Bug 4 fix: cull when entirely off-screen (radius up to 2700 units)
+  for (const a of anomalies) {
+    if (a.type !== 'nebula') continue;
+    if (!inView(a.x, a.y, a.r)) continue;
+    const g = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, a.r);
+    g.addColorStop(0, withAlpha(a.color, '55'));
+    g.addColorStop(0.5, withAlpha(a.color, '22'));
+    g.addColorStop(1, withAlpha(a.color, '00'));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI*2); ctx.fill();
+  }
+  // Wormholes — Bug 5 fix: cull off-screen; 5 strokes per wormhole is expensive
+  const tNow = _frameNow / 1000;
+  for (const a of anomalies) {
+    if (a.type !== 'wormhole') continue;
+    if (!inView(a.x, a.y, a.r + 30)) continue;
+    for (let k = 0; k < 5; k++) {
+      ctx.strokeStyle = `rgba(196, 124, 255, ${0.55 - k * 0.08})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, a.r - k * 5, tNow * 2 + k * 0.7, tNow * 2 + k * 0.7 + 1.6);
+      ctx.stroke();
+    }
+  }
+
+  // Sun (or central black hole)
+  if (state.sun) {
+    const c = state.sun;
+    if (c.type === 'blackhole') {
+      const halo = ctx.createRadialGradient(c.x, c.y, c.r * 1.3, c.x, c.y, c.pullRange || 1500);
+      halo.addColorStop(0, 'rgba(124,92,255,0.28)');
+      halo.addColorStop(1, 'rgba(124,92,255,0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.pullRange || 1500, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = c.hot || '#ffaa44';
+      ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r * 1.35, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
+    } else {
+      const corona = ctx.createRadialGradient(c.x, c.y, c.r, c.x, c.y, c.r * 3);
+      corona.addColorStop(0, withAlpha(c.color, 'cc'));
+      corona.addColorStop(0.5, withAlpha(c.color, '44'));
+      corona.addColorStop(1, withAlpha(c.color, '00'));
+      ctx.fillStyle = corona;
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r * 3, 0, Math.PI*2); ctx.fill();
+      const body = ctx.createRadialGradient(c.x - c.r*0.3, c.y - c.r*0.3, c.r*0.1, c.x, c.y, c.r);
+      body.addColorStop(0, c.hot || c.color);
+      body.addColorStop(0.7, c.color);
+      body.addColorStop(1, '#000');
+      ctx.fillStyle = body;
+      ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle = c.hot || '#fff';
+    ctx.font = 'bold 14px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(c.name, c.x, c.y + c.r + 24);
+    ctx.textAlign = 'left'; // Fix 49: reset textAlign after sun label so other drawing isn't affected
+    ctx.strokeStyle = '#1d2a4a';
+    ctx.lineWidth = 1;
+    // Fix 29: cull orbit rings that are entirely off-screen (radius up to 33000 units)
+    for (const p of state.planets || []) {
+      if (p.rogue || !p.orbitRadius) continue;   // rogue planets orbit nothing — no ring
+      const orb = p.orbitRadius;
+      const sunX = c.x - camX, sunY = c.y - camY; // sun position in screen space
+      // Only draw if orbit ring intersects the viewport
+      if (sunX + orb < 0 || sunX - orb > W || sunY + orb < 0 || sunY - orb > H) continue;
+      ctx.beginPath(); ctx.arc(c.x, c.y, orb, 0, Math.PI*2); ctx.stroke();
+    }
+  }
+
+  // Planets — Bug 6 fix: skip 2 radial gradients per planet when off-screen
+  for (const p of state.planets || []) {
+    const px = rx(p), py = ry(p);
+    if (!inView(px, py, p.r * 1.6 + 20)) continue;
+    const halo = ctx.createRadialGradient(px, py, p.r * 0.7, px, py, p.r * 1.6);
+    halo.addColorStop(0, withAlpha(p.color, '88'));
+    halo.addColorStop(1, withAlpha(p.color, '00'));
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(px, py, p.r * 1.6, 0, Math.PI*2); ctx.fill();
+    const body = ctx.createRadialGradient(px - p.r*0.4, py - p.r*0.4, p.r*0.1, px, py, p.r);
+    body.addColorStop(0, p.color);
+    body.addColorStop(1, '#000');
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.arc(px, py, p.r, 0, Math.PI*2); ctx.fill();
+    // Rogue planets get a faint dashed halo ring + a "rogue world" tag.
+    if (p.rogue) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(150,160,190,0.35)'; ctx.lineWidth = 1; ctx.setLineDash([4, 6]);
+      ctx.beginPath(); ctx.arc(px, py, p.r * 1.9, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.fillStyle = p.rogue ? '#aab3d0' : '#e6edf3';
+    ctx.font = '13px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.name, px, py + p.r + 18);
+    if (p.rogue) { ctx.fillStyle = 'rgba(150,160,190,0.7)'; ctx.font = '10px -apple-system, sans-serif'; ctx.fillText('⊘ rogue world', px, py + p.r + 31); }
+  }
+  ctx.textAlign = 'left'; // Bug 7 fix: restore after planet labels
+
+  // Asteroids — skip off-screen ones
+  for (const a of state.asteroids || []) {
+    if (a.x + a.r < camX || a.x - a.r > camX + W || a.y + a.r < camY || a.y - a.r > camY + H) continue;
+    drawAsteroid(a);
+  }
+
+  // Loot — Bug 8 fix: skip off-screen loot (common when far from drop)
+  for (const l of state.loot || []) {
+    if (!inView(l.x, l.y, 20)) continue;
+    drawLoot(l);
+  }
+
+  // Enemies — Bug 9 fix: cull off-screen enemies (up to 20, scattered far)
+  for (const e of (state.enemies || [])) {
+    const ex = rx(e), ey = ry(e);
+    if (!inView(ex, ey, 60)) continue;
+    const size = e.kind === 'scout' ? 0.7 : e.kind === 'heavy' ? 1.5
+      : e.kind === 'kamikaze' ? 0.75 : e.kind === 'sniper' ? 0.95 : e.kind === 'swarm' ? 0.5 : 1.0;
+    const color = e.kind === 'scout' ? '#ff9b6b' : e.kind === 'heavy' ? '#c94545'
+      : e.kind === 'kamikaze' ? '#ffcc33' : e.kind === 'sniper' ? '#c47cff' : e.kind === 'swarm' ? '#8aff6b' : '#ff6b6b';
+    // Kamikazes get a pulsing danger ring so you can react to the rush.
+    if (e.kind === 'kamikaze') {
+      const pulse = 0.5 + 0.5 * Math.sin(_frameNow / 90);
+      ctx.strokeStyle = `rgba(255,80,40,${0.4 + 0.4 * pulse})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(ex, ey, 22 + 4 * pulse, 0, Math.PI*2); ctx.stroke();
+    }
+    drawShip(ex, ey, e.a, color, size);
+    const hp = e.hp / e.maxHp;
+    const w = 36 * size;
+    ctx.fillStyle = '#0a1024';
+    ctx.fillRect(ex - w/2, ey - 28 * size, w, 4);
+    ctx.fillStyle = color;
+    ctx.fillRect(ex - w/2, ey - 28 * size, w * hp, 4);
+  }
+
+  // Bullets — cull off-screen bullets (fast-moving, often far)
+  for (const b of state.bullets) {
+    const bx = rx(b), by = ry(b);
+    if (!inView(bx, by, 10)) continue;
+    // Bug 10 fix: boss bullets (ownerId=-1) are orange to distinguish from regular enemy bullets
+    ctx.strokeStyle = b.friendly ? '#7c5cff' : (b.ownerId === -1 ? '#ff8800' : '#ff6b6b');
+    ctx.lineWidth = b.ownerId === -1 ? 3 : 2;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx - (b.vx || 0) * 0.012, by - (b.vy || 0) * 0.012);
+    ctx.stroke();
+  }
+
+  // Other players — Bug 11 fix: cull off-screen; Bug 12 fix: reset textAlign after names
+  for (const p of state.players) {
+    if (p.id === myId) continue;
+    if (!p.alive) continue;
+    const px = rx(p), py = ry(p);
+    if (!inView(px, py, 60)) continue;
+    drawAbilityFx(px, py, p);
+    drawShip(px, py, p.a, p.color, SHIP_SCALE, p.shipClass);
+    drawTurret(px, py, p.turret != null ? p.turret : p.a, p.color);
+    ctx.fillStyle = '#0a1024';
+    ctx.fillRect(px - 22, py - 30, 44, 4);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(px - 22, py - 30, 44 * (p.hp / p.maxHp), 4);
+    ctx.fillStyle = p.color;
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.name, px, py + 30);
+  }
+  ctx.textAlign = 'left'; // Bug 12 fix: restore after player names
+
+  // Black holes — drawn on top of most things, dramatic
+  for (const a of anomalies) {
+    if (a.type !== 'blackhole') continue;
+    const halo = ctx.createRadialGradient(a.x, a.y, a.r * 1.4, a.x, a.y, a.pullRange);
+    halo.addColorStop(0, 'rgba(124,92,255,0.18)');
+    halo.addColorStop(1, 'rgba(124,92,255,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.pullRange, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#ffaa44'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.r * 1.45, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Boss
+  if (state.boss) drawBoss(state.boss);
+
+  // Me (drawn on top)
+  if (me && me.alive) {
+    const mx = rx(me), my2 = ry(me);
+    drawAbilityFx(mx, my2, me);
+    drawShip(mx, my2, me.a, myColor, SHIP_SCALE, me.shipClass);
+    // My turret follows the cursor directly (no snapshot lag).
+    const myTurret = mouseAimed ? Math.atan2(mouseY - H / 2, mouseX - W / 2) : (me.turret != null ? me.turret : me.a);
+    drawTurret(mx, my2, myTurret, myColor);
+    if (me.shield > 0) {
+      ctx.strokeStyle = `rgba(0, 212, 160, ${0.3 + 0.5 * (me.maxShield > 0 ? me.shield / me.maxShield : 0)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(mx, my2, 20 * SHIP_SCALE, 0, Math.PI*2); ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+
+  // Aim reticle at the cursor + faint line from the ship (screen space).
+  if (mouseAimed && me && me.alive && !state.hyperjumping) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(124,156,255,0.25)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(W / 2, H / 2); ctx.lineTo(mouseX, mouseY); ctx.stroke();
+    ctx.strokeStyle = 'rgba(205,214,255,0.8)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(mouseX, mouseY, 9, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(mouseX - 14, mouseY); ctx.lineTo(mouseX - 4, mouseY);
+    ctx.moveTo(mouseX + 4, mouseY); ctx.lineTo(mouseX + 14, mouseY);
+    ctx.moveTo(mouseX, mouseY - 14); ctx.lineTo(mouseX, mouseY - 4);
+    ctx.moveTo(mouseX, mouseY + 4); ctx.lineTo(mouseX, mouseY + 14);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Hyperjump flash overlay
+  if (state.hyperjumping) {
+    const tier = state.hyperjumping.tier;
+    const a = 0.7 + tier * 0.1;
+    ctx.fillStyle = `rgba(255,255,255,${a})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+  // Black-hole merger shockwave flash (purple, fades out)
+  if (mergeFlashT > 0) {
+    ctx.fillStyle = `rgba(176,107,255,${0.45 * (mergeFlashT / 0.5)})`;
+    ctx.fillRect(0, 0, W, H);
+    mergeFlashT = Math.max(0, mergeFlashT - 0.016);
+  }
+}
+
+function updateHUD() {
+  const me = state.players.find(p => p.id === myId);
+  if (me) {
+    // Bug 24 fix: cache bar widths — were setting style.width every frame even when unchanged
+    const hpW = (100 * me.hp / me.maxHp).toFixed(1) + '%';
+    const shW = (me.maxShield > 0 ? (100 * me.shield / me.maxShield) : 0).toFixed(1) + '%';
+    if (hpW !== updateHUD._lastHp) { updateHUD._lastHp = hpW; document.getElementById('hpBar').style.width = hpW; }
+    if (shW !== updateHUD._lastSh) { updateHUD._lastSh = shW; document.getElementById('shBar').style.width = shW; }
+    const killsText = me.kills + ' kills';
+    if (killsText !== updateHUD._lastKills) { updateHUD._lastKills = killsText; document.getElementById('killsStat').textContent = killsText; }
+    document.getElementById('respawnPanel').classList.toggle('show', !me.alive);
+    // Fix 33: clamp to 0.1 so it never shows "0.0s" just before the panel hides
+    if (!me.alive) document.getElementById('respawnTime').textContent = Math.max(0.1, me.respawnTimer).toFixed(1);
+    // Warp HUD — Fix 11: renamed ws→warpEl to avoid shadowing the global WebSocket variable
+    const warpEl = document.getElementById('warpStat');
+    const pct = Math.round(100 * me.warpCharge / me.maxWarpCharge);
+    const secs = (me.warpCharge / 100).toFixed(1);
+    if (me.warpActive) {
+      // Approximate hold time from charge consumed (server doesn't broadcast warpHoldTime).
+      // Player can see jump tier by watching how long they hold; this is a hint.
+      let jumpHint = '';
+      const held = (me.maxWarpCharge - me.warpCharge) / 100;
+      if (held >= 12.5)     jumpHint = ' · → OMNIVERSE';
+      else if (held >= 6.5) jumpHint = ' · → UNIVERSE';
+      else if (held >= 4.5) jumpHint = ' · → GALAXY';
+      else if (held >= 2.5) jumpHint = ' · → MILKY WAY';
+      warpEl.textContent = `⚡ WARP — ${secs}s left${jumpHint}`;
+      warpEl.style.color = held >= 12.5 ? '#ff447a' : held >= 6.5 ? '#c47cff' : held >= 4.5 ? '#7c5cff' : held >= 2.5 ? '#00d4a0' : '#ffb86b';
+    }
+    // Fix 12: don't show "0.0s ready" — charge below 60 can't warp
+    else if (me.warpCharge < 60) { warpEl.textContent = `⚡ ${pct}% (charging)`;      warpEl.style.color = '#8b97c4'; }
+    else                         { warpEl.textContent = `⚡ ${pct}% — ${secs}s ready`; warpEl.style.color = '#00d4a0'; }
+    // Ability cooldown indicator
+    const abEl = document.getElementById('abilityStat');
+    if (abEl) {
+      const name = ({ fighter: 'BLINK', gunship: 'BARRAGE', tank: 'SHOCKWAVE', support: 'REPAIR' })[me.shipClass] || 'ABILITY';
+      const cd = me.abilityCool || 0;
+      if (cd > 0.05) { abEl.textContent = `✦ ${name} ${cd.toFixed(1)}s`; abEl.style.color = '#5a6488'; }
+      else           { abEl.textContent = `✦ ${name} — READY (F)`; abEl.style.color = '#7c5cff'; }
+    }
+  }
+  // Boss HUD — Fix 34: show phase in label
+  const bossHud = document.getElementById('bossHud');
+  if (state.boss) {
+    bossHud.style.display = '';
+    document.getElementById('bossHpBar').style.width = (100 * state.boss.hp / state.boss.maxHp) + '%';
+    const bk = ({ dreadnought: 'DREADNOUGHT', interceptor: 'INTERCEPTOR', carrier: 'CARRIER' })[state.boss.kind] || 'BOSS';
+    bossHud.querySelector('.boss-label').textContent = state.boss.phase === 2 ? `⚠ ${bk} — ENRAGED` : `⚠ ${bk}`;
+    bossHud.style.borderColor = state.boss.phase === 2 ? '#ff8800' : '#ff4444';
+  } else {
+    bossHud.style.display = 'none';
+  }
+  // Fix 13: only update buff DOM when buffs actually change — was causing 60fps DOM thrash
+  const BUFF_LABEL = { ammo:'⚡×2 fire', speed:'▶×2 speed' };
+  const buffKey = me ? (me.buffs||[]).map(b=>`${b.type}${b.timeLeft.toFixed(0)}`).join(',') : '';
+  if (buffKey !== updateHUD._lastBuffKey) {
+    updateHUD._lastBuffKey = buffKey;
+    document.querySelectorAll('.hud .buff-stat').forEach(el => el.remove());
+    if (me) {
+      const hud = document.querySelector('.hud');
+      for (const b of (me.buffs||[])) {
+        const el = document.createElement('div');
+        el.className = 'stat buff-stat';
+        el.textContent = `${BUFF_LABEL[b.type]||b.type} ${b.timeLeft.toFixed(0)}s`;
+        hud.appendChild(el);
+      }
+    }
+  }
+  // Bug 23 fix: cache sector/location — were writing DOM every frame even when unchanged
+  const secText = 'Sector ' + (state.sector || 1);
+  if (secText !== updateHUD._lastSector) { updateHUD._lastSector = secText; document.getElementById('sectorStat').textContent = secText; }
+  if (state.location && state.location !== updateHUD._lastLocation) {
+    updateHUD._lastLocation = state.location;
+    document.getElementById('locationStat').textContent = state.location;
+    // Record the trip — skip only an immediate repeat so revisits still count.
+    if (visitedLog[visitedLog.length - 1] !== state.location) { visitedLog.push(state.location); renderTravelLog(); }
+  }
+  // Fix 14: only rebuild pilot list HTML when players actually change — was 30fps innerHTML thrash
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const pilotKey = state.players.map(p=>`${p.id}${p.name}${p.kills}${p.alive}${p.voice?1:0}`).join('|');
+  const list = document.getElementById('pilotList');
+  if (pilotKey !== updateHUD._lastPilotKey) {
+    updateHUD._lastPilotKey = pilotKey;
+    list.innerHTML = state.players.map(p => {
+      const mic = p.voice ? ' 🎙' : '';
+      const cls = p.id === myId ? ' style="color:var(--accent)"' : '';
+      return `<div class="row"${cls}><span class="swatch" style="background:${esc(p.color)}"></span>${esc(p.name)}${p.id === myId ? ' (you)' : ''}${mic} — ${p.kills|0}</div>`;
+    }).join('');
+  }
+  // Fix 15: show dock button on touch when near a planet
+  const dockBtn = document.getElementById('dockBtn');
+  if (dockBtn) dockBtn.style.display = nearestDockablePlanet() && me && me.alive ? '' : 'none';
+  // Fix 16: update dock prompt key hint for touch devices
+  const isTouchDevice = window.matchMedia('(pointer:coarse)').matches;
+  const dockKeyEl = document.getElementById('dockKey');
+  if (dockKeyEl) dockKeyEl.textContent = isTouchDevice ? 'E button' : 'E';
+}
+
+// ── Co-pilot ──
+let coLastT = performance.now();
+function updateCopilot() {
+  const t = performance.now();
+  const dt = Math.min(0.1, (t - coLastT) / 1000);
+  coLastT = t;
+  coState.cooldown = Math.max(0, coState.cooldown - dt);
+  const me = state.players.find(p => p.id === myId);
+  if (!me) return;
+  // React to warp engage event
+  if (me.warpJustEngaged) { coState.cooldown = 0; say('warp', {}, 'warn'); }
+  // Fix 20: kill counter — use >= to handle boss granting +2 kills at once
+  if (me.kills > coState.lastKills) { coState.lastKills = me.kills; coState.cooldown = 0; say('killShot'); }
+  if (me.kills < coState.lastKills) coState.lastKills = me.kills; // respawn reset
+  // Fix 21: sector increase notification
+  if ((state.sector||1) > coState.lastSector) { coState.lastSector = state.sector; coState.cooldown = 0; say('sectorUp', {S: state.sector}, 'warn'); }
+  if ((state.sector||1) < coState.lastSector) coState.lastSector = state.sector||1;
+  // Bug 15 fix: only track loot pickup when player is alive — dead players don't pick up loot
+  const lootNow = (state.loot||[]).length;
+  if (me.alive && lootNow < coState.lastLootCount && coState.lastLootCount > 0) say('lootPickup');
+  coState.lastLootCount = lootNow;
+  // Bug 16 fix: only update lastPos when alive — respawn causes large position jump that was
+  // falsely triggering the wormhole alert
+  const meXc = rx(me), meYc = ry(me);
+  // Drop the reference across hyperjumps so the teleport doesn't read as a wormhole.
+  if (state.hyperjumping) coState.lastPos = null;
+  if (me.alive && coState.lastPos && !state.hyperjumping) {
+    const jump = Math.hypot(meXc - coState.lastPos.x, meYc - coState.lastPos.y);
+    // A real wormhole exit drops speed to ~0.4×; a warp burst leaves a huge velocity,
+    // so require a big jump AND a non-warp speed to avoid false alerts on warp exit.
+    const sp = Math.hypot(me.vx || 0, me.vy || 0);
+    if (jump > 2000 && !me.warpActive && sp < 800) { coState.cooldown = 0; say('wormhole', {}, 'warn'); }
+  }
+  if (me.alive) coState.lastPos = { x: meXc, y: meYc };
+  // Bug 17 fix: low-HP is critical — bypass cooldown so it's never blocked by lesser messages
+  if (me.hp < me.maxHp * 0.3 && me.alive) { coState.cooldown = 0; say('lowHp', {}, 'danger'); return; }
+  // Fix 24: boss nearby warning
+  if (state.boss) {
+    const bd = Math.hypot(state.boss.x - meXc, state.boss.y - meYc);
+    if (bd < 800) { say('bossNear', {}, 'danger'); return; }
+  }
+  // Black hole proximity (use extrapolated ship position)
+  for (const a of anomalies) {
+    if (a.type !== 'blackhole') continue;
+    const d = Math.hypot(a.x - meXc, a.y - meYc);
+    if (d < a.pullRange * 0.7) { say('blackholeWarn', {}, 'danger'); return; }
+  }
+  // Nearest enemy logic
+  let nearest = null, nearestD = Infinity;
+  for (const e of (state.enemies || [])) {
+    const d2 = (e.x - meXc) ** 2 + (e.y - meYc) ** 2;
+    if (d2 < nearestD) { nearestD = d2; nearest = e; }
+  }
+  if (nearest) {
+    const nd = Math.sqrt(nearestD);
+    if (nd < 220) { say('closeThreat', {}, 'danger'); return; }
+    // Bug 20: 0.02/frame at 60fps was ~70% per-sec — way too spammy
+    if (nd > 350 && Math.random() < 0.003) {
+      say('contact', { DIR: bearing(me, nearest) }, 'warn');
+    }
+  } else if (Math.random() < 0.002) {
+    say('idle');
+  }
+}
+
+// ── Minimap ──
+const mmCtx = document.getElementById('minimap').getContext('2d');
+(function setupMM() {
+  const dpr = window.devicePixelRatio || 1;
+  const c = document.getElementById('minimap');
+  c.width = 180 * dpr; c.height = 180 * dpr;
+  c.style.width = '180px'; c.style.height = '180px';
+  mmCtx.scale(dpr, dpr);
+})();
+// Bug 14 fix: mmClamp defined outside renderMinimap — was allocating a new function object
+// every renderMinimap call (30× per frame)
+const MM_HALF = 90; // SIZE/2 = 180/2
+function mmClamp(wx, wy, margin) {
+  const d = Math.hypot(wx, wy);
+  const lim = MM_HALF - margin;
+  return d > lim ? [wx*lim/d, wy*lim/d, true] : [wx, wy, false];
+}
+
+function renderMinimap() {
+  const SIZE = 180, RANGE = 12000;
+  mmCtx.fillStyle = '#05060d';
+  mmCtx.fillRect(0, 0, SIZE, SIZE);
+  const me = state.players.find(p => p.id === myId);
+  if (!me) return;
+  const meX = rx(me), meY = ry(me);
+  const half = MM_HALF;
+  const scale = half / RANGE;
+
+  mmCtx.save();
+  mmCtx.translate(half, half);
+  mmCtx.rotate(-me.a - Math.PI/2);
+
+  // Range rings
+  mmCtx.strokeStyle = '#1d2a4a'; mmCtx.lineWidth = 1;
+  for (let i = 1; i <= 3; i++) {
+    mmCtx.beginPath(); mmCtx.arc(0, 0, half * i / 3.5, 0, Math.PI*2); mmCtx.stroke();
+  }
+
+  // Sun / central black hole — always edge-clamped
+  if (state.sun) {
+    const c = state.sun;
+    const [wx, wy, edge] = mmClamp((c.x-meX)*scale, (c.y-meY)*scale, 6);
+    if (c.type === 'blackhole') {
+      mmCtx.fillStyle = '#000';
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?5:7, 0, Math.PI*2); mmCtx.fill();
+      mmCtx.strokeStyle = c.hot||'#ffaa44'; mmCtx.lineWidth = 1.5;
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?6.5:9, 0, Math.PI*2); mmCtx.stroke();
+    } else {
+      const sg = mmCtx.createRadialGradient(wx,wy,1,wx,wy,10);
+      sg.addColorStop(0, c.hot||c.color); sg.addColorStop(1, withAlpha(c.color,'00'));
+      mmCtx.fillStyle = sg;
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?6:10, 0, Math.PI*2); mmCtx.fill();
+      mmCtx.fillStyle = c.color;
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?3.5:5, 0, Math.PI*2); mmCtx.fill();
+    }
+  }
+  // Fix 50: reset textAlign after sun rendering block
+  mmCtx.textAlign = 'left';
+
+  // Planets — always visible, edge-clamped when off-map
+  for (const p of state.planets || []) {
+    const [wx, wy, edge] = mmClamp((p.x-meX)*scale, (p.y-meY)*scale, 5);
+    mmCtx.fillStyle = p.color;
+    mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?2.5:4, 0, Math.PI*2); mmCtx.fill();
+  }
+
+  // Anomalies — all edge-clamped
+  for (const a of anomalies) {
+    const rawX = (a.x-meX)*scale, rawY = (a.y-meY)*scale;
+    const [wx, wy, edge] = mmClamp(rawX, rawY, 5);
+    if (a.type === 'blackhole') {
+      mmCtx.fillStyle = '#000';
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?4:5, 0, Math.PI*2); mmCtx.fill();
+      mmCtx.strokeStyle = '#ffaa44'; mmCtx.lineWidth = 1;
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?5.5:7, 0, Math.PI*2); mmCtx.stroke();
+    } else if (a.type === 'wormhole') {
+      mmCtx.strokeStyle = '#c47cff'; mmCtx.lineWidth = 1.5;
+      mmCtx.beginPath(); mmCtx.arc(wx, wy, 3.5, 0, Math.PI*2); mmCtx.stroke();
+    }
+  }
+
+  // Asteroids — on-map only (too many to edge-clamp)
+  mmCtx.fillStyle = '#7a6a58';
+  for (const a of state.asteroids || []) {
+    const wx = (a.x-meX)*scale, wy = (a.y-meY)*scale;
+    if (Math.hypot(wx,wy) > half-4) continue;
+    const r = Math.max(1, a.r * scale * 0.9);
+    mmCtx.beginPath(); mmCtx.arc(wx, wy, r, 0, Math.PI*2); mmCtx.fill();
+  }
+
+  // Enemies
+  mmCtx.fillStyle = '#ff6b6b';
+  for (const e of (state.enemies || [])) {
+    const wx = (e.x-meX)*scale, wy = (e.y-meY)*scale;
+    if (Math.hypot(wx,wy) > half-4) continue;
+    mmCtx.fillRect(wx-1.5, wy-1.5, 3, 3);
+  }
+
+  // Boss — always edge-clamped, pulsing red
+  if (state.boss) {
+    const [wx, wy, edge] = mmClamp((state.boss.x-meX)*scale, (state.boss.y-meY)*scale, 6);
+    mmCtx.fillStyle = '#ff2020';
+    mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?4:7, 0, Math.PI*2); mmCtx.fill();
+    mmCtx.strokeStyle = state.boss.phase===2 ? '#ffaa00' : '#ff6060';
+    mmCtx.lineWidth = 2;
+    mmCtx.beginPath(); mmCtx.arc(wx, wy, edge?6:10, 0, Math.PI*2); mmCtx.stroke();
+  }
+
+  // Other players — edge-clamped
+  for (const p of state.players) {
+    if (p.id === myId || !p.alive) continue;
+    const [wx, wy] = mmClamp((p.x-meX)*scale, (p.y-meY)*scale, 4);
+    mmCtx.fillStyle = p.color;
+    mmCtx.beginPath(); mmCtx.arc(wx, wy, 2.5, 0, Math.PI*2); mmCtx.fill();
+  }
+
+  mmCtx.restore();
+  // Me — triangle at center always pointing up
+  mmCtx.fillStyle = myColor;
+  mmCtx.beginPath();
+  mmCtx.moveTo(half, half-8); mmCtx.lineTo(half+5, half+5); mmCtx.lineTo(half-5, half+5);
+  mmCtx.closePath(); mmCtx.fill();
+}
+
+// ── Voice chat (WebRTC mesh) ─────────────────────────────────────────
+// Each player that joins voice creates an RTCPeerConnection to every other
+// voice-on player. SDP and ICE go through the WebSocket; audio goes peer-to-peer.
+let myStream = null;          // local mic MediaStream
+let isMuted = false;
+const peers = new Map();      // playerId -> { pc, audioEl }
+const ICE = { iceServers: [] }; // LAN host candidates work without STUN
+
+function sendRtc(to, payload) {
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'rtc', to, payload }));
+}
+
+function createPeer(peerId, initiator) {
+  if (peers.has(peerId)) return peers.get(peerId);
+  const pc = new RTCPeerConnection(ICE);
+  if (myStream) for (const t of myStream.getTracks()) pc.addTrack(t, myStream);
+  pc.onicecandidate = (e) => { if (e.candidate) sendRtc(peerId, { kind: 'ice', candidate: e.candidate }); };
+  pc.ontrack = (e) => {
+    let audio = document.getElementById('audio-' + peerId);
+    if (!audio) {
+      audio = document.createElement('audio');
+      audio.id = 'audio-' + peerId;
+      audio.autoplay = true;
+      audio.playsInline = true;
+      document.body.appendChild(audio);
+    }
+    audio.srcObject = e.streams[0];
+    audio.play().catch(() => {});
+  };
+  pc.onconnectionstatechange = () => {
+    if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) closePeer(peerId);
+  };
+  const entry = { pc };
+  peers.set(peerId, entry);
+  if (initiator) {
+    pc.createOffer()
+      .then(o => pc.setLocalDescription(o))
+      .then(() => sendRtc(peerId, { kind: 'offer', sdp: pc.localDescription }))
+      .catch(err => console.warn('offer failed', err));
+  }
+  return entry;
+}
+
+function closePeer(peerId) {
+  const entry = peers.get(peerId);
+  if (!entry) return;
+  try { entry.pc.close(); } catch {}
+  const audio = document.getElementById('audio-' + peerId);
+  if (audio) audio.remove();
+  peers.delete(peerId);
+}
+
+async function handleSignal(from, payload) {
+  // If we get an offer and aren't yet peered, build the peer as a receiver
+  if (payload.kind === 'offer' && !peers.has(from)) {
+    if (!myStream) return; // we haven't joined voice — ignore
+    createPeer(from, false);
+  }
+  const entry = peers.get(from);
+  if (!entry) return;
+  const pc = entry.pc;
+  try {
+    if (payload.kind === 'offer') {
+      await pc.setRemoteDescription(payload.sdp);
+      const ans = await pc.createAnswer();
+      await pc.setLocalDescription(ans);
+      sendRtc(from, { kind: 'answer', sdp: pc.localDescription });
+    } else if (payload.kind === 'answer') {
+      await pc.setRemoteDescription(payload.sdp);
+    } else if (payload.kind === 'ice' && payload.candidate) {
+      await pc.addIceCandidate(payload.candidate);
+    }
+  } catch (e) { console.warn('signal handle failed', e); }
+}
+
+// Called every state snapshot: open peers to new voice-on players, close peers
+// to anyone who left or muted-out.
+function reconcileVoicePeers() {
+  if (!myStream) return;
+  const voiceOn = new Set(state.players.filter(p => p.voice && p.id !== myId).map(p => p.id));
+  // Close peers to players that left or are no longer in voice
+  for (const id of [...peers.keys()]) if (!voiceOn.has(id)) closePeer(id);
+  // Open peers to new voice-on players — lower id initiates to avoid collision
+  for (const id of voiceOn) {
+    if (peers.has(id)) continue;
+    if (myId < id) createPeer(id, true);
+    // else wait for their offer
+  }
+}
+
+async function joinVoice() {
+  try {
+    myStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'voice', on: true }));
+    document.getElementById('voiceBtn').textContent = '🎙️ Voice ON (click to mute)';
+    reconcileVoicePeers();
+  } catch (e) {
+    alert('Mic permission denied or unavailable: ' + (e.message || e.name));
+  }
+}
+function toggleMute() {
+  if (!myStream) return;
+  isMuted = !isMuted;
+  for (const t of myStream.getAudioTracks()) t.enabled = !isMuted;
+  document.getElementById('voiceBtn').textContent = isMuted ? '🔇 Muted (click to unmute)' : '🎙️ Voice ON (click to mute)';
+}
+document.getElementById('voiceBtn').addEventListener('click', () => {
+  if (!myStream) joinVoice(); else toggleMute();
+});
+
+// ── Docking ──
+const DOCK_RANGE = 220;
+let dockedPlanet = null;
+function nearestDockablePlanet() {
+  const me = state.players.find(p => p.id === myId);
+  // Fix 27: dead players shouldn't see dock prompts
+  if (!me || !me.alive) return null;
+  const meX = rx(me), meY = ry(me);
+  let best = null, bestD = Infinity;
+  for (const p of state.planets || []) {
+    if (!p.upgrade) continue;
+    const px = rx(p), py = ry(p);
+    const d = Math.hypot(px - meX, py - meY) - p.r;
+    if (d < bestD) { bestD = d; best = p; }
+  }
+  if (!best) return null;
+  const bx = rx(best), by = ry(best);
+  return (Math.hypot(bx - meX, by - meY) - best.r < DOCK_RANGE) ? best : null;
+}
+function updateDockPrompt() {
+  // Fix 28: close dock panel if player died or hyperjump started
+  const me = state.players.find(p => p.id === myId);
+  if (dockedPlanet && (!me || !me.alive || state.hyperjumping)) {
+    dockedPlanet = null;
+    document.getElementById('dockPanel').classList.remove('show');
+    const tc = document.querySelector('.touch-ctrl');
+    if (tc) { tc.style.opacity = ''; tc.style.pointerEvents = ''; }
+  }
+  if (dockedPlanet) {
+    document.getElementById('dockPrompt').classList.remove('show');
+    // Bug fix: re-sync the install button with the server's authoritative
+    // upgradesTaken list so an optimistic "Installed" gets reverted if
+    // the server actually rejected the install.
+    const me = state.players.find(pl => pl.id === myId);
+    const taken = me && me.upgradesTaken && me.upgradesTaken.includes(dockedPlanet.name);
+    const btn = document.getElementById('dockInstall');
+    if (taken) { btn.disabled = true; btn.textContent = '✓ Installed'; }
+    else { btn.disabled = false; btn.textContent = '⚡ Install Upgrade  (Q)'; }
+    return;
+  }
+  const p = nearestDockablePlanet();
+  const el = document.getElementById('dockPrompt');
+  if (p) {
+    document.getElementById('dockPromptName').textContent = p.name;
+    el.classList.add('show');
+  } else {
+    el.classList.remove('show');
+  }
+}
+function tryDockOrDepart() {
+  if (dockedPlanet) {
+    dockedPlanet = null;
+    document.getElementById('dockPanel').classList.remove('show');
+    const tc0 = document.querySelector('.touch-ctrl');
+    if (tc0) { tc0.style.opacity = ''; tc0.style.pointerEvents = ''; }
+    return;
+  }
+  const p = nearestDockablePlanet();
+  if (!p) return;
+  dockedPlanet = p;
+  // Bug fix: dim and disable touch controls while the dock panel is up
+  const tc = document.querySelector('.touch-ctrl');
+  tc.style.opacity = '0.3';
+  tc.style.pointerEvents = 'none';
+  const me = state.players.find(pl => pl.id === myId);
+  const taken = me && me.upgradesTaken && me.upgradesTaken.includes(p.name);
+  document.getElementById('dockPlanetName').textContent = p.name;
+  document.getElementById('dockOrbit').textContent = 'orbital station';
+  document.getElementById('dockUpName').textContent = p.upgradeName || '(no upgrade)';
+  document.getElementById('dockUpDesc').textContent = p.upgradeDesc || '';
+  const btn = document.getElementById('dockInstall');
+  btn.disabled = !!taken;
+  btn.textContent = taken ? '✓ Already Installed' : '⚡ Install Upgrade  (Q)';
+  document.getElementById('dockPanel').classList.add('show');
+}
+// Install the docked planet's upgrade — or, if the dock panel isn't open, the
+// nearest dockable planet. Bound to both the button and the Q key so a single
+// press always installs whatever you're parked at.
+function installUpgrade() {
+  const planet = dockedPlanet || nearestDockablePlanet();
+  if (!planet || !planet.upgrade || !ws || ws.readyState !== 1) return;
+  ws.send(JSON.stringify({ type: 'install', planet: planet.name }));
+  // Reflect optimistically when the panel is showing
+  if (dockedPlanet) {
+    const btn = document.getElementById('dockInstall');
+    btn.disabled = true;
+    btn.textContent = '✓ Installed';
+  }
+}
+document.getElementById('dockInstall').addEventListener('click', installUpgrade);
+document.getElementById('dockDepart').addEventListener('click', tryDockOrDepart);
+
+function loop() {
+  _frameNow = performance.now(); // Bug 2 fix: single timestamp per frame, shared by rx/ry
+  render();
+  renderMinimap();
+  updateHUD();
+  updateCopilot();
+  updateDockPrompt();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

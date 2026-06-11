@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>LEV ARCADE</title>
+<style>
+  :root {
+    --bg: #07070d;
+    --bg2: #0d0d1a;
+    --ink: #e9e9ff;
+    --dim: #8a8aaa;
+    --neon: #00ffd0;
+    --neon2: #ff3df0;
+    --neon3: #ffd400;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background:
+      radial-gradient(1200px 800px at 20% -10%, rgba(255,61,240,0.18), transparent 60%),
+      radial-gradient(1000px 700px at 110% 10%, rgba(0,255,208,0.12), transparent 60%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+    color: var(--ink);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    min-height: 100%;
+    overflow-x: hidden;
+  }
+  /* scanlines */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.025) 0 1px,
+      transparent 1px 3px
+    );
+    pointer-events: none;
+    z-index: 1000;
+    mix-blend-mode: overlay;
+  }
+
+  header {
+    padding: 48px 32px 16px;
+    text-align: center;
+  }
+  h1 {
+    font-family: "Press Start 2P", ui-monospace, monospace;
+    font-size: clamp(28px, 6vw, 64px);
+    margin: 0;
+    letter-spacing: 0.12em;
+    color: var(--ink);
+    text-shadow:
+      0 0 4px var(--neon),
+      0 0 16px var(--neon),
+      0 0 32px rgba(0,255,208,0.4),
+      2px 2px 0 var(--neon2);
+    animation: flicker 4s infinite;
+  }
+  @keyframes flicker {
+    0%, 92%, 100% { opacity: 1; }
+    93% { opacity: 0.6; }
+    94% { opacity: 1; }
+    95% { opacity: 0.8; }
+  }
+  .sub {
+    color: var(--dim);
+    margin: 12px 0 0;
+    letter-spacing: 0.3em;
+    font-size: 12px;
+    text-transform: uppercase;
+  }
+
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 24px 96px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 22px;
+  }
+
+  .tile {
+    position: relative;
+    cursor: pointer;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .tile:hover {
+    transform: translateY(-4px);
+    border-color: var(--neon);
+    box-shadow:
+      0 0 0 1px var(--neon),
+      0 0 24px rgba(0,255,208,0.35),
+      0 12px 40px rgba(0,0,0,0.6);
+  }
+
+  .art {
+    aspect-ratio: 16 / 10;
+    display: grid;
+    place-items: center;
+    font-size: 64px;
+    background: linear-gradient(135deg, var(--c1, #222) 0%, var(--c2, #444) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  .art::after {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(45deg, rgba(0,0,0,0.0) 0 10px, rgba(0,0,0,0.08) 10px 20px);
+    pointer-events: none;
+  }
+  .art span {
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+    z-index: 1;
+  }
+
+  .meta {
+    padding: 14px 16px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .title {
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .badge {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.15);
+    color: var(--dim);
+  }
+  .badge.hot { color: var(--neon3); border-color: var(--neon3); }
+  .badge.new { color: var(--neon); border-color: var(--neon); }
+
+  /* player overlay */
+  .player {
+    position: fixed; inset: 0;
+    background: #000;
+    z-index: 2000;
+    display: none;
+    flex-direction: column;
+  }
+  .player.open { display: flex; }
+  .bar {
+    height: 44px;
+    background: linear-gradient(180deg, #1a1a2a, #0a0a14);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 12px;
+    color: var(--ink);
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .bar button {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font: inherit;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .bar button:hover {
+    border-color: var(--neon);
+    color: var(--neon);
+    box-shadow: 0 0 12px rgba(0,255,208,0.3);
+  }
+  .bar .now { color: var(--dim); flex: 1; }
+  .bar .now b { color: var(--neon); font-weight: normal; }
+  iframe {
+    flex: 1;
+    width: 100%;
+    border: 0;
+    background: #000;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--dim);
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    padding: 16px;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>LEV ARCADE</h1>
+    <p class="sub">Insert coin &middot; Press start</p>
+  </header>
+
+  <main>
+    <div class="grid" id="grid"></div>
+  </main>
+
+  <footer>&copy; A homemade arcade</footer>
+
+  <div class="player" id="player">
+    <div class="bar">
+      <button id="back">&larr; Back</button>
+      <div class="now">Now playing &mdash; <b id="nowTitle"></b></div>
+      <button id="fs">Fullscreen</button>
+    </div>
+    <iframe id="frame" allow="autoplay; fullscreen; gamepad; microphone; camera"></iframe>
+  </div>
+
+<script>
+  const games = [
+    {
+      title: "Speed Stars",
+      file: "speed-stars.html",
+      emoji: "🏃",
+      c1: "#dc2626", c2: "#fbbf24",
+      badge: "new",
+    },
+    {
+      title: "Biggie Cheese Records",
+      file: "cheesefather-music/index.html",
+      emoji: "🎙️",
+      c1: "#2a1014", c2: "#d4a64a",
+      badge: "new",
+    },
+    {
+      title: "Cheese Heist 3D",
+      file: "cheese-heist-3d.html",
+      emoji: "🧀",
+      c1: "#7c2d12", c2: "#facc15",
+      badge: "new",
+    },
+    {
+      title: "Build a Bridge",
+      file: "build-a-bridge.html",
+      emoji: "🌉",
+      c1: "#1e3a8a", c2: "#0ea5e9",
+      badge: "hot",
+    },
+    {
+      title: "Nuclear",
+      file: "nuclear.html",
+      emoji: "☢️",
+      c1: "#7f1d1d", c2: "#facc15",
+      badge: "hot",
+    },
+    {
+      title: "DJ",
+      file: "dj.html",
+      emoji: "🎧",
+      c1: "#581c87", c2: "#ec4899",
+      badge: "new",
+    },
+    {
+      title: "Hacker",
+      file: "hacker.html",
+      emoji: "💻",
+      c1: "#064e3b", c2: "#10b981",
+      badge: null,
+    },
+    {
+      title: "Nothing",
+      file: "nothing.html",
+      emoji: "🫥",
+      c1: "#27272a", c2: "#52525b",
+      badge: null,
+    },
+    {
+      title: "Decision Roulette",
+      file: "decision-roulette.html",
+      emoji: "🎯",
+      c1: "#4b0082", c2: "#ff3366",
+      badge: "new",
+    },
+  ];
+
+  const grid = document.getElementById("grid");
+  const player = document.getElementById("player");
+  const frame = document.getElementById("frame");
+  const nowTitle = document.getElementById("nowTitle");
+  const back = document.getElementById("back");
+  const fsBtn = document.getElementById("fs");
+
+  for (const g of games) {
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    tile.innerHTML = `
+      <div class="art" style="--c1:${g.c1};--c2:${g.c2}">
+        <span>${g.emoji}</span>
+      </div>
+      <div class="meta">
+        <div class="title">${g.title}</div>
+        ${g.badge ? `<div class="badge ${g.badge}">${g.badge}</div>` : ""}
+      </div>
+    `;
+    tile.addEventListener("click", () => launch(g));
+    grid.appendChild(tile);
+  }
+
+  function launch(g) {
+    frame.src = g.file;
+    nowTitle.textContent = g.title;
+    player.classList.add("open");
+    document.body.style.overflow = "hidden";
+    location.hash = encodeURIComponent(g.title);
+  }
+  function close() {
+    player.classList.remove("open");
+    frame.src = "about:blank";
+    document.body.style.overflow = "";
+    if (location.hash) history.replaceState(null, "", location.pathname);
+  }
+  back.addEventListener("click", close);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && player.classList.contains("open")) close();
+  });
+  fsBtn.addEventListener("click", () => {
+    if (!document.fullscreenElement) player.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  });
+
+  // deep-link: #Game Title launches that game
+  if (location.hash) {
+    const want = decodeURIComponent(location.hash.slice(1)).toLowerCase();
+    const g = games.find((x) => x.title.toLowerCase() === want);
+    if (g) launch(g);
+  }
+</script>
+</body>
+</html>

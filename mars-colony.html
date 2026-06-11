@@ -1,0 +1,1926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Red Horizon — Mars Colony Tycoon</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔴</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#120a08; --panel:rgba(28,18,15,0.86); --panel2:rgba(44,28,22,0.92);
+    --edge:rgba(255,170,110,0.16); --edge2:rgba(255,195,140,0.42); --text:#f6e9de; --dim:#bda092;
+    --amber:#f0a43c; --teal:#4cd2bd; --blue:#74aef0; --purple:#b78ae8; --pink:#f094c8;
+    --good:#7ade94; --bad:#ff6e5c; --gold:#ffd95e;
+    --orb:'Orbitron',-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;
+    font-family:'Rajdhani',-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;
+    color:var(--text); user-select:none; cursor:default;}
+  #game{position:fixed;inset:0;}
+  canvas{position:absolute;inset:0;display:block;touch-action:none;}
+
+  /* ---- top resource bar ---- */
+  #top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:6px;
+    padding:8px 10px;flex-wrap:wrap;
+    background:linear-gradient(180deg,rgba(10,6,5,0.92),rgba(10,6,5,0));pointer-events:none;}
+  .chip{pointer-events:auto;border:1px solid var(--edge);
+    background:linear-gradient(180deg,rgba(56,35,27,0.88),rgba(22,14,12,0.9));
+    border-radius:13px;padding:6px 11px;display:flex;flex-direction:column;gap:2px;min-width:74px;
+    backdrop-filter:blur(10px);
+    box-shadow:0 4px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,210,170,0.14), inset 0 -1px 0 rgba(0,0,0,0.3);
+    transition:border-color .2s;}
+  .chip:hover{border-color:var(--edge2);}
+  .chip .lbl{font-size:10px;letter-spacing:1.3px;color:var(--dim);text-transform:uppercase;font-weight:600;display:flex;gap:4px;align-items:center;}
+  .chip .val{font-family:var(--orb);font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.2;letter-spacing:.4px;
+    text-shadow:0 0 14px rgba(255,200,140,0.22);}
+  .chip .sub{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;font-weight:600;}
+  .chip.alert{border-color:rgba(255,110,90,0.65);animation:chipPulse 1.1s ease-in-out infinite;}
+  @keyframes chipPulse{0%,100%{box-shadow:0 4px 14px rgba(0,0,0,0.4);}50%{box-shadow:0 0 18px rgba(255,90,70,0.55);}}
+  .bar{height:4px;border-radius:2px;background:rgba(0,0,0,0.4);overflow:hidden;margin-top:2px;box-shadow:inset 0 1px 2px rgba(0,0,0,.5);}
+  .bar>i{display:block;height:100%;border-radius:2px;transition:width .25s;}
+  .spacer{flex:1;}
+  .rgrp{pointer-events:auto;display:flex;gap:6px;align-items:center;}
+  .clock{background:linear-gradient(180deg,rgba(48,31,25,0.85),rgba(22,14,12,0.88));border:1px solid var(--edge);border-radius:13px;padding:5px 12px;
+    text-align:center;backdrop-filter:blur(10px);box-shadow:0 4px 14px rgba(0,0,0,0.4);}
+  .clock .s{font-family:var(--orb);font-size:13px;font-weight:800;letter-spacing:.5px;}
+  .clock .t{font-size:11.5px;color:var(--dim);font-variant-numeric:tabular-nums;font-weight:600;letter-spacing:1px;}
+  .btn{pointer-events:auto;background:linear-gradient(180deg,rgba(48,31,25,0.85),rgba(22,14,12,0.88));border:1px solid var(--edge);color:var(--text);
+    border-radius:11px;padding:8px 11px;font-size:15px;cursor:pointer;backdrop-filter:blur(10px);
+    transition:.15s;display:flex;align-items:center;gap:5px;box-shadow:0 4px 14px rgba(0,0,0,0.35);}
+  .btn:hover{border-color:var(--edge2);box-shadow:0 0 16px rgba(255,170,110,0.25);transform:translateY(-1px);}
+  .btn.active{background:var(--amber);color:#241408;border-color:var(--amber);font-weight:700;}
+  .speed{display:flex;gap:3px;background:linear-gradient(180deg,rgba(48,31,25,0.85),rgba(22,14,12,0.88));border:1px solid var(--edge);
+    border-radius:12px;padding:3px;backdrop-filter:blur(10px);box-shadow:0 4px 14px rgba(0,0,0,0.35);}
+  .speed button{background:transparent;border:0;color:var(--dim);font-size:14px;padding:5px 9px;border-radius:9px;cursor:pointer;transition:.12s;}
+  .speed button:hover{color:var(--text);}
+  .speed button.on{background:linear-gradient(180deg,#ffc060,#e08a28);color:#241408;font-weight:700;box-shadow:0 0 10px rgba(240,164,60,.5);}
+
+  /* ---- bottom toolbar ---- */
+  #toolbar{position:absolute;left:0;right:0;bottom:0;display:flex;gap:7px;padding:10px 12px 12px;
+    overflow-x:auto;background:linear-gradient(0deg,rgba(10,6,5,0.95),rgba(10,6,5,0));scrollbar-width:thin;}
+  #toolbar::-webkit-scrollbar{height:6px;} #toolbar::-webkit-scrollbar-thumb{background:rgba(255,180,130,0.3);border-radius:3px;}
+  .tool{flex:0 0 auto;width:86px;border:1px solid var(--edge);border-radius:14px;
+    background:linear-gradient(180deg,rgba(52,34,27,0.88),rgba(24,15,12,0.92));
+    padding:8px 5px 7px;text-align:center;cursor:pointer;position:relative;backdrop-filter:blur(10px);
+    transition:transform .15s,box-shadow .15s,border-color .15s;box-shadow:0 3px 10px rgba(0,0,0,0.35);}
+  .tool:hover{transform:translateY(-3px);border-color:var(--edge2);box-shadow:0 8px 20px rgba(0,0,0,0.5);}
+  .tool.sel{border-color:var(--amber);transform:translateY(-3px);
+    box-shadow:0 0 0 2px rgba(240,164,60,0.5),0 0 28px rgba(240,164,60,0.45),0 6px 18px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,225,150,0.2);}
+  .tool.locked{opacity:.45;filter:grayscale(.6);}
+  .tool.cant{opacity:.55;}
+  .tool .ic{font-size:25px;line-height:1.15;filter:drop-shadow(0 3px 5px rgba(0,0,0,.5));}
+  .tool .nm{font-size:11px;font-weight:700;margin-top:2px;line-height:1.1;height:24px;display:flex;align-items:center;justify-content:center;letter-spacing:.2px;}
+  .tool .cost{font-family:var(--orb);font-size:9.5px;color:var(--gold);font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.3px;}
+  .tool .catbar{position:absolute;left:0;top:0;bottom:0;width:5px;border-radius:14px 0 0 14px;filter:brightness(1.3) saturate(1.2);box-shadow:2px 0 10px rgba(255,255,255,0.12);}
+  .tool .lockic{position:absolute;top:4px;right:5px;font-size:11px;}
+
+  /* ---- toasts ---- */
+  #toasts{position:absolute;top:64px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;
+    align-items:center;pointer-events:none;z-index:30;width:min(440px,92vw);}
+  .toast{background:linear-gradient(180deg,rgba(46,29,23,0.94),rgba(26,16,13,0.95));border:1px solid var(--edge);border-left:4px solid var(--amber);
+    border-radius:12px;padding:9px 15px;font-size:13.5px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.55);
+    animation:tin .35s cubic-bezier(.2,.9,.3,1.15);max-width:100%;text-align:center;backdrop-filter:blur(12px);}
+  .toast.good{border-left-color:var(--good);} .toast.bad{border-left-color:var(--bad);}
+  .toast.warn{border-left-color:var(--gold);} .toast b{color:var(--gold);}
+  @keyframes tin{from{opacity:0;transform:translateY(-16px) scale(.94);}to{opacity:1;}}
+
+  /* ---- tooltip ---- */
+  #tooltip{position:absolute;pointer-events:none;background:linear-gradient(180deg,rgba(30,19,15,0.97),rgba(14,9,7,0.97));border:1px solid var(--edge2);
+    border-radius:11px;padding:9px 12px;font-size:12.5px;max-width:235px;z-index:40;display:none;
+    box-shadow:0 10px 28px rgba(0,0,0,.6);line-height:1.45;}
+  #tooltip h4{margin:0 0 3px;font-size:13.5px;font-family:var(--orb);font-weight:700;letter-spacing:.3px;} #tooltip .d{color:var(--dim);}
+  #tooltip .row{display:flex;justify-content:space-between;gap:12px;font-weight:600;}
+
+  /* ---- modals ---- */
+  .modal{position:absolute;inset:0;background:rgba(5,3,3,0.72);display:none;align-items:center;justify-content:center;
+    z-index:50;backdrop-filter:blur(4px);}
+  .modal.open{display:flex;}
+  .sheet{background:linear-gradient(180deg,rgba(46,29,23,0.97),rgba(24,15,12,0.98));border:1px solid var(--edge2);border-radius:20px;padding:22px;
+    width:min(560px,94vw);max-height:86vh;overflow-y:auto;
+    box-shadow:0 30px 90px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,210,170,.1);
+    animation:sheetIn .28s cubic-bezier(.2,.9,.3,1.18);scrollbar-width:thin;}
+  .sheet::-webkit-scrollbar{width:8px;}.sheet::-webkit-scrollbar-thumb{background:rgba(255,180,130,.25);border-radius:4px;}
+  @keyframes sheetIn{from{opacity:0;transform:translateY(20px) scale(.96);}to{opacity:1;transform:none;}}
+  .sheet h2{margin:0 0 4px;font-size:19px;font-family:var(--orb);letter-spacing:1px;} .sheet .sd{color:var(--dim);font-size:13.5px;margin-bottom:14px;font-weight:600;}
+  .sheet .x{float:right;cursor:pointer;font-size:20px;color:var(--dim);padding:0 4px;transition:.15s;}
+  .sheet .x:hover{color:var(--text);transform:scale(1.15);}
+  .techcard,.objcard{display:flex;gap:12px;align-items:center;padding:11px 13px;border-radius:14px;
+    border:1px solid var(--edge);margin-bottom:8px;background:rgba(255,255,255,0.035);transition:border-color .2s;}
+  .techcard:hover{border-color:var(--edge2);}
+  .techcard .ti{font-size:25px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.5));} .techcard .tx{flex:1;} .techcard .tn{font-weight:700;font-size:14.5px;letter-spacing:.2px;}
+  .techcard .td{font-size:12px;color:var(--dim);font-weight:600;}
+  .techcard button{background:linear-gradient(180deg,#5fe0ca,#2da896);border:0;color:#06201d;font-weight:800;border-radius:10px;padding:8px 13px;cursor:pointer;font-size:12px;white-space:nowrap;font-family:var(--orb);letter-spacing:.3px;transition:.15s;}
+  .techcard button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 0 14px rgba(76,210,189,.5);}
+  .techcard button:disabled{background:rgba(255,255,255,0.1);color:var(--dim);cursor:default;}
+  .techcard.owned{opacity:.7;} .techcard.owned button{background:linear-gradient(180deg,#8ce8a4,#4cb868);color:#06210f;}
+  .objcard .oi{font-size:18px;width:22px;text-align:center;} .objcard.done{opacity:.55;}
+  .objcard.cur{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset, 0 0 16px rgba(240,164,60,.2);}
+  .objcard .ox{flex:1;font-size:13.5px;font-weight:600;} .objcard .or{font-size:11.5px;color:var(--gold);font-weight:700;}
+
+  /* ---- victory ---- */
+  .sheet.win{text-align:center;border-color:rgba(255,217,94,.55);
+    box-shadow:0 0 90px rgba(255,200,80,.28),0 30px 90px rgba(0,0,0,.7);}
+  .wtro{font-size:64px;line-height:1.2;animation:float 3s ease-in-out infinite;filter:drop-shadow(0 0 24px rgba(255,210,90,.6));}
+  .sheet.win h2{color:var(--gold);font-size:24px;}
+  .wstats{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin:16px 0 18px;}
+  .wstat{background:rgba(255,255,255,.05);border:1px solid var(--edge);border-radius:13px;padding:11px 8px;}
+  .wstat .a{font-family:var(--orb);font-size:21px;font-weight:900;color:var(--gold);}
+  .wstat .b{font-size:10.5px;color:var(--dim);letter-spacing:1.2px;text-transform:uppercase;font-weight:700;margin-top:2px;}
+
+  /* ---- info panel ---- */
+  #info{position:absolute;left:10px;bottom:112px;width:214px;background:linear-gradient(180deg,rgba(42,27,21,0.93),rgba(22,14,11,0.94));
+    border:1px solid var(--edge2);border-radius:15px;padding:13px;display:none;z-index:25;backdrop-filter:blur(12px);
+    box-shadow:0 12px 30px rgba(0,0,0,.5);animation:infoIn .2s ease;}
+  @keyframes infoIn{from{opacity:0;transform:translateX(-12px);}to{opacity:1;}}
+  #info h3{margin:0 0 2px;font-size:14px;display:flex;gap:6px;align-items:center;font-family:var(--orb);letter-spacing:.3px;}
+  #info .id{font-size:12px;color:var(--dim);margin-bottom:8px;font-weight:600;}
+  #info .stat{display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;font-weight:600;}
+  #info .stat b{font-variant-numeric:tabular-nums;}
+  #info button{width:100%;margin-top:9px;background:transparent;border:1px solid var(--bad);color:var(--bad);
+    border-radius:10px;padding:7px;cursor:pointer;font-size:12px;font-weight:700;font-family:inherit;transition:.15s;}
+  #info button:hover{background:var(--bad);color:#fff;box-shadow:0 0 14px rgba(255,110,92,.4);}
+
+  /* ---- intro ---- */
+  #intro{position:absolute;inset:0;z-index:80;display:flex;align-items:flex-start;justify-content:center;
+    background:
+      radial-gradient(1100px 520px at 50% 112%, rgba(190,70,30,.3), transparent 62%),
+      radial-gradient(ellipse at 50% 28%, #2a140d, #070403 76%);
+    text-align:center;padding:max(24px,4vh) 20px 28px;overflow-y:auto;scrollbar-width:thin;}
+  #intro::before{content:'';position:absolute;width:2px;height:2px;border-radius:50%;background:transparent;
+    box-shadow:8vw 12vh #fff,22vw 6vh rgba(255,255,255,.7),35vw 18vh #ffe9d0,48vw 8vh rgba(255,255,255,.8),
+      61vw 15vh #fff,74vw 5vh rgba(255,255,255,.6),88vw 11vh #fff,15vw 26vh rgba(255,255,255,.5),
+      29vw 32vh #ffd9b0,55vw 28vh rgba(255,255,255,.75),70vw 30vh #fff,83vw 24vh rgba(255,255,255,.5),
+      5vw 40vh #fff,42vw 38vh rgba(255,255,255,.6),92vw 44vh #ffe9d0,12vw 55vh rgba(255,255,255,.4),
+      80vw 58vh rgba(255,255,255,.5),33vw 64vh rgba(255,255,255,.35),60vw 70vh rgba(255,255,255,.3),
+      90vw 78vh rgba(255,255,255,.35),18vw 80vh rgba(255,255,255,.3),50vw 86vh rgba(255,255,255,.25);
+    animation:twk 4.5s ease-in-out infinite alternate;}
+  #intro::after{content:'';position:absolute;width:1.5px;height:1.5px;border-radius:50%;background:transparent;
+    box-shadow:11vw 19vh rgba(255,255,255,.6),26vw 14vh rgba(255,255,255,.45),40vw 9vh rgba(255,255,255,.6),
+      53vw 21vh rgba(255,255,255,.4),67vw 7vh rgba(255,255,255,.55),79vw 17vh rgba(255,255,255,.45),
+      94vw 27vh rgba(255,255,255,.5),7vw 33vh rgba(255,255,255,.4),37vw 47vh rgba(255,255,255,.3),
+      65vw 41vh rgba(255,255,255,.35),86vw 52vh rgba(255,255,255,.3),24vw 68vh rgba(255,255,255,.25),
+      48vw 75vh rgba(255,255,255,.25),72vw 82vh rgba(255,255,255,.2);
+    animation:twk 6s ease-in-out infinite alternate-reverse;}
+  @keyframes twk{from{opacity:.4;}to{opacity:1;}}
+  #intro .box{max-width:560px;position:relative;z-index:2;}
+  .planet{width:128px;height:128px;border-radius:50%;margin:0 auto 20px;position:relative;
+    background:radial-gradient(circle at 33% 30%, #ffb277 0%, #e06b35 32%, #a83c1d 58%, #5e1c0c 82%, #38100a 100%);
+    box-shadow:inset -22px -18px 50px rgba(20,4,2,.78), inset 6px 8px 22px rgba(255,200,150,.25),
+      0 0 70px rgba(255,110,45,.4), 0 0 170px rgba(255,90,30,.18);
+    animation:float 7s ease-in-out infinite;}
+  .planet::before{content:'';position:absolute;inset:0;border-radius:50%;
+    background:
+      radial-gradient(20px 11px at 30% 62%, rgba(60,16,6,.55), transparent 70%),
+      radial-gradient(28px 15px at 58% 44%, rgba(70,20,8,.5), transparent 70%),
+      radial-gradient(15px 9px at 70% 68%, rgba(60,16,6,.45), transparent 70%),
+      radial-gradient(24px 11px at 44% 26%, rgba(255,220,190,.22), transparent 70%);}
+  .planet::after{content:'';position:absolute;left:20%;top:7%;width:32%;height:15%;border-radius:50%;
+    background:radial-gradient(closest-side, rgba(255,255,255,.65), rgba(255,255,255,0));}
+  @keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+  #intro h1{font-family:var(--orb);font-weight:900;font-size:clamp(36px,9vw,68px);margin:0 0 8px;letter-spacing:4px;
+    background:linear-gradient(180deg,#ffe7c0 8%,#ffae5a 45%,#e85f1e 92%);-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 6px 28px rgba(255,110,40,.45));}
+  #intro .sub{color:var(--dim);font-size:14px;margin-bottom:20px;letter-spacing:6px;text-transform:uppercase;font-weight:700;}
+  #intro p{color:#dcc4b4;font-size:14.5px;line-height:1.65;margin:0 auto 20px;max-width:440px;font-weight:600;}
+  .feats{display:flex;gap:9px;justify-content:center;margin:0 0 26px;flex-wrap:wrap;}
+  .feat{background:rgba(255,255,255,.05);border:1px solid var(--edge);border-radius:999px;padding:7px 15px;
+    font-size:12.5px;color:#eccfba;letter-spacing:.4px;font-weight:700;backdrop-filter:blur(6px);}
+  #intro .start, .sheet .start{background:linear-gradient(180deg,#ffbe5c,#e07f1e);border:0;color:#241004;font-weight:800;font-family:var(--orb);
+    font-size:16px;padding:15px 42px;border-radius:15px;cursor:pointer;letter-spacing:1.5px;transition:.18s;
+    box-shadow:0 10px 30px rgba(217,122,38,0.5), inset 0 1px 0 rgba(255,255,255,.35);position:relative;overflow:hidden;}
+  #intro .start:hover, .sheet .start:hover{transform:translateY(-2px);box-shadow:0 14px 38px rgba(217,122,38,0.7), inset 0 1px 0 rgba(255,255,255,.35);}
+  .start::after{content:'';position:absolute;top:0;left:-80%;width:45%;height:100%;transform:skewX(-25deg);
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent);animation:shine 3.4s infinite;}
+  @keyframes shine{0%{left:-80%;}55%{left:150%;}100%{left:150%;}}
+  #intro .new{display:block;margin-top:18px;color:var(--dim);font-size:12.5px;cursor:pointer;text-decoration:underline;font-weight:600;transition:.15s;}
+  #intro .new:hover{color:var(--text);}
+  .hidden{display:none!important;}
+  #intro .box{margin:0 auto;}
+  .howto{background:rgba(255,255,255,.04);border:1px solid var(--edge);border-radius:16px;padding:14px 16px 12px;margin:0 0 22px;text-align:left;}
+  .htitle{font-family:var(--orb);font-size:10px;letter-spacing:2.5px;color:var(--dim);text-transform:uppercase;margin-bottom:11px;text-align:center;}
+  .htrow{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:#cfbbac;font-weight:600;line-height:1.45;margin-bottom:8px;}
+  .htrow:last-child{margin-bottom:0;}
+  .htic{font-size:15px;min-width:24px;text-align:center;flex-shrink:0;margin-top:1px;}
+  @media(max-width:560px){ .chip{min-width:60px;padding:5px 8px;} .chip .val{font-size:12.5px;} #info{bottom:122px;width:196px;} .tool{width:80px;} }
+</style>
+</head>
+<body>
+<div id="game">
+  <canvas id="c"></canvas>
+
+  <div id="top">
+    <div class="chip" id="ch-credits"></div>
+    <div class="chip" id="ch-power"></div>
+    <div class="chip" id="ch-o2"></div>
+    <div class="chip" id="ch-water"></div>
+    <div class="chip" id="ch-food"></div>
+    <div class="chip" id="ch-research"></div>
+    <div class="chip" id="ch-pop"></div>
+    <div class="chip" id="ch-morale"></div>
+    <div class="chip" id="ch-terra"></div>
+    <div class="spacer"></div>
+    <div class="rgrp">
+      <div class="clock"><div class="s" id="solLbl">Sol 1</div><div class="t" id="timeLbl">06:00</div></div>
+      <div class="speed" id="speed">
+        <button data-s="0">⏸</button>
+        <button data-s="1" class="on">▶</button>
+        <button data-s="2">⏩</button>
+        <button data-s="4">⏭</button>
+      </div>
+      <button class="btn" id="btnTech" title="Research">🔬</button>
+      <button class="btn" id="btnObj" title="Objectives">🎯</button>
+      <button class="btn" id="btnMute" title="Sound">🔊</button>
+      <button class="btn" id="btnMenu" title="Menu">⚙️</button>
+    </div>
+  </div>
+
+  <div id="toolbar"></div>
+
+  <div id="info"></div>
+  <div id="tooltip"></div>
+  <div id="toasts"></div>
+
+  <div class="modal" id="mTech"><div class="sheet">
+    <span class="x" data-close>✕</span><h2>Research Lab 🔬</h2>
+    <div class="sd">Spend research points to unlock advanced technology. Build Research Labs and staff them with colonists to generate points.</div>
+    <div id="techList"></div>
+  </div></div>
+
+  <div class="modal" id="mObj"><div class="sheet">
+    <span class="x" data-close>✕</span><h2>Mission Objectives 🎯</h2>
+    <div class="sd">Grow your colony. Complete objectives for rewards and prove humanity can thrive on Mars.</div>
+    <div id="objList"></div>
+  </div></div>
+
+  <div class="modal" id="mMenu"><div class="sheet">
+    <span class="x" data-close>✕</span><h2>Colony Control ⚙️</h2>
+    <div class="sd">Your colony auto-saves. Manage your save here.</div>
+    <div class="techcard"><div class="ti">💾</div><div class="tx"><div class="tn">Save now</div><div class="td">Manually save your colony to this browser.</div></div><button id="mSave">Save</button></div>
+    <div class="techcard"><div class="ti">🌑</div><div class="tx"><div class="tn">Abandon &amp; restart</div><div class="td">Wipe everything and start a fresh colony. Cannot be undone.</div></div><button id="mReset" style="background:var(--bad);color:#fff;">Reset</button></div>
+    <div class="sd" style="margin-top:14px;">Tip: build extra <b style="color:var(--amber)">Solar + Batteries</b> to survive the night, then research <b style="color:var(--amber)">Fusion Power</b> for 24/7 energy. Storms cripple solar — plan ahead!</div>
+  </div></div>
+
+  <div class="modal" id="mWin"><div class="sheet win">
+    <span class="x" data-close>✕</span>
+    <div class="wtro">🏆</div>
+    <h2>THRIVING COLONY</h2>
+    <div class="sd">One hundred souls now call the red planet home. Humanity has a future among the stars — and you built it.</div>
+    <div class="wstats" id="winStats"></div>
+    <button class="start" id="winGo">▶ KEEP BUILDING</button>
+  </div></div>
+
+  <div id="intro"><div class="box">
+    <div class="planet"></div>
+    <h1>RED HORIZON</h1>
+    <div class="sub">Mars Colony Tycoon</div>
+    <p>The first transport has touched down on the dusty plains. Keep your colonists breathing, fed, and powered — then build humanity's home among the stars.</p>
+    <div class="howto">
+      <div class="htitle">How to Play</div>
+      <div class="htrow"><span class="htic">🖱️</span><span>Click a building in the toolbar at the bottom, then click any empty tile on the grid. New buildings must connect to your existing colony.</span></div>
+      <div class="htrow"><span class="htic">⚡</span><span>Everything needs power. Solar Arrays only work in daylight — build Batteries to last the night, or research Fusion Power for 24/7 energy.</span></div>
+      <div class="htrow"><span class="htic">🫧💧🍎</span><span>Watch the O₂, Water, and Food bars at the top. If any hit zero, colonists start dying. Build Oxygen Generators, Water Extractors, and Hydroponics Bays.</span></div>
+      <div class="htrow"><span class="htic">🔬</span><span>Build Research Labs (staffed by colonists) to earn research points. Click the 🔬 button top-right to spend them on better tech and new buildings.</span></div>
+      <div class="htrow"><span class="htic">⚠️</span><span>Random events happen — dust storms, malfunctions, even meteorites! Click a broken (smoking) building to repair it for 40₡.</span></div>
+      <div class="htrow"><span class="htic">🎯</span><span>Click 🎯 to see your objectives. Grow to 100 colonists to win — then keep playing to fully terraform Mars and turn the sky blue!</span></div>
+    </div>
+    <div class="feats"><span class="feat">⚡ Survive the night</span><span class="feat">🌱 Feed your crew</span><span class="feat">🚀 Grow to 100</span></div>
+    <button class="start" id="startBtn">▶ BEGIN COLONY</button>
+    <span class="new" id="newBtn"></span>
+  </div></div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   RED HORIZON — Mars Colony Tycoon  (single-file)
+   Tunable balance constants live in CFG below — tweak away.
+   ============================================================ */
+const CFG = {
+  COLS:40, ROWS:22,
+  SOL_LENGTH:72,          // seconds per Martian sol at 1x speed
+  SOLAR_PEAK:12,          // peak power per solar array at noon
+  POW_PER_COL:0.14,       // power drawn per colonist (heat/air)
+  O2_PER_COL:0.24, WATER_PER_COL:0.17, FOOD_PER_COL:0.15,
+  CAP_O2:170, CAP_WATER:170, CAP_FOOD:170, BASE_BATT:25,
+  STIPEND:1.3,            // baseline credits/s (Earth support)
+  GROWTH:0.07, DEATH:0.16,
+  REPAIR:40, REFUND:0.5,
+  START_CREDITS:340,
+};
+
+/* ---------- module definitions ---------- */
+const CAT = {power:'var(--amber)', life:'var(--teal)', hab:'var(--blue)', econ:'var(--purple)', amenity:'var(--pink)', command:'#cfc2b8'};
+const M = {
+  CMD:   {name:'Command Hub', ic:'🛰️', cat:'command', cost:0,  housing:4, power:6,  morale:3, fixed:true,
+          desc:'The heart of your colony. Houses 4 and runs a small backup generator. Cannot be removed.'},
+  HAB:   {name:'Habitat Pod', ic:'🛏️', cat:'hab', cost:80,  housing:4, power:-2,
+          desc:'Pressurised living quarters for 4 colonists.'},
+  DOME:  {name:'Residential Dome', ic:'🏘️', cat:'hab', cost:320, housing:18, power:-6, morale:4, tech:'dome',
+          desc:'Spacious geodesic housing for 18, with room to relax. +morale.'},
+  O2:    {name:'Oxygen Generator', ic:'🫧', cat:'life', cost:70, power:-5, o2:6,
+          desc:'Electrolyses CO₂ into breathable oxygen.'},
+  WATER: {name:'Water Extractor', ic:'💧', cat:'life', cost:70, power:-5, water:5, iceBonus:2,
+          desc:'Melts subsurface ice into water. ×2 output on an ICE deposit.'},
+  GREEN: {name:'Hydroponics Bay', ic:'🌱', cat:'life', cost:95, power:-4, food:5, o2:2, useWater:3,
+          desc:'Grows food and a little oxygen, using water.'},
+  FARM:  {name:'Bio-Dome Farm', ic:'🌾', cat:'life', cost:270, power:-7, food:13, o2:4, useWater:5, tech:'farming',
+          desc:'High-yield agriculture. Far more food per tile.'},
+  SOLAR: {name:'Solar Array', ic:'🔆', cat:'power', cost:55, solar:true,
+          desc:'Generates power in daylight only. Crippled by dust storms.'},
+  BATT:  {name:'Battery Bank', ic:'🔋', cat:'power', cost:60, batt:45,
+          desc:'Stores +45 power to ride through the night.'},
+  RX:    {name:'Fusion Reactor', ic:'⚛️', cat:'power', cost:460, power:46, tech:'reactor',
+          desc:'Massive, constant power — day or night, storm or shine.'},
+  MINE:  {name:'Ore Mine', ic:'⛏️', cat:'econ', cost:120, power:-8, jobs:3, credits:6, mineralBonus:2,
+          desc:'Colonists mine ore to export for credits. ×2 on a MINERAL vein. Needs 3 workers.'},
+  LAB:   {name:'Research Lab', ic:'🔬', cat:'econ', cost:150, power:-6, jobs:2, research:1.6,
+          desc:'Colonists generate research points. Needs 2 workers.'},
+  REC:   {name:'Rec Center', ic:'🎮', cat:'amenity', cost:130, power:-4, morale:10,
+          desc:'Games, gym and lounge. A big morale boost for everyone.'},
+  MED:   {name:'Medbay', ic:'🚑', cat:'amenity', cost:140, power:-4, morale:5, safety:true,
+          desc:'Treats illness and slows colonist loss in a crisis. +morale.'},
+  TERRA: {name:'Atmospheric Seeder', ic:'🌍', cat:'econ', cost:380, power:-12, jobs:3, terra:1.2, tech:'terraforming',
+          desc:'Seeds the Martian atmosphere with engineered microbes. Slowly terraforms Mars — bonuses unlock at 25%, 50%, 75%, and 100%.'},
+  COMMS: {name:'Signal Tower', ic:'📡', cat:'econ', cost:185, power:-3, jobs:1, credits:1.4, comms:true,
+          desc:'Beams colony data to Earth for passive income. Doubles research from scientific breakthroughs.'},
+  SILO:  {name:'Resource Vault', ic:'📦', cat:'life', cost:110, power:-1, capBonus:120,
+          desc:'Adds +120 storage capacity to O₂, water, and food. Build more for greater reserves.'},
+  WIND:  {name:'Wind Turbine', ic:'🌬️', cat:'power', cost:90, wind:true, power:8,
+          desc:'Generates power day and night, unaffected by dust. 50% stronger during storms — the best storm-season power source.'},
+  NUKE:  {name:'Nuclear Plant', ic:'☢️', cat:'power', cost:280, power:22, tech:'nuclear',
+          desc:'Mid-tier constant power, day or night. A stepping stone between solar and full fusion.'},
+  ALGAE: {name:'Algae Bioreactor', ic:'🌿', cat:'life', cost:120, power:-5, o2:5, food:3, tech:'biotech',
+          desc:'Engineered algae produce oxygen and food without any water. Ideal redundant life support for water crises.'},
+  CRYO:  {name:'Cryopod Block', ic:'🧊', cat:'hab', cost:380, power:-9, housing:28, tech:'cryo',
+          desc:'Cryogenic bunks for 28 colonists. Efficient high-density housing for the growing colony.'},
+  MARKET:{name:'Trade Hub', ic:'🏪', cat:'econ', cost:175, power:-5, credits:9, jobs:3, tech:'commerce',
+          desc:'Brokers Earth trade deals for strong passive income. Needs 3 workers.'},
+};
+// order shown in the build toolbar
+const TOOLBAR = ['HAB','O2','WATER','GREEN','SOLAR','WIND','BATT','MINE','LAB','REC','MED','RX','NUKE','FARM','ALGAE','DOME','CRYO','TERRA','COMMS','MARKET','SILO'];
+
+const TECHS = [
+  {id:'solarTech', ic:'🔆', name:'Photovoltaics II', cost:35, desc:'+25% output from all Solar Arrays.'},
+  {id:'o2Tech',    ic:'🫧', name:'Advanced Electrolysis', cost:40, desc:'+30% output from Oxygen Generators.'},
+  {id:'mining',    ic:'⛏️', name:'Deep Drilling', cost:55, desc:'+30% credits from all Ore Mines.'},
+  {id:'farming',   ic:'🌾', name:'Bio-Engineering', cost:55, desc:'Unlocks the Bio-Dome Farm.'},
+  {id:'dome',      ic:'🏘️', name:'Habitat Domes', cost:75, desc:'Unlocks the Residential Dome.'},
+  {id:'reactor',   ic:'⚛️', name:'Fusion Power', cost:115, desc:'Unlocks the Fusion Reactor — endless power.'},
+  {id:'terraforming', ic:'🌍', name:'Atmospheric Seeding', cost:80, desc:'Unlocks the Atmospheric Seeder — slowly transforms Mars. O₂ +15% at 25%, morale +5 at 50%, water +15% at 75%.'},
+  {id:'nuclear',   ic:'☢️', name:'Nuclear Engineering', cost:90, desc:'Unlocks the Nuclear Plant — reliable mid-tier constant power, day or night.'},
+  {id:'biotech',   ic:'🌿', name:'Biotechnology', cost:60, desc:'Unlocks the Algae Bioreactor — oxygen and food production with no water required.'},
+  {id:'cryo',      ic:'🧊', name:'Cryogenics', cost:85, desc:'Unlocks the Cryopod Block — high-density housing for 28 colonists.'},
+  {id:'commerce',  ic:'🏪', name:'Galactic Commerce', cost:70, desc:'Unlocks the Trade Hub — passive income from Earth trade networks.'},
+  {id:'waterRecycling', ic:'♻️', name:'Water Recycling', cost:50, desc:'Advanced recycling cuts all colony water consumption by 25%.'},
+  {id:'efficiency', ic:'⚙️', name:'Efficiency Systems', cost:75, desc:'Smart grid reduces all building power draw by 15%.'},
+];
+
+const OBJ = [
+  {id:'p6',   ic:'👤', text:'Grow to 6 colonists',        rwd:'+40 ₡',  test:s=>s.pop>=6,   give:s=>s.credits+=40},
+  {id:'lab',  ic:'🔬', text:'Build a Research Lab',        rwd:'+10 🔬', test:s=>has('LAB'), give:s=>s.research+=10},
+  {id:'p12',  ic:'👤', text:'Grow to 12 colonists',        rwd:'+80 ₡',  test:s=>s.pop>=12,  give:s=>s.credits+=80},
+  {id:'tech', ic:'🧪', text:'Unlock any technology',        rwd:'+60 ₡',  test:s=>s.techs.size>=1, give:s=>s.credits+=60},
+  {id:'p25',  ic:'👤', text:'Grow to 25 colonists',        rwd:'+15 🔬', test:s=>s.pop>=25,  give:s=>s.research+=15},
+  {id:'rx',   ic:'⚛️', text:'Build a Fusion Reactor',       rwd:'+150 ₡', test:s=>has('RX'),  give:s=>s.credits+=150},
+  {id:'p50',  ic:'👤', text:'Grow to 50 colonists',        rwd:'+250 ₡', test:s=>s.pop>=50,  give:s=>s.credits+=250},
+  {id:'p100', ic:'🏆', text:'Reach 100 colonists — Thriving Colony!', rwd:'🎉', test:s=>s.pop>=100, give:s=>s.won=true},
+  {id:'terra25', ic:'🌍', text:'Terraform Mars to 25%', rwd:'+100 ₡', test:s=>(s.terra||0)>=25, give:s=>s.credits+=100},
+  {id:'terra100',ic:'🌎', text:'Fully terraform Mars!', rwd:'+500 ₡', test:s=>(s.terra||0)>=100, give:s=>s.credits+=500},
+  {id:'comms', ic:'📡', text:'Build a Signal Tower', rwd:'+15 🔬', test:s=>has('COMMS'), give:s=>s.research+=15},
+  {id:'wind',  ic:'🌬️', text:'Build a Wind Turbine', rwd:'+30 ₡', test:s=>has('WIND'), give:s=>s.credits+=30},
+  {id:'market',ic:'🏪', text:'Build a Trade Hub', rwd:'+20 🔬', test:s=>has('MARKET'), give:s=>s.research+=20},
+  {id:'p150',  ic:'🌟', text:'Reach 150 colonists', rwd:'+400 ₡', test:s=>s.pop>=150, give:s=>s.credits+=400},
+];
+
+/* ============================================================ */
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+let W=0,H=0, DPR=1, tile=40, ox=0, oy=0;
+function resize(){
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  W=window.innerWidth; H=window.innerHeight;
+  cv.width=W*DPR; cv.height=H*DPR; cv.style.width=W+'px'; cv.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  const availW=W-24, availH=H-170;
+  tile=Math.max(26, Math.min(availW/CFG.COLS, availH/CFG.ROWS, 64));
+  ox=Math.round((W-tile*CFG.COLS)/2);
+  oy=Math.round((H-tile*CFG.ROWS)/2)+14;
+  initScenery(); prerenderTerrain(); makeVignette();
+}
+window.addEventListener('resize',resize);
+
+/* ---------- state ---------- */
+let S, grid, dots=[], tool=null, hover=null, selected=null, selBroken=null, paused=false, speed=1, muted=false, started=false;
+let parts=[], rocket=null, lostShown=false, animT=0, sunX=-200, sunY=-200, dustClouds=[];
+let solar=0; // current solar availability (0–1), updated each update() tick and read by triggerEvent()
+let lastTerrRender=-1; // track when terrain was last re-rendered for terraforming visuals
+
+function blankState(){
+  return { credits:CFG.START_CREDITS, research:0, popF:3, pop:3, morale:70,
+    o2:CFG.CAP_O2*0.6, water:CFG.CAP_WATER*0.6, food:CFG.CAP_FOOD*0.6, batt:CFG.BASE_BATT,
+    sol:1, time:0.25, techs:new Set(), done:new Set(), won:false,
+    storm:{active:false,t:0}, eventTimer:40, terra:0, flare:{active:false,t:0}, meteorFlash:0, rates:{} };
+}
+function makeGrid(){
+  grid=[];
+  for(let r=0;r<CFG.ROWS;r++){ grid[r]=[]; for(let c=0;c<CFG.COLS;c++){
+    let t='flat', q=Math.random();
+    if(q<0.06) t='rock'; else if(q<0.10) t='crater';
+    else if(q<0.16) t='ice'; else if(q<0.22) t='mineral';
+    grid[r][c]={terrain:t, b:null, mottle:Math.random()};
+  }}
+}
+function placeStart(){
+  const cc=Math.floor(CFG.COLS/2), cr=Math.floor(CFG.ROWS/2);
+  const seed=[[cr,cc,'CMD'],[cr,cc-1,'SOLAR'],[cr,cc+1,'SOLAR'],[cr-1,cc,'O2'],
+             [cr+1,cc,'WATER'],[cr+1,cc-1,'GREEN'],[cr-1,cc+1,'BATT'],[cr-1,cc-1,'BATT']];
+  for(const [r,c,t] of seed){ grid[r][c].terrain='flat'; grid[r][c].b={type:t, broken:false, anim:Math.random()*9}; }
+}
+function has(type){ for(const b of allB()) if(b.type===type) return true; return false; }
+function allB(){ const a=[]; for(let r=0;r<CFG.ROWS;r++)for(let c=0;c<CFG.COLS;c++){const b=grid[r][c].b; if(b){b.r=r;b.c=c;a.push(b);}} return a; }
+
+/* ---------- save / load ---------- */
+const SAVE='redHorizonSave_v1';
+function save(){
+  try{
+    const CODE={flat:'F',rock:'R',crater:'C',ice:'I',mineral:'M'};
+    const terr=grid.map(row=>row.map(g=>CODE[g.terrain]).join('')).join('|');
+    const bs=[]; for(let r=0;r<CFG.ROWS;r++)for(let c=0;c<CFG.COLS;c++){const b=grid[r][c].b; if(b)bs.push([r,c,b.type,b.broken?1:0]);}
+    localStorage.setItem(SAVE, JSON.stringify({
+      terr, bs, credits:S.credits, research:S.research, popF:S.popF, morale:S.morale,
+      o2:S.o2, water:S.water, food:S.food, batt:S.batt, sol:S.sol, time:S.time,
+      techs:[...S.techs], done:[...S.done], won:S.won, muted,
+      storm:{active:S.storm.active,t:S.storm.t}, eventTimer:S.eventTimer, terra:S.terra,
+      flare:{active:S.flare.active,t:S.flare.t}, meteorFlash:S.meteorFlash||0
+    }));
+  }catch(e){}
+}
+function load(){
+  try{
+    const d=JSON.parse(localStorage.getItem(SAVE)); if(!d) return false;
+    const DEC={F:'flat',R:'rock',C:'crater',I:'ice',M:'mineral'};
+    const rows=d.terr.split('|');
+    grid=[]; for(let r=0;r<CFG.ROWS;r++){grid[r]=[];for(let c=0;c<CFG.COLS;c++)grid[r][c]={terrain:DEC[(rows[r]||'')[c]]||'flat',b:null,mottle:Math.random()};}
+    for(const [r,c,t,br] of d.bs) grid[r][c].b={type:t,broken:!!br,anim:Math.random()*9};
+    S=blankState();
+    Object.assign(S,{credits:d.credits,research:d.research,popF:d.popF,morale:d.morale,o2:d.o2,water:d.water,
+      food:d.food,batt:d.batt,sol:d.sol,time:d.time,won:!!d.won,terra:d.terra||0});
+    S.techs=new Set(d.techs||[]); S.done=new Set(d.done||[]); muted=!!d.muted;
+    if(d.storm) S.storm={active:!!d.storm.active, t:d.storm.t||0};
+    if(d.eventTimer!=null) S.eventTimer=d.eventTimer;
+    if(d.flare) S.flare={active:!!d.flare.active, t:d.flare.t||0};
+    if(d.meteorFlash!=null) S.meteorFlash=d.meteorFlash;
+    // clamp loaded values to valid ranges
+    S.o2=Math.max(0,S.o2); S.water=Math.max(0,S.water); S.food=Math.max(0,S.food);
+    S.batt=Math.max(0,S.batt); S.morale=clamp(S.morale,0,100);
+    S.terra=clamp(S.terra,0,100); S.credits=Math.max(0,S.credits);
+    S.popF=Math.max(0,S.popF);
+    S.pop=Math.floor(S.popF+1e-9);
+    return true;
+  }catch(e){ return false; }
+}
+function hasSave(){ try{ return !!localStorage.getItem(SAVE); }catch(e){ return false; } }
+
+/* ---------- audio (tiny synth) ---------- */
+let AC=null;
+function actx(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}} return AC; }
+function beep(freq,dur=0.12,type='sine',vol=0.15,slide=0){
+  if(muted) return; const a=actx(); if(!a) return;
+  const o=a.createOscillator(), g=a.createGain();
+  o.type=type; o.frequency.value=freq; if(slide)o.frequency.linearRampToValueAtTime(freq+slide,a.currentTime+dur);
+  g.gain.setValueAtTime(0,a.currentTime); g.gain.linearRampToValueAtTime(vol,a.currentTime+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001,a.currentTime+dur);
+  o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime+dur+0.02);
+}
+const SND={
+  place:()=>{beep(420,0.08,'triangle',0.18);beep(620,0.1,'sine',0.12,0);},
+  build:()=>{beep(330,0.07,'square',0.1);setTimeout(()=>beep(550,0.12,'triangle',0.14),60);},
+  err:()=>beep(150,0.14,'sawtooth',0.12),
+  tech:()=>{[523,659,784].forEach((f,i)=>setTimeout(()=>beep(f,0.16,'sine',0.14),i*70));},
+  obj:()=>{[659,880].forEach((f,i)=>setTimeout(()=>beep(f,0.2,'triangle',0.16),i*110));},
+  alert:()=>{beep(440,0.16,'square',0.12);setTimeout(()=>beep(330,0.2,'square',0.12),140);},
+  coin:()=>beep(880,0.08,'sine',0.1),
+  rocket:()=>beep(90,1.1,'sawtooth',0.08,70),
+  win:()=>{[523,659,784,1047,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.22,'triangle',0.15),i*130));},
+};
+
+/* ---------- simulation ---------- */
+function tech(id){ return S.techs.has(id); }
+function update(dt){
+  // ---- time / sun ----
+  S.time += dt/CFG.SOL_LENGTH;
+  while(S.time>=1){ S.time-=1; S.sol++; }
+  const sunAlt=Math.sin((S.time-0.25)*2*Math.PI);
+  solar=Math.max(0,sunAlt); // write to module-level so triggerEvent() can read it
+  if(S.storm.active){
+    // at high terraforming the thickening atmosphere deflects storms — clears faster
+    const stormSpeedUp=1+clamp(S.terra/25,0,3);
+    solar*=Math.max(0.18,0.18+S.terra/200); // partial solar recovery as atmosphere improves
+    S.storm.t-=dt*stormSpeedUp;
+    // at 80%+ terra the stabilised atmosphere instantly disperses any storm
+    if(S.terra>=80){ S.storm.active=false; S.storm.t=0; toast('🌤️ The thickened atmosphere dispersed the dust storm.','good'); }
+    else if(S.storm.t<=0){S.storm.active=false; toast('☀️ The dust storm has cleared.','good');}
+  }
+  // re-render terrain tiles every 5% terra to show the surface greening
+  const terrSlot=Math.floor(S.terra/5);
+  if(terrSlot!==lastTerrRender){ lastTerrRender=terrSlot; prerenderTerrain(); }
+  if(S.flare.active){ S.flare.t-=dt; if(S.flare.t<=0){S.flare.active=false; toast('☀️ Solar flare subsided.','good');} }
+  // decay meteorFlash at constant real-time rate regardless of game speed
+  if(S.meteorFlash>0) S.meteorFlash=Math.max(0,S.meteorFlash-dt/Math.max(speed,1)*2.2);
+  const flareBoost=S.flare.active?1.75:1;
+
+  // ---- events ----
+  S.eventTimer-=dt;
+  if(S.eventTimer<=0){ triggerEvent(); S.eventTimer=28+Math.random()*40; }
+
+  const B=allB();
+  // ---- power ----
+  let pProd=0,pDem=0,battCap=CFG.BASE_BATT, jobs=0, housing=0, moraleBonus=0, safety=false, comms=false;
+  let capO2=CFG.CAP_O2, capW=CFG.CAP_WATER, capF=CFG.CAP_FOOD;
+  for(const b of B){
+    const d=M[b.type]; if(b.broken) continue;
+    if(d.solar) pProd+=CFG.SOLAR_PEAK*solar*(tech('solarTech')?1.25:1)*flareBoost;
+    else if(d.wind) pProd+=d.power*(S.storm.active?1.5:1);
+    else if(d.power>0) pProd+=d.power;
+    if(d.power<0) pDem+=(-d.power)*(tech('efficiency')?0.85:1);
+    if(d.batt) battCap+=d.batt;
+    if(d.jobs) jobs+=d.jobs;
+    if(d.housing) housing+=d.housing;
+    if(d.morale) moraleBonus+=d.morale;
+    if(d.safety) safety=true;
+    if(d.comms) comms=true;
+    if(d.capBonus){ capO2+=d.capBonus; capW+=d.capBonus; capF+=d.capBonus; }
+  }
+  pDem += S.pop*CFG.POW_PER_COL;
+  let powerRatio=1, net=pProd-pDem;
+  if(net>=0){ S.batt=Math.min(battCap,S.batt+net*dt); }
+  else{
+    const need=-net, fromB=Math.min(S.batt,need*dt); S.batt-=fromB;
+    const avail=pProd*dt+fromB, want=pDem*dt;
+    powerRatio = want>0?Math.min(1,avail/want):1;
+  }
+  S.batt=Math.max(0,Math.min(S.batt,battCap));
+  const brownout=powerRatio<0.985;
+  const workRatio = jobs>0?Math.min(1,S.pop/jobs):1;
+
+  // ---- resource production ----
+  const prevTerra=S.terra; let terraP=0;
+  let o2P=0,wP=0,fP=0,cP=CFG.STIPEND,rP=0,farmWater=0;
+  for(const b of B){
+    const d=M[b.type]; if(b.broken) continue;
+    const ps=powerRatio;
+    if(d.o2 && !d.useWater) o2P+=d.o2*ps*(tech('o2Tech')&&b.type==='O2'?1.3:1);
+    if(d.food && !d.useWater) fP+=d.food*ps;
+    if(d.water) wP+=d.water*(grid[b.r][b.c].terrain==='ice'?d.iceBonus:1)*ps;
+    if(d.useWater){ const ok=S.water>0?1:0; fP+=d.food*ps*ok; o2P+=(d.o2||0)*ps*ok; farmWater+=d.useWater*ps*ok; }
+    if(d.credits) cP+=d.credits*(d.mineralBonus&&grid[b.r][b.c].terrain==='mineral'?d.mineralBonus:1)*ps*workRatio*(d.mineralBonus&&tech('mining')?1.3:1);
+    if(d.research) rP+=d.research*ps*workRatio;
+    if(d.terra) terraP+=d.terra*ps*workRatio;
+  }
+  // ---- terraforming ----
+  if(terraP>0){
+    S.terra=Math.min(100, S.terra+terraP*dt/CFG.SOL_LENGTH);
+    const chk=pct=>prevTerra<pct&&S.terra>=pct;
+    if(chk(25)){ toast('🌍 Atmosphere thickening — O₂ generators are 15% more efficient!','good'); SND.obj(); }
+    if(chk(50)){ toast('🌤️ The sky is turning blue. Colonist morale +5.','good'); SND.obj(); }
+    if(chk(75)){ toast('🌧️ Surface water detected! Extractors output +15%.','good'); SND.obj(); }
+    if(chk(100)){ toast('🌏 <b>MARS IS TERRAFORMED!</b> Humanity\'s greatest achievement.','good'); SND.win(); }
+  }
+  o2P*=(S.terra>=25?1.15:1);
+  wP *=(S.terra>=75?1.15:1);
+  // ---- consumption ----
+  const o2C=S.pop*CFG.O2_PER_COL, fC=S.pop*CFG.FOOD_PER_COL;
+  const wC=(S.pop*CFG.WATER_PER_COL+farmWater)*(tech('waterRecycling')?0.75:1);
+  S.o2   =clamp(S.o2  +(o2P-o2C)*dt,0,capO2);
+  S.water=clamp(S.water+(wP -wC )*dt,0,capW);
+  S.food =clamp(S.food +(fP -fC )*dt,0,capF);
+  S.credits+=cP*dt; S.research+=rP*dt;
+
+  const starveO2=S.o2<=0&&o2P<o2C, starveW=S.water<=0&&wP<wC, starveF=S.food<=0&&fP<fC;
+
+  // ---- morale ----
+  let target=56+moraleBonus;
+  if(S.food>CFG.CAP_FOOD*0.1) target+=8; else target-=22;
+  if(starveO2) target-=45; if(starveW) target-=22; if(starveF) target-=24;
+  if(brownout) target-=12;
+  if(S.pop>housing) target-=22;
+  if(S.terra>=50) target+=5;
+  target=clamp(target,0,100);
+  S.morale+=(target-S.morale)*Math.min(1,dt*0.4);
+
+  // ---- population ----
+  if(!starveO2&&!starveW&&S.food>0&&S.morale>62&&S.pop<housing){
+    S.popF+=CFG.GROWTH*dt*((S.morale-60)/40);
+  }
+  if(starveO2||starveW||starveF){ S.popF-=CFG.DEATH*dt*(safety?0.5:1); }
+  S.popF=Math.max(0,Math.min(S.popF,housing));
+  const newPop=Math.floor(S.popF+1e-9);
+  if(newPop!==S.pop){ S.pop=newPop; rebuildDots(); }
+  if(S.pop===0){
+    if(!lostShown){ lostShown=true; toast('💀 <b>All colonists are gone.</b> Keep life support running — Earth will send help!','bad'); SND.alert(); }
+  } else lostShown=false;
+
+  // ---- broken buildings smoke ----
+  for(const b of B){ if(b.broken && Math.random()<dt*1.6) smokePuff(b); }
+
+  // ---- rocket animation ----
+  if(rocket) stepRocket(dt);
+
+  // ---- store rates for HUD ----
+  S.rates={power:net, battCap, o2:o2P-o2C, water:wP-wC, food:fP-fC, credits:cP, research:rP, jobs, housing, brownout, terra:terraP, comms, capO2, capW, capF};
+
+  checkObjectives();
+}
+
+function triggerEvent(){
+  const B=allB().filter(b=>!b.broken && b.type!=='CMD');
+  const pool=['breakthrough','breakthrough'];
+  if(!S.storm.active && S.terra<60) pool.push('storm'); // storms stop once atmosphere stabilises
+  if((S.rates.housing||0)>S.pop) pool.push('transport','transport');
+  if(B.length>3) pool.push('malfunction','malfunction');
+  if(!S.flare.active&&!S.storm.active&&solar>0.2) pool.push('flare');
+  if(B.length>2) pool.push('meteor');
+  const e=pool[Math.floor(Math.random()*pool.length)];
+  if(e==='storm'){ S.storm.active=true; S.storm.t=16+Math.random()*22; toast('🌪️ <b>Dust storm!</b> Solar power is failing.','warn'); SND.alert(); }
+  else if(e==='transport'){ const space=(S.rates.housing||0)-S.pop, n=Math.min(space,2+Math.floor(Math.random()*3)); if(n>0){ S.popF+=n; launchRocket(); toast('🚀 Transport from Earth docked — <b>+'+n+' colonists!</b>','good'); SND.rocket(); } }
+  else if(e==='malfunction'){ const b=B[Math.floor(Math.random()*B.length)]; b.broken=true; toast('⚠️ '+M[b.type].name+' <b>malfunctioned</b> — click it to repair ('+CFG.REPAIR+'₡).','bad'); SND.alert(); }
+  else if(e==='breakthrough'){ const g=8+Math.floor(Math.random()*12); const boost=S.rates.comms?2:1; S.research+=g*boost; toast('💡 Scientific breakthrough! <b>+'+(g*boost)+' research</b>'+(boost>1?' 📡':''),'good'); SND.coin(); }
+  else if(e==='flare'){ const t2=14+Math.floor(Math.random()*12); S.flare={active:true,t:t2}; toast('☀️ <b>Solar flare!</b> Solar arrays at 175% for '+t2+' seconds.','good'); SND.obj(); }
+  else if(e==='meteor'){ const tgt=B[Math.floor(Math.random()*B.length)]; tgt.broken=true; spawnMeteor(tgt); toast('☄️ <b>Meteorite strike!</b> '+M[tgt.type].name+' was hit!','bad'); SND.alert(); }
+}
+
+function checkObjectives(){
+  for(const o of OBJ){
+    if(S.done.has(o.id)) continue;
+    if(o.test(S)){ S.done.add(o.id); o.give&&o.give(S);
+      toast('🎯 Objective complete: <b>'+o.text+'</b> '+(o.rwd?'('+o.rwd+')':''),'good'); SND.obj();
+      if(o.id==='p100') showWin();
+      save();
+    }
+  }
+}
+
+/* ---------- building actions ---------- */
+function canPlace(r,c,type){
+  if(r<0||c<0||r>=CFG.ROWS||c>=CFG.COLS) return [false,''];
+  const g=grid[r][c], d=M[type];
+  if(d.tech&&!tech(d.tech)) return [false,'locked'];
+  if(g.terrain==='rock'||g.terrain==='crater') return [false,'blocked terrain'];
+  if(g.b) return [false,'occupied'];
+  if(S.credits<d.cost) return [false,'need '+d.cost+'₡'];
+  let adj=false;
+  for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){ const nr=r+dr,nc=c+dc; if(nr>=0&&nc>=0&&nr<CFG.ROWS&&nc<CFG.COLS&&grid[nr][nc].b) adj=true; }
+  if(!adj) return [false,'must connect to colony'];
+  return [true,''];
+}
+function place(r,c,type){
+  const [ok,why]=canPlace(r,c,type);
+  if(!ok){ if(why) toast("Can't build: "+why,'bad'); SND.err(); return; }
+  const d=M[type]; S.credits-=d.cost; grid[r][c].b={type, broken:false, anim:Math.random()*9, bornT:animT};
+  dustPoof(r,c); SND.place(); rebuildDots(); save();
+}
+function demolish(r,c){
+  const b=grid[r][c]&&grid[r][c].b; if(!b){ SND.err(); return; }
+  if(M[b.type].fixed){ toast('The Command Hub cannot be removed.','bad'); SND.err(); return; }
+  S.credits+=Math.round(M[b.type].cost*CFG.REFUND); grid[r][c].b=null;
+  debris(r,c); SND.build(); rebuildDots(); selected=null; document.getElementById('info').style.display='none'; save();
+}
+function repair(b){
+  if(!b.broken) return;
+  if(S.credits<CFG.REPAIR){ toast('Need '+CFG.REPAIR+'₡ to repair.','bad'); SND.err(); return; }
+  S.credits-=CFG.REPAIR; b.broken=false; sparkle(b.r,b.c); SND.build(); toast(M[b.type].name+' repaired.','good'); save();
+}
+
+/* ---------- colonist dots ---------- */
+function rebuildDots(){
+  const n=Math.min(S.pop,30); const B=allB();
+  if(!B.length){dots=[];return;}
+  while(dots.length<n){ const b=B[Math.floor(Math.random()*B.length)];
+    dots.push({x:b.c+0.5,y:b.r+0.5,tx:b.c+0.5,ty:b.r+0.5,sp:0.25+Math.random()*0.3,wait:0,ph:Math.random()*7}); }
+  while(dots.length>n) dots.pop();
+}
+function moveDots(dt){
+  const B=allB(); if(!B.length) return;
+  for(const p of dots){
+    p.wait-=dt;
+    if(p.wait<=0){ const b=B[Math.floor(Math.random()*B.length)]; p.tx=b.c+0.4+Math.random()*0.2; p.ty=b.r+0.4+Math.random()*0.2; p.wait=1+Math.random()*3; }
+    const dx=p.tx-p.x, dy=p.ty-p.y, dist=Math.hypot(dx,dy);
+    p.moving = dist>0.02;
+    if(p.moving){ p.x+=dx/dist*p.sp*dt; p.y+=dy/dist*p.sp*dt; }
+  }
+}
+
+/* ---------- particles ---------- */
+function spawnP(x,y,o){ if(parts.length>=250)return; parts.push({x,y, vx:o.vx||0, vy:o.vy||0, g:o.g||0, life:o.life||1, age:0,
+  sz:o.sz||3, col:o.col||'210,160,120', glow:!!o.glow, grow:o.grow||0}); }
+function dustPoof(r,c){
+  const x=ox+(c+0.5)*tile, y=oy+(r+0.7)*tile;
+  for(let i=0;i<12;i++) spawnP(x,y,{vx:(Math.random()-.5)*70, vy:-(8+Math.random()*30), life:.6+Math.random()*.5, sz:2.5+Math.random()*4, col:'214,160,118', grow:8});
+  for(let i=0;i<4;i++) spawnP(x,y-tile*0.2,{vx:(Math.random()-.5)*36, vy:-(35+Math.random()*40), life:.55, sz:1.6, col:'255,220,140', glow:true});
+}
+function debris(r,c){
+  const x=ox+(c+0.5)*tile, y=oy+(r+0.5)*tile;
+  for(let i=0;i<13;i++) spawnP(x,y,{vx:(Math.random()-.5)*130, vy:-(20+Math.random()*90), g:240, life:.7+Math.random()*.4, sz:1.8+Math.random()*2.6, col:'130,95,72'});
+  for(let i=0;i<6;i++) spawnP(x,y,{vx:(Math.random()-.5)*60, vy:-(5+Math.random()*20), life:.8, sz:3+Math.random()*4, col:'190,140,100', grow:10});
+}
+function sparkle(r,c){
+  const x=ox+(c+0.5)*tile, y=oy+(r+0.5)*tile;
+  for(let i=0;i<10;i++) spawnP(x,y,{vx:(Math.random()-.5)*80, vy:-(15+Math.random()*45), life:.5+Math.random()*.3, sz:1.6+Math.random()*1.6, col:'130,235,160', glow:true});
+}
+function smokePuff(b){
+  const x=ox+(b.c+0.5+(Math.random()-.5)*0.3)*tile, y=oy+(b.r+0.25)*tile;
+  spawnP(x,y,{vx:(Math.random()-.5)*8, vy:-(12+Math.random()*10), life:1.1+Math.random()*.5, sz:2.5+Math.random()*2, col:'90,80,76', grow:9});
+}
+function spawnMeteor(b){
+  const ex=ox+(b.c+0.5)*tile, ey=oy+(b.r+0.5)*tile;
+  const sx=ex-W*0.28, sy=Math.max(-60,-H*0.35);
+  // trail along path
+  for(let i=0;i<22;i++){
+    const t2=i/22, px=sx+(ex-sx)*t2, py=sy+(ey-sy)*t2, sp=(1-t2)*55;
+    spawnP(px+(Math.random()-.5)*sp, py+(Math.random()-.5)*sp*.4,
+      {vx:(Math.random()-.5)*50, vy:Math.random()*35, g:80, life:0.35+Math.random()*0.45,
+       sz:1.8+Math.random()*2.4, col:i>14?'255,190,70':'255,240,200', glow:true});
+  }
+  // impact explosion
+  for(let i=0;i<35;i++) spawnP(ex,ey,{vx:(Math.random()-.5)*200, vy:-(25+Math.random()*130), g:300,
+    life:0.6+Math.random()*.6, sz:1.8+Math.random()*3.8, col:i%3===0?'255,90,30':i%3===1?'255,165,55':'200,120,60', glow:i<14});
+  for(let i=0;i<14;i++) spawnP(ex,ey,{vx:(Math.random()-.5)*110, vy:-(8+Math.random()*40), life:1.1,
+    sz:4+Math.random()*7, col:'168,110,72', grow:13});
+  S.meteorFlash=0.28;
+}
+function stepShotStars(dt){
+  const night=S&&Math.sin((S.time-0.25)*2*Math.PI)<-0.1;
+  if(S&&!paused&&night&&Math.random()<0.005*dt*speed)
+    shotStars.push({x:Math.random()*W*0.7+W*0.05, y:Math.random()*H*0.38,
+      vx:W*(0.19+Math.random()*0.14), vy:H*(0.055+Math.random()*0.05),
+      age:0, life:0.4+Math.random()*0.35});
+  for(let i=shotStars.length-1;i>=0;i--){ shotStars[i].age+=dt; if(shotStars[i].age>=shotStars[i].life) shotStars.splice(i,1); }
+}
+function stepParts(dt){
+  for(let i=parts.length-1;i>=0;i--){ const p=parts[i];
+    p.age+=dt; if(p.age>=p.life){ parts.splice(i,1); continue; }
+    p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=p.g*dt; if(p.grow) p.sz+=p.grow*dt;
+  }
+}
+function drawParts(){
+  for(const p of parts){
+    const a=Math.max(0,1-p.age/p.life);
+    if(p.glow){ ctx.globalCompositeOperation='lighter'; }
+    ctx.fillStyle='rgba('+p.col+','+(a*(p.glow?0.9:0.5)).toFixed(3)+')';
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.sz,0,7); ctx.fill();
+    if(p.glow){ ctx.globalCompositeOperation='source-over'; }
+  }
+}
+
+/* ---------- transport rocket (visual flourish) ---------- */
+function launchRocket(){
+  rocket={x:ox+tile*CFG.COLS*0.5, gy:oy-tile*0.55, alt:Math.max(300,H*0.85), phase:'down', t:0};
+}
+function stepRocket(dt){
+  const rk=rocket;
+  if(rk.phase==='down'){
+    rk.alt-=dt*(110+rk.alt*1.7);
+    for(let i=0;i<2;i++) spawnP(rk.x+(Math.random()-.5)*5, rk.gy-rk.alt+tile*0.42,{vx:(Math.random()-.5)*42, vy:55+Math.random()*60, life:.4, sz:2.4+Math.random()*2.4, col:'255,180,70', glow:true});
+    if(rk.alt<=0){ rk.alt=0; rk.phase='sit'; rk.t=2.4;
+      for(let i=0;i<16;i++) spawnP(rk.x,rk.gy+tile*0.45,{vx:(Math.random()-.5)*150, vy:-(4+Math.random()*22), life:.7, sz:3+Math.random()*4, col:'214,160,118', grow:14}); }
+  } else if(rk.phase==='sit'){ rk.t-=dt; if(rk.t<=0) rk.phase='up'; }
+  else { rk.alt+=dt*(90+rk.alt*1.9);
+    for(let i=0;i<2;i++) spawnP(rk.x+(Math.random()-.5)*5, rk.gy-rk.alt+tile*0.42,{vx:(Math.random()-.5)*42, vy:70+Math.random()*60, life:.45, sz:2.6+Math.random()*2.6, col:'255,180,70', glow:true});
+    if(rk.alt>H*0.95+300) rocket=null; }
+}
+function drawRocket(){
+  const rk=rocket; if(!rk) return;
+  const x=rk.x, y=rk.gy-rk.alt, h=tile*0.85, w=tile*0.3;
+  ctx.save(); ctx.translate(x,y);
+  ctx.fillStyle='rgba(0,0,0,0.3)';
+  if(rk.alt<tile*2){ const sh=1-Math.min(1,rk.alt/(tile*2)); ctx.beginPath(); ctx.ellipse(0,tile*0.5,w*1.3*sh,4*sh,0,0,7); ctx.fill(); }
+  // fins
+  ctx.fillStyle='#c0452a';
+  ctx.beginPath(); ctx.moveTo(-w*0.5,h*0.42); ctx.lineTo(-w*0.95,h*0.5); ctx.lineTo(-w*0.5,h*0.18); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(w*0.5,h*0.42); ctx.lineTo(w*0.95,h*0.5); ctx.lineTo(w*0.5,h*0.18); ctx.closePath(); ctx.fill();
+  // body
+  const bg=ctx.createLinearGradient(-w*0.5,0,w*0.5,0);
+  bg.addColorStop(0,'#9a9da8'); bg.addColorStop(0.45,'#f4f2ee'); bg.addColorStop(1,'#b9bcc4');
+  ctx.fillStyle=bg;
+  ctx.beginPath(); ctx.moveTo(0,-h*0.5);
+  ctx.quadraticCurveTo(w*0.55,-h*0.18,w*0.5,h*0.2); ctx.lineTo(w*0.32,h*0.45); ctx.lineTo(-w*0.32,h*0.45); ctx.lineTo(-w*0.5,h*0.2);
+  ctx.quadraticCurveTo(-w*0.55,-h*0.18,0,-h*0.5); ctx.closePath(); ctx.fill();
+  // nose
+  ctx.fillStyle='#e05a30'; ctx.beginPath(); ctx.moveTo(0,-h*0.5); ctx.quadraticCurveTo(w*0.42,-h*0.3,w*0.36,-h*0.16); ctx.lineTo(-w*0.36,-h*0.16); ctx.quadraticCurveTo(-w*0.42,-h*0.3,0,-h*0.5); ctx.closePath(); ctx.fill();
+  // window
+  ctx.fillStyle='#8fd4ff'; ctx.beginPath(); ctx.arc(0,0,w*0.18,0,7); ctx.fill();
+  ctx.strokeStyle='rgba(40,50,70,.6)'; ctx.lineWidth=1; ctx.stroke();
+  // flame
+  if(rk.phase!=='sit'){
+    const fl=0.7+0.3*Math.sin(animT*40);
+    ctx.globalCompositeOperation='lighter';
+    const fg=ctx.createLinearGradient(0,h*0.45,0,h*0.45+h*0.55*fl);
+    fg.addColorStop(0,'rgba(255,240,180,.95)'); fg.addColorStop(0.5,'rgba(255,160,60,.7)'); fg.addColorStop(1,'rgba(255,90,30,0)');
+    ctx.fillStyle=fg;
+    ctx.beginPath(); ctx.moveTo(-w*0.22,h*0.45); ctx.quadraticCurveTo(0,h*0.45+h*0.62*fl,w*0.22,h*0.45); ctx.closePath(); ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+  }
+  ctx.restore();
+}
+
+/* ============================================================
+   RENDER — scenery, terrain, buildings, lighting
+   ============================================================ */
+let stars=[], ridges=[], terrCv=null, vigCv=null, noiseCvs=[], shotStars=[], clds=[];
+
+function initScenery(){
+  stars=[]; const n=Math.floor(W*H/7500)+95;
+  for(let i=0;i<n;i++){
+    const sz=Math.random(), warm=Math.random()<0.2, bright=Math.random()<0.05;
+    stars.push({x:Math.random()*W, y:Math.random()*H*0.78,
+      s:bright?2.6:sz<0.08?1.9:sz<0.22?1.4:1.0,
+      p:Math.random()*7, sp:0.5+Math.random()*2.6, warm, bright});
+  }
+  const mk=(base,amp,step,seed)=>{ const pts=[];
+    for(let x=-30;x<=W+30;x+=step){
+      const y=base + Math.sin(x*0.011+seed)*amp + Math.sin(x*0.027+seed*2.7)*amp*0.42
+              + Math.sin(x*0.0048+seed*1.3)*amp*0.82 + Math.sin(x*0.065+seed*4.1)*amp*0.15;
+      pts.push([x,y]); }
+    return pts; };
+  const h=oy;
+  ridges=[
+    mk(h*0.24, 15, 58, 2.3),
+    mk(h*0.58, 24, 36, 7.8),
+    mk(h-8,    24, 26, 3.1),
+    mk(h+12,   34, 19, 9.7),
+  ];
+  // fluffy clouds — density/opacity scale with terraforming progress
+  clds=[];
+  for(let ci=0;ci<10;ci++) clds.push({
+    ox:Math.random()*(W+600), y:oy*0.06+Math.random()*oy*0.52,
+    sp:0.3+Math.random()*1.1, a:0.18+Math.random()*0.32,
+    lys:Array.from({length:4+Math.floor(Math.random()*4)},()=>({
+      dx:(Math.random()-.5)*90+38, dy:(Math.random()-.5)*13,
+      r:26+Math.random()*52
+    }))
+  });
+  shotStars=[];
+  dustClouds=[];
+  for(let i=0;i<7;i++) dustClouds.push({
+    ox:Math.random()*(W+400), y:12+Math.random()*h*0.52,
+    w:140+Math.random()*220, h:16+Math.random()*28,
+    sp:1.2+Math.random()*2.8
+  });
+  // film grain — 4 noise frames to cycle through
+  noiseCvs=[];
+  for(let ni=0;ni<4;ni++){
+    const nc=document.createElement('canvas'); nc.width=256; nc.height=256;
+    const ng=nc.getContext('2d'), nd=ng.createImageData(256,256);
+    for(let i=0;i<nd.data.length;i+=4){
+      const v=Math.floor(Math.random()*255);
+      nd.data[i]=nd.data[i+1]=nd.data[i+2]=v; nd.data[i+3]=255;
+    }
+    ng.putImageData(nd,0,0); noiseCvs.push(nc);
+  }
+}
+function makeVignette(){
+  vigCv=document.createElement('canvas');
+  vigCv.width=Math.max(2,W>>1); vigCv.height=Math.max(2,H>>1);
+  const g=vigCv.getContext('2d');
+  const rg=g.createRadialGradient(vigCv.width/2,vigCv.height/2,Math.min(vigCv.width,vigCv.height)*0.28,
+                                  vigCv.width/2,vigCv.height/2,Math.max(vigCv.width,vigCv.height)*0.78);
+  rg.addColorStop(0,'rgba(0,0,0,0)'); rg.addColorStop(0.62,'rgba(0,0,0,0.18)'); rg.addColorStop(1,'rgba(0,0,0,0.58)');
+  g.fillStyle=rg; g.fillRect(0,0,vigCv.width,vigCv.height);
+}
+
+/* ---- terrain pre-render (drawn once, blitted every frame) ---- */
+const TERR={
+  flat:[[129,62,37],[110,51,30]], ice:[[150,176,190],[128,153,168]],
+  mineral:[[136,72,82],[116,59,68]], rock:[[97,46,26],[80,37,20]], crater:[[66,32,19],[52,25,16]],
+};
+// Earth-like target palette (reached at 100% terraforming)
+const TERR_EARTH={
+  flat:[[72,118,44],[58,98,34]],       // green grass
+  ice:[[68,138,205],[52,112,178]],     // ocean blue
+  mineral:[[168,148,74],[138,120,56]], // sandy earth
+  rock:[[92,84,76],[74,68,60]],        // grey stone
+  crater:[[65,62,58],[50,48,44]],      // dark grey
+};
+function blendTerrPal(mars,earth,t){ return mars.map((v,i)=>Math.round(v+(earth[i]-v)*t)); }
+function shadeRGB(c,f){ return 'rgb('+Math.round(clamp(c[0]*f,0,255))+','+Math.round(clamp(c[1]*f,0,255))+','+Math.round(clamp(c[2]*f,0,255))+')'; }
+function prerenderTerrain(){
+  if(!grid) return;
+  const px=Math.max(8,Math.round(tile*DPR));
+  const tf=S?clamp(S.terra/100,0,1):0; // terraforming fraction 0–1
+  terrCv=document.createElement('canvas'); terrCv.width=px*CFG.COLS; terrCv.height=px*CFG.ROWS;
+  const t=terrCv.getContext('2d');
+  for(let r=0;r<CFG.ROWS;r++)for(let c=0;c<CFG.COLS;c++){
+    const g=grid[r][c], x=c*px, y=r*px;
+    const marsP=TERR[g.terrain]||TERR.flat, earthP=TERR_EARTH[g.terrain]||TERR_EARTH.flat;
+    // blend each colour stop toward the Earth palette
+    const pal=[blendTerrPal(marsP[0],earthP[0],tf), blendTerrPal(marsP[1],earthP[1],tf)];
+    let s=Math.floor(g.mottle*2147483086)+1; const rnd=()=>{ s=s*16807%2147483647; return s/2147483647; };
+    const base=pal[g.mottle>0.5?0:1], f=0.92+g.mottle*0.16;
+    const lg=t.createLinearGradient(x,y,x,y+px);
+    lg.addColorStop(0,shadeRGB(base,f*1.06)); lg.addColorStop(1,shadeRGB(base,f*0.86));
+    t.fillStyle=lg; t.fillRect(x,y,px,px);
+    // speckle noise
+    for(let i=0;i<7;i++){ t.fillStyle='rgba(0,0,0,'+(0.05+rnd()*0.07).toFixed(3)+')';
+      t.fillRect(x+rnd()*px, y+rnd()*px, 1+rnd()*px*0.06, 1+rnd()*px*0.05); }
+    for(let i=0;i<3;i++){ t.fillStyle='rgba(255,205,165,'+(0.04+rnd()*0.05).toFixed(3)+')';
+      t.fillRect(x+rnd()*px, y+rnd()*px, 1+rnd()*px*0.05, 1+rnd()*px*0.04); }
+    if(g.terrain==='flat'){
+      if(tf<0.5 && rnd()<0.3){ // Mars pebble (fades with terraforming)
+        const pA=1-tf*1.8;
+        if(pA>0){ const bx=x+px*(0.2+rnd()*0.6), by=y+px*(0.2+rnd()*0.6), br=px*(0.03+rnd()*0.04);
+          t.globalAlpha=pA; t.fillStyle='rgba(0,0,0,0.25)'; t.beginPath(); t.ellipse(bx+br*0.3,by+br*0.4,br,br*0.7,0,0,7); t.fill();
+          t.fillStyle=shadeRGB(base,1.25); t.beginPath(); t.ellipse(bx,by,br,br*0.75,0,0,7); t.fill(); t.globalAlpha=1; }
+      }
+      if(tf>0.15 && rnd()<tf*0.55){ // grass tuft grows in as terra rises
+        const gx=x+px*(0.15+rnd()*0.7), gy=y+px*(0.55+rnd()*0.35), n=2+Math.floor(rnd()*3);
+        t.globalAlpha=Math.min(1,(tf-0.12)*1.8);
+        for(let gi=0;gi<n;gi++){
+          const bh=px*(0.08+rnd()*0.12), bx2=gx+(gi-(n-1)/2)*px*0.14;
+          t.strokeStyle='rgba('+(42+Math.floor(rnd()*30))+',' +(110+Math.floor(rnd()*40))+',' +(32+Math.floor(rnd()*20))+',0.88)';
+          t.lineWidth=Math.max(1,px*0.03); t.beginPath();
+          t.moveTo(bx2,gy); t.quadraticCurveTo(bx2+(rnd()-0.5)*px*0.1,gy-bh*0.6,bx2+(rnd()-0.5)*px*0.12,gy-bh); t.stroke();
+        }
+        t.globalAlpha=1;
+      }
+    }
+    if(g.terrain==='ice'){
+      if(tf<0.6){ // ice crystals fade as it melts to ocean
+        t.globalAlpha=1-tf*1.5;
+        for(let i=0;i<3;i++){ const ix=x+px*(0.3+rnd()*0.4), iy=y+px*(0.3+rnd()*0.4), ir=px*(0.2+rnd()*0.16);
+          const rg=t.createRadialGradient(ix,iy,1,ix,iy,ir);
+          rg.addColorStop(0,'rgba(232,244,250,0.95)'); rg.addColorStop(0.6,'rgba(205,228,238,0.55)'); rg.addColorStop(1,'rgba(190,215,228,0)');
+          t.fillStyle=rg; t.beginPath(); t.ellipse(ix,iy,ir*1.25,ir,rnd()*3,0,7); t.fill(); }
+        for(let i=0;i<2;i++){ const sx2=x+px*(0.25+rnd()*0.5), sy2=y+px*(0.25+rnd()*0.5), sl=px*0.07;
+          t.strokeStyle='rgba(255,255,255,0.85)'; t.lineWidth=Math.max(1,px*0.015);
+          t.beginPath(); t.moveTo(sx2-sl,sy2); t.lineTo(sx2+sl,sy2); t.moveTo(sx2,sy2-sl); t.lineTo(sx2,sy2+sl); t.stroke(); }
+        t.globalAlpha=1;
+      }
+      if(tf>0.3){ // ocean shimmer appears
+        t.globalAlpha=clamp((tf-0.28)*1.4,0,0.7);
+        for(let i=0;i<4;i++){ const wx=x+rnd()*px, wy=y+px*(0.2+rnd()*0.6);
+          t.strokeStyle='rgba(180,220,255,0.5)'; t.lineWidth=Math.max(1,px*0.02);
+          t.beginPath(); t.moveTo(wx,wy); t.quadraticCurveTo(wx+px*0.08,wy-px*0.03,wx+px*0.16,wy); t.stroke(); }
+        t.globalAlpha=1;
+      }
+    }
+    if(g.terrain==='mineral'){
+      const n=3+Math.floor(rnd()*2);
+      for(let i=0;i<n;i++){ const cx2=x+px*(0.25+rnd()*0.5), cy2=y+px*(0.3+rnd()*0.45);
+        const cw=px*(0.07+rnd()*0.06), chh=px*(0.13+rnd()*0.1), rot=(rnd()-0.5)*0.7;
+        t.save(); t.translate(cx2,cy2); t.rotate(rot);
+        const cg=t.createLinearGradient(-cw,0,cw,0);
+        cg.addColorStop(0,'#f2a8dc'); cg.addColorStop(0.5,'#c66cc0'); cg.addColorStop(1,'#8a3e9e');
+        t.fillStyle=cg; t.beginPath(); t.moveTo(0,-chh); t.lineTo(cw,0); t.lineTo(0,chh); t.lineTo(-cw,0); t.closePath(); t.fill();
+        t.strokeStyle='rgba(255,225,255,0.55)'; t.lineWidth=Math.max(1,px*0.012); t.stroke();
+        t.strokeStyle='rgba(255,255,255,0.7)'; t.beginPath(); t.moveTo(0,-chh*0.7); t.lineTo(cw*0.45,0); t.stroke();
+        t.restore(); }
+      t.fillStyle='rgba(255,170,230,0.07)'; t.fillRect(x,y,px,px);
+    }
+    if(g.terrain==='rock'){
+      const bx=x+px*0.5, by=y+px*0.56, rx=px*0.3, ry=px*0.23;
+      t.fillStyle='rgba(0,0,0,0.3)'; t.beginPath(); t.ellipse(bx+px*0.04,by+px*0.07,rx,ry*0.8,0,0,7); t.fill();
+      const rg=t.createRadialGradient(bx-rx*0.4,by-ry*0.6,1,bx,by,rx*1.4);
+      rg.addColorStop(0,'#8a4d2b'); rg.addColorStop(0.55,'#5e3018'); rg.addColorStop(1,'#3a1c0d');
+      t.fillStyle=rg; t.beginPath();
+      t.moveTo(bx-rx,by); t.quadraticCurveTo(bx-rx*0.9,by-ry*1.5,bx-rx*0.15,by-ry*1.25);
+      t.quadraticCurveTo(bx+rx*0.7,by-ry*1.45,bx+rx,by-ry*0.2);
+      t.quadraticCurveTo(bx+rx*1.05,by+ry*0.8,bx+rx*0.3,by+ry);
+      t.quadraticCurveTo(bx-rx*0.7,by+ry*1.05,bx-rx,by); t.closePath(); t.fill();
+      t.strokeStyle='rgba(0,0,0,0.3)'; t.lineWidth=Math.max(1,px*0.015);
+      t.beginPath(); t.moveTo(bx-rx*0.3,by-ry*0.9); t.lineTo(bx-rx*0.1,by+ry*0.3); t.stroke();
+      t.strokeStyle='rgba(255,200,150,0.3)'; t.beginPath(); t.moveTo(bx-rx*0.6,by-ry*0.95); t.quadraticCurveTo(bx,by-ry*1.35,bx+rx*0.5,by-ry*0.95); t.stroke();
+    }
+    if(g.terrain==='crater'){
+      const cx2=x+px*0.5, cy2=y+px*0.52, cr=px*0.36;
+      const rg=t.createRadialGradient(cx2,cy2,cr*0.1,cx2,cy2,cr);
+      rg.addColorStop(0,'#190b06'); rg.addColorStop(0.75,'#2c1208'); rg.addColorStop(1,'rgba(60,30,16,0)');
+      t.fillStyle=rg; t.beginPath(); t.arc(cx2,cy2,cr,0,7); t.fill();
+      t.strokeStyle='rgba(255,180,120,0.22)'; t.lineWidth=Math.max(1,px*0.025);
+      t.beginPath(); t.arc(cx2,cy2,cr*0.92,Math.PI*0.85,Math.PI*1.65); t.stroke();
+      t.strokeStyle='rgba(0,0,0,0.4)'; t.beginPath(); t.arc(cx2,cy2,cr*0.92,Math.PI*-0.15,Math.PI*0.65); t.stroke();
+    }
+    t.strokeStyle='rgba(0,0,0,0.16)'; t.lineWidth=1; t.strokeRect(x+0.5,y+0.5,px-1,px-1);
+  }
+}
+
+/* ---- color helpers ---- */
+function mixRGB(a,b,t){ t=clamp(t,0,1); return 'rgb('+Math.round(a[0]+(b[0]-a[0])*t)+','+Math.round(a[1]+(b[1]-a[1])*t)+','+Math.round(a[2]+(b[2]-a[2])*t)+')'; }
+function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function shade(hex,amt){
+  const c=NAMED[hex]||hex; let n=parseInt(c.slice(1),16); let R=(n>>16)&255,G=(n>>8)&255,B2=n&255;
+  if(amt>0){R+=(255-R)*amt;G+=(255-G)*amt;B2+=(255-B2)*amt;} else {R*=(1+amt);G*=(1+amt);B2*=(1+amt);}
+  return 'rgb('+(R|0)+','+(G|0)+','+(B2|0)+')';
+}
+const NAMED={'var(--amber)':'#f0a43c','var(--teal)':'#4cd2bd','var(--blue)':'#74aef0','var(--purple)':'#b78ae8','var(--pink)':'#f094c8','#cfc2b8':'#cfc2b8'};
+function clamp(v,a,b){return v<a?a:v>b?b:v;}
+
+/* ---- main draw ---- */
+function draw(){
+  const cfrac=Math.min(1,(S.terra||0)/100);
+  // ambient wind-blown dust — diminishes as terraforming thickens the atmosphere
+  const dustChance=0.22*Math.max(0,1-cfrac*1.15);
+  if(Math.random()<dustChance && parts.length<160){
+    spawnP(-8, oy+Math.random()*tile*(CFG.ROWS+0.8),
+      {vx:16+Math.random()*38, vy:(Math.random()-.5)*5,
+       life:2.8+Math.random()*3.8, sz:0.7+Math.random()*1.2, col:'172,122,84'});
+  }
+
+  const sunAlt=Math.sin((S.time-0.25)*2*Math.PI);
+  const light=clamp(sunAlt*0.9+0.5,0,1);
+  const day=clamp(sunAlt*1.35+0.16,0,1);
+
+  // ---- sky (shifts from rust to blue as Mars terraforms) ----
+  const tF=cfrac*0.85;
+  const bld=(mars,earth)=>mars.map((v,i)=>Math.round(v+(earth[i]-v)*tF));
+  const sky=ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0, mixRGB([5,4,13],bld([158,92,54],[68,124,178]),day));
+  sky.addColorStop(0.55, mixRGB([13,8,16],bld([212,142,90],[128,162,202]),day));
+  sky.addColorStop(1, mixRGB([24,12,15],bld([238,180,124],[162,192,222]),day));
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+
+  // sun position (day half of the sol)
+  const t2=((S.time-0.25)+1)%1;
+  sunX=-200; sunY=-200;
+  if(t2<0.5){ const f=t2/0.5;
+    sunX=W*0.06+(W*0.88)*f;
+    sunY=Math.max(46,oy-22) - Math.sin(f*Math.PI)*Math.max(60,oy*0.62);
+  }
+  // Mars-blue dusk glow near the horizon
+  const dusk=Math.max(0,1-Math.abs(sunAlt)*2.7);
+  if(dusk>0.02){
+    const gx2=t2<0.5?sunX:(t2<0.75?W*0.97:W*0.03);
+    const dg=ctx.createRadialGradient(gx2,oy+10,10,gx2,oy+10,Math.max(W,H)*0.45);
+    dg.addColorStop(0,'rgba(118,168,255,'+(0.26*dusk).toFixed(3)+')');
+    dg.addColorStop(1,'rgba(118,168,255,0)');
+    ctx.fillStyle=dg; ctx.fillRect(0,0,W,H);
+  }
+  // dawn/dusk horizon color burst
+  const ddGlow=Math.max(0,1-Math.abs(sunAlt)*2.6);
+  if(ddGlow>0.01){
+    const ddC=t2<0.15?'255,118,42':'255,72,28';
+    const ddG=ctx.createLinearGradient(0,oy*0.45,0,oy+tile*2.5);
+    ddG.addColorStop(0,'rgba(0,0,0,0)');
+    ddG.addColorStop(0.38,'rgba('+ddC+','+(0.38*ddGlow).toFixed(3)+')');
+    ddG.addColorStop(0.72,'rgba('+ddC+','+(0.16*ddGlow).toFixed(3)+')');
+    ddG.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=ddG; ctx.fillRect(0,oy*0.45,W,oy*0.72);
+    const ddSX=t2<0.5?sunX:(t2<0.75?W*0.96:W*0.04);
+    const ddR=ctx.createRadialGradient(ddSX,oy-2,5,ddSX,oy-2,W*0.52);
+    ddR.addColorStop(0,'rgba('+ddC+','+(0.16*ddGlow).toFixed(3)+')');
+    ddR.addColorStop(1,'rgba('+ddC+',0)');
+    ctx.fillStyle=ddR; ctx.fillRect(0,oy-H*0.55,W,H*0.65);
+  }
+
+  // stars + Milky Way band
+  if(day<0.92){
+    const sa=1-day;
+    if(sa>0.12){
+      const mwA=Math.min(sa*0.26,0.09);
+      const mwG=ctx.createLinearGradient(W*0.06,H*0.01,W*0.87,H*0.55);
+      mwG.addColorStop(0,'rgba(0,0,0,0)');
+      mwG.addColorStop(0.22,'rgba(148,128,188,'+(mwA*0.8).toFixed(3)+')');
+      mwG.addColorStop(0.47,'rgba(168,148,205,'+mwA.toFixed(3)+')');
+      mwG.addColorStop(0.72,'rgba(148,128,188,'+(mwA*0.8).toFixed(3)+')');
+      mwG.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=mwG; ctx.fillRect(0,0,W,H*0.65);
+    }
+    for(const st of stars){
+      const tw=0.55+0.45*Math.sin(animT*st.sp+st.p), alpha=sa*tw;
+      if(st.bright){
+        ctx.globalCompositeOperation='lighter';
+        ctx.fillStyle=(st.warm?'rgba(255,215,150,':'rgba(190,205,255,')+(alpha*0.55).toFixed(3)+')';
+        ctx.fillRect(st.x-st.s*0.9,st.y,st.s*2.6,0.8);
+        ctx.fillRect(st.x,st.y-st.s*0.9,0.8,st.s*2.6);
+        ctx.globalCompositeOperation='source-over';
+      }
+      ctx.fillStyle=(st.warm?'rgba(255,228,188,':'rgba(255,255,255,')+(alpha*0.92).toFixed(3)+')';
+      ctx.fillRect(st.x,st.y,st.s,st.s);
+    }
+  }
+  // shooting stars
+  for(const ss of shotStars){
+    const a=Math.max(0,1-ss.age/ss.life);
+    const sx=ss.x+ss.vx*ss.age, sy=ss.y+ss.vy*ss.age;
+    const tx=ss.x+ss.vx*(ss.age-0.45*ss.life), ty=ss.y+ss.vy*(ss.age-0.45*ss.life);
+    const sg=ctx.createLinearGradient(sx,sy,tx,ty);
+    sg.addColorStop(0,'rgba(255,255,255,'+(a*0.96).toFixed(3)+')');
+    sg.addColorStop(0.45,'rgba(210,225,255,'+(a*0.5).toFixed(3)+')');
+    sg.addColorStop(1,'rgba(180,200,255,0)');
+    ctx.strokeStyle=sg; ctx.lineWidth=1.6; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(tx,ty); ctx.stroke();
+    ctx.globalCompositeOperation='lighter';
+    ctx.fillStyle='rgba(255,255,255,'+(a*0.65).toFixed(3)+')';
+    ctx.beginPath(); ctx.arc(sx,sy,2.2,0,7); ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  // aurora (brighter at high terraforming — stronger magnetic field)
+  const auraMax=0.18+cfrac*0.18; // up to 0.36 at 100% terra
+  if(day<auraMax){
+    const aA=(auraMax-day)/auraMax;
+    ctx.globalCompositeOperation='lighter';
+    const aCols=['80,255,140','100,148,255','210,70,255','255,140,80'];
+    const aCount=cfrac>0.5?4:3;
+    for(let ai=0;ai<aCount;ai++){
+      const yB=H*0.04+ai*H*0.055;
+      const waveH=48+cfrac*28;
+      ctx.beginPath(); ctx.moveTo(-5,yB);
+      for(let ax=0;ax<=W+12;ax+=14){
+        const wy=yB+Math.sin(ax*0.013+animT*0.62+ai*2.1)*(20+cfrac*12)+Math.sin(ax*0.031+animT*0.3+ai*3.8)*8;
+        ctx.lineTo(ax,wy);
+      }
+      ctx.lineTo(W+12,yB+waveH); ctx.lineTo(-5,yB+waveH); ctx.closePath();
+      const aStr=(0.11+cfrac*0.1)*aA;
+      const ag=ctx.createLinearGradient(0,yB-8,0,yB+waveH);
+      ag.addColorStop(0,'rgba('+aCols[ai]+',0)');
+      ag.addColorStop(0.2,'rgba('+aCols[ai]+','+aStr.toFixed(3)+')');
+      ag.addColorStop(0.65,'rgba('+aCols[ai]+','+(aStr*0.45).toFixed(3)+')');
+      ag.addColorStop(1,'rgba('+aCols[ai]+',0)');
+      ctx.fillStyle=ag; ctx.fill();
+    }
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  // sun disc + diverging rays
+  if(t2<0.5 && sunY>-40){
+    if(sunAlt>0.06){
+      const numR=16, rayLen=Math.max(W,H)*1.55;
+      ctx.globalCompositeOperation='lighter';
+      for(let i=0;i<numR;i++){
+        const ang=i/numR*Math.PI*2+animT*0.02;
+        const rayA=0.014*sunAlt*(0.68+0.32*Math.sin(animT*1.25+i*0.77));
+        const sp=0.052;
+        const rg=ctx.createLinearGradient(sunX,sunY,sunX+Math.cos(ang)*rayLen,sunY+Math.sin(ang)*rayLen);
+        rg.addColorStop(0,'rgba(255,222,130,'+rayA.toFixed(4)+')');
+        rg.addColorStop(0.22,'rgba(255,212,110,'+(rayA*0.38).toFixed(4)+')');
+        rg.addColorStop(1,'rgba(255,200,100,0)');
+        ctx.fillStyle=rg; ctx.beginPath(); ctx.moveTo(sunX,sunY);
+        ctx.lineTo(sunX+Math.cos(ang-sp)*rayLen,sunY+Math.sin(ang-sp)*rayLen);
+        ctx.lineTo(sunX+Math.cos(ang+sp)*rayLen,sunY+Math.sin(ang+sp)*rayLen);
+        ctx.closePath(); ctx.fill();
+      }
+      ctx.globalCompositeOperation='source-over';
+    }
+    const sg=ctx.createRadialGradient(sunX,sunY,1,sunX,sunY,54);
+    sg.addColorStop(0,'rgba(255,252,240,0.98)'); sg.addColorStop(0.12,'rgba(255,242,215,0.82)');
+    sg.addColorStop(0.4,'rgba(255,218,158,0.18)'); sg.addColorStop(1,'rgba(255,200,140,0)');
+    ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(sunX,sunY,54,0,7); ctx.fill();
+    ctx.fillStyle='#fffae8'; ctx.beginPath(); ctx.arc(sunX,sunY,7.5,0,7); ctx.fill();
+  } else if(t2>=0.5){
+    // Phobos — fast inner moon
+    const f=(t2-0.5)/0.5, mx=W*0.92-(W*0.84)*f, my=Math.max(40,oy-30)-Math.sin(f*Math.PI)*Math.max(50,oy*0.5);
+    ctx.fillStyle='rgba(208,198,188,0.88)'; ctx.beginPath(); ctx.arc(mx,my,4.5,0,7); ctx.fill();
+    ctx.fillStyle='rgba(120,110,105,0.65)'; ctx.beginPath(); ctx.arc(mx+1.3,my+1,1.6,0,7); ctx.fill();
+    // Deimos — outer moon, slower and smaller
+    const f2=(t2-0.5)/0.5, mx2=W*0.14+(W*0.58)*f2, my2=Math.max(32,oy-48)-Math.sin(f2*Math.PI)*Math.max(28,oy*0.32);
+    ctx.fillStyle='rgba(188,183,176,0.58)'; ctx.beginPath(); ctx.arc(mx2,my2,2.2,0,7); ctx.fill();
+  }
+
+  // mountains — 4 depth layers; blend from rust-red toward earth grey-green as terra rises
+  const mc=[
+    mixRGB([6,4,14],bld([74,36,54],[42,52,38]),light*0.52),
+    mixRGB([9,6,11],bld([102,50,36],[62,68,52]),light*0.7),
+    mixRGB([18,9,9],bld([122,62,40],[82,86,72]),light),
+    mixRGB([13,7,8],bld([102,52,34],[68,72,58]),light),
+  ];
+  for(let i=0;i<ridges.length;i++){
+    if(i<2){ ctx.save(); ctx.globalAlpha=0.55+i*0.22; }
+    ctx.fillStyle=mc[i]; ctx.beginPath(); ctx.moveTo(-30,H);
+    for(const [px2,py2] of ridges[i]) ctx.lineTo(px2,py2);
+    ctx.lineTo(W+30,H); ctx.closePath(); ctx.fill();
+    // snow caps at high terraforming — gradient fades below peak tops
+    if(tF>0.35 && i<2){
+      const snowA=(tF-0.35)/0.65*(i===0?0.52:0.28);
+      let minY=H; for(const [,py2] of ridges[i]) if(py2<minY) minY=py2;
+      const sg=ctx.createLinearGradient(0,minY,0,minY+tile*0.75);
+      sg.addColorStop(0,'rgba(228,236,248,'+snowA.toFixed(3)+')');
+      sg.addColorStop(1,'rgba(228,236,248,0)');
+      ctx.fillStyle=sg;
+      ctx.beginPath(); ctx.moveTo(-30,H);
+      for(const [px2,py2] of ridges[i]) ctx.lineTo(px2,py2);
+      ctx.lineTo(W+30,H); ctx.closePath(); ctx.fill();
+    }
+    if(i<2) ctx.restore();
+  }
+  // atmospheric horizon haze — shifts from dusty orange to clean earth blue as terra rises
+  const hazeColMars=[195,104,55], hazeColEarth=[90,148,200];
+  const hazeCol=bld(hazeColMars,hazeColEarth);
+  const haze=ctx.createLinearGradient(0,oy-55,0,oy+35);
+  haze.addColorStop(0,'rgba(0,0,0,0)');
+  haze.addColorStop(0.45,mixRGB([0,0,0],hazeCol,day*(0.28-cfrac*0.18)));
+  haze.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=haze; ctx.fillRect(0,oy-55,W,90);
+
+  // fluffy terraform clouds (scale with terraforming progress)
+  if(day>0.2&&cfrac>0.08&&clds.length){
+    const cA=(day-0.15)*cfrac*0.68;
+    for(const cl of clds){
+      const cx2=((cl.ox+animT*cl.sp*7)%(W+240))-120;
+      ctx.save(); ctx.globalAlpha=cl.a*cA;
+      for(const ly of cl.lys){
+        const lx=cx2+ly.dx, ly2=cl.y+ly.dy;
+        const rg=ctx.createRadialGradient(lx,ly2,2,lx,ly2,ly.r);
+        rg.addColorStop(0,'rgba(255,253,248,0.88)');
+        rg.addColorStop(0.42,'rgba(250,246,240,0.52)');
+        rg.addColorStop(1,'rgba(242,238,232,0)');
+        ctx.fillStyle=rg; ctx.beginPath(); ctx.ellipse(lx,ly2,ly.r,ly.r*0.46,0,0,7); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
+  // solar flare bloom — sun glows intense amber-white
+  if(S.flare&&S.flare.active&&t2<0.5&&sunY>-60){
+    const fa=0.55+0.15*Math.sin(animT*8);
+    ctx.globalCompositeOperation='lighter';
+    const fg=ctx.createRadialGradient(sunX,sunY,8,sunX,sunY,Math.max(W,H)*0.55);
+    fg.addColorStop(0,'rgba(255,220,100,'+(fa*0.28).toFixed(3)+')');
+    fg.addColorStop(0.22,'rgba(255,180,60,'+(fa*0.12).toFixed(3)+')');
+    fg.addColorStop(1,'rgba(255,140,40,0)');
+    ctx.fillStyle=fg; ctx.fillRect(0,0,W,H);
+    ctx.globalCompositeOperation='source-over';
+    ctx.fillStyle='rgba(255,200,80,'+(fa*0.04).toFixed(3)+')'; ctx.fillRect(0,0,W,H);
+  }
+
+  // high-altitude Mars dust clouds drifting — fade away as the atmosphere clears
+  const dustFade=Math.max(0,1-cfrac*1.1); // gone at ~90% terraforming
+  if(day>0.12&&dustClouds.length&&dustFade>0.02){
+    const ca=Math.min(0.08,day*0.11)*dustFade;
+    for(const cl of dustClouds){
+      const cx2=((cl.ox+animT*cl.sp*14)%(W+cl.w*2+80))-cl.w-40;
+      const cg=ctx.createRadialGradient(cx2,cl.y,3,cx2,cl.y,cl.w);
+      cg.addColorStop(0,'rgba(218,168,118,'+(ca*1.15).toFixed(3)+')');
+      cg.addColorStop(0.5,'rgba(200,148,98,'+ca.toFixed(3)+')');
+      cg.addColorStop(1,'rgba(200,148,98,0)');
+      ctx.fillStyle=cg; ctx.beginPath(); ctx.ellipse(cx2,cl.y,cl.w,cl.h,0,0,7); ctx.fill();
+    }
+  }
+
+  // ---- world (shakes during storms) ----
+  let shx=0,shy=0;
+  if(S.storm.active){ shx=Math.sin(animT*31)*2; shy=Math.cos(animT*27)*1.4; }
+  ctx.save(); ctx.translate(shx,shy);
+
+  // landing plateau panel
+  const gx=ox-14, gy=oy-14, gw=tile*CFG.COLS+28, gh=tile*CFG.ROWS+28;
+  ctx.fillStyle='rgba(0,0,0,0.34)'; roundRect(gx-4,gy+7,gw+8,gh+8,20); ctx.fill();
+  const pg=ctx.createLinearGradient(0,gy,0,gy+gh);
+  pg.addColorStop(0,'#4f2718'); pg.addColorStop(1,'#2e1610');
+  ctx.fillStyle=pg; roundRect(gx,gy,gw,gh,16); ctx.fill();
+  const rimP=0.5+0.5*Math.sin(animT*0.85);
+  ctx.strokeStyle='rgba(255,175,110,'+(0.20+rimP*0.16).toFixed(3)+')'; ctx.lineWidth=1.5; roundRect(gx,gy,gw,gh,16); ctx.stroke();
+  ctx.strokeStyle='rgba(255,225,185,'+(0.07+rimP*0.07).toFixed(3)+')'; ctx.lineWidth=1; roundRect(gx+2.5,gy+2.5,gw-5,gh-5,13); ctx.stroke();
+
+  // terrain
+  if(terrCv) ctx.drawImage(terrCv, ox,oy, tile*CFG.COLS, tile*CFG.ROWS);
+  // faint build-grid overlay
+  ctx.strokeStyle='rgba(255,175,115,0.055)'; ctx.lineWidth=0.8;
+  for(let gr=0;gr<=CFG.ROWS;gr++){ ctx.beginPath(); ctx.moveTo(ox,oy+gr*tile); ctx.lineTo(ox+CFG.COLS*tile,oy+gr*tile); ctx.stroke(); }
+  for(let gc=0;gc<=CFG.COLS;gc++){ ctx.beginPath(); ctx.moveTo(ox+gc*tile,oy); ctx.lineTo(ox+gc*tile,oy+CFG.ROWS*tile); ctx.stroke(); }
+
+  // building night glow pools — colored light on terrain from active buildings
+  const nightA=Math.max(0,(1-day)*0.72);
+  if(nightA>0.06){
+    const glowMap={O2:'110,228,210',WATER:'80,165,255',LAB:'135,175,255',COMMS:'155,195,255',
+      REC:'198,128,255',MED:'85,215,140',TERRA:'78,210,168',RX:'118,228,255',MINE:'220,175,110',
+      SOLAR:'255,240,140',BATT:'180,230,255',FARM:'130,220,110',GREEN:'120,215,130',
+      WIND:'160,200,240',NUKE:'200,120,255',ALGAE:'80,210,120',CRYO:'190,230,255',MARKET:'255,195,100'};
+    for(let r=0;r<CFG.ROWS;r++) for(let c=0;c<CFG.COLS;c++){
+      const b=grid[r][c].b; if(!b||b.broken) continue;
+      const gc2=glowMap[b.type]||'255,210,150';
+      const gx2=ox+(c+0.5)*tile, gy2=oy+(r+0.5)*tile;
+      const gr2=ctx.createRadialGradient(gx2,gy2+tile*0.35,0,gx2,gy2,tile*1.18);
+      gr2.addColorStop(0,'rgba('+gc2+','+(0.24*nightA).toFixed(3)+')');
+      gr2.addColorStop(0.5,'rgba('+gc2+','+(0.09*nightA).toFixed(3)+')');
+      gr2.addColorStop(1,'rgba('+gc2+',0)');
+      ctx.fillStyle=gr2; ctx.beginPath(); ctx.ellipse(gx2,gy2+tile*0.1,tile*1.12,tile*0.76,0,0,7); ctx.fill();
+    }
+  }
+
+  // connector tubes between adjacent modules
+  drawTubes();
+
+  // colonists
+  const suitRGB=S&&S.morale>65?'180,240,200':S&&S.morale>35?'200,210,228':'240,175,165';
+  for(const p of dots){
+    const bob=Math.abs(Math.sin(animT*7+p.ph))*(p.moving?1.5:0.45);
+    const x=ox+p.x*tile, y=oy+p.y*tile-bob;
+    // ground shadow
+    ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(x,y+bob+tile*0.072,tile*0.09,tile*0.046,0,0,7); ctx.fill();
+    // suit body (torso below helmet)
+    ctx.fillStyle='rgba('+suitRGB+',0.75)'; ctx.beginPath(); ctx.ellipse(x,y+tile*0.065,tile*0.054,tile*0.04,0,0,7); ctx.fill();
+    // helmet
+    ctx.fillStyle='#ede8e1'; ctx.beginPath(); ctx.arc(x,y,Math.max(2,tile*0.085),0,7); ctx.fill();
+    // visor
+    ctx.fillStyle='#90d6ff'; ctx.beginPath(); ctx.arc(x,y-tile*0.012,Math.max(1,tile*0.042),0,7); ctx.fill();
+    // visor highlight
+    ctx.fillStyle='rgba(255,255,255,0.82)'; ctx.beginPath(); ctx.arc(x-tile*0.012,y-tile*0.025,Math.max(0.5,tile*0.012),0,7); ctx.fill();
+  }
+
+  // buildings
+  const B=allB();
+  for(const b of B) drawBuilding(b,b.r,b.c,sunAlt);
+
+  // building ambient particle emissions
+  if(!paused){
+    for(const b of B){
+      if(b.broken) continue;
+      const bx=ox+(b.c+0.5)*tile, by=oy+(b.r+0.5)*tile;
+      if((b.type==='MINE')&&Math.random()<0.017)
+        spawnP(bx+(Math.random()-.5)*tile*0.5,by+tile*0.22,
+          {vx:(Math.random()-.5)*14,vy:-7-Math.random()*13,g:-0.7,life:1.5,sz:1.5+Math.random()*1.8,col:'152,122,84'});
+      if(b.type==='O2'&&Math.random()<0.024)
+        spawnP(bx+(Math.random()-.5)*tile*0.28,by-tile*0.07,
+          {vx:(Math.random()-.5)*4,vy:-22-Math.random()*14,g:-1.5,life:0.9,sz:1.1+Math.random()*1.3,col:'130,215,205',glow:true});
+      if(b.type==='RX'&&!S.rates.brownout&&Math.random()<0.014)
+        spawnP(bx+(Math.random()-.5)*tile*0.36,by+(Math.random()-.5)*tile*0.28,
+          {vx:(Math.random()-.5)*28,vy:-14-Math.random()*18,g:8,life:0.5,sz:1.3,col:'130,205,255',glow:true});
+      if(b.type==='NUKE'&&!S.rates.brownout&&Math.random()<0.012)
+        spawnP(bx+(Math.random()-.5)*tile*0.3,by+(Math.random()-.5)*tile*0.22,
+          {vx:(Math.random()-.5)*20,vy:-10-Math.random()*14,g:6,life:0.5,sz:1.2,col:'200,100,255',glow:true});
+      if(b.type==='WIND'&&Math.random()<0.022)
+        spawnP(bx+(Math.random()-.5)*tile*0.25,by-tile*0.18,
+          {vx:10+Math.random()*28,vy:(Math.random()-.5)*6,life:0.7,sz:0.9+Math.random()*0.9,col:'160,200,245'});
+      if(b.type==='ALGAE'&&!S.rates.brownout&&Math.random()<0.02)
+        spawnP(bx+(Math.random()-.5)*tile*0.3,by-tile*0.1,
+          {vx:(Math.random()-.5)*6,vy:-18-Math.random()*12,g:-1,life:0.8,sz:1+Math.random()*1.2,col:'80,210,130',glow:true});
+    }
+  }
+
+  // colony-wide ambient warm glow at night
+  if(light<0.65&&B.length>0){
+    const k=(0.65-light)/0.65;
+    let bx2=0,by2=0; for(const b of B){bx2+=b.c;by2+=b.r;} bx2/=B.length; by2/=B.length;
+    const acx=ox+(bx2+0.5)*tile, acy=oy+(by2+0.5)*tile, rad=tile*Math.sqrt(B.length)*0.62;
+    ctx.globalCompositeOperation='lighter';
+    const ag=ctx.createRadialGradient(acx,acy,0,acx,acy,rad);
+    ag.addColorStop(0,'rgba(255,135,60,'+(0.042*k).toFixed(3)+')');
+    ag.addColorStop(0.55,'rgba(255,115,44,'+(0.022*k).toFixed(3)+')');
+    ag.addColorStop(1,'rgba(255,110,40,0)');
+    ctx.fillStyle=ag; ctx.fillRect(acx-rad,acy-rad,rad*2,rad*2);
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  // night window glow — type-specific window shapes
+  if(light<0.55){
+    const k=(0.55-light)/0.55;
+    ctx.globalCompositeOperation='lighter';
+    for(const b of B){
+      if(b.broken) continue;
+      const bx=ox+(b.c+0.5)*tile, by=oy+(b.r+0.5)*tile;
+      // outer halo
+      const bg=ctx.createRadialGradient(bx,by,2,bx,by,tile*0.9);
+      bg.addColorStop(0,'rgba(255,190,110,'+(0.11*k).toFixed(3)+')'); bg.addColorStop(1,'rgba(255,190,110,0)');
+      ctx.fillStyle=bg; ctx.fillRect(bx-tile,by-tile,tile*2,tile*2);
+      // type-specific windows
+      const ws=Math.max(1.5,tile*0.056);
+      if(b.type==='HAB'||b.type==='CMD'||b.type==='DOME'){
+        ctx.fillStyle='rgba(255,228,165,'+(0.52*k).toFixed(3)+')';
+        ctx.fillRect(bx-tile*0.21,by-tile*0.17,ws,ws); ctx.fillRect(bx+tile*0.11,by-tile*0.17,ws,ws);
+        ctx.fillRect(bx-tile*0.21,by+tile*0.02,ws,ws); ctx.fillRect(bx+tile*0.11,by+tile*0.02,ws,ws);
+      } else if(b.type==='GREEN'||b.type==='FARM'){
+        ctx.fillStyle='rgba(110,240,130,'+(0.5*k).toFixed(3)+')';
+        ctx.beginPath(); ctx.arc(bx,by-tile*0.09,tile*0.26,Math.PI,0,false); ctx.fill();
+      } else if(b.type==='LAB'){
+        ctx.fillStyle='rgba(130,195,255,'+(0.56*k).toFixed(3)+')';
+        ctx.fillRect(bx-tile*0.31,by-tile*0.13,tile*0.62,Math.max(1.5,tile*0.07));
+        ctx.fillRect(bx-tile*0.31,by+tile*0.08,tile*0.62,Math.max(1.5,tile*0.07));
+      } else if(b.type==='REC'){
+        ctx.fillStyle='rgba(220,160,255,'+(0.48*k).toFixed(3)+')';
+        ctx.beginPath(); ctx.arc(bx,by,tile*0.2,0,7); ctx.fill();
+      } else if(b.type==='MED'){
+        ctx.fillStyle='rgba(180,255,200,'+(0.5*k).toFixed(3)+')';
+        ctx.fillRect(bx-ws*0.5,by-tile*0.22,ws,ws*2.2);
+        ctx.fillRect(bx-tile*0.16,by-tile*0.1,tile*0.32,ws);
+      } else {
+        ctx.fillStyle='rgba(255,228,165,'+(0.5*k).toFixed(3)+')';
+        ctx.fillRect(bx-tile*0.2,by+tile*0.1,ws,ws); ctx.fillRect(bx+tile*0.13,by+tile*0.1,ws,ws);
+      }
+    }
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  drawRocket();
+  drawParts();
+  ctx.restore(); // end shake
+
+  // valid-placement guide — green tint on buildable tiles when a tool is active
+  if(tool && M[tool]){
+    for(let vr=0;vr<CFG.ROWS;vr++)for(let vc=0;vc<CFG.COLS;vc++){
+      if(!canPlace(vr,vc,tool)[0]) continue;
+      const vx=ox+vc*tile, vy=oy+vr*tile;
+      ctx.fillStyle='rgba(100,230,140,0.18)';
+      roundRect(vx+1,vy+1,tile-3,tile-3,Math.max(3,tile*0.15)); ctx.fill();
+      ctx.strokeStyle='rgba(100,230,140,0.55)'; ctx.lineWidth=1.5;
+      roundRect(vx+1,vy+1,tile-3,tile-3,Math.max(3,tile*0.15)); ctx.stroke();
+    }
+  }
+
+  // hover ghost / selection
+  if(hover && tool && M[tool]){
+    const {r,c}=hover, x=ox+c*tile, y=oy+r*tile;
+    const [ok,why]=canPlace(r,c,tool);
+    const pulse=0.42+0.16*Math.sin(animT*6);
+    ctx.fillStyle=ok?'rgba(110,230,150,'+pulse.toFixed(3)+')':'rgba(240,90,80,'+pulse.toFixed(3)+')';
+    roundRect(x+2,y+2,tile-5,tile-5,Math.max(4,tile*0.18)); ctx.fill();
+    ctx.font=Math.round(tile*0.5)+'px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(M[tool].ic,x+tile/2,y+tile/2);
+    ctx.strokeStyle=ok?'#6fd089':'#f06a5a'; ctx.lineWidth=2;
+    roundRect(x+1.5,y+1.5,tile-4,tile-4,Math.max(4,tile*0.18)); ctx.stroke();
+    if(!ok && why && why!=='locked' && tile>=34){
+      const reasonMap={'must connect to colony':'connect colony','blocked terrain':'blocked','occupied':'occupied','need ':why};
+      const label=why.startsWith('need')?why:reasonMap[why]||why;
+      ctx.font='bold '+Math.max(9,Math.round(tile*0.19))+'px Rajdhani,sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='bottom';
+      ctx.fillStyle='rgba(255,255,255,0.92)';
+      ctx.fillText(label,x+tile/2,y+tile-3);
+    }
+  } else if(hover && tool==='demolish' && grid[hover.r][hover.c].b){
+    const x=ox+hover.c*tile,y=oy+hover.r*tile;
+    ctx.fillStyle='rgba(240,90,80,0.25)'; roundRect(x+2,y+2,tile-5,tile-5,Math.max(4,tile*0.18)); ctx.fill();
+    ctx.strokeStyle='#f06a5a'; ctx.lineWidth=2; roundRect(x+1.5,y+1.5,tile-4,tile-4,Math.max(4,tile*0.18)); ctx.stroke();
+  }
+  if(selected){
+    const x=ox+selected.c*tile,y=oy+selected.r*tile;
+    const k=tile*0.24, a=0.75+0.25*Math.sin(animT*5);
+    ctx.strokeStyle='rgba(240,164,60,'+a.toFixed(3)+')'; ctx.lineWidth=2.5; ctx.lineCap='square'; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(x+k,y); ctx.lineTo(x,y); ctx.lineTo(x,y+k); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+tile-k,y); ctx.lineTo(x+tile-1,y); ctx.lineTo(x+tile-1,y+k); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+k,y+tile-1); ctx.lineTo(x,y+tile-1); ctx.lineTo(x,y+tile-k); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+tile-k,y+tile-1); ctx.lineTo(x+tile-1,y+tile-1); ctx.lineTo(x+tile-1,y+tile-k); ctx.stroke();
+    ctx.lineCap='round';
+  }
+
+  // ---- lighting + vignette ----
+  if(light<0.5){ ctx.fillStyle='rgba(8,11,38,'+(0.5*(0.5-light)/0.5).toFixed(3)+')'; ctx.fillRect(0,0,W,H); }
+  else { ctx.fillStyle='rgba(255,160,90,'+(0.045*(light-0.5)/0.5).toFixed(3)+')'; ctx.fillRect(0,0,W,H); }
+  // film grain
+  if(noiseCvs.length){
+    const ni=Math.floor(animT*18)%4, nox=(Math.floor(animT*220))%256;
+    ctx.save(); ctx.globalAlpha=0.024; ctx.globalCompositeOperation='overlay';
+    for(let fgx=nox-256;fgx<W;fgx+=256) for(let fgy=0;fgy<H;fgy+=256) ctx.drawImage(noiseCvs[ni],fgx,fgy);
+    ctx.restore();
+  }
+  if(vigCv) ctx.drawImage(vigCv,0,0,W,H);
+
+  // meteor strike flash
+  if(S.meteorFlash>0){
+    ctx.fillStyle='rgba(255,230,160,'+S.meteorFlash.toFixed(3)+')'; ctx.fillRect(0,0,W,H);
+  }
+
+  // ---- dust storm overlay ----
+  if(S.storm.active){
+    ctx.fillStyle='rgba(175,82,40,'+(0.15+0.05*Math.sin(animT*1.7)).toFixed(3)+')'; ctx.fillRect(0,0,W,H);
+    const span=W+160;
+    for(let i=0;i<70;i++){
+      const sp=260+(i%5)*95, len=15+(i%4)*8;
+      const y=(i*53.7)%H + Math.sin(animT*2+i)*9;
+      let x=(i*97.3 - animT*sp)%span; if(x<0)x+=span; x-=80;
+      ctx.strokeStyle='rgba(234,162,110,'+(0.09+(i%3)*0.05).toFixed(3)+')'; ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+len,y+3); ctx.stroke();
+    }
+    // lightning flash
+    if(Math.random()<0.004){
+      ctx.globalCompositeOperation='lighter'; ctx.fillStyle='rgba(200,220,255,0.2)'; ctx.fillRect(0,0,W,H);
+      ctx.globalCompositeOperation='source-over';
+    }
+    if(vigCv){ ctx.globalAlpha=0.55; ctx.drawImage(vigCv,0,0,W,H); ctx.globalAlpha=1; }
+  }
+}
+
+function drawTubes(){
+  ctx.lineCap='round';
+  const wOut=Math.max(5,tile*0.23), wIn=Math.max(3,tile*0.16), wHi=Math.max(1.2,tile*0.05);
+  const powered=!S.rates.brownout;
+  for(let r=0;r<CFG.ROWS;r++)for(let c=0;c<CFG.COLS;c++){
+    const b=grid[r][c].b; if(!b) continue;
+    const cx=ox+(c+0.5)*tile, cy=oy+(r+0.5)*tile;
+    if(c+1<CFG.COLS && grid[r][c+1].b){ tube(cx,cy,cx+tile,cy,wOut,wIn,wHi); if(powered) tubePulse(cx,cy,cx+tile,cy); }
+    if(r+1<CFG.ROWS && grid[r+1][c].b){ tube(cx,cy,cx,cy+tile,wOut,wIn,wHi); if(powered) tubePulse(cx,cy,cx,cy+tile); }
+  }
+}
+function tube(x1,y1,x2,y2,wOut,wIn,wHi){
+  ctx.strokeStyle='#1f100b'; ctx.lineWidth=wOut; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.strokeStyle='#5b362a'; ctx.lineWidth=wIn; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  // perpendicular highlight (works for both horizontal and vertical tubes)
+  const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy)||1;
+  const nx=-dy/len*wIn*0.28, ny=dx/len*wIn*0.28;
+  ctx.strokeStyle='rgba(255,208,165,0.22)'; ctx.lineWidth=wHi;
+  ctx.beginPath(); ctx.moveTo(x1+nx,y1+ny); ctx.lineTo(x2+nx,y2+ny); ctx.stroke();
+}
+function tubePulse(x1,y1,x2,y2){
+  // each tube gets a unique phase offset based on its position
+  const h=((x1*73+y1*179+x2*37+y2*113)&0x3FFF)/0x3FFF;
+  const t=(animT*0.55+h)%1;
+  const px=x1+(x2-x1)*t, py=y1+(y2-y1)*t, pr=Math.max(2,tile*0.075);
+  ctx.globalCompositeOperation='lighter';
+  const pg=ctx.createRadialGradient(px,py,0,px,py,pr*2.5);
+  pg.addColorStop(0,'rgba(140,230,255,0.55)'); pg.addColorStop(1,'rgba(140,230,255,0)');
+  ctx.fillStyle=pg; ctx.beginPath(); ctx.arc(px,py,pr*2.5,0,7); ctx.fill();
+  ctx.globalCompositeOperation='source-over';
+}
+
+function drawBuilding(b,r,c,sunAlt){
+  const d=M[b.type], x=ox+c*tile, y=oy+r*tile, col=CAT[d.cat];
+  const ph=b.anim||0, pulse=0.5+0.5*Math.sin(animT*2.6+ph);
+  // birth pop-in
+  let sc=1;
+  if(b.bornT!=null){
+    const tt=(animT-b.bornT)*2.8;
+    if(tt>=1){ b.bornT=null; }
+    else if(tt>=0){ const u=tt-1; sc=1+2.70158*u*u*u+1.70158*u*u; }
+  }
+  const cx=x+tile/2, cy=y+tile/2;
+  ctx.save();
+  if(sc!==1){ ctx.translate(cx,cy); ctx.scale(sc,sc); ctx.translate(-cx,-cy); }
+
+  const pad=2.5, w=tile-pad*2, rr=Math.max(4,tile*0.18);
+  // directional cast shadow (follows sun position)
+  if(sunX>-100&&sunAlt>0.05){
+    const sDir=(sunX-cx)/W, sDist=sunAlt*tile*0.26;
+    ctx.fillStyle='rgba(0,0,0,'+(0.16*sunAlt).toFixed(3)+')';
+    ctx.beginPath(); ctx.ellipse(cx-sDir*sDist*2.5,y+tile-tile*0.05,tile*0.36,tile*0.07,0,0,7); ctx.fill();
+  }
+  // drop shadow
+  roundRect(x+pad, y+pad+tile*0.07, w, w, rr); ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fill();
+  // body
+  const g1=ctx.createLinearGradient(x,y,x,y+tile);
+  if(b.broken){ g1.addColorStop(0,'#4a342c'); g1.addColorStop(1,'#291b16'); }
+  else { g1.addColorStop(0,shade(col,-0.16)); g1.addColorStop(0.55,shade(col,-0.5)); g1.addColorStop(1,shade(col,-0.68)); }
+  roundRect(x+pad,y+pad,w,w,rr); ctx.fillStyle=g1; ctx.fill();
+  // glass sheen
+  roundRect(x+pad+1.5,y+pad+1.5,w-3,w*0.42,rr*0.8);
+  ctx.fillStyle='rgba(255,255,255,'+(b.broken?0.035:0.10)+')'; ctx.fill();
+  // rim
+  roundRect(x+pad,y+pad,w,w,rr);
+  ctx.strokeStyle=b.broken?'rgba(165,115,95,0.5)':shade(col,0.12); ctx.lineWidth=1.5; ctx.stroke();
+
+  // icon
+  ctx.font=Math.round(tile*0.46)+'px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  if(b.broken) ctx.globalAlpha=0.45;
+  ctx.fillText(d.ic,cx,y+tile*0.52); ctx.globalAlpha=1;
+
+  if(b.broken){
+    ctx.font=Math.round(tile*0.28)+'px serif';
+    ctx.fillText('⚠️',x+tile*0.74,y+tile*0.26+Math.sin(animT*5+ph)*1.5);
+    const blink=Math.sin(animT*9+ph)>0;
+    if(blink){ ctx.fillStyle='rgba(255,90,70,0.9)'; ctx.beginPath(); ctx.arc(x+tile*0.24,y+tile*0.24,Math.max(1.5,tile*0.045),0,7); ctx.fill(); }
+    ctx.restore(); return;
+  }
+  // solar array — panel grid with per-cell light catch
+  if(d.solar){
+    const lit=Math.max(0,sunAlt)*(S.storm.active?0.18:1);
+    const sp0=x+tile*0.16, spy=y+tile*0.15, spw=tile*0.68, sph=tile*0.36;
+    const cols3=3, rows2=2, cw=spw/cols3, ch=sph/rows2;
+    // frame
+    roundRect(sp0,spy,spw,sph,3);
+    ctx.fillStyle='rgba(30,40,70,0.7)'; ctx.fill();
+    // cells
+    for(let ci=0;ci<cols3;ci++)for(let ri=0;ri<rows2;ri++){
+      const cx2=sp0+ci*cw+1, cy2=spy+ri*ch+1, cellW=cw-2, cellH=ch-2;
+      const cell=ctx.createLinearGradient(cx2,cy2,cx2,cy2+cellH);
+      const base=0.28+lit*0.38;
+      const chk=((ci+ri)%2===0)?1.15:0.88;
+      cell.addColorStop(0,'rgba(80,120,210,'+(base*chk*1.1).toFixed(3)+')');
+      cell.addColorStop(1,'rgba(55,88,170,'+(base*chk*0.85).toFixed(3)+')');
+      ctx.fillStyle=cell; ctx.fillRect(cx2,cy2,cellW,cellH);
+      if(lit>0.08){
+        ctx.fillStyle='rgba(220,238,255,'+(0.09+lit*0.11).toFixed(3)+')';
+        ctx.fillRect(cx2,cy2,cellW*0.5,cellH*0.32);
+      }
+    }
+    // grid lines
+    ctx.strokeStyle='rgba(20,30,60,0.65)'; ctx.lineWidth=Math.max(0.5,tile*0.013);
+    for(let ci=1;ci<cols3;ci++){ ctx.beginPath(); ctx.moveTo(sp0+ci*cw,spy); ctx.lineTo(sp0+ci*cw,spy+sph); ctx.stroke(); }
+    for(let ri=1;ri<rows2;ri++){ ctx.beginPath(); ctx.moveTo(sp0,spy+ri*ch); ctx.lineTo(sp0+spw,spy+ri*ch); ctx.stroke(); }
+    roundRect(sp0,spy,spw,sph,3); ctx.strokeStyle='rgba(80,110,200,0.55)'; ctx.stroke();
+    // sunlight overlay
+    if(lit>0.01){
+      roundRect(sp0,spy,spw,sph,3);
+      ctx.fillStyle='rgba(255,240,160,'+(lit*0.22).toFixed(3)+')'; ctx.fill();
+    }
+  }
+  // power LED
+  if(d.power>0 || d.batt){
+    ctx.fillStyle='rgba(120,255,180,'+(0.4+pulse*0.55).toFixed(3)+')';
+    ctx.beginPath(); ctx.arc(x+tile*0.78,y+tile*0.23,Math.max(1.5,tile*0.05),0,7); ctx.fill();
+    ctx.globalCompositeOperation='lighter';
+    ctx.fillStyle='rgba(120,255,180,'+(0.12*pulse).toFixed(3)+')';
+    ctx.beginPath(); ctx.arc(x+tile*0.78,y+tile*0.23,Math.max(3,tile*0.11),0,7); ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+  }
+  // fusion reactor — animated plasma ring + outer glow
+  if(b.type==='RX'){
+    const rP=0.5+0.5*Math.sin(animT*3.8+ph);
+    ctx.globalCompositeOperation='lighter';
+    const rxG=ctx.createRadialGradient(cx,cy,2,cx,cy,tile*0.58);
+    rxG.addColorStop(0,'rgba(100,205,255,'+(0.2+rP*0.14).toFixed(3)+')');
+    rxG.addColorStop(0.55,'rgba(60,145,225,'+(0.06+rP*0.04).toFixed(3)+')');
+    rxG.addColorStop(1,'rgba(40,105,200,0)');
+    ctx.fillStyle=rxG; ctx.fillRect(x-2,y-2,tile+4,tile+4);
+    ctx.globalCompositeOperation='source-over';
+    ctx.strokeStyle='rgba(120,230,255,'+(0.3+rP*0.22).toFixed(3)+')';
+    ctx.lineWidth=Math.max(1.5,tile*0.04);
+    ctx.beginPath(); ctx.arc(cx,cy,tile*0.32,animT*2.4,animT*2.4+Math.PI*1.3); ctx.stroke();
+  }
+  // nuclear plant — slower purple ring
+  if(b.type==='NUKE'){
+    const nP=0.5+0.5*Math.sin(animT*2.1+ph);
+    ctx.globalCompositeOperation='lighter';
+    const nkG=ctx.createRadialGradient(cx,cy,2,cx,cy,tile*0.55);
+    nkG.addColorStop(0,'rgba(200,100,255,'+(0.14+nP*0.1).toFixed(3)+')');
+    nkG.addColorStop(1,'rgba(140,60,200,0)');
+    ctx.fillStyle=nkG; ctx.fillRect(x-2,y-2,tile+4,tile+4);
+    ctx.globalCompositeOperation='source-over';
+    ctx.strokeStyle='rgba(210,130,255,'+(0.22+nP*0.18).toFixed(3)+')';
+    ctx.lineWidth=Math.max(1.5,tile*0.04);
+    ctx.beginPath(); ctx.arc(cx,cy,tile*0.3,-animT*1.8,-animT*1.8+Math.PI*1.1); ctx.stroke();
+  }
+  // wind turbine — spinning blade
+  if(d.wind){
+    const blades=3, bLen=tile*0.3, spd=S.storm.active?animT*4.5:animT*2.2;
+    ctx.strokeStyle='rgba(160,200,245,0.6)'; ctx.lineWidth=Math.max(1.5,tile*0.035);
+    for(let bi=0;bi<blades;bi++){
+      const ang=spd+bi/blades*Math.PI*2;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(ang)*bLen,cy+Math.sin(ang)*bLen); ctx.stroke();
+    }
+    ctx.fillStyle='rgba(200,220,255,0.9)'; ctx.beginPath(); ctx.arc(cx,cy,Math.max(2,tile*0.06),0,7); ctx.fill();
+  }
+  // life-support ripple
+  if(d.cat==='life'){
+    ctx.strokeStyle='rgba(80,230,210,'+(0.16+pulse*0.26).toFixed(3)+')'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(cx,cy,tile*(0.34+pulse*0.1),0,7); ctx.stroke();
+  }
+  // worker badge — yellow if colony is short-staffed overall
+  if(d.jobs){
+    const staffed=S.pop>=(S.rates.jobs||0);
+    ctx.fillStyle=staffed?'rgba(150,255,180,0.9)':'rgba(240,200,80,0.95)';
+    ctx.font=Math.round(tile*0.2)+'px serif';
+    ctx.fillText('👤',x+tile*0.76,y+tile*0.76);
+  }
+  ctx.restore();
+}
+
+/* ============================================================
+   HUD
+   ============================================================ */
+function chip(el,lbl,icon,val,sub,barFrac,barCol,danger){
+  el.innerHTML='<div class="lbl">'+icon+' '+lbl+'</div><div class="val"'+(danger?' style="color:var(--bad)"':'')+'>'+val+'</div>'+
+    (sub!=null?'<div class="sub">'+sub+'</div>':'')+
+    (barFrac!=null?'<div class="bar"><i style="width:'+Math.round(clamp(barFrac,0,1)*100)+'%;background:'+barCol+'"></i></div>':'');
+  el.classList.toggle('alert', !!danger);
+}
+function fmt(n){ n=Math.floor(n); if(n>=10000) return (n/1000).toFixed(1)+'k'; return ''+n; }
+function rate(n){ return (n>=0?'+':'')+n.toFixed(1)+'/s'; }
+function updateHUD(){
+  const r=S.rates;
+  chip(document.getElementById('ch-credits'),'Credits','🪙',fmt(S.credits),rate(r.credits||0));
+  const net=r.power||0, bf=S.batt/(r.battCap||CFG.BASE_BATT);
+  const flareTag=S.flare&&S.flare.active?' ☀️'+Math.ceil(S.flare.t)+'s':'';
+  const stormTag=S.storm&&S.storm.active?' 🌪️'+Math.ceil(S.storm.t)+'s':'';
+  chip(document.getElementById('ch-power'),'Power','⚡',(net>=0?'+':'')+net.toFixed(0),'🔋 '+Math.round(bf*100)+'%'+(flareTag||stormTag),bf, net>=0?'var(--good)':'var(--bad)', r.brownout);
+  const cO2=r.capO2||CFG.CAP_O2, cW=r.capW||CFG.CAP_WATER, cF=r.capF||CFG.CAP_FOOD;
+  chip(document.getElementById('ch-o2'),'Oxygen','🫧',fmt(S.o2),rate(r.o2||0),S.o2/cO2,'var(--teal)',S.o2<cO2*0.12);
+  chip(document.getElementById('ch-water'),'Water','💧',fmt(S.water),rate(r.water||0),S.water/cW,'var(--blue)',S.water<cW*0.12);
+  chip(document.getElementById('ch-food'),'Food','🍎',fmt(S.food),rate(r.food||0),S.food/cF,'var(--good)',S.food<cF*0.12);
+  chip(document.getElementById('ch-research'),'Research','🔬',fmt(S.research),rate(r.research||0));
+  chip(document.getElementById('ch-pop'),'Colonists','👤',S.pop+' / '+(r.housing||0),'jobs '+(r.jobs||0));
+  const mc=S.morale>60?'var(--good)':S.morale>35?'var(--gold)':'var(--bad)';
+  chip(document.getElementById('ch-morale'),'Morale',S.morale>60?'😊':S.morale>35?'😐':'😟',Math.round(S.morale)+'%',null,S.morale/100,mc,S.morale<30);
+  const tc=S.terra>=100?'var(--gold)':S.terra>0?'var(--teal)':'var(--dim)';
+  chip(document.getElementById('ch-terra'),'Terraform','🌍',Math.round(S.terra)+'%',
+    S.terra<100&&S.rates.terra>0?'+'+S.rates.terra.toFixed(2)+'/sol':S.terra>=100?'complete 🌏':null,
+    S.terra/100,tc,false);
+  // clock
+  const hh=Math.floor(S.time*24), mm=Math.floor((S.time*24-hh)*60);
+  const isDay=Math.sin((S.time-0.25)*2*Math.PI)>0;
+  document.getElementById('solLbl').textContent='Sol '+S.sol+' '+(S.storm.active?'🌪️':isDay?'☀️':'🌙');
+  document.getElementById('timeLbl').textContent=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+}
+
+/* ---------- toolbar ---------- */
+function buildToolbar(){
+  const tb=document.getElementById('toolbar'); tb.innerHTML='';
+  // cursor + demolish
+  tb.appendChild(toolBtn('cursor','👆','Inspect','',null));
+  tb.appendChild(toolBtn('demolish','🧨','Demolish','+'+Math.round(CFG.REFUND*100)+'%','var(--bad)'));
+  for(const key of TOOLBAR){ const d=M[key];
+    const locked=d.tech&&!tech(d.tech);
+    const el=document.createElement('div'); el.className='tool'+(locked?' locked':'');
+    el.dataset.tool=key;
+    el.innerHTML='<div class="catbar" style="background:'+NAMED[CAT[d.cat]]+'"></div>'+
+      (locked?'<div class="lockic">🔒</div>':'')+
+      '<div class="ic">'+d.ic+'</div><div class="nm">'+d.name+'</div>'+
+      '<div class="cost">'+(locked?(TECHS.find(t=>t.id===d.tech)||{}).name||'':d.cost+' 🪙')+'</div>';
+    el.addEventListener('pointerenter',e=>showTip(e,key));
+    el.addEventListener('pointerleave',hideTip);
+    el.addEventListener('click',()=>{ if(locked){hideTip();toast('Unlock via Research: '+(TECHS.find(t=>t.id===d.tech).name),'warn'); openModal('mTech'); return;} selectTool(key); });
+    tb.appendChild(el);
+  }
+  // restore current selection (e.g. after a research unlock rebuilds the bar)
+  const cur=tool||'cursor';
+  document.querySelectorAll('.tool').forEach(t=>t.classList.toggle('sel', t.dataset.tool===cur));
+}
+function toolBtn(key,ic,nm,cost,col){
+  const el=document.createElement('div'); el.className='tool'; el.dataset.tool=key;
+  el.innerHTML='<div class="ic">'+ic+'</div><div class="nm">'+nm+'</div><div class="cost" style="color:'+(col||'var(--dim)')+'">'+cost+'</div>';
+  el.addEventListener('click',()=>selectTool(key));
+  return el;
+}
+function selectTool(key){
+  tool = (key==='cursor')?null:key;
+  selected=null; document.getElementById('info').style.display='none'; hideTip();
+  document.querySelectorAll('.tool').forEach(t=>t.classList.toggle('sel', t.dataset.tool===key));
+  refreshAfford();
+  if(tool && M[tool]){
+    const d=M[tool];
+    const canAfford=S.credits>=d.cost;
+    if(!canAfford) toast(d.ic+' '+d.name+' costs '+d.cost+'₡ — earn more credits first.','warn');
+  }
+}
+function refreshAfford(){
+  document.querySelectorAll('.tool').forEach(t=>{ const k=t.dataset.tool; if(M[k]&&!(M[k].tech&&!tech(M[k].tech))) t.classList.toggle('cant', S.credits<M[k].cost); });
+}
+
+/* ---------- tooltip ---------- */
+const tip=document.getElementById('tooltip');
+function showTip(e,key){
+  const d=M[key]; let rows='';
+  const add=(l,v)=>rows+='<div class="row"><span class="d">'+l+'</span><span>'+v+'</span></div>';
+  if(d.cost) add('Cost', d.cost+' 🪙');
+  if(d.wind) add('Power', '+'+d.power+' ⚡ (+50% in storms)');
+  else if(d.power) add('Power', (d.power>0?'+':'')+d.power+' ⚡');
+  if(d.solar) add('Power','daylight only ☀️');
+  if(d.batt) add('Storage','+'+d.batt+' 🔋');
+  if(d.housing) add('Housing','+'+d.housing+' 👤');
+  if(d.jobs) add('Workers',d.jobs+' needed');
+  if(d.o2) add('Oxygen','+'+d.o2+' 🫧');
+  if(d.water) add('Water','+'+d.water+' 💧'+(d.iceBonus?' (×'+d.iceBonus+' on ice)':''));
+  if(d.useWater) add('Uses water','-'+d.useWater+' 💧');
+  if(d.food) add('Food','+'+d.food+' 🍎');
+  if(d.credits) add('Income','+'+d.credits+' 🪙'+(d.mineralBonus?' (×'+d.mineralBonus+' on vein)':''));
+  if(d.research) add('Research','+'+d.research+' 🔬');
+  if(d.morale) add('Morale','+'+d.morale+' 😊');
+  if(d.terra) add('Terraform','+'+d.terra+'%/sol 🌍');
+  if(d.capBonus) add('Storage cap','+'+d.capBonus+' 📦 each resource');
+  if(d.comms) add('Signal','2× breakthrough 📡');
+  tip.innerHTML='<h4>'+d.ic+' '+d.name+'</h4><div class="d" style="margin-bottom:5px">'+d.desc+'</div>'+rows;
+  tip.style.display='block'; positionTip(e);
+}
+function positionTip(e){ const rct=tip.getBoundingClientRect(); let x=e.clientX+14,y=e.clientY-rct.height-10;
+  if(x+rct.width>W-8) x=W-rct.width-8;
+  if(x<8) x=8;
+  if(y<70) y=e.clientY+16;
+  if(y+rct.height>H-8) y=H-rct.height-8;
+  tip.style.left=x+'px'; tip.style.top=y+'px'; }
+function hideTip(){ tip.style.display='none'; }
+
+/* ---------- info panel (selected building) ---------- */
+function showInfo(b){
+  const d=M[b.type], el=document.getElementById('info'); const g=grid[b.r][b.c];
+  let s='<h3>'+d.ic+' '+d.name+'</h3><div class="id">'+(b.broken?'<span style="color:var(--bad)">⚠️ Malfunctioned</span>':d.desc)+'</div>';
+  const st=(l,v)=>s+='<div class="stat"><span>'+l+'</span><b>'+v+'</b></div>';
+  if(g.terrain==='ice'&&d.water) st('Terrain bonus','×'+d.iceBonus+' ❄️');
+  if(g.terrain==='mineral'&&d.mineralBonus) st('Terrain bonus','×'+d.mineralBonus+' 💎');
+  if(d.housing) st('Housing','+'+d.housing+' 🛏️');
+  if(d.wind) st('Power','+'+d.power+' ⚡ (storm: +'+(d.power*1.5|0)+' ⚡)');
+  else if(d.power) st('Power',(d.power>0?'+':'')+d.power+' ⚡');
+  if(d.solar) st('Power','daylight ☀️');
+  if(d.batt) st('Battery storage','+'+d.batt+' 🔋');
+  if(d.jobs) st('Workers needed',d.jobs+' 👤');
+  if(d.morale) st('Morale','+'+d.morale+' 😊');
+  if(d.o2) st(d.useWater?'Oxygen (needs water)':'Oxygen','+'+d.o2+' 🫧');
+  if(d.water) st('Water','+'+d.water+(g.terrain==='ice'&&d.iceBonus?' (×'+d.iceBonus+')':'')+' 💧');
+  if(d.food) st(d.useWater?'Food (needs water)':'Food','+'+d.food+' 🍎');
+  if(d.credits) st('Income','+'+d.credits+(g.terrain==='mineral'&&d.mineralBonus?' (×'+d.mineralBonus+')':'')+' 🪙');
+  if(d.research) st('Research','+'+d.research+' 🔬');
+  if(d.safety) st('Safety','halves death rate 🏥');
+  if(d.capBonus) st('Storage cap','+'+d.capBonus+' O₂/H₂O/food');
+  if(d.comms) st('Signal boost','2× breakthrough 📡');
+  if(d.terra) st('Terraform rate','+'+d.terra+'%/sol 🌍');
+  if(b.broken) s+='<button onclick="window.__repair()" style="border-color:var(--good);color:var(--good)">🔧 Repair ('+CFG.REPAIR+'🪙)</button>';
+  if(!d.fixed) s+='<button onclick="window.__demo()">🧨 Demolish (+'+Math.round(d.cost*CFG.REFUND)+'🪙)</button>';
+  el.innerHTML=s; el.style.display='block';
+}
+window.__repair=()=>{ if(selected&&grid[selected.r][selected.c].b){ const b=grid[selected.r][selected.c].b; repair(b); selBroken=b.broken; showInfo(b);} };
+window.__demo=()=>{ if(selected) demolish(selected.r,selected.c); };
+
+/* ---------- modals ---------- */
+function openModal(id){ document.getElementById(id).classList.add('open'); if(id==='mTech')renderTech(); if(id==='mObj')renderObj(); }
+function closeModals(){ document.querySelectorAll('.modal').forEach(m=>m.classList.remove('open')); }
+function renderTech(){
+  const list=document.getElementById('techList'); list.innerHTML='<div class="sd" style="margin-bottom:10px">You have <b style="color:var(--teal)">'+Math.floor(S.research)+' 🔬</b> research points.</div>';
+  for(const t of TECHS){ const owned=tech(t.id), can=S.research>=t.cost;
+    const c=document.createElement('div'); c.className='techcard'+(owned?' owned':'');
+    c.innerHTML='<div class="ti">'+t.ic+'</div><div class="tx"><div class="tn">'+t.name+'</div><div class="td">'+t.desc+'</div></div>'+
+      '<button '+(owned||!can?'disabled':'')+'>'+(owned?'✓ Owned':t.cost+' 🔬')+'</button>';
+    if(!owned){ c.querySelector('button').addEventListener('click',()=>{ if(S.research>=t.cost){ S.research-=t.cost; S.techs.add(t.id); SND.tech(); toast('🔬 Researched <b>'+t.name+'</b>!','good'); buildToolbar(); renderTech(); save(); } }); }
+    list.appendChild(c);
+  }
+}
+function renderObj(){
+  const list=document.getElementById('objList'); list.innerHTML=''; let foundCur=false;
+  for(const o of OBJ){ const done=S.done.has(o.id); const cur=!done&&!foundCur; if(cur)foundCur=true;
+    const c=document.createElement('div'); c.className='objcard'+(done?' done':'')+(cur?' cur':'');
+    c.innerHTML='<div class="oi">'+(done?'✅':o.ic)+'</div><div class="ox">'+o.text+'</div><div class="or">'+(done?'done':o.rwd||'')+'</div>';
+    list.appendChild(c);
+  }
+}
+function showWin(){
+  const B=allB();
+  document.getElementById('winStats').innerHTML=
+    '<div class="wstat"><div class="a">'+S.pop+'</div><div class="b">Colonists</div></div>'+
+    '<div class="wstat"><div class="a">'+S.sol+'</div><div class="b">Sols survived</div></div>'+
+    '<div class="wstat"><div class="a">'+B.length+'</div><div class="b">Modules built</div></div>'+
+    '<div class="wstat"><div class="a">'+S.techs.size+'/'+TECHS.length+'</div><div class="b">Techs unlocked</div></div>'+
+    '<div class="wstat"><div class="a">'+Math.round(S.terra)+'%</div><div class="b">Terraformed</div></div>';
+  openModal('mWin'); SND.win(); setSpeed(0);
+}
+
+/* ---------- toasts ---------- */
+function toast(html,kind){ const box=document.getElementById('toasts'); const t=document.createElement('div');
+  t.className='toast'+(kind?' '+kind:''); t.innerHTML=html; box.appendChild(t);
+  setTimeout(()=>{ t.style.transition='.4s'; t.style.opacity='0'; t.style.transform='translateY(-8px)'; setTimeout(()=>t.remove(),400); }, 4200);
+  while(box.children.length>4) box.firstChild.remove();
+}
+
+/* ============================================================
+   INPUT
+   ============================================================ */
+function cellAt(cx,cy){ const c=Math.floor((cx-ox)/tile), r=Math.floor((cy-oy)/tile); if(r<0||c<0||r>=CFG.ROWS||c>=CFG.COLS) return null; return {r,c}; }
+cv.addEventListener('pointermove',e=>{ hover=cellAt(e.clientX,e.clientY); });
+cv.addEventListener('pointerleave',()=>hover=null);
+cv.addEventListener('pointerdown',e=>{
+  if(!started) return; const cell=cellAt(e.clientX,e.clientY); if(!cell) return;
+  const b=grid[cell.r][cell.c].b;
+  if(tool==='demolish'){ demolish(cell.r,cell.c); return; }
+  if(b && b.broken){ repair(b); selected=cell; showInfo(b); return; } // any click fixes a broken module
+  if(tool && M[tool]){ place(cell.r,cell.c,tool); return; }
+  if(b){ selected=cell; selBroken=b.broken; showInfo(b); }
+  else { selected=null; selBroken=null; document.getElementById('info').style.display='none'; }
+});
+cv.addEventListener('contextmenu',e=>{ e.preventDefault(); selectTool('cursor'); });
+window.addEventListener('keydown',e=>{
+  if(!started) return;
+  if(e.key==='Escape'){ selectTool('cursor'); closeModals(); }
+  else if(e.key===' '){ e.preventDefault(); setSpeed(speed===0?1:0); }
+  else if(e.key==='1') setSpeed(1); else if(e.key==='2') setSpeed(2); else if(e.key==='3') setSpeed(4);
+});
+
+/* ---------- speed & buttons ---------- */
+function setSpeed(s){ speed=s; paused=(s===0); document.querySelectorAll('#speed button').forEach(b=>b.classList.toggle('on', +b.dataset.s===s)); }
+document.getElementById('speed').addEventListener('click',e=>{ const b=e.target.closest('button'); if(b) setSpeed(+b.dataset.s); });
+document.getElementById('btnTech').addEventListener('click',()=>openModal('mTech'));
+document.getElementById('btnObj').addEventListener('click',()=>openModal('mObj'));
+document.getElementById('btnMenu').addEventListener('click',()=>openModal('mMenu'));
+document.getElementById('btnMute').addEventListener('click',()=>{ muted=!muted; document.getElementById('btnMute').textContent=muted?'🔇':'🔊'; save(); });
+document.querySelectorAll('[data-close]').forEach(x=>x.addEventListener('click',closeModals));
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) closeModals(); }));
+document.getElementById('mSave').addEventListener('click',()=>{ save(); toast('💾 Colony saved.','good'); });
+document.getElementById('mReset').addEventListener('click',()=>{ if(confirm('Abandon this colony and start over? This cannot be undone.')){ localStorage.removeItem(SAVE); location.reload(); } });
+document.getElementById('winGo').addEventListener('click',()=>{ closeModals(); setSpeed(1); });
+
+/* ---------- start ---------- */
+function startGame(fresh){
+  if(fresh || !load()){ S=blankState(); makeGrid(); placeStart(); }
+  prerenderTerrain();
+  document.getElementById('btnMute').textContent=muted?'🔇':'🔊';
+  rebuildDots(); buildToolbar(); selectTool('cursor'); setSpeed(1);
+  started=true; document.getElementById('intro').classList.add('hidden');
+  actx(); // unlock audio on user gesture
+}
+document.getElementById('startBtn').addEventListener('click',()=>startGame(false));
+const newBtn=document.getElementById('newBtn');
+if(hasSave()){ document.getElementById('startBtn').textContent='▶ RESUME COLONY'; newBtn.textContent='or start a new colony'; newBtn.style.display='block';
+  newBtn.addEventListener('click',()=>{ localStorage.removeItem(SAVE); startGame(true); }); }
+else { newBtn.style.display='none'; }
+
+/* ---------- main loop ---------- */
+let last=0, saveT=0, hudT=1;
+function loop(ts){
+  animT=ts*0.001;
+  let dt=(ts-last)/1000; last=ts; if(dt>0.1)dt=0.1; if(dt<0)dt=0;
+  if(started){
+    if(!paused){ const sdt=dt*speed; update(sdt); moveDots(sdt);
+      saveT+=dt; if(saveT>8){ saveT=0; save(); } }
+    stepShotStars(dt);
+    stepParts(dt);
+    draw();
+    hudT+=dt; if(hudT>0.15){ hudT=0; updateHUD(); refreshAfford();
+      // refresh info panel if selected building's broken state changed, or vanished
+      if(selected){
+        const sb=grid[selected.r]?.[selected.c]?.b;
+        if(!sb){ selected=null; selBroken=null; document.getElementById('info').style.display='none'; }
+        else if(sb.broken!==selBroken){ selBroken=sb.broken; showInfo(sb); }
+      }
+    }
+  }
+  requestAnimationFrame(loop);
+}
+resize();
+requestAnimationFrame(t=>{ last=t; loop(t); });
+</script>
+</body>
+</html>

@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Notes</title>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #161b22; --panel-2: #1d242d;
+    --border: #2a313c; --text: #e6edf3; --muted: #8b949e;
+    --accent: #7c5cff; --accent-2: #00d4a0; --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+    display: grid; grid-template-rows: auto 1fr auto;
+  }
+  header {
+    padding: 12px 18px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  header .logo { width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center; font-size: 16px; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  header .spacer { flex: 1; }
+  header select {
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 8px; font: inherit; font-size: 13px;
+  }
+  main {
+    overflow-y: auto; padding: 18px;
+    display: flex; flex-direction: column; gap: 14px;
+    max-width: 760px; width: 100%; margin: 0 auto;
+  }
+  .answer {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px; white-space: pre-wrap; word-break: break-word;
+  }
+  .answer .meta { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+  .answer .actions { margin-top: 10px; display: flex; gap: 8px; }
+  .answer button {
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .answer button:hover { border-color: var(--accent); }
+  .answer.err { border-color: rgba(255,107,107,0.4); color: #ffb3b3; }
+  .empty { color: var(--muted); text-align: center; padding: 40px 20px; }
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 12px 18px; background: var(--bg);
+  }
+  .composer {
+    max-width: 760px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .thumb-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .thumb { position: relative; }
+  .thumb img { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+  .thumb button {
+    position: absolute; top: -6px; right: -6px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--danger); color: white; border: none;
+    cursor: pointer; font-size: 11px; line-height: 1;
+  }
+  .input-row { display: flex; gap: 8px; align-items: flex-end; }
+  textarea {
+    flex: 1; resize: none;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 11px 14px; font: inherit;
+    min-height: 52px; max-height: 200px;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  .file-btn {
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 12px; cursor: pointer; font-size: 13px;
+  }
+  .file-btn input { display: none; }
+  button.send {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white; border: none; border-radius: 10px;
+    padding: 12px 20px; cursor: pointer; font-weight: 600;
+    min-width: 90px;
+  }
+  button.send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .hint { color: var(--muted); font-size: 12px; text-align: center; }
+  .spinner {
+    display: inline-block; width: 12px; height: 12px;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+    vertical-align: middle; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">📝</div>
+  <div>
+    <h1>Notes</h1>
+    <div class="sub">Paste text or screenshots · Ctrl+V works</div>
+  </div>
+  <div class="spacer"></div>
+  <select id="mode" title="Output style">
+    <option value="answer">Just the answer</option>
+    <option value="work">Show work</option>
+  </select>
+</header>
+
+<main id="main">
+  <div class="empty" id="empty">
+    Paste a question (or screenshot via Ctrl+V) below.
+  </div>
+</main>
+
+<footer>
+  <div class="composer">
+    <div class="thumb-row" id="thumbs"></div>
+    <div class="input-row">
+      <label class="file-btn" title="Attach screenshot">
+        📎
+        <input type="file" id="fileInput" accept="image/*" multiple />
+      </label>
+      <textarea id="input" placeholder="Type or paste your question..." rows="2"></textarea>
+      <button class="send" id="sendBtn">Go</button>
+    </div>
+    <div class="hint">Ctrl+V to paste a screenshot · Enter to send · Shift+Enter for newline</div>
+  </div>
+</footer>
+
+<script>
+const TOKEN = "__TOKEN__";
+const $ = id => document.getElementById(id);
+const main = $('main'), empty = $('empty');
+const input = $('input'), sendBtn = $('sendBtn'), thumbs = $('thumbs');
+const fileInput = $('fileInput'), modeSel = $('mode');
+
+let attachments = []; // {dataUrl, base64}
+
+function autoresize() {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+}
+input.addEventListener('input', autoresize);
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+});
+
+async function fileToB64(blob) {
+  return new Promise(res => {
+    const r = new FileReader();
+    r.onload = () => res({
+      dataUrl: r.result,
+      base64: r.result.split(',')[1],
+      mediaType: blob.type || 'image/png'
+    });
+    r.readAsDataURL(blob);
+  });
+}
+
+fileInput.addEventListener('change', async () => {
+  for (const f of fileInput.files) {
+    if (!f.type.startsWith('image/')) continue;
+    attachments.push(await fileToB64(f));
+  }
+  fileInput.value = '';
+  renderThumbs();
+});
+
+document.addEventListener('paste', async (e) => {
+  const items = e.clipboardData?.items || [];
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const blob = item.getAsFile();
+      if (blob) attachments.push(await fileToB64(blob));
+    }
+  }
+  renderThumbs();
+});
+
+function renderThumbs() {
+  thumbs.innerHTML = '';
+  attachments.forEach((a, i) => {
+    const d = document.createElement('div');
+    d.className = 'thumb';
+    d.innerHTML = `<img src="${a.dataUrl}" /><button title="Remove">×</button>`;
+    d.querySelector('button').onclick = () => { attachments.splice(i,1); renderThumbs(); };
+    thumbs.appendChild(d);
+  });
+}
+
+function addAnswer(text, q, isError) {
+  if (empty.parentNode) empty.remove();
+  const div = document.createElement('div');
+  div.className = 'answer' + (isError ? ' err' : '');
+  const meta = q ? `<div class="meta">${escapeHtml(q.slice(0, 200))}${q.length>200?'…':''}</div>` : '';
+  div.innerHTML = meta + `<div class="text"></div>`;
+  div.querySelector('.text').textContent = text;
+  if (!isError) {
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    actions.innerHTML = `<button class="copy">📋 Copy</button>`;
+    div.appendChild(actions);
+    actions.querySelector('.copy').onclick = (ev) => {
+      navigator.clipboard.writeText(text);
+      ev.target.textContent = '✓ Copied';
+      setTimeout(() => ev.target.textContent = '📋 Copy', 1200);
+    };
+  }
+  main.appendChild(div);
+  main.scrollTop = main.scrollHeight;
+  return div;
+}
+
+function escapeHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function send() {
+  const text = input.value.trim();
+  if (!text && attachments.length === 0) return;
+
+  const userText = text || '(image)';
+  if (empty.parentNode) empty.remove();
+  const loading = document.createElement('div');
+  loading.className = 'answer';
+  loading.innerHTML = `<div class="meta">${escapeHtml(userText.slice(0,200))}</div><div><span class="spinner"></span>Thinking…</div>`;
+  main.appendChild(loading);
+  main.scrollTop = main.scrollHeight;
+
+  const body = { mode: modeSel.value };
+  if (text) body.text = text;
+  if (attachments.length) {
+    body.image = attachments[0].base64;
+    body.media_type = attachments[0].mediaType;
+  }
+
+  input.value = '';
+  attachments = [];
+  renderThumbs();
+  autoresize();
+  sendBtn.disabled = true;
+
+  try {
+    const r = await fetch(`/api/solve/${TOKEN}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
+    loading.remove();
+    if (data.error) {
+      addAnswer('Error: ' + data.error, userText, true);
+    } else {
+      addAnswer(data.answer, userText, false);
+    }
+  } catch (e) {
+    loading.remove();
+    addAnswer('Network error: ' + e.message, userText, true);
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+sendBtn.onclick = send;
+input.focus();
+</script>
+</body>
+</html>

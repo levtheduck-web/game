@@ -1,0 +1,1143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Speed Stars</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #eee; overflow: hidden;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  canvas { display: block; }
+  #hud {
+    position: fixed; inset: 0; pointer-events: none; z-index: 10;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 18px;
+  }
+  .panel {
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(0,255,208,0.4);
+    border-radius: 8px;
+    padding: 10px 16px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-size: 12px;
+    color: #00ffd0;
+    backdrop-filter: blur(4px);
+  }
+  .panel b { color: #fff; font-size: 18px; letter-spacing: 0.05em; }
+  .panel .label { color: #88ccc0; font-size: 10px; display: block; }
+
+  #speedwrap {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    z-index: 10; pointer-events: none;
+    text-align: center;
+  }
+  #speedbar {
+    width: 320px; height: 12px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 6px; overflow: hidden;
+  }
+  #speedfill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #00ffd0 0%, #ffd400 60%, #ff3df0 100%);
+    transition: width 0.08s linear;
+  }
+  #speedhint {
+    margin-top: 8px; font-size: 11px; letter-spacing: 0.3em;
+    color: #88ccc0; text-transform: uppercase;
+  }
+
+  #legkeys {
+    position: fixed; left: 50%; bottom: 60px; transform: translateX(-50%);
+    z-index: 10; pointer-events: none;
+    display: flex; gap: 12px;
+  }
+  .key {
+    width: 56px; height: 56px;
+    border: 2px solid rgba(255,255,255,0.25);
+    border-radius: 10px;
+    display: grid; place-items: center;
+    font-size: 22px; color: #fff;
+    background: rgba(0,0,0,0.4);
+    letter-spacing: 0;
+  }
+  .key.active {
+    background: #00ffd0; color: #000;
+    border-color: #00ffd0;
+    box-shadow: 0 0 24px rgba(0,255,208,0.7);
+  }
+  .key small { display: block; font-size: 9px; letter-spacing: 0.2em;
+    margin-top: 4px; opacity: 0.7; }
+
+  #overlay {
+    position: fixed; inset: 0; z-index: 50;
+    display: grid; place-items: center;
+    background: radial-gradient(circle at center, rgba(0,0,0,0.6), rgba(0,0,0,0.95));
+    text-align: center; padding: 24px;
+  }
+  #overlay h1 {
+    font-size: clamp(32px, 7vw, 64px);
+    letter-spacing: 0.15em; margin: 0 0 12px;
+    color: #00ffd0;
+    text-shadow: 0 0 12px #00ffd0, 2px 2px 0 #ff3df0;
+  }
+  #overlay p { color: #aaa; max-width: 480px; line-height: 1.6; }
+  #overlay button {
+    pointer-events: auto;
+    margin-top: 20px;
+    background: transparent; color: #ffd400;
+    border: 1px solid #ffd400;
+    padding: 10px 22px; font: inherit;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    border-radius: 6px; cursor: pointer;
+  }
+  #overlay button:hover {
+    background: #ffd400; color: #000;
+    box-shadow: 0 0 24px rgba(255,212,0,0.6);
+  }
+  #overlay.hidden { display: none; }
+  .keys-hint { color: #00ffd0; font-size: 12px; letter-spacing: 0.2em;
+          margin-top: 16px; text-transform: uppercase; }
+
+  #message {
+    position: fixed; left: 50%; top: 30%; transform: translate(-50%, -50%);
+    z-index: 20; pointer-events: none;
+    color: #ff3df0; font-size: clamp(28px, 6vw, 64px);
+    letter-spacing: 0.2em; text-transform: uppercase;
+    text-shadow: 0 0 16px #ff3df0, 2px 2px 0 #00ffd0;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  #message.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="panel">
+    <span class="label">Time</span>
+    <b id="time">0.000</b>
+  </div>
+  <div class="panel">
+    <span class="label">Distance</span>
+    <b id="dist">0 / 100m</b>
+  </div>
+</div>
+
+<div id="speedwrap">
+  <div id="speedbar"><div id="speedfill"></div></div>
+  <div id="speedhint">Alternate A / L &middot; Space to jump</div>
+</div>
+
+<div id="legkeys">
+  <div class="key" id="keyA">A<small>L LEG</small></div>
+  <div class="key" id="keyL">L<small>R LEG</small></div>
+</div>
+
+<div id="message"></div>
+
+<div id="overlay">
+  <div>
+    <h1>Speed Stars</h1>
+    <p>Sprint 100 meters over 6 hurdles. Alternate <b>A</b> and <b>L</b> in rhythm to move your legs.<br>
+       Tap <b>Space</b> to jump hurdles &mdash; generous timing.<br>
+       Easy mode: no faceplants, just keep alternating in any rhythm.</p>
+    <div class="keys-hint">A &middot; L &nbsp;&middot;&nbsp; Space</div>
+    <button id="startBtn">Click to start</button>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ---------- scene ----------
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x080816);
+scene.fog = new THREE.Fog(0x080816, 50, 220);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 500);
+camera.position.set(-3, 2.4, -4);
+camera.lookAt(0, 1, 5);
+
+// lights
+scene.add(new THREE.HemisphereLight(0x6677aa, 0x080808, 0.5));
+const sun = new THREE.DirectionalLight(0xffffff, 0.6);
+sun.position.set(20, 40, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -40; sun.shadow.camera.right = 40;
+sun.shadow.camera.top = 40; sun.shadow.camera.bottom = -40;
+scene.add(sun);
+
+// stadium lights (neon poles)
+function stadiumLight(x, z) {
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.15, 0.15, 12, 6),
+    new THREE.MeshStandardMaterial({ color: 0x222230 })
+  );
+  pole.position.set(x, 6, z);
+  scene.add(pole);
+  const head = new THREE.Mesh(
+    new THREE.BoxGeometry(1.6, 0.4, 0.6),
+    new THREE.MeshStandardMaterial({ color: 0xffd400, emissive: 0xffd400, emissiveIntensity: 1.2 })
+  );
+  head.position.set(x, 12, z);
+  scene.add(head);
+  const lamp = new THREE.PointLight(0xffeebb, 0.8, 30);
+  lamp.position.set(x, 11.5, z);
+  scene.add(lamp);
+}
+for (let z = 0; z <= 140; z += 20) {
+  stadiumLight(-6, z);
+  stadiumLight( 6, z);
+}
+
+// ---------- track ----------
+const TRACK_LENGTH = 140;
+const TRACK_WIDTH = 8;
+
+const trackMat = new THREE.MeshStandardMaterial({ color: 0xb53a2a, roughness: 0.9 });
+const track = new THREE.Mesh(new THREE.BoxGeometry(TRACK_WIDTH, 0.1, TRACK_LENGTH), trackMat);
+track.position.set(0, 0, TRACK_LENGTH/2 - 4);
+track.receiveShadow = true;
+scene.add(track);
+
+// lane lines
+const laneMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x222222 });
+for (let i = -3; i <= 3; i += 2) {
+  const line = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.11, TRACK_LENGTH),
+    laneMat
+  );
+  line.position.set(i, 0.06, TRACK_LENGTH/2 - 4);
+  scene.add(line);
+}
+
+// start/finish
+function lineAcross(z, color, h = 0.11) {
+  const m = new THREE.Mesh(
+    new THREE.BoxGeometry(TRACK_WIDTH, h, 0.4),
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.4 })
+  );
+  m.position.set(0, 0.06, z);
+  scene.add(m);
+  return m;
+}
+lineAcross(0, 0xffffff);
+const finishLine = lineAcross(100, 0x00ff80);
+const finishLight = new THREE.PointLight(0x00ff80, 1.6, 20);
+finishLight.position.set(0, 3, 100);
+scene.add(finishLight);
+
+// finish banner
+const banner = new THREE.Mesh(
+  new THREE.PlaneGeometry(TRACK_WIDTH, 1.6),
+  new THREE.MeshStandardMaterial({ color: 0x00ff80, emissive: 0x00ff80, emissiveIntensity: 0.6, side: THREE.DoubleSide })
+);
+banner.position.set(0, 4, 100);
+scene.add(banner);
+
+// distance markers every 10m
+for (let m = 10; m <= 90; m += 10) {
+  const mark = new THREE.Mesh(
+    new THREE.BoxGeometry(TRACK_WIDTH, 0.11, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0xffffff })
+  );
+  mark.position.set(0, 0.06, m);
+  scene.add(mark);
+}
+
+// hurdles
+const HURDLE_HEIGHT = 0.85;
+const HURDLE_CLEAR  = 0.3; // jump height needed to clear
+const HURDLE_POSITIONS = [15, 30, 45, 60, 75, 90];
+const hurdles = [];
+const hurdlePostMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 });
+const hurdleBarMat  = new THREE.MeshStandardMaterial({
+  color: 0xffd400, emissive: 0xffd400, emissiveIntensity: 0.35, roughness: 0.5,
+});
+
+function makeHurdle(z) {
+  const g = new THREE.Group();
+  // origin at base so it tips around X-axis cleanly
+  for (const x of [-1.2, 1.2]) {
+    const foot = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, 0.06, 0.7),
+      hurdlePostMat
+    );
+    foot.position.set(x, 0.03, 0);
+    foot.castShadow = true; g.add(foot);
+    const post = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.045, 0.045, HURDLE_HEIGHT, 8),
+      hurdlePostMat
+    );
+    post.position.set(x, HURDLE_HEIGHT/2, 0);
+    post.castShadow = true; g.add(post);
+  }
+  const bar = new THREE.Mesh(
+    new THREE.BoxGeometry(2.5, 0.08, 0.05),
+    hurdleBarMat
+  );
+  bar.position.set(0, HURDLE_HEIGHT - 0.04, 0);
+  bar.castShadow = true; g.add(bar);
+  // accent stripe
+  const stripe = new THREE.Mesh(
+    new THREE.BoxGeometry(2.5, 0.025, 0.052),
+    new THREE.MeshStandardMaterial({ color: 0xff3df0, emissive: 0xff3df0, emissiveIntensity: 0.4 })
+  );
+  stripe.position.set(0, HURDLE_HEIGHT - 0.12, 0.001);
+  g.add(stripe);
+
+  g.position.set(0, 0, z);
+  scene.add(g);
+  hurdles.push({ group: g, z, hit: false });
+}
+HURDLE_POSITIONS.forEach(makeHurdle);
+
+// grass / surrounding
+const grassMat = new THREE.MeshStandardMaterial({ color: 0x12331e, roughness: 1 });
+const grass = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), grassMat);
+grass.rotation.x = -Math.PI/2;
+grass.position.y = -0.05;
+grass.receiveShadow = true;
+scene.add(grass);
+
+// crowd seats (low-poly stands)
+function stands(x) {
+  const g = new THREE.Group();
+  for (let z = -4; z < TRACK_LENGTH; z += 6) {
+    const c = new THREE.Mesh(
+      new THREE.BoxGeometry(4, 2.5, 5.5),
+      new THREE.MeshStandardMaterial({ color: 0x18182a })
+    );
+    c.position.set(x, 1.25, z + 3);
+    g.add(c);
+    // crowd dots
+    for (let i = 0; i < 12; i++) {
+      const d = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18, 6, 6),
+        new THREE.MeshStandardMaterial({
+          color: new THREE.Color().setHSL(Math.random(), 0.7, 0.5),
+          emissive: new THREE.Color().setHSL(Math.random(), 0.7, 0.2),
+        })
+      );
+      d.position.set(
+        x + (Math.random() - 0.5) * 3.5,
+        2.6 + Math.random() * 0.3,
+        z + Math.random() * 5
+      );
+      d.userData = { baseY: d.position.y, phase: Math.random() * 10 };
+      g.add(d);
+    }
+  }
+  scene.add(g);
+  return g;
+}
+const leftCrowd = stands(-9);
+const rightCrowd = stands(9);
+
+// ---------- runner (anatomical) ----------
+const runner = new THREE.Group();
+scene.add(runner);
+
+const SKIN = 0xf2c79b;
+const SKIN_SHADE = 0xd9a672;
+const SHIRT = 0xff3df0;
+const SHORTS = 0x00ffd0;
+const SHORTS_SHADE = 0x00ccaa;
+const SHOE = 0x141420;
+const HAIR = 0x2a1a10;
+
+const skinMat       = new THREE.MeshStandardMaterial({ color: SKIN, roughness: 0.7 });
+const skinShadeMat  = new THREE.MeshStandardMaterial({ color: SKIN_SHADE, roughness: 0.75 });
+const shirtMat      = new THREE.MeshStandardMaterial({ color: SHIRT, roughness: 0.55 });
+const shortsMat     = new THREE.MeshStandardMaterial({ color: SHORTS, roughness: 0.5 });
+const shortsShadeMat= new THREE.MeshStandardMaterial({ color: SHORTS_SHADE, roughness: 0.5 });
+const shoeMat       = new THREE.MeshStandardMaterial({ color: SHOE, roughness: 0.6 });
+const hairMat       = new THREE.MeshStandardMaterial({ color: HAIR, roughness: 0.8 });
+
+// pelvis (root for body)
+const pelvis = new THREE.Group();
+pelvis.position.y = 1.0;
+runner.add(pelvis);
+
+// hips wedge
+const hips = new THREE.Mesh(new THREE.SphereGeometry(0.28, 14, 10), shortsMat);
+hips.scale.set(1.15, 0.7, 0.95);
+hips.castShadow = true;
+pelvis.add(hips);
+
+// torso group — rotates around the spine for shoulder counter-swing
+const torsoGroup = new THREE.Group();
+torsoGroup.position.y = 0.05;
+pelvis.add(torsoGroup);
+
+// abs / waist
+const abs = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.18, 6, 12), shirtMat);
+abs.position.y = 0.2;
+abs.castShadow = true;
+torsoGroup.add(abs);
+
+// chest
+const chest = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 12), shirtMat);
+chest.scale.set(1.2, 0.85, 0.95);
+chest.position.y = 0.5;
+chest.castShadow = true;
+torsoGroup.add(chest);
+
+// neck
+const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.14, 10), skinMat);
+neck.position.y = 0.78;
+torsoGroup.add(neck);
+
+// head
+const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 18, 14), skinMat);
+head.scale.set(0.95, 1.05, 1);
+head.position.y = 0.97;
+head.castShadow = true;
+torsoGroup.add(head);
+
+// hair: skull cap + back tuft + side flaps for a real haircut silhouette
+const hair = new THREE.Group();
+hair.position.copy(head.position);
+torsoGroup.add(hair);
+
+const hairCap = new THREE.Mesh(
+  new THREE.SphereGeometry(0.232, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.62),
+  hairMat
+);
+hairCap.position.set(0, 0, -0.01);
+hair.add(hairCap);
+
+// fringe sweeping over forehead
+const fringe = new THREE.Mesh(
+  new THREE.SphereGeometry(0.22, 16, 10, 0, Math.PI, 0, Math.PI * 0.32),
+  hairMat
+);
+fringe.position.set(0.03, 0.06, 0.03);
+fringe.rotation.x = -0.35;
+fringe.rotation.z = 0.15;
+hair.add(fringe);
+
+// back hair tuft
+const backHair = new THREE.Mesh(
+  new THREE.SphereGeometry(0.18, 12, 10),
+  hairMat
+);
+backHair.scale.set(1, 0.7, 0.7);
+backHair.position.set(0, -0.04, -0.13);
+hair.add(backHair);
+
+// face — parent group at head position so features animate with head bobs
+const face = new THREE.Group();
+face.position.copy(head.position);
+torsoGroup.add(face);
+
+const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const irisMat = new THREE.MeshBasicMaterial({ color: 0x3a6b8c });
+const pupilMat = new THREE.MeshBasicMaterial({ color: 0x080808 });
+const lipMat = new THREE.MeshStandardMaterial({ color: 0xc46060, roughness: 0.6 });
+const browMat = hairMat;
+
+function makeEye(x) {
+  const g = new THREE.Group();
+  g.position.set(x, 0.02, 0.195);
+  const w = new THREE.Mesh(new THREE.SphereGeometry(0.034, 12, 10), eyeWhiteMat);
+  w.scale.set(1, 0.75, 0.7);
+  g.add(w);
+  const iris = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 8), irisMat);
+  iris.position.set(0, 0, 0.022);
+  g.add(iris);
+  const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 6), pupilMat);
+  pupil.position.set(0, 0, 0.032);
+  g.add(pupil);
+  face.add(g);
+  return g;
+}
+makeEye(-0.075);
+makeEye(0.075);
+
+// eyebrows
+function makeBrow(x) {
+  const b = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.012, 0.02), browMat);
+  b.position.set(x, 0.07, 0.205);
+  b.rotation.z = x < 0 ? 0.1 : -0.1;
+  face.add(b);
+}
+makeBrow(-0.075);
+makeBrow(0.075);
+
+// nose
+const nose = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.09, 8), skinShadeMat);
+nose.position.set(0, -0.02, 0.225);
+nose.rotation.x = Math.PI / 2;
+face.add(nose);
+const noseTip = new THREE.Mesh(new THREE.SphereGeometry(0.025, 10, 8), skinShadeMat);
+noseTip.position.set(0, -0.05, 0.235);
+face.add(noseTip);
+
+// mouth
+const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 8), lipMat);
+mouth.scale.set(1, 0.32, 0.4);
+mouth.position.set(0, -0.105, 0.205);
+face.add(mouth);
+
+// ears
+function makeEar(x) {
+  const ear = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 10), skinMat);
+  ear.scale.set(0.45, 1, 0.8);
+  ear.position.set(x, -0.005, 0.015);
+  face.add(ear);
+  const lobe = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 8), skinShadeMat);
+  lobe.position.set(x, -0.04, 0.02);
+  face.add(lobe);
+}
+makeEar(-0.21);
+makeEar(0.21);
+
+// chin/jaw shading
+const jaw = new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 10), skinShadeMat);
+jaw.scale.set(0.95, 0.5, 0.85);
+jaw.position.set(0, -0.13, 0.02);
+face.add(jaw);
+
+// arm builder (deltoid, bicep, forearm, hand)
+function makeArm(side) {
+  const shoulder = new THREE.Group();
+  shoulder.position.set(side * 0.32, 0.62, 0);
+  torsoGroup.add(shoulder);
+
+  const delt = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), skinMat);
+  delt.scale.set(1, 0.9, 1);
+  delt.castShadow = true;
+  shoulder.add(delt);
+
+  const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.32, 6, 10), skinMat);
+  upper.position.y = -0.22;
+  upper.castShadow = true;
+  shoulder.add(upper);
+
+  const bicep = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), skinShadeMat);
+  bicep.scale.set(1, 1.6, 1);
+  bicep.position.set(0, -0.18, 0.045);
+  shoulder.add(bicep);
+
+  const elbow = new THREE.Group();
+  elbow.position.y = -0.42;
+  shoulder.add(elbow);
+
+  const forearm = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.28, 6, 10), skinMat);
+  forearm.position.y = -0.18;
+  forearm.castShadow = true;
+  elbow.add(forearm);
+
+  const hand = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), skinMat);
+  hand.scale.set(1, 0.85, 1.1);
+  hand.position.y = -0.36;
+  elbow.add(hand);
+
+  return { shoulder, elbow, bicep };
+}
+const armL = makeArm(-1);
+const armR = makeArm(+1);
+
+// leg builder
+function makeLeg(side) {
+  const hip = new THREE.Group();
+  hip.position.set(side * 0.14, 0, 0);
+  pelvis.add(hip);
+
+  const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.4, 6, 12), shortsMat);
+  thigh.position.y = -0.28;
+  thigh.castShadow = true;
+  hip.add(thigh);
+
+  // quad bulge on front
+  const quad = new THREE.Mesh(new THREE.SphereGeometry(0.115, 12, 10), shortsShadeMat);
+  quad.scale.set(1, 1.7, 0.7);
+  quad.position.set(0, -0.28, 0.05);
+  hip.add(quad);
+
+  // hamstring bulge on back
+  const ham = new THREE.Mesh(new THREE.SphereGeometry(0.105, 10, 8), shortsShadeMat);
+  ham.scale.set(1, 1.5, 0.65);
+  ham.position.set(0, -0.32, -0.05);
+  hip.add(ham);
+
+  const knee = new THREE.Group();
+  knee.position.y = -0.56;
+  hip.add(knee);
+
+  const kneecap = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), skinMat);
+  kneecap.scale.set(1, 0.7, 1);
+  kneecap.position.set(0, 0.02, 0.04);
+  knee.add(kneecap);
+
+  const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.34, 6, 10), skinMat);
+  shin.position.y = -0.22;
+  shin.castShadow = true;
+  knee.add(shin);
+
+  // calf bulge on back
+  const calf = new THREE.Mesh(new THREE.SphereGeometry(0.095, 12, 10), skinShadeMat);
+  calf.scale.set(1, 1.4, 0.7);
+  calf.position.set(0, -0.18, -0.06);
+  knee.add(calf);
+
+  const ankle = new THREE.Group();
+  ankle.position.y = -0.44;
+  knee.add(ankle);
+
+  const foot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.32), shoeMat);
+  foot.position.set(0, -0.04, 0.08);
+  foot.castShadow = true;
+  ankle.add(foot);
+
+  const stripe = new THREE.Mesh(
+    new THREE.BoxGeometry(0.165, 0.022, 0.33),
+    new THREE.MeshStandardMaterial({ color: 0xffd400, emissive: 0xffd400, emissiveIntensity: 0.4 })
+  );
+  stripe.position.set(0, -0.06, 0.08);
+  ankle.add(stripe);
+
+  return { hip, knee, ankle, quad, ham, calf };
+}
+const legL = makeLeg(-1);
+const legR = makeLeg(+1);
+
+// shadow plane (extra)
+const shadow = new THREE.Mesh(
+  new THREE.CircleGeometry(0.4, 16),
+  new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 })
+);
+shadow.rotation.x = -Math.PI/2;
+shadow.position.y = 0.061;
+scene.add(shadow);
+
+// ---------- audio ----------
+const audio = (() => {
+  let ctx = null;
+  const ensure = () => {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  };
+  function tone({ freq=440, dur=0.1, type='sine', vol=0.15, slide=0 }) {
+    const c = ensure(); const t = c.currentTime;
+    const o = c.createOscillator(); const g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.linearRampToValueAtTime(Math.max(20, freq+slide), t+dur);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t+0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    o.connect(g).connect(c.destination);
+    o.start(t); o.stop(t+dur+0.05);
+  }
+  function noise({ dur=0.1, vol=0.2, ff=1000 }) {
+    const c = ensure(); const t = c.currentTime;
+    const buf = c.createBuffer(1, Math.max(1, Math.floor(c.sampleRate*dur)), c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
+    const s = c.createBufferSource(); s.buffer = buf;
+    const f = c.createBiquadFilter(); f.type='lowpass'; f.frequency.value=ff;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.005);
+    g.gain.linearRampToValueAtTime(0, t+dur);
+    s.connect(f).connect(g).connect(c.destination);
+    s.start(t); s.stop(t+dur);
+  }
+  return {
+    resume: ensure,
+    step(pitch) { noise({ dur:0.06, vol:0.18, ff: 600 + pitch*200 }); },
+    jump() {
+      tone({ freq: 280, dur: 0.22, type: 'triangle', vol: 0.18, slide: 420 });
+      noise({ dur: 0.08, vol: 0.1, ff: 800 });
+    },
+    land() { noise({ dur: 0.08, vol: 0.2, ff: 400 }); },
+    hit() {
+      noise({ dur: 0.18, vol: 0.32, ff: 350 });
+      tone({ freq: 180, dur: 0.16, type: 'sawtooth', vol: 0.22, slide: -70 });
+    },
+    stumble() { tone({ freq: 200, dur:0.25, type:'sawtooth', vol:0.2, slide:-80 }); },
+    fall() {
+      tone({ freq: 180, dur:0.6, type:'sawtooth', vol:0.25, slide:-140 });
+      noise({ dur:0.4, vol:0.2, ff: 400 });
+    },
+    win() {
+      [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone({freq:f,dur:0.15,type:'triangle',vol:0.22}),i*110));
+      setTimeout(()=>tone({freq:1568,dur:0.5,type:'triangle',vol:0.24}),470);
+    },
+    countTick(big=false) {
+      tone({ freq: big? 880 : 440, dur: big ? 0.25 : 0.12, type:'square', vol:0.2 });
+    },
+    crowd() {
+      // soft rumble
+      noise({ dur: 0.4, vol: 0.07, ff: 900 });
+    },
+  };
+})();
+
+// ---------- game state ----------
+const state = {
+  mode: 'menu', // menu | countdown | running | finished | crashed
+  pos: 0,            // meters along track
+  vel: 0,            // m/s
+  stridePhase: 0,    // 0..1 visual phase (leg cycle)
+  nextLeg: 'L',      // which leg should be pressed next
+  lastPressTime: 0,
+  lastPressKey: null,
+  totalStrides: 0,
+  rhythm: 0,         // 0..1 estimate of how "in rhythm" you are
+  stumble: 0,        // 0..1, decays
+  ragdoll: false,
+  ragdollVel: 0,
+  startTime: 0,
+  finishTime: 0,
+  countIn: 0,        // countdown seconds remaining
+  jumpY: 0,
+  jumpVel: 0,
+  grounded: true,
+};
+
+// HUD refs
+const timeEl = document.getElementById('time');
+const distEl = document.getElementById('dist');
+const speedFill = document.getElementById('speedfill');
+const speedHint = document.getElementById('speedhint');
+const keyAEl = document.getElementById('keyA');
+const keyLEl = document.getElementById('keyL');
+const messageEl = document.getElementById('message');
+const overlay = document.getElementById('overlay');
+
+function flash(msg, color = '#ff3df0') {
+  messageEl.textContent = msg;
+  messageEl.style.color = color;
+  messageEl.style.textShadow = `0 0 16px ${color}, 2px 2px 0 #00ffd0`;
+  messageEl.classList.add('show');
+  clearTimeout(flash._t);
+  flash._t = setTimeout(() => messageEl.classList.remove('show'), 700);
+}
+
+// ---------- input ----------
+function pressLeg(which) {
+  if (state.mode !== 'running') return;
+  if (state.ragdoll) return;
+
+  const now = performance.now() / 1000;
+  const dt = now - state.lastPressTime;
+
+  // visualize key
+  const el = which === 'L' ? keyAEl : keyLEl;
+  el.classList.add('active');
+  setTimeout(() => el.classList.remove('active'), 100);
+
+  // same leg twice => small slow, no crash
+  if (state.lastPressKey === which) {
+    state.vel *= 0.85;
+    audio.stumble();
+    state.lastPressTime = now;
+    state.lastPressKey = which;
+    return;
+  }
+
+  // mashing too fast => just a soft cap, no crash
+  if (dt < 0.04 && state.lastPressKey !== null) {
+    state.vel = Math.min(14, state.vel + 0.4);
+    state.lastPressTime = now;
+    state.lastPressKey = which;
+    state.nextLeg = which === 'L' ? 'R' : 'L';
+    return;
+  }
+
+  // correct alternation
+  const idealMin = 0.07, idealMax = 0.6; // wide forgiving window
+  let boost = 0;
+  if (dt > 0.07 && dt < 1.5) {
+    // closer to ideal cadence = bigger boost
+    let quality;
+    if (dt >= idealMin && dt <= idealMax) {
+      quality = 1.0;
+    } else if (dt < idealMin) {
+      quality = 0.4; // too fast but not a trip
+    } else {
+      // too slow
+      quality = Math.max(0.2, 1 - (dt - idealMax) * 1.5);
+    }
+    boost = 2.6 + quality * 4.6; // m/s impulse target
+    state.rhythm = state.rhythm * 0.7 + quality * 0.3;
+  } else {
+    state.rhythm *= 0.5;
+    boost = 1.5;
+  }
+
+  // accumulate as impulse onto velocity, capped
+  state.vel = Math.min(14, state.vel + boost * 0.5);
+  state.stumble = Math.max(0, state.stumble - 0.2);
+
+  state.lastPressTime = now;
+  state.lastPressKey = which;
+  state.nextLeg = which === 'L' ? 'R' : 'L';
+  state.totalStrides++;
+  audio.step(state.rhythm);
+}
+
+function tryJump() {
+  if (state.mode !== 'running' || state.ragdoll || !state.grounded) return;
+  state.jumpVel = 6.0;
+  state.grounded = false;
+  audio.jump();
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.repeat) return;
+  if (e.code === 'KeyA' || e.code === 'ArrowLeft')  pressLeg('L');
+  if (e.code === 'KeyL' || e.code === 'ArrowRight') pressLeg('R');
+  if (e.code === 'Space') { e.preventDefault(); tryJump(); }
+});
+
+// touch support
+keyAEl.addEventListener('pointerdown', () => pressLeg('L'));
+keyLEl.addEventListener('pointerdown', () => pressLeg('R'));
+
+// ---------- crash / ragdoll ----------
+function crash() {
+  if (state.ragdoll) return;
+  state.ragdoll = true;
+  state.ragdollVel = state.vel;
+  audio.fall();
+  flash('FACEPLANT!', '#ff3030');
+  setTimeout(() => endRun(false), 1800);
+}
+
+function endRun(won) {
+  if (state.mode === 'finished' || state.mode === 'crashed') return;
+  state.mode = won ? 'finished' : 'crashed';
+  state.finishTime = (performance.now() / 1000) - state.startTime;
+  if (won) audio.win();
+  setTimeout(() => {
+    overlay.classList.remove('hidden');
+    const h1 = overlay.querySelector('h1');
+    const p = overlay.querySelector('p');
+    const btn = document.getElementById('startBtn');
+    if (won) {
+      h1.textContent = `FINISH ${state.finishTime.toFixed(3)}s`;
+      h1.style.color = '#00ff80';
+      h1.style.textShadow = '0 0 16px #00ff80, 2px 2px 0 #ffd400';
+      let medal = '';
+      if (state.finishTime < 10) medal = '🥇 World class!';
+      else if (state.finishTime < 13) medal = '🥈 Pro';
+      else if (state.finishTime < 17) medal = '🥉 Solid';
+      else medal = 'Finisher';
+      p.innerHTML = `${medal}<br>${state.totalStrides} strides &middot; avg rhythm ${(state.rhythm*100|0)}%`;
+      btn.textContent = 'Run again';
+    } else {
+      h1.textContent = 'CRASHED';
+      h1.style.color = '#ff3030';
+      h1.style.textShadow = '0 0 16px #ff3030, 2px 2px 0 #ffd400';
+      p.innerHTML = `You made it <b>${state.pos.toFixed(1)}m</b>.<br>Slower, more rhythmic taps win. Find the beat.`;
+      btn.textContent = 'Try again';
+    }
+  }, won ? 1200 : 0);
+}
+
+// ---------- update loop ----------
+const clock = new THREE.Clock();
+
+function update(dt) {
+  // crowd bobbing
+  const t = performance.now() * 0.005;
+  for (const grp of [leftCrowd, rightCrowd]) {
+    for (const c of grp.children) {
+      if (c.userData?.baseY) c.position.y = c.userData.baseY + Math.sin(t + c.userData.phase) * 0.05;
+    }
+  }
+
+  if (state.mode === 'countdown') {
+    state.countIn -= dt;
+    if (state.countIn <= 0) {
+      state.mode = 'running';
+      state.startTime = performance.now() / 1000;
+      state.lastPressTime = state.startTime;
+      flash('GO!', '#00ff80');
+      audio.countTick(true);
+    } else {
+      const n = Math.ceil(state.countIn);
+      if (flash._lastCount !== n) {
+        flash._lastCount = n;
+        flash(String(n), '#ffd400');
+        audio.countTick(false);
+      }
+    }
+  }
+
+  if (state.mode === 'running' || state.mode === 'crashed') {
+    if (!state.ragdoll) {
+      // friction / decay if not pressing
+      const sincePress = (performance.now() / 1000) - state.lastPressTime;
+      const decay = sincePress > 0.8 ? 1.2 : 0.3;
+      state.vel = Math.max(0, state.vel - decay * dt);
+      state.stumble = Math.max(0, state.stumble - dt * 0.5);
+
+      state.pos += state.vel * dt;
+
+      // jump physics
+      if (!state.grounded) {
+        state.jumpVel -= 14 * dt;
+        state.jumpY += state.jumpVel * dt;
+        if (state.jumpY <= 0) {
+          state.jumpY = 0;
+          state.jumpVel = 0;
+          state.grounded = true;
+          audio.land();
+        }
+      }
+
+      // hurdle collision
+      for (const h of hurdles) {
+        if (h.hit) continue;
+        const dz = state.pos - h.z;
+        if (Math.abs(dz) < 0.35 && state.jumpY < HURDLE_CLEAR) {
+          h.hit = true;
+          audio.hit();
+          flash('CLIP!', '#ffd400');
+          state.vel *= 0.75;
+        }
+      }
+
+      // stride phase animation based on velocity
+      const stridesPerSec = Math.max(0.4, state.vel * 0.45);
+      state.stridePhase = (state.stridePhase + stridesPerSec * dt) % 1;
+    } else {
+      // ragdoll forward slide
+      state.ragdollVel = Math.max(0, state.ragdollVel - dt * 6);
+      state.pos += state.ragdollVel * dt;
+      state.vel = state.ragdollVel;
+    }
+  }
+
+  // animate knocked-over hurdles
+  for (const h of hurdles) {
+    if (h.hit && h.group.rotation.x < Math.PI/2.2) {
+      h.group.rotation.x = Math.min(Math.PI/2.2, h.group.rotation.x + dt * 6);
+    }
+  }
+
+  // place runner
+  runner.position.z = state.pos;
+  runner.position.x = 0;
+
+  if (!state.ragdoll) {
+    const phase = state.stridePhase;
+    const cycle = phase * Math.PI * 2;
+    const s = Math.sin(cycle);
+    const c = Math.cos(cycle);
+
+    // legs: thigh swing, knee bend, ankle flex
+    const lThigh =  s * 1.0;
+    const rThigh = -s * 1.0;
+    const lKnee  = Math.max(0, -c) * 1.7 + Math.max(0,  s) * 0.35;
+    const rKnee  = Math.max(0,  c) * 1.7 + Math.max(0, -s) * 0.35;
+    legL.hip.rotation.x = lThigh;
+    legR.hip.rotation.x = rThigh;
+    legL.knee.rotation.x = lKnee;
+    legR.knee.rotation.x = rKnee;
+    // ankle: plantarflex on push, dorsiflex on swing
+    legL.ankle.rotation.x = -s * 0.55;
+    legR.ankle.rotation.x =  s * 0.55;
+
+    // muscle flex — quads pop when leg drives down, calves pop on push-off
+    const lQuadFlex = 1 + Math.max(0, -s) * 0.4;
+    const rQuadFlex = 1 + Math.max(0,  s) * 0.4;
+    legL.quad.scale.set(lQuadFlex, 1.7, 0.7 * lQuadFlex);
+    legR.quad.scale.set(rQuadFlex, 1.7, 0.7 * rQuadFlex);
+    legL.calf.scale.set(1 + Math.max(0, -c) * 0.3, 1.4, 0.7);
+    legR.calf.scale.set(1 + Math.max(0,  c) * 0.3, 1.4, 0.7);
+    legL.ham.scale.set (1 + Math.max(0,  s) * 0.25, 1.5, 0.65);
+    legR.ham.scale.set (1 + Math.max(0, -s) * 0.25, 1.5, 0.65);
+
+    // arms: shoulders swing opposite to same-side leg
+    armL.shoulder.rotation.x = -lThigh * 0.9;
+    armR.shoulder.rotation.x = -rThigh * 0.9;
+    // tuck inward more at high speed
+    const tuck = Math.min(0.3, state.vel * 0.028);
+    armL.shoulder.rotation.z =  tuck;
+    armR.shoulder.rotation.z = -tuck;
+    // elbow bend cycles: bent ~60–95° depending on drive
+    armL.elbow.rotation.x = -1.0 - Math.max(0,  s) * 0.7;
+    armR.elbow.rotation.x = -1.0 - Math.max(0, -s) * 0.7;
+    // bicep flex on drive
+    armL.bicep.scale.set(1, 1.6 + Math.max(0,  s) * 0.5, 1);
+    armR.bicep.scale.set(1, 1.6 + Math.max(0, -s) * 0.5, 1);
+
+    // pelvic counter-rotation around Y — hips rotate one way, shoulders the other
+    pelvis.rotation.y = -s * 0.18;
+    torsoGroup.rotation.y = s * 0.22;
+
+    // forward torso lean with speed
+    torsoGroup.rotation.x = Math.min(0.42, state.vel * 0.045);
+
+    // head: counter to torso lean, slight bob
+    head.rotation.x = -torsoGroup.rotation.x * 0.4;
+    hair.rotation.x = head.rotation.x;
+    face.rotation.x = head.rotation.x;
+    // tiny head yaw counter to pelvis rotation for life
+    head.rotation.y = pelvis.rotation.y * 0.4;
+    hair.rotation.y = head.rotation.y;
+    face.rotation.y = head.rotation.y;
+
+    // breathing — chest scaleY oscillation
+    const breathRate = 0.003 + state.vel * 0.0008;
+    const breath = 1 + Math.sin(performance.now() * breathRate) * 0.05;
+    chest.scale.set(1.2, 0.85 * breath, 0.95);
+    // abs slight pulse too
+    abs.scale.y = breath * 0.98;
+
+    // overall body bob (+ jump height)
+    runner.position.y = Math.abs(s) * 0.06 + state.jumpY;
+
+    // airborne tuck overrides leg cycle
+    if (!state.grounded) {
+      const t = Math.min(1, state.jumpY * 1.8 + 0.4);
+      legL.hip.rotation.x  = THREE.MathUtils.lerp(legL.hip.rotation.x,  0.95 * t, 0.35);
+      legR.hip.rotation.x  = THREE.MathUtils.lerp(legR.hip.rotation.x,  0.6  * t, 0.35);
+      legL.knee.rotation.x = THREE.MathUtils.lerp(legL.knee.rotation.x, 1.7  * t, 0.35);
+      legR.knee.rotation.x = THREE.MathUtils.lerp(legR.knee.rotation.x, 1.5  * t, 0.35);
+      legL.ankle.rotation.x = 0; legR.ankle.rotation.x = 0;
+      armL.shoulder.rotation.x = THREE.MathUtils.lerp(armL.shoulder.rotation.x, -0.5, 0.25);
+      armR.shoulder.rotation.x = THREE.MathUtils.lerp(armR.shoulder.rotation.x, -0.5, 0.25);
+    }
+
+    // stumble wobble
+    if (state.stumble > 0) {
+      runner.rotation.z = Math.sin(performance.now() * 0.04) * state.stumble * 0.3;
+    } else {
+      runner.rotation.z *= 0.9;
+    }
+    runner.rotation.x = 0;
+  } else {
+    // ragdoll fall
+    runner.rotation.x = Math.min(Math.PI/2, runner.rotation.x + dt * 4);
+    runner.position.y = Math.max(0.1, 1 - (runner.rotation.x / (Math.PI/2)) * 0.6);
+    legL.hip.rotation.x *= 0.9; legR.hip.rotation.x *= 0.9;
+    legL.knee.rotation.x *= 0.92; legR.knee.rotation.x *= 0.92;
+    legL.ankle.rotation.x *= 0.9; legR.ankle.rotation.x *= 0.9;
+    armL.shoulder.rotation.x *= 0.9; armR.shoulder.rotation.x *= 0.9;
+    armL.elbow.rotation.x = THREE.MathUtils.lerp(armL.elbow.rotation.x, -0.4, 0.1);
+    armR.elbow.rotation.x = THREE.MathUtils.lerp(armR.elbow.rotation.x, -0.4, 0.1);
+    pelvis.rotation.y *= 0.9;
+    torsoGroup.rotation.y *= 0.9;
+  }
+
+  shadow.position.x = runner.position.x;
+  shadow.position.z = runner.position.z;
+  shadow.scale.setScalar(0.9 + Math.sin(state.stridePhase * Math.PI * 2) * 0.1);
+
+  // camera follow
+  const camTargetZ = runner.position.z - 4 - Math.min(2, state.vel * 0.15);
+  const camTargetX = -2.5 + Math.sin(performance.now() * 0.001) * 0.05;
+  camera.position.z += (camTargetZ - camera.position.z) * Math.min(1, dt * 5);
+  camera.position.x += (camTargetX - camera.position.x) * Math.min(1, dt * 3);
+  camera.position.y = 2.4;
+  camera.lookAt(runner.position.x, 1.1, runner.position.z + 2);
+  // camera shake while sprinting
+  if (state.vel > 6 && !state.ragdoll) {
+    camera.position.x += (Math.random()-0.5) * 0.02 * (state.vel/10);
+    camera.position.y += (Math.random()-0.5) * 0.02 * (state.vel/10);
+  }
+
+  // HUD
+  if (state.mode === 'running' && !state.ragdoll) {
+    const elapsed = performance.now()/1000 - state.startTime;
+    timeEl.textContent = elapsed.toFixed(3);
+  } else if (state.mode === 'menu' || state.mode === 'countdown') {
+    timeEl.textContent = '0.000';
+  }
+  distEl.textContent = `${state.pos.toFixed(1)} / 100m`;
+  speedFill.style.width = Math.min(100, state.vel / 14 * 100) + '%';
+
+  if (state.mode === 'running' && state.rhythm > 0.7 && state.vel > 8) {
+    speedHint.textContent = 'In the zone';
+    speedHint.style.color = '#00ff80';
+  } else if (state.mode === 'running') {
+    speedHint.textContent = 'Alternate A / L in rhythm';
+    speedHint.style.color = '#88ccc0';
+  }
+
+  // finish line
+  if (state.pos >= 100 && state.mode === 'running' && !state.ragdoll) {
+    endRun(true);
+  }
+
+  // occasional crowd cheer
+  if (state.mode === 'running' && Math.random() < dt * 0.5 && state.vel > 5) audio.crowd();
+}
+
+function loop() {
+  const dt = Math.min(0.05, clock.getDelta());
+  update(dt);
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+loop();
+
+// ---------- start ----------
+function reset() {
+  state.mode = 'menu';
+  state.pos = 0;
+  state.vel = 0;
+  state.stridePhase = 0;
+  state.nextLeg = 'L';
+  state.lastPressTime = 0;
+  state.lastPressKey = null;
+  state.totalStrides = 0;
+  state.rhythm = 0;
+  state.stumble = 0;
+  state.ragdoll = false;
+  state.ragdollVel = 0;
+  state.countIn = 0;
+  runner.rotation.set(0, 0, 0);
+  runner.position.set(0, 0, 0);
+  pelvis.rotation.set(0, 0, 0);
+  torsoGroup.rotation.set(0, 0, 0);
+  legL.hip.rotation.set(0,0,0); legR.hip.rotation.set(0,0,0);
+  legL.knee.rotation.set(0,0,0); legR.knee.rotation.set(0,0,0);
+  legL.ankle.rotation.set(0,0,0); legR.ankle.rotation.set(0,0,0);
+  armL.shoulder.rotation.set(0,0,0); armR.shoulder.rotation.set(0,0,0);
+  armL.elbow.rotation.set(0,0,0); armR.elbow.rotation.set(0,0,0);
+  head.rotation.set(0,0,0); hair.rotation.set(0,0,0);
+  state.jumpY = 0; state.jumpVel = 0; state.grounded = true;
+  for (const h of hurdles) { h.hit = false; h.group.rotation.x = 0; }
+  flash._lastCount = null;
+}
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  reset();
+  overlay.classList.add('hidden');
+  audio.resume();
+  state.mode = 'countdown';
+  state.countIn = 3;
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

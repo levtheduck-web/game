@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>YELLOWSTONE CARNAGE</title>
+<style>
+  :root{ --ink:#e8f0d0; }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:#0d120c;overflow:hidden;color:var(--ink);
+    font:14px/1.4 "Courier New",monospace;user-select:none;-webkit-font-smoothing:none;}
+  #game{position:fixed;inset:0;display:block;image-rendering:pixelated;cursor:crosshair;}
+  .hud{position:fixed;left:10px;top:8px;z-index:5;text-shadow:2px 2px 0 #000;pointer-events:none;font-weight:bold;}
+  .hud .row{margin-bottom:3px;letter-spacing:1px;}
+  .stars{color:#ff5a5a;letter-spacing:2px;}
+  .cash{color:#ffe14d;font-size:18px;}
+  .route{color:#9ad6ff;}
+  #wep{position:fixed;left:10px;bottom:8px;z-index:5;text-shadow:2px 2px 0 #000;font-weight:bold;}
+  #hint{position:fixed;right:10px;bottom:8px;z-index:5;color:#7a8c66;text-align:right;text-shadow:1px 1px 0 #000;font-size:12px;}
+  /* Undertale-ish dialogue box */
+  #dlg{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:min(620px,92vw);
+    background:#000;border:4px solid #fff;border-radius:4px;padding:16px 18px;z-index:8;display:none;}
+  #dlg .who{color:#ffe14d;margin-bottom:6px;}
+  #dlg .txt{min-height:46px;font-size:16px;}
+  #dlg .opts{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;}
+  #dlg .opt{border:2px solid #fff;padding:6px 14px;cursor:pointer;font-weight:bold;}
+  #dlg .opt:hover{background:#fff;color:#000;}
+  /* black market shop */
+  #shop{position:fixed;inset:0;z-index:9;display:none;background:#06080699;}
+  #shop .panel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,94vw);
+    background:#10160d;border:4px solid #ffe14d;border-radius:6px;padding:18px;}
+  #shop h2{margin:0 0 4px;color:#ffe14d;letter-spacing:2px;}
+  #shop .sub{color:#8aa06a;margin-bottom:12px;font-size:13px;}
+  #shop .item{display:flex;justify-content:space-between;align-items:center;border:2px solid #2c3a22;
+    padding:8px 12px;margin-bottom:7px;border-radius:4px;}
+  #shop .item:hover{border-color:#ffe14d;}
+  #shop .item b{color:#cfe6a0;} #shop .item .desc{color:#7f9663;font-size:12px;}
+  #shop .buy{background:#ffe14d;color:#000;border:none;padding:6px 12px;font-weight:bold;cursor:pointer;border-radius:3px;font-family:inherit;}
+  #shop .buy:disabled{opacity:.4;cursor:not-allowed;}
+  #shop .sell{width:100%;background:#7cff5a;color:#000;border:none;padding:10px;font-weight:bold;cursor:pointer;border-radius:4px;margin:6px 0 12px;font-family:inherit;font-size:15px;}
+  #shop .close{position:absolute;right:14px;top:12px;cursor:pointer;color:#fff;}
+  #flash{position:fixed;left:50%;top:30%;transform:translateX(-50%);z-index:7;font-size:26px;font-weight:bold;
+    text-shadow:3px 3px 0 #000;pointer-events:none;opacity:0;transition:opacity .2s;text-align:center;}
+  #start{position:fixed;inset:0;z-index:20;background:#0d120c;display:grid;place-items:center;text-align:center;}
+  #start h1{font-size:min(8vw,52px);margin:0;color:#ffe14d;text-shadow:4px 4px 0 #5a1a1a;letter-spacing:3px;}
+  #start .by{color:#8aa06a;margin:8px 0 22px;}
+  #start button{background:#ff5a5a;color:#fff;border:none;padding:14px 28px;font:bold 18px "Courier New",monospace;cursor:pointer;border-radius:4px;letter-spacing:2px;}
+  #start ul{color:#9ab27c;text-align:left;display:inline-block;margin-top:20px;font-size:13px;line-height:1.7;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div class="hud">
+  <div class="row cash" id="hCash">$0</div>
+  <div class="row">HP <span id="hHp"></span></div>
+  <div class="row">WANTED <span class="stars" id="hStars"></span></div>
+  <div class="row route">ROUTE: <span id="hRoute">NEUTRAL</span> <span id="hKills" style="color:#bbb"></span></div>
+</div>
+<div id="wep">FISTS</div>
+<div id="hint">WASD walk · E enter a TRUCK to drive the Loop · MOUSE aim · CLICK attack · minimap top-right ↗</div>
+
+<div id="dlg"><div class="who" id="dWho"></div><div class="txt" id="dTxt"></div><div class="opts" id="dOpts"></div></div>
+
+<div id="shop"><div class="panel">
+  <span class="close" id="shopClose">✕ (E)</span>
+  <h2>🦬 BLACK MARKET</h2>
+  <div class="sub">"No questions, no receipts." — Gus, the suspicious bison</div>
+  <button class="sell" id="sellAll">SELL ALL GOODS</button>
+  <div id="shopItems"></div>
+</div></div>
+
+<div id="flash"></div>
+
+<div id="start">
+  <div>
+    <h1>YELLOWSTONE CARNAGE</h1>
+    <div class="by">a cute little national park · a deeply illegal economy</div>
+    <button id="startBtn">▶ ENTER THE PARK</button>
+    <ul>
+      <li><b>WASD</b> walk · <b>Mouse</b> aim · <b>Click/Space</b> attack</li>
+      <li><b>E</b> talk to tourists, enter trucks, open the black market</li>
+      <li>Rob or spare. Sell loot. Buy guns. Outrun the rangers.</li>
+      <li>🦬 Bison herds &amp; 🐻 bears roam the wilds — poach for hides (rangers HATE that)</li>
+      <li>Your choices set your <b>route</b>: Pacifist ☮ or Genocide ☠</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const cv = document.getElementById('game'), ctx = cv.getContext('2d');
+let W, H, DPR = Math.min(2, devicePixelRatio||1);
+function resize(){ W=innerWidth; H=innerHeight; cv.width=W*DPR; cv.height=H*DPR; cv.style.width=W+'px'; cv.style.height=H+'px'; ctx.setTransform(DPR,0,0,DPR,0,0); ctx.imageSmoothingEnabled=false; }
+addEventListener('resize', resize); resize();
+
+// ── World ──
+const T = 20;                 // tile size (px)
+const SC = 14.3;              // scale factor — ~20x bigger again (≈200x the original park)
+const DW = 380, DH = 320;     // design grid (the real-Yellowstone layout is authored in these units)
+const MW = Math.round(DW*SC), MH = Math.round(DH*SC);   // actual map ≈ 1216 x 1024 tiles
+const q = v => Math.round(v*SC);                        // design units → map tiles
+const GRASS=0, TREE=1, WATER=2, ROAD=3, WALL=4, FLOOR=5, GEYSER=6, SAND=7, TRAIL=8, MOUNTAIN=9;
+const SOLID = {1:1,2:1,4:1,6:1,9:1};
+const map = new Int8Array(MW*MH);   // 0 == GRASS
+const tile = (x,y)=> (x<0||y<0||x>=MW||y>=MH) ? WALL : map[y*MW+x];
+const setT = (x,y,v)=>{ if(x>=0&&y>=0&&x<MW&&y<MH) map[y*MW+x]=v; };
+function rint(a,b){ return a + Math.floor(Math.random()*(b-a+1)); }
+function rng(a,b){ return a + Math.random()*(b-a); }
+
+function building(bx,by,bw,bh,doorSide){
+  for(let y=by;y<by+bh;y++)for(let x=bx;x<bx+bw;x++){
+    if(x===bx||x===bx+bw-1||y===by||y===by+bh-1) setT(x,y,WALL); else setT(x,y,FLOOR);
+  }
+  // door
+  if(doorSide==='S') setT(bx+(bw>>1),by+bh-1,FLOOR);
+  else setT(bx+(bw>>1),by,FLOOR);
+}
+// ── Real Yellowstone layout (tile coords) — the Grand Loop figure-8 ──
+const PLACES = {
+  northEnt:{x:89,y:20,name:'NORTH ENTRANCE',ent:1},
+  mammoth:{x:94,y:50,name:'MAMMOTH HOT SPRINGS',vill:1},
+  tower:{x:159,y:56,name:'TOWER-ROOSEVELT',vill:1},
+  neEnt:{x:250,y:36,name:'NORTHEAST ENTRANCE',ent:1},
+  norris:{x:105,y:120,name:'NORRIS JCT'},
+  canyon:{x:146,y:120,name:'CANYON VILLAGE',vill:1},
+  madison:{x:74,y:146,name:'MADISON JCT'},
+  westEnt:{x:16,y:146,name:'WEST ENTRANCE',ent:1},
+  oldFaithful:{x:78,y:208,name:'OLD FAITHFUL',vill:1},
+  westThumb:{x:118,y:226,name:'WEST THUMB JCT'},
+  grant:{x:124,y:236,name:'GRANT VILLAGE',vill:1},
+  lake:{x:172,y:182,name:'LAKE VILLAGE',vill:1},
+  eastEnt:{x:255,y:188,name:'EAST ENTRANCE',ent:1},
+  southEnt:{x:120,y:308,name:'SOUTH ENTRANCE',ent:1},
+};
+for(const k in PLACES){ PLACES[k].x=q(PLACES[k].x); PLACES[k].y=q(PLACES[k].y); }   // → map coords
+const ROADS=[ // the figure-8 Grand Loop (Norris↔Canyon is the shared middle bar) + entrance roads
+  ['mammoth','norris'],['norris','canyon'],['canyon','tower'],['tower','mammoth'],
+  ['norris','madison'],['madison','oldFaithful'],['oldFaithful','westThumb'],['westThumb','lake'],['lake','canyon'],
+  ['westThumb','grant'],['grant','southEnt'],
+  ['northEnt','mammoth'],['neEnt','tower'],['eastEnt','lake'],['westEnt','madison'] ];
+const FEATURES=[]; // {x,y,name,...} geyser basins, peaks, trail destinations
+
+function line(x0,y0,x1,y1,w,v){ const steps=Math.max(Math.abs(x1-x0),Math.abs(y1-y0))*2+1;
+  for(let i=0;i<=steps;i++){ const t=i/steps, cx=Math.round(x0+(x1-x0)*t), cy=Math.round(y0+(y1-y0)*t);
+    for(let oy=-w;oy<=w;oy++)for(let ox=-w;ox<=w;ox++) if(ox*ox+oy*oy<=w*w+1){ const tx=cx+ox,ty=cy+oy;
+      if(tx>=0&&ty>=0&&tx<MW&&ty<MH && (v===ROAD || tile(tx,ty)!==ROAD)) setT(tx,ty,v); } } }
+function ellipse(cx,cy,rx,ry,v){ for(let y=-ry;y<=ry;y++)for(let x=-rx;x<=rx;x++)
+  if((x*x)/(rx*rx)+(y*y)/(ry*ry)<=1 && tile(cx+x,cy+y)!==ROAD) setT(cx+x,cy+y,v); }
+function clearTrees(cx,cy,r){ for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++) if(x*x+y*y<=r*r && tile(cx+x,cy+y)===TREE) setT(cx+x,cy+y,GRASS); }
+function meadow(cx,cy,rx,ry,name){ for(let y=-ry;y<=ry;y++)for(let x=-rx;x<=rx;x++)
+  if((x*x)/(rx*rx)+(y*y)/(ry*ry)<=1 && tile(cx+x,cy+y)===TREE) setT(cx+x,cy+y,GRASS);
+  if(name) FEATURES.push({x:cx,y:cy,name,valley:1}); }
+function basin(cx,cy,r,name,big){
+  for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++){ if(x*x+y*y<=r*r){ const tv=tile(cx+x,cy+y); if(tv===GRASS||tv===TREE) setT(cx+x,cy+y,SAND); } }
+  // dense steaming geysers + hot-spring pools across the basin
+  for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++){ if(x*x+y*y<=r*r && tile(cx+x,cy+y)===SAND){
+    const rl=Math.random(); if(rl<0.008) setT(cx+x,cy+y,GEYSER); else if(rl<0.05) setT(cx+x,cy+y,WATER); } }  // sparse geysers + hot springs in a sinter field
+  FEATURES.push({x:cx,y:cy,name,geyser:1,big}); }
+
+let dealer;
+function genWorld(){
+  // lodgepole forest blanketing most of the park, with meadows (count scales with area)
+  const clusters=Math.round(1200*SC*SC);   // count scales with area; clumps stay SMALL
+  for(let i=0;i<clusters;i++){ const cx=rint(4,MW-4),cy=rint(4,MH-4),r=rint(2,6);
+    for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++) if(x*x+y*y<r*r && Math.random()<0.72 && tile(cx+x,cy+y)===GRASS) setT(cx+x,cy+y,TREE); }
+  // Yellowstone Lake — main body + West Thumb lobe + South & Southeast arms (south-central)
+  ellipse(q(167),q(200),q(40),q(30),WATER); ellipse(q(120),q(224),q(17),q(15),WATER);
+  ellipse(q(150),q(236),q(12),q(22),WATER); ellipse(q(189),q(233),q(11),q(20),WATER);
+  // Lewis Lake (on the South Entrance road) + Shoshone Lake (backcountry, west of it)
+  ellipse(q(112),q(270),q(7),q(10),WATER); ellipse(q(95),q(254),q(11),q(7),WATER);
+  // rivers — Yellowstone R.: Lake → Hayden Valley → Canyon (the Falls) → Tower → Gardiner
+  line(q(166),q(178),q(146),q(121),q(1),WATER); line(q(146),q(119),q(118),q(60),q(1),WATER); line(q(116),q(58),q(90),q(22),q(1),WATER);
+  // Firehole (geyser basins → Madison), Madison → West Entrance, Gibbon (Norris → Madison), Lewis R. (Lewis Lk → South)
+  line(q(77),q(206),q(74),q(150),q(1),WATER); line(q(74),q(148),q(40),q(150),q(1),WATER);
+  line(q(105),q(124),q(76),q(148),q(1),WATER); line(q(112),q(280),q(118),q(306),q(1),WATER);
+  // peaks / landmarks
+  for(const p of [[150,90,'MT. WASHBURN'],[212,40,'ABIATHAR PEAK'],[58,40,'ELECTRIC PEAK'],[112,272,'MT. SHERIDAN'],[236,210,'AVALANCHE PEAK']]){
+    ellipse(q(p[0]),q(p[1]),q(3),q(3),MOUNTAIN); FEATURES.push({x:q(p[0]),y:q(p[1]),name:p[2],peak:1}); }
+  // the Grand Loop roads + entrance roads (PLACES already in map coords)
+  for(const [a,b] of ROADS){ const A=PLACES[a],B=PLACES[b]; line(A.x,A.y,B.x,B.y,q(1),ROAD); }
+  // real geyser basins
+  basin(q(80),q(209),q(7),'UPPER GEYSER BASIN',1);
+  basin(q(76),q(178),q(6),'MIDWAY & LOWER GEYSER BASIN');
+  basin(q(105),q(118),q(5),'NORRIS GEYSER BASIN');
+  basin(q(101),q(221),q(4),'WEST THUMB GEYSER BASIN');
+  basin(q(94),q(50),q(4),'MAMMOTH HOT SPRINGS');
+  setT(q(76),q(210),GEYSER); FEATURES.push({x:q(76),y:q(210),name:'OLD FAITHFUL',geyser:1,faithful:1});
+  // villages + ranger stations
+  for(const k in PLACES){ const p=PLACES[k];
+    if(p.vill){ clearTrees(p.x,p.y,q(5)); building(p.x+q(3),p.y-q(2),q(6),q(5),'S'); building(p.x-q(7),p.y+q(1),q(5),q(4),'S'); }
+    else if(p.ent){ clearTrees(p.x,p.y,q(3)); building(p.x-q(2),p.y-q(2),q(5),q(4),'S'); } }
+  // valleys — open wildlife meadows (bison country): Hayden (Canyon↔Lake) & Lamar (Tower↔NE)
+  meadow(q(156),q(150),q(15),q(26),'HAYDEN VALLEY'); meadow(q(200),q(46),q(28),q(11),'LAMAR VALLEY');
+  FEATURES.push({x:q(112),y:q(270),name:'LEWIS LAKE'}); FEATURES.push({x:q(95),y:q(254),name:'SHOSHONE LAKE'});
+  FEATURES.push({x:q(76),y:q(176),name:'GRAND PRISMATIC SPRING'});
+  // hiking trails (passable dirt) to backcountry features
+  line(q(78),q(213),q(70),q(236),1,TRAIL); setT(q(70),q(237),GEYSER); FEATURES.push({x:q(70),y:q(238),name:'LONE STAR GEYSER (hike)'});
+  line(q(150),q(125),q(150),q(94),1,TRAIL);                       // Canyon → Mt. Washburn
+  line(q(172),q(186),q(206),q(210),1,TRAIL);                      // Lake → Avalanche Peak
+  line(q(130),q(232),q(135),q(280),1,TRAIL); ellipse(q(135),q(282),q(4),q(5),WATER); FEATURES.push({x:q(135),y:q(283),name:'HEART LAKE (hike)'});
+  FEATURES.push({x:q(150),y:q(128),name:'GRAND CANYON OF THE YELLOWSTONE · LOWER FALLS'});
+  // black market — shady shack out in the Lamar Valley backcountry
+  const dbx=200,dby=44; building(q(dbx),q(dby),q(6),q(5),'S'); line(q(160),q(56),q(dbx+3),q(dby+4),1,TRAIL);
+  dealer={ x:q(dbx+3)*T+T/2, y:q(dby+3)*T+T/2 };
+}
+genWorld();
+
+// ── Entities ──
+const GOODS = [
+  {k:'Wallet', v:45, c:'#5a3a1a'}, {k:'Souvenir Mug', v:18, c:'#e0e0e0'},
+  {k:'Bear Spray', v:60, c:'#ff5a5a'}, {k:'Trail Mix', v:12, c:'#caa86a'},
+  {k:'Park Pass', v:30, c:'#7cff5a'}, {k:'Bison Jerky', v:25, c:'#8a3a1a'},
+  {k:'Selfie Stick', v:22, c:'#bbbbbb'}, {k:'Gold Tooth', v:90, c:'#ffe14d'},
+];
+const FLAVOR = ["* Smells like sulfur and regret.","* It's enjoying the scenery. For now.",
+  "* Asks if you've seen Old Faithful.","* Has 4 stars on Yelp. Wants to talk about it.",
+  "* Definitely didn't read the bear warnings.","* Is livestreaming this. Hi, chat.",
+  "* Wonders if the geysers are 'real'.","* Carrying way too much merch."];
+
+const player = { x:PLACES.oldFaithful.x*T+T/2, y:PLACES.oldFaithful.y*T+T/2, vx:0, vy:0, hp:100, maxHp:100, r:9, aim:0,
+  cash:0, kills:0, spares:0, attackCd:0, inv:{}, gun:false, boots:false, vest:false, car:null, flash:0 };
+let npcs=[], cars=[], bullets=[], pickups=[], particles=[];
+let heat=0, heatDecay=0;
+
+function spawnTourist(x,y){
+  const colors=['#ff6ec7','#6ec7ff','#ffd86e','#9cff6e','#c76eff','#ff9c6e'];
+  npcs.push({ type:'tourist', x,y, vx:0,vy:0, hp:30, maxHp:30, r:8, color:colors[rint(0,colors.length-1)],
+    state:'wander', t:rng(0,3), dir:rng(0,6.28), spoke:false, flavor:FLAVOR[rint(0,FLAVOR.length-1)] });
+}
+function spawnRanger(x,y){
+  npcs.push({ type:'ranger', x,y, vx:0,vy:0, hp:70, maxHp:70, r:9, color:'#3f6b3a', state:'chase', t:0, fireCd:rng(0.4,1.2) });
+}
+// ── Wildlife ── bison graze in herds; bears roam the forest and charge you
+function spawnBison(x,y){ npcs.push({ type:'bison', x,y, vx:0,vy:0, hp:150,maxHp:150, r:14, state:'graze', t:rng(0,5), dir:rng(0,6.28), wild:1,_keep:1 }); }
+function spawnBear(x,y){ npcs.push({ type:'bear', x,y, vx:0,vy:0, hp:95,maxHp:95, r:11, state:'roam', t:rng(0,5), dir:rng(0,6.28), angry:0, wild:1,_keep:1 }); }
+// tourists swarm the villages, geyser basins and the lake — like the real park
+const hotspots=[];
+for(const k in PLACES){ const p=PLACES[k]; if(p.vill||p.ent) hotspots.push(p); }
+for(const f of FEATURES){ if(f.geyser) hotspots.push(f); }
+for(const h of hotspots){ const n=h.vill?16:(h.ent?6:9);
+  for(let i=0;i<n;i++){ let tx,ty,tr=0; do{ tx=h.x+rint(-q(7),q(7)); ty=h.y+rint(-q(7),q(7)); tr++; }while(SOLID[tile(tx,ty)]&&tr<25); spawnTourist(tx*T+T/2,ty*T+T/2); } }
+// a parked car at every junction/village/entrance so you can actually travel the Loop
+for(const k in PLACES){ const p=PLACES[k]; cars.push({ x:p.x*T+T/2, y:(p.y+1)*T+T/2, vx:0,vy:0, ang:0, occupied:false }); }
+
+// Wildlife bubble: a fixed herd that's recycled to stay around the player as you travel.
+function placeNear(cx,cy,minR,maxR,wantGrass){
+  for(let tr=0;tr<26;tr++){ const a=rng(0,6.28),d=rng(minR,maxR), tx=((cx+Math.cos(a)*d)/T)|0, ty=((cy+Math.sin(a)*d)/T)|0;
+    if(tx>2&&ty>2&&tx<MW-2&&ty<MH-2 && !SOLID[tile(tx,ty)] && (!wantGrass||tile(tx,ty)===GRASS)) return {x:tx*T+T/2,y:ty*T+T/2}; }
+  return {x:cx+rng(-300,300),y:cy+rng(-300,300)}; }
+for(let i=0;i<130;i++){ const p=placeNear(player.x,player.y,260,1600,true);  spawnBison(p.x,p.y); }
+for(let i=0;i<55;i++){  const p=placeNear(player.x,player.y,260,1600,false); spawnBear(p.x,p.y); }
+let _wIdx=0;
+function recycleWildlife(){ const far=Math.max(W,H)*1.7, near=Math.max(W,H)*1.06;
+  for(let n=0;n<12;n++){ if(npcs.length===0) break; _wIdx=(_wIdx+1)%npcs.length; const a=npcs[_wIdx];
+    if(!a.wild) continue;
+    if(a.dead || Math.hypot(a.x-player.x,a.y-player.y)>far){
+      const p=placeNear(player.x,player.y,near,far*0.95,a.type==='bison');
+      a.x=p.x; a.y=p.y; a.hp=a.maxHp; a.dead=false; a.vx=a.vy=0; a.angry=0; a.state=a.type==='bison'?'graze':'roam'; } } }
+
+// ── Input ──
+const keys={}; let mx=W/2, my=H/2, firing=false, started=false;
+addEventListener('keydown',e=>{ keys[e.code]=true; if(e.code==='Space')e.preventDefault();
+  if(e.code==='KeyE') interact();
+  if(e.code==='Escape'){ if(shopOpen) closeShop(); }
+  if(!actx&&started) startAudio();
+});
+addEventListener('keyup',e=>{ keys[e.code]=false; });
+cv.addEventListener('mousemove',e=>{ mx=e.clientX; my=e.clientY; });
+cv.addEventListener('mousedown',e=>{ if(e.button===0){ firing=true; if(!actx)startAudio(); } });
+addEventListener('mouseup',e=>{ if(e.button===0) firing=false; });
+
+// ── Camera ──
+let camX=0,camY=0;
+function worldMouse(){ return { x: camX + mx, y: camY + my }; }
+
+// ── Combat / crime ──
+function addHeat(n){ heat=Math.min(5,heat+n); heatDecay=14; }
+function killNpc(npc, byCar){
+  if(npc.type==='tourist'){
+    player.kills++; addHeat(byCar?1.2:1);
+    const g=GOODS[rint(0,GOODS.length-1)]; pickups.push({x:npc.x,y:npc.y,k:g.k,v:g.v,c:g.c,t:0});
+    if(Math.random()<0.5){ player.cash+= rint(3,12); }
+    flash(byCar?["SPLAT.","ROADKILL +1","yikes."][rint(0,2)]:["DOWN.","mugged.","liberated."][rint(0,2)]);
+  } else if(npc.type==='bison'){
+    addHeat(1.4); pickups.push({x:npc.x,y:npc.y,k:'Bison Hide',v:130,c:'#5a3a22',t:0});
+    if(Math.random()<0.4) pickups.push({x:npc.x+8,y:npc.y,k:'Bison Jerky',v:25,c:'#8a3a1a',t:0});
+    flash("* You poached a bison. The park is FURIOUS.");
+  } else if(npc.type==='bear'){
+    addHeat(1.6); pickups.push({x:npc.x,y:npc.y,k:'Bear Pelt',v:160,c:'#3a2414',t:0});
+    if(Math.random()<0.5) pickups.push({x:npc.x+8,y:npc.y,k:'Bear Claw',v:80,c:'#d8c79a',t:0});
+    flash("* Bear down. Smokey is rolling in his grave.");
+  } else { addHeat(1.5); flash("RANGER DOWN"); }
+  burst(npc.x,npc.y, npc.color||'#7a5a3a', 16);
+  npc.dead=true; sfx('die');
+}
+function hurt(npc, dmg, byCar){
+  npc.hp-=dmg;
+  if(npc.type==='tourist'){ npc.state='flee'; if(!npc.spoke) addHeat(0.4); }
+  else if(npc.type==='bison'){ npc.state='flee'; npc.t2=4; addHeat(0.5); }   // stampede
+  else if(npc.type==='bear'){ npc.angry=2.5; addHeat(0.5); }                  // enrage
+  burst(npc.x,npc.y,'#fff',5);
+  if(npc.hp<=0) killNpc(npc, byCar);
+}
+function hurtPlayer(d){ const dmg = player.vest? d*0.5 : d; player.hp-=dmg; player.flash=0.3; if(player.hp<=0) respawn(); }
+function respawn(){ flash("☠ YOU DIED ☠ — woke up in a ranger station. (-half your cash)");
+  player.hp=player.maxHp; player.cash=Math.floor(player.cash/2); heat=0; player.car=null;
+  player.x=PLACES.oldFaithful.x*T+T/2; player.y=PLACES.oldFaithful.y*T+T/2; player.vx=player.vy=0; }
+
+function meleeOrShoot(){
+  if(player.attackCd>0) return;
+  const wm=worldMouse(); player.aim=Math.atan2(wm.y-player.y, wm.x-player.x);
+  if(player.gun){
+    bullets.push({ x:player.x, y:player.y, vx:Math.cos(player.aim)*460, vy:Math.sin(player.aim)*460, life:0.9, friendly:true });
+    player.attackCd=0.14; sfx('shot'); addHeat(0.15);
+  } else {
+    // melee swing — hit nearest npc in front within 34px
+    for(const n of npcs){ if(n.dead) continue;
+      const dx=n.x-player.x, dy=n.y-player.y, d=Math.hypot(dx,dy);
+      if(d<34 && Math.abs(Math.atan2(dy,dx)-player.aim)<1.0){ hurt(n,16); break; }
+    }
+    player.attackCd=0.32; sfx('punch');
+  }
+}
+
+// ── Interact (E): cars, dealer, dialogue ──
+function nearest(arr, maxD){ let best=null,bd=maxD; for(const a of arr){ if(a.dead) continue; const d=Math.hypot(a.x-player.x,a.y-player.y); if(d<bd){bd=d;best=a;} } return best; }
+function interact(){
+  if(!started) return;
+  if(shopOpen){ closeShop(); return; }
+  if(dlgOpen) return;
+  // dealer?
+  if(dealer && Math.hypot(dealer.x-player.x,dealer.y-player.y)<46){ openShop(); return; }
+  // car?
+  if(player.car){ // exit
+    const c=player.car; player.car=null; c.occupied=false; player.x=c.x+rng(-20,20); player.y=c.y+22; flash("on foot."); return;
+  }
+  const c=nearest(cars,40); if(c){ player.car=c; c.occupied=true; flash("vroom."); return; }
+  // talk to tourist?
+  const n=nearest(npcs.filter(n=>n.type==='tourist'),40);
+  if(n) talkTo(n);
+}
+
+// ── Dialogue ──
+const dlg=document.getElementById('dlg'),dWho=document.getElementById('dWho'),dTxt=document.getElementById('dTxt'),dOpts=document.getElementById('dOpts');
+let dlgOpen=false, typeTimer=null;
+function typeText(s){ clearInterval(typeTimer); dTxt.textContent=''; let i=0;
+  typeTimer=setInterval(()=>{ dTxt.textContent=s.slice(0,++i); if(i>=s.length)clearInterval(typeTimer); else if(s[i-1]!==' ') sfx('blip'); }, 22); }
+function showDialogue(who, text, opts){ dlgOpen=true; dlg.style.display='block'; dWho.textContent=who; typeText(text);
+  dOpts.innerHTML=''; for(const o of opts){ const b=document.createElement('div'); b.className='opt'; b.textContent=o.label; b.onclick=()=>{ closeDialogue(); o.act&&o.act(); }; dOpts.appendChild(b); } }
+function closeDialogue(){ dlgOpen=false; dlg.style.display='none'; clearInterval(typeTimer); }
+function talkTo(n){
+  n.spoke=true;
+  showDialogue('TOURIST', n.flavor, [
+    { label:'TALK', act:()=>{ player.spares+=0; flash(["* They show you 200 photos.","* They tip you $5.","* Smalltalk acquired."][rint(0,2)]); if(Math.random()<0.4) player.cash+=5; } },
+    { label:'ROB', act:()=>{ const g=GOODS[rint(0,GOODS.length-1)]; addInv(g.k,g.v); addHeat(0.6);
+        flash('* You took their '+g.k+'.'); if(Math.random()<0.35){ flash('* They fight back!'); hurtPlayer(8);} } },
+    { label:'SPARE', act:()=>{ player.spares++; n.spared=true; flash(["* You spared them. ♥","* Mercy. They wander off, confused.","* +1 Karma (worthless currency)."][rint(0,2)]); } },
+  ]);
+}
+
+// ── Inventory / economy ──
+function addInv(k,v){ player.inv[k]=(player.inv[k]||0)+1; if(!invVal[k])invVal[k]=v; sfx('pick'); }
+const invVal={};
+function invCount(){ let n=0; for(const k in player.inv) n+=player.inv[k]; return n; }
+
+// ── Black market shop ──
+const shop=document.getElementById('shop'); let shopOpen=false;
+const SHOP_ITEMS=[
+  {k:'gun', name:'🔫 Glock-19 (illegal)', desc:'Click to shoot bullets. Much faster than fists.', cost:300, has:p=>p.gun, give:p=>p.gun=true},
+  {k:'boots', name:'👟 Getaway Boots', desc:'Run 35% faster on foot.', cost:200, has:p=>p.boots, give:p=>p.boots=true},
+  {k:'vest', name:'🦺 Kevlar Vest', desc:'Take half damage.', cost:250, has:p=>p.vest, give:p=>p.vest=true},
+  {k:'heal', name:'🩹 Med Kit', desc:'Full heal, right now.', cost:80, has:()=>false, give:p=>p.hp=p.maxHp},
+  {k:'bribe', name:'💵 Bribe the Rangers', desc:'Clear all wanted stars.', cost:350, has:()=>false, give:()=>{heat=0;}},
+];
+function openShop(){ shopOpen=true; shop.style.display='block'; renderShop(); }
+function closeShop(){ shopOpen=false; shop.style.display='none'; }
+document.getElementById('shopClose').onclick=closeShop;
+document.getElementById('sellAll').onclick=()=>{
+  let total=0,n=0; for(const k in player.inv){ total+=(invVal[k]||10)*player.inv[k]; n+=player.inv[k]; }
+  if(n===0){ flash("* Nothing to sell, scavenger."); return; }
+  const tax = heat>=3 ? 0.7 : 1;  // hot goods sell for less
+  total=Math.floor(total*tax); player.cash+=total; player.inv={};
+  flash('+ $'+total+(tax<1?' (hot-goods discount)':'')); sfx('cash'); renderShop();
+};
+function renderShop(){
+  const box=document.getElementById('shopItems'); box.innerHTML='';
+  // inventory summary
+  let inv='', n=0; for(const k in player.inv){ inv+=k+' x'+player.inv[k]+'  '; n+=player.inv[k]; }
+  const sum=document.createElement('div'); sum.className='item'; sum.style.borderColor='#3a4a2a';
+  sum.innerHTML='<span><b>SATCHEL</b><br><span class="desc">'+(n?inv:'(empty — go acquire some goods)')+'</span></span><span style="color:#ffe14d">'+n+' items</span>';
+  box.appendChild(sum);
+  for(const it of SHOP_ITEMS){ const owned=it.has(player); const div=document.createElement('div'); div.className='item';
+    div.innerHTML='<span><b>'+it.name+'</b><br><span class="desc">'+it.desc+'</span></span>';
+    const b=document.createElement('button'); b.className='buy'; b.textContent= owned?'OWNED':'$'+it.cost; b.disabled=owned||player.cash<it.cost;
+    b.onclick=()=>{ if(player.cash>=it.cost){ player.cash-=it.cost; it.give(player); sfx('cash'); renderShop(); flash('* Acquired.'); } };
+    div.appendChild(b); box.appendChild(div);
+  }
+}
+
+// ── Particles / flash ──
+function burst(x,y,c,n){ for(let i=0;i<n;i++){ const a=rng(0,6.28),s=rng(20,120); particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rng(.3,.7),c}); } }
+const flashEl=document.getElementById('flash'); let flashT=0;
+function flash(msg){ flashEl.textContent=msg; flashEl.style.opacity=1; flashT=1.6; }
+
+// ── Geysers ──
+let geysers=[]; for(let y=0;y<MH;y++)for(let x=0;x<MW;x++) if(tile(x,y)===GEYSER) geysers.push({x,y,t:rng(0,6),erupt:0});
+
+// ── Update ──
+let last=performance.now();
+function update(dt){
+  if(!started){ return; }
+  // movement
+  const sp = (player.boots?330:250);
+  let ix=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
+  let iy=(keys.KeyS||keys.ArrowDown?1:0)-(keys.KeyW||keys.ArrowUp?1:0);
+  const wm=worldMouse(); player.aim=Math.atan2(wm.y-player.y, wm.x-player.x);
+
+  if(player.car){
+    const c=player.car; const acc=620, max=460;
+    c.vx += ix*acc*dt; c.vy += iy*acc*dt;
+    c.vx*=0.92; c.vy*=0.92;
+    const cs=Math.hypot(c.vx,c.vy); if(cs>max){ c.vx*=max/cs; c.vy*=max/cs; }
+    moveCircle(c, c.vx*dt, c.vy*dt, 12);
+    if(cs>4) c.ang=Math.atan2(c.vy,c.vx);
+    player.x=c.x; player.y=c.y;
+    // run over npcs
+    if(cs>120){ for(const n of npcs){ if(n.dead)continue; if(Math.hypot(n.x-c.x,n.y-c.y)<(n.r||9)+10){
+      if(n.wild){ hurt(n,60,true); c.vx*=-0.45; c.vy*=-0.45; hurtPlayer(12); flash('* You hit a '+n.type+'. Bad idea.'); }
+      else { killNpc(n,true); c.vx*=0.7; c.vy*=0.7; } } } }
+  } else {
+    if(ix||iy){ const m=Math.hypot(ix,iy); player.vx=ix/m*sp; player.vy=iy/m*sp; } else { player.vx*=0.6; player.vy*=0.6; }
+    moveCircle(player, player.vx*dt, player.vy*dt, player.r);
+  }
+  player.attackCd=Math.max(0,player.attackCd-dt);
+  player.flash=Math.max(0,player.flash-dt);
+  if((firing||keys.Space) && !dlgOpen && !shopOpen) meleeOrShoot();
+
+  // camera
+  camX += ((player.x - W/2) - camX)*Math.min(1,dt*8);
+  camY += ((player.y - H/2) - camY)*Math.min(1,dt*8);
+
+  // heat decay
+  if(heatDecay>0) heatDecay-=dt; else if(heat>0){ heat=Math.max(0,heat-dt*0.25); }
+  // ranger spawns scaled by heat
+  const wantRangers = Math.floor(heat) ;
+  const liveRangers = npcs.filter(n=>n.type==='ranger'&&!n.dead).length;
+  if(liveRangers<wantRangers && Math.random()<dt*1.2){ // spawn off-screen on a road
+    const ang=rng(0,6.28), d=Math.max(W,H)*0.7; spawnRanger(player.x+Math.cos(ang)*d, player.y+Math.sin(ang)*d);
+  }
+  recycleWildlife();   // keep herds roaming around the player across the giant map
+
+  // npcs
+  for(const n of npcs){ if(n.dead) continue;
+    const dToP=Math.hypot(player.x-n.x,player.y-n.y);
+    if(n.type==='tourist'){
+      if(n.state==='flee'){ const a=Math.atan2(n.y-player.y,n.x-player.x); n.vx=Math.cos(a)*150; n.vy=Math.sin(a)*150;
+        n.t-=dt; if(n.t<=0 && dToP>240){ n.state='wander'; n.t=rng(2,5);} }
+      else { n.t-=dt; if(n.t<=0){ n.dir=rng(0,6.28); n.t=rng(1,3);} n.vx=Math.cos(n.dir)*42; n.vy=Math.sin(n.dir)*42; }
+      moveCircle(n,n.vx*dt,n.vy*dt,n.r);
+    } else if(n.type==='bison'){
+      n.t-=dt; if(n.t<=0){ n.dir=rng(0,6.28); n.t=rng(2,6); }
+      const sp = n.state==='flee'? 170 : 26;                 // huge & slow until spooked, then stampede
+      n.vx=Math.cos(n.dir)*sp; n.vy=Math.sin(n.dir)*sp;
+      if(n.state==='flee'){ n.dir=Math.atan2(n.y-player.y,n.x-player.x); n.t2=(n.t2||0)-dt; if(n.t2<=0) n.state='graze'; }
+      moveCircle(n,n.vx*dt,n.vy*dt,n.r);
+    } else if(n.type==='bear'){
+      if(n.angry>0 || dToP<160){ n.angry=Math.max(n.angry,1.6);            // bears charge and maul
+        const a=Math.atan2(player.y-n.y,player.x-n.x); n.vx=Math.cos(a)*205; n.vy=Math.sin(a)*205;
+        if(dToP<n.r+13){ hurtPlayer(78*dt); if(Math.random()<dt*2) sfx('punch'); } }
+      else { n.t-=dt; if(n.t<=0){ n.dir=rng(0,6.28); n.t=rng(2,5);} n.vx=Math.cos(n.dir)*58; n.vy=Math.sin(n.dir)*58; }
+      n.angry=Math.max(0,n.angry-dt);
+      moveCircle(n,n.vx*dt,n.vy*dt,n.r);
+    } else { // ranger: chase + shoot
+      const a=Math.atan2(player.y-n.y,player.x-n.x);
+      if(dToP>140){ n.vx=Math.cos(a)*170; n.vy=Math.sin(a)*170; } else { n.vx*=0.8; n.vy*=0.8; }
+      moveCircle(n,n.vx*dt,n.vy*dt,n.r);
+      n.fireCd-=dt; if(n.fireCd<=0 && dToP<460){ bullets.push({x:n.x,y:n.y,vx:Math.cos(a)*380,vy:Math.sin(a)*380,life:1.3,friendly:false}); n.fireCd=rng(0.7,1.4); sfx('shot'); }
+      if(dToP<22){ hurtPlayer(14*dt*8*0+ 0); } // (melee handled by bullets mostly)
+    }
+  }
+
+  // bullets
+  for(const b of bullets){ b.x+=b.vx*dt; b.y+=b.vy*dt; b.life-=dt;
+    if(SOLID[tile((b.x/T)|0,(b.y/T)|0)]) b.life=0;
+    if(b.friendly){ for(const n of npcs){ if(n.dead)continue; if(Math.hypot(n.x-b.x,n.y-b.y)<n.r+3){ hurt(n,22); b.life=0; break; } } }
+    else { if(Math.hypot(player.x-b.x,player.y-b.y)<player.r+3){ hurtPlayer(12); b.life=0; } }
+  }
+  bullets=bullets.filter(b=>b.life>0);
+
+  // pickups
+  for(const p of pickups){ p.t+=dt; if(Math.hypot(player.x-p.x,player.y-p.y)<18){ addInv(p.k,p.v); flash('+ '+p.k); p.dead=true; } }
+  pickups=pickups.filter(p=>!p.dead && p.t<60);
+
+  // geysers erupt (only process ones near the player — there are hundreds across the park)
+  for(const g of geysers){ const gx0=g.x*T, gy0=g.y*T;
+    if(Math.abs(gx0-player.x)>W+200 || Math.abs(gy0-player.y)>H+200) continue;
+    g.t-=dt; if(g.erupt>0){ g.erupt-=dt;
+      const gx=g.x*T+T/2, gy=g.y*T+T/2;
+      for(const n of npcs){ if(!n.dead && Math.hypot(n.x-gx,n.y-gy)<40){ const a=Math.atan2(n.y-gy,n.x-gx); n.vx+=Math.cos(a)*300; n.vy+=Math.sin(a)*300; hurt(n,30); } }
+      if(Math.hypot(player.x-gx,player.y-gy)<40){ hurtPlayer(20*dt*6); }
+    } else if(g.t<=0){ g.erupt=0.8; g.t=rng(7,14); sfx('geyser'); burst(g.x*T+T/2,g.y*T+T/2,'#dff',20); } }
+
+  // particles
+  for(const p of particles){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=0.9; p.vy*=0.9; p.life-=dt; }
+  particles=particles.filter(p=>p.life>0);
+  npcs=npcs.filter(n=>!n.dead || n._keep);
+
+  // route + flash timer
+  if(flashT>0){ flashT-=dt; if(flashT<=0) flashEl.style.opacity=0; }
+}
+function moveCircle(o,dx,dy,r){
+  // axis-separated tile collision
+  let nx=o.x+dx;
+  if(!solidAt(nx-r,o.y)&&!solidAt(nx+r,o.y)&&!solidAt(nx,o.y-r)&&!solidAt(nx,o.y+r)) o.x=nx; else o.vx&&(o.vx*=0);
+  let ny=o.y+dy;
+  if(!solidAt(o.x-r,ny)&&!solidAt(o.x+r,ny)&&!solidAt(o.x,ny-r)&&!solidAt(o.x,ny+r)) o.y=ny; else o.vy&&(o.vy*=0);
+}
+function solidAt(px,py){ return SOLID[tile((px/T)|0,(py/T)|0)]?true:false; }
+
+// ── Render (topographic / realistic relief) ──
+function hsh(i,j){ let h=(Math.imul(i,374761393)+Math.imul(j,668265263))|0; h=Math.imul(h^(h>>>13),1274126177); return ((h^(h>>>16))>>>0)/4294967295; }
+function vnoise(x,y){ const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),w=yf*yf*(3-2*yf);
+  const a=hsh(xi,yi),b=hsh(xi+1,yi),c=hsh(xi,yi+1),d=hsh(xi+1,yi+1); return a+(b-a)*u+(c-a)*w+(a-b-c+d)*u*w; }
+function elev(x,y){ return vnoise(x*0.016,y*0.016)*0.62 + vnoise(x*0.05,y*0.05)*0.28 + vnoise(x*0.13,y*0.13)*0.10; }
+function draw(){
+  ctx.fillStyle='#33503a'; ctx.fillRect(0,0,W,H);
+  const x0=Math.max(0,(camX/T)|0), y0=Math.max(0,(camY/T)|0);
+  const x1=Math.min(MW,x0+(W/T|0)+2), y1=Math.min(MH,y0+(H/T|0)+2);
+  for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
+    const v=tile(x,y), sx=x*T-camX, sy=y*T-camY;
+    if(v===WATER){ const shore = tile(x-1,y)!==WATER||tile(x+1,y)!==WATER||tile(x,y-1)!==WATER||tile(x,y+1)!==WATER;
+      ctx.fillStyle = shore?'#5e97ae':'#39708f'; ctx.fillRect(sx,sy,T+1,T+1); continue; }
+    const e=elev(x,y);
+    let sh = 1 + (elev(x-1,y)-elev(x+1,y) + elev(x,y-1)-elev(x,y+1))*4.6;   // hillshade, light from NW
+    sh = sh<0.55?0.55:(sh>1.45?1.45:sh);
+    let r,g,b;
+    if(v===MOUNTAIN || e>0.80){ const t=Math.min(1,Math.max(0,(e-0.62)/0.38)); r=150+98*t; g=154+100*t; b=160+95*t; }  // rock→snow
+    else if(v===SAND||v===GEYSER){ r=214;g=215;b=205; }                                   // thermal basin (pale sinter)
+    else if(v===TREE){ r=50+e*6; g=88-e*24; b=46+e*4; }                                    // lodgepole forest greens
+    else if(v===TRAIL){ r=158;g=134;b=96; }
+    else if(v===ROAD){ r=180;g=172;b=156; }
+    else if(v===WALL){ r=122;g=106;b=82; }
+    else if(v===FLOOR){ r=152;g=134;b=106; }
+    else { const t=e; r=150+30*t; g=168-22*t; b=108+8*t; }                                 // meadow / valley grass
+    ctx.fillStyle='rgb('+((r*sh)|0)+','+((g*sh)|0)+','+((b*sh)|0)+')'; ctx.fillRect(sx,sy,T+1,T+1);
+    if(v===ROAD){ ctx.fillStyle='rgba(184,80,64,0.45)'; ctx.fillRect(sx,sy,T+1,T+1); }       // NPS-style red road tint
+  }
+  // geyser plumes
+  for(const g of geysers){ if(g.erupt>0){ const sx=g.x*T-camX+T/2, sy=g.y*T-camY+T/2, hgt=70*g.erupt/0.8+20;
+    if(sx<-30||sy<-120||sx>W+30||sy>H+30) continue;
+    ctx.fillStyle='rgba(220,240,255,0.7)'; ctx.fillRect(sx-5,sy-hgt,10,hgt); ctx.beginPath(); ctx.arc(sx,sy-hgt,9,0,6.3); ctx.fill(); } }
+
+  // pickups
+  for(const p of pickups){ const sx=p.x-camX, sy=p.y-camY+Math.sin(p.t*4)*2; ctx.fillStyle=p.c; ctx.fillRect(sx-5,sy-5,10,10); ctx.fillStyle='#000'; ctx.fillRect(sx-5,sy-5,10,2); }
+
+  // cars
+  for(const c of cars){ drawCar(c.x-camX,c.y-camY,c.ang,c.occupied?'#c23a3a':'#3a6bc2'); }
+
+  // npcs
+  for(const n of npcs){ if(n.dead) continue; const sx=n.x-camX, sy=n.y-camY; if(sx<-30||sy<-30||sx>W+30||sy>H+30) continue;
+    if(n.type==='ranger') drawRanger(sx,sy);
+    else if(n.type==='bison') drawBison(sx,sy);
+    else if(n.type==='bear') drawBear(sx,sy,n.angry>0);
+    else drawPerson(sx,sy,n.color);
+    // hp bar if hurt
+    if(n.hp<n.maxHp){ ctx.fillStyle='#000'; ctx.fillRect(sx-9,sy-16,18,3); ctx.fillStyle='#ff5a5a'; ctx.fillRect(sx-9,sy-16,18*n.hp/n.maxHp,3); }
+  }
+
+  // player
+  const psx=player.x-camX, psy=player.y-camY;
+  if(player.car){ drawCar(psx,psy,player.car.ang,'#ffe14d'); }
+  else { drawPerson(psx,psy, player.flash>0?'#fff':'#d23b3b', true); }
+  // aim cursor
+  const wm=worldMouse(); ctx.strokeStyle='rgba(255,90,90,0.8)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(wm.x-camX,wm.y-camY,7,0,6.3); ctx.stroke();
+
+  // dealer marker
+  if(dealer){ const sx=dealer.x-camX, sy=dealer.y-camY; if(sx>-40&&sy>-40&&sx<W+40&&sy<H+40){
+    ctx.font='18px monospace'; ctx.fillText('🦬',sx-9,sy+6);
+    if(Math.hypot(dealer.x-player.x,dealer.y-player.y)<70){ ctx.fillStyle='#ffe14d'; ctx.font='bold 12px monospace'; ctx.textAlign='center'; ctx.fillText('▼ BLACK MARKET (E)',sx,sy-18); ctx.textAlign='left'; } } }
+
+  // particles
+  for(const p of particles){ ctx.fillStyle=p.c; ctx.globalAlpha=Math.max(0,p.life*1.6); ctx.fillRect(p.x-camX-2,p.y-camY-2,4,4); } ctx.globalAlpha=1;
+
+  drawLabels();
+  // damage vignette
+  if(player.flash>0){ ctx.fillStyle='rgba(255,0,0,'+(player.flash*0.4)+')'; ctx.fillRect(0,0,W,H); }
+  drawMinimap();
+  drawScale();
+  updateHUD();
+}
+function drawPerson(x,y,col,isPlayer){
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x,y+9,8,3,0,0,6.3); ctx.fill();
+  ctx.fillStyle=col; ctx.fillRect(x-5,y-3,10,11);            // body
+  ctx.fillStyle='#f2c79a'; ctx.fillRect(x-4,y-11,8,8);        // head
+  ctx.fillStyle='#000'; ctx.fillRect(x-3,y-8,2,2); ctx.fillRect(x+1,y-8,2,2); // eyes
+  if(isPlayer){ // little aim arm
+    ctx.strokeStyle='#222'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(player.aim)*12,y+Math.sin(player.aim)*12); ctx.stroke(); }
+}
+function drawRanger(x,y){
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x,y+9,8,3,0,0,6.3); ctx.fill();
+  ctx.fillStyle='#3f6b3a'; ctx.fillRect(x-5,y-3,10,11);
+  ctx.fillStyle='#f2c79a'; ctx.fillRect(x-4,y-11,8,7);
+  ctx.fillStyle='#5a4a2a'; ctx.fillRect(x-6,y-12,12,3); ctx.fillRect(x-4,y-15,8,3); // ranger hat
+  ctx.fillStyle='#000'; ctx.fillRect(x-3,y-8,2,2); ctx.fillRect(x+1,y-8,2,2);
+}
+function drawBison(x,y){
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x,y+13,19,5,0,0,6.3); ctx.fill();
+  ctx.fillStyle='#1a110a'; ctx.fillRect(x-15,y+5,3,9); ctx.fillRect(x-6,y+5,3,9); ctx.fillRect(x+6,y+5,3,9); ctx.fillRect(x+12,y+5,3,9); // legs
+  ctx.fillStyle='#4a3220'; ctx.fillRect(x-16,y-6,30,13);                                  // body
+  ctx.fillStyle='#3a2616'; ctx.beginPath(); ctx.ellipse(x-7,y-7,10,8,0,0,6.3); ctx.fill();// shoulder hump
+  ctx.fillStyle='#241509'; ctx.fillRect(x-23,y-3,9,9);                                     // head
+  ctx.fillStyle='#cbb89a'; ctx.fillRect(x-24,y-5,3,3); ctx.fillRect(x-15,y-5,3,3);         // horns
+  ctx.fillStyle='#1a0f08'; ctx.fillRect(x-13,y-9,5,4);                                      // beard/forelock
+}
+function drawBear(x,y,angry){
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x,y+10,14,4,0,0,6.3); ctx.fill();
+  ctx.fillStyle='#1a0f08'; ctx.fillRect(x-10,y+5,3,6); ctx.fillRect(x+0,y+5,3,6); ctx.fillRect(x+8,y+5,3,6); // legs
+  ctx.fillStyle=angry?'#5a2a14':'#3a2414'; ctx.beginPath(); ctx.ellipse(x,y,14,9,0,0,6.3); ctx.fill();        // body
+  ctx.fillStyle='#2a1810'; ctx.beginPath(); ctx.arc(x-13,y-3,6,0,6.3); ctx.fill();                            // head
+  ctx.fillStyle='#1a0f08'; ctx.beginPath(); ctx.arc(x-16,y-8,2.5,0,6.3); ctx.arc(x-10,y-9,2.5,0,6.3); ctx.fill(); // ears
+  ctx.fillStyle='#000'; ctx.fillRect(x-15,y-4,2,2); ctx.fillStyle='#a07050'; ctx.fillRect(x-18,y-2,2,2);       // eye + snout
+  if(angry){ ctx.fillStyle='#ff4d4d'; ctx.font='bold 11px monospace'; ctx.textAlign='center'; ctx.fillText('!',x,y-15); ctx.textAlign='left'; }
+}
+function drawCar(x,y,ang,col){ ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(-18,-12,38,26);
+  ctx.fillStyle=col; ctx.fillRect(-18,-11,36,22);
+  ctx.fillStyle='#0a0e14'; ctx.fillRect(2,-8,8,16); ctx.fillStyle='#bcd'; ctx.fillRect(11,-8,4,16);
+  ctx.fillStyle='#111'; ctx.fillRect(-16,-13,8,4); ctx.fillRect(-16,9,8,4); ctx.fillRect(8,-13,8,4); ctx.fillRect(8,9,8,4);
+  ctx.restore();
+}
+
+// place names + feature labels painted on the world
+function drawLabels(){
+  ctx.textAlign='center'; ctx.font='bold 12px monospace';
+  for(const k in PLACES){ const p=PLACES[k]; const sx=p.x*T-camX, sy=p.y*T-camY; if(sx<-70||sy<-30||sx>W+70||sy>H+30) continue;
+    ctx.fillStyle= p.ent?'#ff8a4d':'#ffe14d'; ctx.fillRect(sx-3,sy-3,6,6);
+    ctx.fillStyle='#000'; ctx.fillText(p.name,sx+1,sy-9);
+    ctx.fillStyle= p.ent?'#ff8a4d':'#ffe14d'; ctx.fillText(p.name,sx,sy-10); }
+  ctx.font='bold 11px monospace';
+  for(const f of FEATURES){ const sx=f.x*T-camX, sy=f.y*T-camY; if(sx<-70||sy<-30||sx>W+70||sy>H+30) continue;
+    const col=f.peak?'#cfd6e0':f.geyser?'#9be0ff':'#9cff7a';
+    ctx.fillStyle='#000'; ctx.fillText(f.name,sx+1,sy+19); ctx.fillStyle=col; ctx.fillText(f.name,sx,sy+18); }
+  ctx.textAlign='left';
+}
+function drawMinimap(){
+  const mw=204, mh=172, ox=W-mw-12, oy=12;
+  ctx.fillStyle='#0a0e08e0'; ctx.fillRect(ox,oy,mw,mh); ctx.strokeStyle='#5a6b3a'; ctx.lineWidth=2; ctx.strokeRect(ox,oy,mw,mh);
+  const sx=v=>ox+(v/MW)*mw, sy=v=>oy+(v/MH)*mh;
+  ctx.fillStyle='#2e6b8a';
+  for(const e of [[q(167),q(200),q(40),q(30)],[q(120),q(224),q(17),q(15)],[q(150),q(236),q(12),q(22)],[q(189),q(233),q(11),q(20)]]){ ctx.beginPath(); ctx.ellipse(sx(e[0]),sy(e[1]),(e[2]/MW)*mw,(e[3]/MH)*mh,0,0,6.3); ctx.fill(); }
+  ctx.strokeStyle='#d23b3b'; ctx.lineWidth=2;
+  for(const [a,b] of ROADS){ const A=PLACES[a],B=PLACES[b]; ctx.beginPath(); ctx.moveTo(sx(A.x),sy(A.y)); ctx.lineTo(sx(B.x),sy(B.y)); ctx.stroke(); }
+  for(const k in PLACES){ const p=PLACES[k]; ctx.fillStyle=p.ent?'#ff8a4d':'#ffe14d'; ctx.fillRect(sx(p.x)-2,sy(p.y)-2,4,4); }
+  if(dealer){ ctx.fillStyle='#b06bff'; ctx.fillRect(sx(dealer.x/T)-2,sy(dealer.y/T)-2,4,4); }
+  ctx.fillStyle='#fff'; ctx.fillRect(sx(player.x/T)-2,sy(player.y/T)-2,5,5);
+  ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1; ctx.strokeRect(sx(camX/T),sy(camY/T),(W/T/MW)*mw,(H/T/MH)*mh);
+  ctx.fillStyle='#8aa06a'; ctx.font='9px monospace'; ctx.fillText('GRAND LOOP RD · figure-8',ox+8,oy+mh-7);
+}
+function drawScale(){
+  const mpp=0.80;                 // the world spans the real park (~0.8 m per pixel)
+  const barPx=200/mpp;            // a 200-metre bar
+  const ox=W/2-230, oy=H-22, w=460;
+  ctx.fillStyle='rgba(8,12,8,0.78)'; ctx.fillRect(ox-12,oy-26,w,40);
+  ctx.strokeStyle='#fff'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(ox,oy); ctx.lineTo(ox+barPx,oy); ctx.moveTo(ox,oy-4); ctx.lineTo(ox,oy+4); ctx.moveTo(ox+barPx,oy-4); ctx.lineTo(ox+barPx,oy+4); ctx.stroke();
+  ctx.fillStyle='#fff'; ctx.font='11px monospace'; ctx.fillText('200 m', ox+barPx/2-14, oy-6);
+  ctx.fillStyle='#ffd86e'; ctx.font='11px monospace';
+  ctx.fillText('human : park  ≈  1 : 30,000,000,000   (you’re drawn ~20× too big — at true scale you’d be one pixel)', ox+barPx+16, oy-9);
+  ctx.fillStyle='#9ad6a0'; ctx.fillText('YELLOWSTONE N.P. · 3,472 mi²', ox+barPx+16, oy+5);
+}
+
+// ── HUD ──
+const stars=['','★','★★','★★★','★★★★','★★★★★'];
+function route(){ if(player.kills===0) return player.spares>=4?'PACIFIST ☮':'NEUTRAL'; if(player.kills>=18) return 'GENOCIDE ☠'; return 'NEUTRAL'; }
+function updateHUD(){
+  document.getElementById('hCash').textContent='$'+player.cash;
+  document.getElementById('hHp').textContent='['+'█'.repeat(Math.max(0,Math.round(player.hp/10)))+' '.repeat(10-Math.max(0,Math.round(player.hp/10)))+']';
+  document.getElementById('hStars').textContent=stars[Math.floor(heat)]||'★★★★★';
+  document.getElementById('hRoute').textContent=route();
+  document.getElementById('hKills').textContent=' ('+player.kills+' kills / '+player.spares+' spared · '+invCount()+' goods)';
+  document.getElementById('wep').textContent= player.car? '🚚 TRUCK (E to exit)' : (player.gun?'🔫 GLOCK':'👊 FISTS');
+}
+
+// ── Loop ──
+function loop(now){ const dt=Math.min(0.05,(now-last)/1000); last=now; update(dt); draw(); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+
+// ── Chiptune (Web Audio) ──
+let actx=null, musicGain;
+function startAudio(){ if(actx) return; actx=new (AudioContext||webkitAudioContext)(); musicGain=actx.createGain(); musicGain.gain.value=0.18; musicGain.connect(actx.destination); music(); }
+function note(freq,t,dur,type,gain){ const o=actx.createOscillator(),g=actx.createGain(); o.type=type||'square'; o.frequency.value=freq;
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(gain||0.2,t+0.01); g.gain.exponentialRampToValueAtTime(0.001,t+dur); o.connect(g); g.connect(musicGain); o.start(t); o.stop(t+dur+0.02); }
+function music(){ if(!actx) return; const bpm=132, beat=60/bpm; const bass=[55,55,73.42,82.41], arp=[220,277,330,440,330,277];
+  let bar=0; function sched(){ const t0=actx.currentTime+0.05; const b=bass[bar%bass.length];
+    for(let i=0;i<8;i++){ note(b,t0+i*beat/2,beat*0.45,'triangle',0.25); }
+    for(let i=0;i<6;i++){ note(arp[i]*(heat>=3?1.5:1),t0+i*beat*0.66,beat*0.3,'square',0.10); }
+    // hat
+    bar++; setTimeout(sched, beat*4*1000*0.97); }
+  sched();
+}
+function sfx(kind){ if(!actx) return; const t=actx.currentTime;
+  if(kind==='shot'){ note(880,t,0.07,'square',0.18); note(440,t,0.1,'sawtooth',0.12); }
+  else if(kind==='punch'){ note(120,t,0.09,'square',0.25); }
+  else if(kind==='die'){ note(330,t,0.05,'square',0.2); note(160,t+0.05,0.2,'sawtooth',0.2); }
+  else if(kind==='pick'||kind==='cash'){ note(660,t,0.06,'square',0.15); note(990,t+0.06,0.08,'square',0.15); }
+  else if(kind==='blip'){ note(520,t,0.02,'square',0.06); }
+  else if(kind==='geyser'){ note(80,t,0.5,'sawtooth',0.2); }
+}
+
+// ── Start ──
+document.getElementById('startBtn').onclick=()=>{ document.getElementById('start').style.display='none'; started=true; startAudio(); cv.focus(); flash("Welcome to Yellowstone. Please don't feed the economy."); };
+</script>
+</body>
+</html>

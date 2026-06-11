@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Decision Roulette</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(ellipse at center, #1a0a1a 0%, #050008 70%, #000 100%);
+    color: #f0e6ff;
+    font-family: 'Georgia', serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 20px;
+    overflow-x: hidden;
+  }
+  h1 {
+    font-size: 42px;
+    letter-spacing: 6px;
+    color: #d4b3ff;
+    text-shadow: 0 0 20px #8a2be2, 0 0 40px #4b0082;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+  .subtitle {
+    font-style: italic;
+    color: #8a7aa0;
+    margin-bottom: 30px;
+    font-size: 14px;
+    letter-spacing: 2px;
+  }
+  .stage {
+    position: relative;
+    width: 500px;
+    height: 500px;
+    max-width: 90vw;
+    max-height: 90vw;
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 30px rgba(138, 43, 226, 0.5));
+  }
+  .pointer {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 18px solid transparent;
+    border-right: 18px solid transparent;
+    border-top: 32px solid #ff3366;
+    filter: drop-shadow(0 0 12px #ff3366);
+    z-index: 5;
+  }
+  .center-btn {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ff3366, #8a0033);
+    border: 3px solid #ffccdd;
+    color: #fff;
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 0 30px #ff3366, inset 0 0 20px rgba(0,0,0,0.4);
+    transition: transform 0.15s;
+    z-index: 4;
+  }
+  .center-btn:hover { transform: translate(-50%, -50%) scale(1.05); }
+  .center-btn:active { transform: translate(-50%, -50%) scale(0.95); }
+  .center-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .controls {
+    margin-top: 30px;
+    width: 500px;
+    max-width: 90vw;
+  }
+  .input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  input[type="text"] {
+    flex: 1;
+    padding: 12px 16px;
+    background: rgba(30, 10, 40, 0.6);
+    border: 1px solid #5a3a7a;
+    color: #f0e6ff;
+    font-family: inherit;
+    font-size: 16px;
+    border-radius: 4px;
+    outline: none;
+  }
+  input[type="text"]:focus { border-color: #d4b3ff; box-shadow: 0 0 10px #8a2be2; }
+  button.add {
+    padding: 12px 20px;
+    background: #4b0082;
+    border: 1px solid #8a2be2;
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    border-radius: 4px;
+    font-size: 16px;
+  }
+  button.add:hover { background: #6a0db2; }
+
+  .options-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .chip {
+    background: rgba(74, 0, 130, 0.5);
+    border: 1px solid #8a2be2;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .chip .x {
+    cursor: pointer;
+    color: #ff6688;
+    font-weight: bold;
+  }
+  .chip .x:hover { color: #ff3366; }
+
+  .verdict {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.92);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    z-index: 100;
+    cursor: pointer;
+  }
+  .verdict.show { display: flex; animation: fadeIn 0.5s; }
+  .verdict-label {
+    color: #8a7aa0;
+    font-size: 18px;
+    letter-spacing: 8px;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    animation: slideDown 0.8s;
+  }
+  .verdict-text {
+    font-size: 72px;
+    color: #fff;
+    text-align: center;
+    padding: 0 20px;
+    text-shadow: 0 0 30px #ff3366, 0 0 60px #8a2be2;
+    letter-spacing: 4px;
+    animation: zoomIn 0.6s 0.3s both;
+    max-width: 90vw;
+    word-wrap: break-word;
+  }
+  .verdict-hint {
+    margin-top: 60px;
+    color: #5a4a70;
+    font-style: italic;
+    font-size: 13px;
+    letter-spacing: 2px;
+    animation: fadeIn 0.5s 1.5s both;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes zoomIn { from { opacity: 0; transform: scale(0.3); } to { opacity: 1; transform: scale(1); } }
+
+  .empty-hint {
+    color: #5a4a70;
+    font-style: italic;
+    text-align: center;
+    margin-top: 8px;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+  <h1>Decision Roulette</h1>
+  <div class="subtitle">~ let fate decide ~</div>
+
+  <div class="stage">
+    <div class="pointer"></div>
+    <canvas id="wheel" width="500" height="500"></canvas>
+    <button class="center-btn" id="spinBtn">SPIN</button>
+  </div>
+
+  <div class="controls">
+    <div class="input-row">
+      <input type="text" id="optInput" placeholder="Add an option..." maxlength="40">
+      <button class="add" id="addBtn">ADD</button>
+    </div>
+    <div class="options-list" id="optList"></div>
+    <div class="empty-hint" id="emptyHint">add at least two options to summon the wheel</div>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <div class="verdict-label">The wheel has spoken</div>
+    <div class="verdict-text" id="verdictText"></div>
+    <div class="verdict-hint">click anywhere to dismiss</div>
+  </div>
+
+<script>
+const canvas = document.getElementById('wheel');
+const ctx = canvas.getContext('2d');
+const W = 500, H = 500, R = 230, CX = 250, CY = 250;
+
+const COLORS = ['#4b0082', '#8a2be2', '#6a0db2', '#a020f0', '#5a189a', '#7b2cbf', '#9d4edd', '#3c096c'];
+
+let options = ['Order pizza', 'Cook at home', 'Skip dinner', 'Cereal again'];
+let angle = 0;
+let spinning = false;
+let velocity = 0;
+
+const optList = document.getElementById('optList');
+const optInput = document.getElementById('optInput');
+const emptyHint = document.getElementById('emptyHint');
+const spinBtn = document.getElementById('spinBtn');
+const verdict = document.getElementById('verdict');
+const verdictText = document.getElementById('verdictText');
+
+function renderChips() {
+  optList.innerHTML = '';
+  options.forEach((o, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `<span>${escapeHtml(o)}</span><span class="x" data-i="${i}">×</span>`;
+    optList.appendChild(chip);
+  });
+  emptyHint.style.display = options.length < 2 ? 'block' : 'none';
+  spinBtn.disabled = options.length < 2 || spinning;
+}
+function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+optList.addEventListener('click', e => {
+  if (e.target.classList.contains('x')) {
+    options.splice(+e.target.dataset.i, 1);
+    renderChips();
+    drawWheel();
+  }
+});
+
+document.getElementById('addBtn').addEventListener('click', addOption);
+optInput.addEventListener('keydown', e => { if (e.key === 'Enter') addOption(); });
+function addOption() {
+  const v = optInput.value.trim();
+  if (!v) return;
+  options.push(v);
+  optInput.value = '';
+  renderChips();
+  drawWheel();
+}
+
+function drawWheel() {
+  ctx.clearRect(0, 0, W, H);
+  if (options.length === 0) {
+    ctx.fillStyle = '#2a1040';
+    ctx.beginPath();
+    ctx.arc(CX, CY, R, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#5a3a7a';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    return;
+  }
+  const n = options.length;
+  const slice = (Math.PI * 2) / n;
+  for (let i = 0; i < n; i++) {
+    const start = angle + i * slice - Math.PI / 2;
+    const end = start + slice;
+    ctx.beginPath();
+    ctx.moveTo(CX, CY);
+    ctx.arc(CX, CY, R, start, end);
+    ctx.closePath();
+    ctx.fillStyle = COLORS[i % COLORS.length];
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // text
+    ctx.save();
+    ctx.translate(CX, CY);
+    ctx.rotate(start + slice / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 16px Georgia';
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 4;
+    const label = options[i].length > 18 ? options[i].slice(0, 17) + '…' : options[i];
+    ctx.fillText(label, R - 20, 6);
+    ctx.restore();
+  }
+  // outer ring
+  ctx.beginPath();
+  ctx.arc(CX, CY, R, 0, Math.PI * 2);
+  ctx.strokeStyle = '#d4b3ff';
+  ctx.lineWidth = 4;
+  ctx.shadowColor = '#8a2be2';
+  ctx.shadowBlur = 15;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+let audioCtx = null;
+function tick() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(1800, t);
+    osc.frequency.exponentialRampToValueAtTime(900, t + 0.03);
+    gain.gain.setValueAtTime(0.08, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.06);
+  } catch (e) {}
+}
+
+let lastTickSlice = -1;
+let spinStart = 0;
+let spinDuration = 0;
+let startAngle = 0;
+let targetAngle = 0;
+
+spinBtn.addEventListener('click', () => {
+  if (spinning || options.length < 2) return;
+  spinning = true;
+  spinBtn.disabled = true;
+  // 5 to 9 seconds, 6-12 full rotations + random offset
+  spinDuration = 5000 + Math.random() * 4000;
+  const rotations = 6 + Math.random() * 6;
+  startAngle = angle;
+  targetAngle = angle + rotations * Math.PI * 2 + Math.random() * Math.PI * 2;
+  spinStart = performance.now();
+  lastTickSlice = -1;
+  requestAnimationFrame(spinFrame);
+});
+
+// ease-out cubic-ish with longer tail for dramatic finish
+function easeOut(t) {
+  // custom curve: fast start, very slow end
+  return 1 - Math.pow(1 - t, 4);
+}
+
+function spinFrame(now) {
+  const elapsed = now - spinStart;
+  const t = Math.min(elapsed / spinDuration, 1);
+  const eased = easeOut(t);
+  angle = startAngle + (targetAngle - startAngle) * eased;
+
+  // tick detection: which slice is the pointer over?
+  const n = options.length;
+  const slice = (Math.PI * 2) / n;
+  const norm = ((-angle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+  const idx = Math.floor(norm / slice);
+  if (idx !== lastTickSlice) {
+    if (lastTickSlice !== -1) tick();
+    lastTickSlice = idx;
+  }
+
+  drawWheel();
+  if (t >= 1) {
+    spinning = false;
+    revealWinner();
+    return;
+  }
+  requestAnimationFrame(spinFrame);
+}
+
+function revealWinner() {
+  const n = options.length;
+  const slice = (Math.PI * 2) / n;
+  // pointer is at top (angle = -PI/2 = 3PI/2). normalize.
+  const norm = ((-angle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+  const idx = Math.floor(norm / slice) % n;
+  verdictText.textContent = options[idx];
+  verdict.classList.add('show');
+  spinBtn.disabled = false;
+}
+
+verdict.addEventListener('click', () => verdict.classList.remove('show'));
+
+renderChips();
+drawWheel();
+</script>
+</body>
+</html>

@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>🪳 Roach Rave</title>
+<style>
+  :root { --bg:#0a0612; --panel:#160c24cc; --neon:#ff2bd6; --neon2:#2bf0ff; --neon3:#b6ff3b; --text:#f3e9ff; --muted:#9a86c4; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text); overflow:hidden;
+    font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; user-select:none; }
+  canvas { position:fixed; inset:0; display:block; }
+  .bar { position:fixed; top:0; left:0; right:0; z-index:5; display:flex; gap:8px; align-items:center;
+    padding:10px 12px; background:linear-gradient(180deg,#160c24ee,#160c2400); }
+  .bar h1 { margin:0 10px 0 2px; font-size:18px; letter-spacing:1px; white-space:nowrap;
+    text-shadow:0 0 10px var(--neon); }
+  .bar input { flex:1; min-width:120px; padding:10px 12px; border-radius:10px; border:1px solid #3a2a55;
+    background:#0d0820; color:var(--text); font:inherit; outline:none; }
+  .bar input:focus { border-color:var(--neon2); box-shadow:0 0 0 2px #2bf0ff33; }
+  .bar button { padding:10px 16px; border:none; border-radius:10px; cursor:pointer; font:inherit; font-weight:700;
+    color:#fff; background:linear-gradient(135deg,var(--neon),#7c2bff); box-shadow:0 0 16px #ff2bd680; }
+  .bar button.ghost { background:#241636; color:var(--text); box-shadow:none; border:1px solid #3a2a55; font-weight:600; }
+  .bar button:active { transform:translateY(1px); }
+  .status { position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:5; padding:8px 16px;
+    background:var(--panel); border:1px solid #3a2a55; border-radius:999px; font-size:13px; color:var(--muted);
+    max-width:90vw; text-align:center; display:none; }
+  .status.show { display:block; }
+  .status.err { color:#ff8a8a; border-color:#ff8a8a55; }
+  .hint { position:fixed; bottom:10px; left:0; right:0; text-align:center; color:#6a5690; font-size:12px; z-index:5; pointer-events:none; }
+  .drop { position:fixed; inset:0; z-index:6; display:none; place-items:center; background:#0a0612cc; font-size:22px; color:var(--neon2); }
+  .drop.show { display:grid; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="bar">
+  <h1>🪳 ROACH RAVE</h1>
+  <input id="link" type="text" placeholder="Paste a YouTube link…  (or drop an audio file)" autocomplete="off" spellcheck="false" />
+  <button id="go">DANCE</button>
+  <button id="mic" class="ghost" title="React to your microphone instead">🎤 Mic</button>
+</div>
+<div class="status" id="status"></div>
+<div class="hint">Tip: if YouTube fails, hit 🎤 Mic and play the video out loud — or drop an audio file anywhere.</div>
+<div class="drop" id="drop">🎵 drop the audio file to make them dance</div>
+
+<audio id="audio" crossorigin="anonymous"></audio>
+
+<script>
+const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+let W, H, DPR = Math.min(2, window.devicePixelRatio || 1);
+function resize(){ W = innerWidth; H = innerHeight; canvas.width = W*DPR; canvas.height = H*DPR; canvas.style.width=W+'px'; canvas.style.height=H+'px'; ctx.setTransform(DPR,0,0,DPR,0,0); }
+addEventListener('resize', resize); resize();
+
+const audio = document.getElementById('audio');
+const statusEl = document.getElementById('status');
+function setStatus(msg, err){ statusEl.textContent = msg||''; statusEl.classList.toggle('show', !!msg); statusEl.classList.toggle('err', !!err); }
+
+// ── Audio analysis ──
+let actx, analyser, srcNode, freq, playing = false;
+function ensureAudioGraph(mediaEl){
+  if (!actx) { actx = new (window.AudioContext||window.webkitAudioContext)(); }
+  if (actx.state === 'suspended') actx.resume();
+  if (!analyser) { analyser = actx.createAnalyser(); analyser.fftSize = 1024; analyser.smoothingTimeConstant = 0.78; freq = new Uint8Array(analyser.frequencyBinCount); analyser.connect(actx.destination); }
+  if (mediaEl && srcNode && srcNode._el !== mediaEl) { try{srcNode.disconnect();}catch(e){} srcNode = null; }
+  if (mediaEl && !srcNode) { srcNode = actx.createMediaElementSource(mediaEl); srcNode._el = mediaEl; srcNode.connect(analyser); }
+}
+function connectStream(stream){
+  ensureAudioGraph(null);
+  if (srcNode) { try{srcNode.disconnect();}catch(e){} }
+  srcNode = actx.createMediaStreamSource(stream); srcNode._el = null; srcNode.connect(analyser); // mic: don't connect to destination (no feedback)
+}
+
+// Frequency-band energies (0..1)
+let bass=0, mid=0, treble=0, level=0;
+let bassAvg=0, beat=0, beatFlash=0;
+function readAudio(){
+  if (!analyser) { bass*=0.92; mid*=0.92; treble*=0.92; level*=0.92; return; }
+  analyser.getByteFrequencyData(freq);
+  const n = freq.length;
+  let b=0,m=0,t=0,all=0;
+  for (let i=2;i<10;i++) b+=freq[i];      b/= (8*255);
+  for (let i=16;i<70;i++) m+=freq[i];     m/=(54*255);
+  for (let i=90;i<260;i++) t+=freq[i];    t/=(170*255);
+  for (let i=1;i<n;i++) all+=freq[i];     all/=((n-1)*255);
+  bass=b; mid=m; treble=t; level=all;
+  // simple beat detect on bass
+  bassAvg = bassAvg*0.94 + bass*0.06;
+  if (bass > bassAvg*1.35 && bass > 0.32 && beat<=0) { beat=1; beatFlash=1; }
+  beat = Math.max(0, beat-0.08); beatFlash = Math.max(0, beatFlash-0.06);
+}
+
+// ── The dancers ──
+function rand(a,b){ return a + Math.random()*(b-a); }
+const palette = ['#3a2417','#2e1a10','#412a18','#241409','#4a3020'];
+let roaches = [];
+function makeRoaches(){
+  roaches = [];
+  const n = 10;
+  for (let i=0;i<n;i++){
+    roaches.push({
+      bx: (i+0.5)/n,                 // horizontal slot (0..1)
+      baseY: rand(0.62, 0.9),        // vertical position (0..1 of height)
+      size: rand(0.85, 1.3),
+      hue: palette[i % palette.length],
+      phase: rand(0, Math.PI*2),
+      legPhase: rand(0, Math.PI*2),
+      wiggle: rand(0.8, 1.4),
+      band: i % 3,                   // which freq band drives this one most
+      hop: 0, spin: 0, glow: rand(0,1),
+    });
+  }
+}
+makeRoaches();
+
+// draw one cockroach at (x,y) on the floor, scale s, time t
+function drawRoach(x, y, s, t, r){
+  const e = r.band===0 ? bass : r.band===1 ? mid : treble;
+  const energy = 0.35*level + 0.65*e;
+  // hop on beat
+  if (beat>0.6) r.hop = Math.min(1, r.hop + 0.5);
+  r.hop *= 0.86;
+  const hop = r.hop * (26+40*energy) * s;
+  const bob = Math.sin(t*5 + r.phase) * (4+10*energy) * s;
+  const yy = y - hop - bob;
+  const wob = Math.sin(t*3.3 + r.phase) * 0.22 * (0.4+energy);   // body sway
+  ctx.save();
+  ctx.translate(x, yy);
+  ctx.rotate(wob);
+  ctx.scale(s*(1+0.10*Math.sin(t*8+r.phase)*energy), s*(1-0.06*Math.sin(t*8+r.phase)*energy));
+
+  // shadow
+  ctx.save(); ctx.scale(1,0.35); ctx.fillStyle='rgba(0,0,0,0.35)';
+  ctx.beginPath(); ctx.ellipse(0,(hop/s+34),20,9,0,0,7); ctx.fill(); ctx.restore();
+
+  // legs (6) — scuttle to mids
+  ctx.strokeStyle = '#1a0f08'; ctx.lineWidth = 2.4; ctx.lineCap='round';
+  for (let side=-1; side<=1; side+=2){
+    for (let li=0; li<3; li++){
+      const lp = r.legPhase + li*1.1 + (side>0?Math.PI:0);
+      const swing = Math.sin(t*9*r.wiggle + lp) * (0.5+1.4*(0.3+mid));
+      const ox = -10 + li*10;
+      const baseAng = side*(0.5) + swing*0.5;
+      const kx = ox + Math.cos(baseAng)*12*side*0+ side*9;
+      const ky = 6 + li*0.5;
+      const fx = side*(20+Math.cos(swing)*6);
+      const fy = ky + 16 + Math.sin(swing)*7;
+      ctx.beginPath(); ctx.moveTo(ox, 2); ctx.lineTo(ox+side*9, ky); ctx.lineTo(fx, fy); ctx.stroke();
+    }
+  }
+
+  // body
+  const col = r.hue;
+  ctx.fillStyle = col;
+  ctx.beginPath(); ctx.ellipse(0, 0, 22, 13, 0, 0, Math.PI*2); ctx.fill();
+  // wing shine reacting to treble
+  ctx.fillStyle = `rgba(${180+Math.round(60*treble)},${90+Math.round(120*treble)},${40+Math.round(180*treble)},0.5)`;
+  ctx.beginPath(); ctx.ellipse(2, -3, 16, 8, 0, 0, Math.PI*2); ctx.fill();
+  // wing seam
+  ctx.strokeStyle='rgba(0,0,0,0.4)'; ctx.lineWidth=1.4;
+  ctx.beginPath(); ctx.moveTo(-16,0); ctx.lineTo(18,0); ctx.stroke();
+  // head
+  ctx.fillStyle = '#241509';
+  ctx.beginPath(); ctx.ellipse(-20, 0, 7, 8, 0, 0, Math.PI*2); ctx.fill();
+  // eyes
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-23,-3,1.6,0,7); ctx.arc(-23,3,1.6,0,7); ctx.fill();
+
+  // antennae — wave to treble
+  ctx.strokeStyle = '#120a05'; ctx.lineWidth = 1.8;
+  for (const sgn of [-1,1]){
+    const a = sgn*0.5 + Math.sin(t*7 + r.phase + sgn) * (0.3+1.0*treble);
+    ctx.beginPath(); ctx.moveTo(-26, sgn*4);
+    ctx.quadraticCurveTo(-40, sgn*8 - a*14, -50 - 6*treble, sgn*2 - a*22);
+    ctx.stroke();
+  }
+  // tiny party glow on beat
+  if (beatFlash>0.2){ ctx.fillStyle=`rgba(255,80,220,${0.25*beatFlash})`; ctx.beginPath(); ctx.ellipse(0,0,30,18,0,0,7); ctx.fill(); }
+  ctx.restore();
+}
+
+// ── Scene ──
+let t0 = performance.now();
+function frame(now){
+  const t = (now - t0)/1000;
+  readAudio();
+
+  // background club
+  ctx.fillStyle = '#0a0612'; ctx.fillRect(0,0,W,H);
+  // pulsing radial glow
+  const g = ctx.createRadialGradient(W/2, H*0.4, 40, W/2, H*0.4, Math.max(W,H)*0.7);
+  const pulse = 0.10 + 0.5*level + 0.4*beatFlash;
+  g.addColorStop(0, `rgba(${120+100*bass|0},${30+150*mid|0},${160+90*treble|0},${0.10+0.22*pulse})`);
+  g.addColorStop(1, 'rgba(10,6,18,0)');
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+  // disco light beams sweeping to the beat
+  const beams = 6;
+  for (let i=0;i<beams;i++){
+    const a = t*0.6 + i*Math.PI*2/beams + beatFlash*0.5;
+    const hue = (t*40 + i*60) % 360;
+    ctx.save(); ctx.globalCompositeOperation='lighter';
+    ctx.translate(W/2, -40); ctx.rotate(Math.sin(a)*0.8);
+    const grd = ctx.createLinearGradient(0,0,0,H*1.3);
+    grd.addColorStop(0, `hsla(${hue},100%,60%,${0.05+0.20*level+0.15*beatFlash})`);
+    grd.addColorStop(1, `hsla(${hue},100%,60%,0)`);
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.moveTo(-8,0); ctx.lineTo(8,0); ctx.lineTo(140,H*1.3); ctx.lineTo(-140,H*1.3); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // dance floor — checker tiles pulsing
+  const floorY = H*0.58;
+  const rows = 9, cols = 12;
+  for (let ry=0; ry<rows; ry++){
+    const persp = ry/rows;
+    const y = floorY + persp*persp*(H-floorY);
+    const h = (H-floorY)*( ( (ry+1)/rows )**2 - (ry/rows)**2 );
+    for (let cx=0; cx<cols; cx++){
+      const lit = ((cx+ry+Math.floor(t*3))%2===0);
+      const hue = (cx*30 + ry*20 + t*60)%360;
+      const br = lit ? (18 + 60*level + 40*beatFlash) : (8+20*level);
+      ctx.fillStyle = `hsla(${hue},80%,${Math.min(60,br)}%,${0.18+0.25*level})`;
+      const x = (cx/cols)*W, w = W/cols;
+      ctx.fillRect(x+1, y+1, w-2, Math.max(2,h-2));
+    }
+  }
+
+  // roaches dancing on the floor
+  const ordered = [...roaches].sort((a,b)=>a.baseY-b.baseY);
+  for (const r of ordered){
+    const x = r.bx*W + Math.sin(t*1.5 + r.phase)*14*(0.3+level);
+    const y = r.baseY*H;
+    drawRoach(x, y, r.size*(0.9 + H/900), t, r);
+  }
+
+  // idle prompt when nothing is playing
+  if (!playing && level < 0.005){
+    ctx.fillStyle = 'rgba(243,233,255,0.85)'; ctx.textAlign='center';
+    ctx.font = '700 26px -apple-system,sans-serif';
+    ctx.fillText('paste a YouTube link and hit DANCE 🪳', W/2, H*0.4);
+    ctx.fillStyle = 'rgba(154,134,196,0.8)'; ctx.font = '15px -apple-system,sans-serif';
+    ctx.fillText('the roaches will dance to the music', W/2, H*0.4+30);
+    ctx.textAlign='left';
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ── Controls ──
+async function playYouTube(link){
+  if (!link.trim()) { setStatus('Paste a YouTube link first.', true); return; }
+  setStatus('🪳 fetching the audio… (first time can take a few seconds)');
+  try {
+    // probe the audio endpoint for an error JSON before handing it to <audio>
+    audio.crossOrigin = 'anonymous';
+    audio.src = '/audio?url=' + encodeURIComponent(link.trim());
+    ensureAudioGraph(audio);
+    await audio.play();
+    playing = true; setStatus('');
+  } catch (e) {
+    // if the server returned JSON error, surface it
+    try {
+      const r = await fetch('/audio?url=' + encodeURIComponent(link.trim()), { headers:{range:'bytes=0-1'} });
+      if (!r.ok) { const j = await r.json().catch(()=>null); setStatus('Couldn’t fetch that video' + (j&&j.error?': '+j.error:'') + '  — try 🎤 Mic instead.', true); return; }
+    } catch(_){}
+    setStatus('Playback blocked — click DANCE again, or use 🎤 Mic / drop a file.', true);
+  }
+}
+document.getElementById('go').onclick = () => playYouTube(document.getElementById('link').value);
+document.getElementById('link').addEventListener('keydown', e => { if (e.key==='Enter') playYouTube(e.target.value); });
+
+document.getElementById('mic').onclick = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false } });
+    if (!actx) ensureAudioGraph(null); else if (actx.state==='suspended') actx.resume();
+    audio.pause(); connectStream(stream); playing = true;
+    setStatus('🎤 Listening — play the video out loud and watch them dance.');
+  } catch(e){ setStatus('Mic permission denied.', true); }
+};
+
+// drag-drop a local audio file
+const drop = document.getElementById('drop');
+addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('show'); });
+addEventListener('dragleave', e => { if (e.target===drop) drop.classList.remove('show'); });
+addEventListener('drop', async e => {
+  e.preventDefault(); drop.classList.remove('show');
+  const f = e.dataTransfer.files[0]; if (!f) return;
+  audio.src = URL.createObjectURL(f); audio.crossOrigin = null;
+  ensureAudioGraph(audio); try { await audio.play(); playing = true; setStatus('🎵 ' + f.name); } catch(_){ setStatus('Click DANCE to start.', true); }
+});
+
+audio.addEventListener('playing', () => { playing = true; setStatus(''); });
+audio.addEventListener('ended', () => { playing = false; });
+audio.addEventListener('error', () => { /* surfaced via playYouTube probe */ });
+</script>
+</body>
+</html>
