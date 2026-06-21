@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PATHOGEN</title>
+<script src="https://unpkg.com/topojson@3/dist/topojson.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#050f08;color:#80ff80;font-family:'Courier New',monospace;height:100vh;display:flex;flex-direction:column;overflow:hidden;user-select:none}
+#topbar{display:flex;justify-content:space-between;align-items:center;padding:7px 16px;background:#071210;border-bottom:1px solid #1a3a1a;flex-shrink:0;gap:12px}
+.dname{font-size:17px;color:#00ff88;font-weight:bold;letter-spacing:3px;min-width:140px}
+.stats{display:flex;gap:20px}
+.stat{display:flex;flex-direction:column;align-items:center}
+.sval{font-size:15px;font-weight:bold}
+.slabel{font-size:9px;opacity:.5;letter-spacing:1px}
+.si .sval{color:#ffaa00}.sd .sval{color:#ff4444}.sh .sval{color:#44ff88}.sc .sval{color:#4488ff}
+#cure-bar-wrap{flex:1;height:6px;background:#0a1a0a;border:1px solid #1a3a1a;border-radius:3px;overflow:hidden;max-width:200px}
+#cure-bar{height:100%;background:#2255ff;width:0%;transition:width .3s}
+#sdate{font-size:12px;color:#3a6a3a;min-width:60px;text-align:right}
+#main{display:flex;flex:1;overflow:hidden}
+#map-container{flex:1;position:relative;overflow:hidden}
+#map-container::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(to bottom,transparent 0px,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 3px);pointer-events:none;z-index:5}
+canvas{display:block}
+#side{width:290px;background:#071210;border-left:1px solid #1a3a1a;display:flex;flex-direction:column}
+#tabs{display:flex;border-bottom:1px solid #1a3a1a;flex-shrink:0}
+.tab{flex:1;padding:8px 4px;text-align:center;font-size:10px;cursor:pointer;color:#2a5a2a;border-bottom:2px solid transparent;letter-spacing:1px;transition:all .2s}
+.tab:hover{color:#80ff80}.tab.on{color:#00ff88;border-bottom-color:#00ff88}
+#evo{flex:1;overflow-y:auto;padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:7px;align-content:start}
+.enode{border:1px solid #1a3a1a;border-radius:4px;padding:7px;cursor:pointer;background:#080f08;transition:all .2s;position:relative}
+.enode:hover:not(.elocked):not(.eowned){border-color:#00ff88;background:#0d200d}
+.enode.eowned{border-color:#006633;background:#081808}
+.enode.eowned::after{content:'✓';position:absolute;top:4px;right:6px;color:#00ff88;font-size:11px}
+.enode.elocked{opacity:.25;cursor:not-allowed}
+.ename{font-size:11px;color:#70cc70;margin-bottom:2px}
+.ecost{font-size:10px;color:#ccaa00}
+.edesc{font-size:9px;color:#3a5a3a;margin-top:3px;line-height:1.3}
+#dna-bar{padding:9px 12px;border-top:1px solid #1a3a1a;font-size:13px;color:#ccaa00;flex-shrink:0;text-align:center;letter-spacing:1px}
+#bot{display:flex;align-items:center;gap:10px;padding:7px 14px;background:#071210;border-top:1px solid #1a3a1a;flex-shrink:0}
+.sbtn{padding:4px 11px;background:#080f08;border:1px solid #1a3a1a;color:#80ff80;cursor:pointer;font-family:'Courier New',monospace;font-size:12px;border-radius:3px;transition:all .2s}
+.sbtn:hover{border-color:#00ff88}.sbtn.on{border-color:#00ff88;background:#0a1f0a;color:#00ff88}
+#notifs{position:absolute;bottom:36px;left:16px;display:flex;flex-direction:column;gap:2px;pointer-events:none;z-index:20}
+.notif{font-size:11px;white-space:nowrap;animation:nf 4s ease forwards;background:#071210cc;padding:2px 8px;border-left:2px solid currentColor;border-radius:2px}
+@keyframes nf{0%{opacity:0;transform:translateY(-8px)}10%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}
+@keyframes tickerScroll{from{transform:translateX(100%)}to{transform:translateX(-200%)}}
+#tip{position:absolute;background:#071210ee;border:1px solid #1a5a1a;border-radius:4px;padding:8px 11px;font-size:11px;pointer-events:none;display:none;z-index:50;min-width:150px}
+#tip .tn{font-size:13px;color:#00ff88;margin-bottom:5px}
+#tip .tr{display:flex;justify-content:space-between;gap:12px;margin-bottom:2px}
+#tip .tl{color:#3a5a3a}
+.overlay{position:fixed;inset:0;background:#000d;display:flex;align-items:center;justify-content:center;z-index:200;flex-direction:column;gap:18px}
+.overlay h1{font-size:44px;letter-spacing:8px}
+.overlay p{font-size:14px;color:#3a6a3a;max-width:380px;text-align:center;line-height:1.6}
+.overlay input{background:#080f08;border:1px solid #1a4a1a;color:#80ff80;padding:9px 14px;font-family:'Courier New',monospace;font-size:15px;border-radius:4px;width:280px;outline:none;text-align:center;letter-spacing:2px}
+.overlay input:focus{border-color:#00ff88}
+.pbtn{padding:11px 30px;background:#0a1f0a;border:1px solid #009944;color:#00ff88;cursor:pointer;font-family:'Courier New',monospace;font-size:15px;border-radius:4px;letter-spacing:3px;transition:all .2s}
+.pbtn:hover{background:#0d2a0d;border-color:#00ff88}
+#hint{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);font-size:13px;color:#3a6a3a;pointer-events:none;display:none;animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:#1a3a1a;border-radius:2px}
+</style>
+</head>
+<body>
+
+<div class="overlay" id="ov-start">
+  <h1 style="color:#00ff88">PATHOGEN</h1>
+  <p>Engineer a virus. Infect every human on Earth before a cure is developed.</p>
+  <input id="vname" type="text" placeholder="NAME YOUR VIRUS" maxlength="22" />
+  <button class="pbtn" id="startbtn">RELEASE</button>
+</div>
+
+<div class="overlay" id="ov-win" style="display:none">
+  <h1 style="color:#ff3300">EXTINCTION</h1>
+  <p id="wmsg"></p>
+  <button class="pbtn" onclick="location.reload()">AGAIN</button>
+</div>
+
+<div class="overlay" id="ov-lose" style="display:none">
+  <h1 style="color:#2255ff">CONTAINED</h1>
+  <p id="lmsg"></p>
+  <button class="pbtn" onclick="location.reload()">TRY AGAIN</button>
+</div>
+
+<div id="topbar">
+  <div class="dname" id="dname">PATHOGEN</div>
+  <div class="stats">
+    <div class="stat si"><div class="sval" id="si">0</div><div class="slabel">INFECTED</div></div>
+    <div class="stat sd"><div class="sval" id="sd">0</div><div class="slabel">DEAD</div></div>
+    <div class="stat sh"><div class="sval" id="sh">7.9B</div><div class="slabel">HEALTHY</div></div>
+  </div>
+  <div id="cure-bar-wrap"><div id="cure-bar"></div></div>
+  <div style="font-size:10px;color:#2255ff;min-width:40px" id="curepct">CURE 0%</div>
+  <div id="sdate">Day 0</div>
+</div>
+
+<div id="main">
+  <div id="map-container">
+    <canvas id="map"></canvas>
+    <div id="notifs"></div>
+    <div id="tip">
+      <div class="tn" id="tn"></div>
+      <div class="tr"><span class="tl">Population</span><span id="tp"></span></div>
+      <div class="tr"><span class="tl">Infected</span><span id="ti" style="color:#ffaa00"></span></div>
+      <div style="height:4px;background:#0a1a0a;border-radius:2px;margin:2px 0"><div id="ti-bar" style="height:100%;background:#ffaa00;border-radius:2px;width:0%;transition:width 0.3s"></div></div>
+      <div class="tr"><span class="tl">Dead</span><span id="tdead" style="color:#ff4444"></span></div>
+      <div style="height:4px;background:#0a1a0a;border-radius:2px;margin:2px 0 4px"><div id="td-bar" style="height:100%;background:#ff4444;border-radius:2px;width:0%;transition:width 0.3s"></div></div>
+      <div class="tr"><span class="tl">Status</span><span id="ts"></span></div>
+    </div>
+    <div id="hint">Click a country to begin infection</div>
+  </div>
+  <div id="side">
+    <div id="tabs">
+      <div class="tab on" data-t="t">TRANSMISSION</div>
+      <div class="tab" data-t="s">SYMPTOMS</div>
+      <div class="tab" data-t="a">ABILITIES</div>
+    </div>
+    <div id="evo"></div>
+    <div id="dna-bar">🧬 DNA: <span id="dnacount">3</span></div>
+  </div>
+</div>
+
+<div id="bot">
+  <span style="font-size:10px;color:#2a5a2a;letter-spacing:1px">SPEED</span>
+  <button class="sbtn" data-sp="0">⏸</button>
+  <button class="sbtn on" data-sp="1">1×</button>
+  <button class="sbtn" data-sp="2">2×</button>
+  <button class="sbtn" data-sp="3">3×</button>
+  <div id="ticker-wrap" style="flex:1;overflow:hidden;position:relative;height:20px">
+    <div id="ticker" style="position:absolute;white-space:nowrap;font-size:11px;color:#2a6a3a;animation:none"></div>
+  </div>
+</div>
+
+<script>
+// ── COUNTRY DATA ─────────────────────────────────────────────────────────────
+// [id, name, isoNum, lat, lon, pop, climate(0=arid,1=temp,2=humid,3=cold), wealth(1-3), port, airport]
+const CD = [
+  ['usa','USA',840,38,-98,330e6,1,3,1,1],
+  ['canada','Canada',124,56,-96,38e6,3,3,1,1],
+  ['mexico','Mexico',484,23,-102,130e6,2,2,1,1],
+  ['cuba','Cuba',192,22,-79,11e6,2,1,1,0],
+  ['colombia','Colombia',170,4,-74,50e6,2,2,1,1],
+  ['venezuela','Venezuela',862,8,-65,28e6,2,1,1,0],
+  ['brazil','Brazil',76,-10,-53,215e6,2,2,1,1],
+  ['peru','Peru',604,-10,-75,33e6,1,1,1,0],
+  ['bolivia','Bolivia',68,-17,-65,12e6,1,1,0,0],
+  ['chile','Chile',152,-35,-71,19e6,1,2,1,1],
+  ['argentina','Argentina',32,-34,-64,46e6,1,2,1,1],
+  ['uk','UK',826,54,-2,68e6,1,3,1,1],
+  ['ireland','Ireland',372,53,-8,5e6,1,3,1,0],
+  ['france','France',250,46,2,68e6,1,3,1,1],
+  ['spain','Spain',724,40,-4,47e6,0,2,1,1],
+  ['portugal','Portugal',620,39,-8,10e6,0,2,1,0],
+  ['germany','Germany',276,51,10,84e6,1,3,0,1],
+  ['italy','Italy',380,43,12,60e6,1,3,1,1],
+  ['poland','Poland',616,52,20,38e6,1,2,0,0],
+  ['ukraine','Ukraine',804,49,32,44e6,1,1,0,0],
+  ['sweden','Sweden',752,62,15,10e6,3,3,1,0],
+  ['norway','Norway',578,64,14,5e6,3,3,1,0],
+  ['russia','Russia',643,61,80,145e6,3,2,1,1],
+  ['morocco','Morocco',504,32,-5,37e6,0,1,1,0],
+  ['algeria','Algeria',12,28,3,45e6,0,1,1,0],
+  ['libya','Libya',434,27,17,7e6,0,1,1,0],
+  ['egypt','Egypt',818,26,30,105e6,0,1,1,1],
+  ['sudan','Sudan',729,15,30,44e6,0,1,0,0],
+  ['southsudan','S. Sudan',728,7,30,12e6,2,1,0,0],
+  ['ethiopia','Ethiopia',231,8,39,120e6,2,1,0,0],
+  ['somalia','Somalia',706,6,46,17e6,0,1,1,0],
+  ['cameroon','Cameroon',120,4,12,28e6,2,1,1,0],
+  ['ghana','Ghana',288,8,-1,32e6,2,1,1,0],
+  ['nigeria','Nigeria',566,10,8,220e6,2,1,1,0],
+  ['drcongo','DR Congo',180,-4,24,100e6,2,1,0,0],
+  ['uganda','Uganda',800,1,32,49e6,2,1,0,0],
+  ['kenya','Kenya',404,-1,37,55e6,2,1,1,0],
+  ['tanzania','Tanzania',834,-6,35,63e6,2,1,1,0],
+  ['angola','Angola',24,-12,18,34e6,2,1,1,0],
+  ['zambia','Zambia',894,-14,28,19e6,2,1,0,0],
+  ['zimbabwe','Zimbabwe',716,-20,30,15e6,1,1,0,0],
+  ['mozambique','Mozambique',508,-18,35,33e6,2,1,1,0],
+  ['southafrica','S. Africa',710,-29,25,60e6,0,2,1,1],
+  ['madagascar','Madagascar',450,-20,47,28e6,2,1,1,0],
+  ['turkey','Turkey',792,39,35,85e6,1,2,1,1],
+  ['iran','Iran',364,32,54,88e6,0,2,1,0],
+  ['iraq','Iraq',368,33,44,42e6,0,1,1,0],
+  ['saudi','Saudi Arabia',682,24,45,35e6,0,3,1,1],
+  ['pakistan','Pakistan',586,30,70,225e6,0,1,1,0],
+  ['afghanistan','Afghanistan',4,34,67,39e6,0,1,0,0],
+  ['kazakhstan','Kazakhstan',398,48,68,19e6,3,2,0,0],
+  ['india','India',356,20,77,1380e6,2,2,1,1],
+  ['bangladesh','Bangladesh',50,24,90,170e6,2,1,1,0],
+  ['myanmar','Myanmar',104,20,96,55e6,2,1,1,0],
+  ['thailand','Thailand',764,15,100,70e6,2,2,1,1],
+  ['vietnam','Vietnam',704,16,106,98e6,2,1,1,0],
+  ['malaysia','Malaysia',458,3,109,33e6,2,2,1,1],
+  ['china','China',156,35,105,1400e6,1,2,1,1],
+  ['mongolia','Mongolia',496,47,103,3e6,3,1,0,0],
+  ['northkorea','N. Korea',408,40,127,26e6,3,1,0,0],
+  ['southkorea','S. Korea',410,36,128,52e6,1,3,1,1],
+  ['japan','Japan',392,36,138,126e6,1,3,1,1],
+  ['philippines','Philippines',608,12,122,115e6,2,1,1,1],
+  ['indonesia','Indonesia',360,0,120,275e6,2,2,1,1],
+  ['australia','Australia',36,-25,133,26e6,0,3,1,1],
+  ['newzealand','New Zealand',554,-42,174,5e6,1,3,1,1],
+  ['papuang','Papua NG',598,-7,145,10e6,2,1,1,0],
+  ['greenland','Greenland',304,72,-42,57e3,3,1,0,0],
+  ['ecuador','Ecuador',218,-2,-78,18e6,2,1,1,0],
+  ['paraguay','Paraguay',600,-23,-58,8e6,2,1,0,0],
+  ['uruguay','Uruguay',858,-33,-56,4e6,1,2,0,0],
+  ['chad','Chad',148,15,19,17e6,0,1,0,0],
+  ['niger','Niger',562,17,9,25e6,0,1,0,0],
+  ['mali','Mali',466,17,-4,22e6,0,1,0,0],
+  ['car','C.A. Republic',140,7,21,5e6,2,1,0,0],
+  ['namibia','Namibia',516,-22,18,3e6,0,2,1,0],
+  ['botswana','Botswana',72,-22,24,3e6,0,2,0,0],
+  ['senegal','Senegal',686,14,-14,17e6,2,1,1,0],
+  ['ivoire','Cote dIvoire',384,7,-6,27e6,2,1,1,0],
+  ['syria','Syria',760,35,38,22e6,0,1,0,0],
+  ['jordan','Jordan',400,31,36,11e6,0,1,0,0],
+  ['nepal','Nepal',524,28,84,30e6,1,1,0,0],
+  ['srilanka','Sri Lanka',144,8,81,22e6,2,1,1,0],
+  ['cambodia','Cambodia',116,12,105,17e6,2,1,0,0],
+];
+
+const CONN_PAIRS = [
+  'usa-canada','usa-mexico','usa-cuba','usa-uk','usa-japan',
+  'canada-greenland','canada-uk',
+  'mexico-colombia',
+  'cuba-colombia',
+  'colombia-venezuela','colombia-brazil','colombia-peru',
+  'venezuela-brazil',
+  'brazil-peru','brazil-bolivia','brazil-argentina','brazil-nigeria',
+  'peru-bolivia','peru-chile',
+  'bolivia-chile','bolivia-argentina',
+  'chile-argentina','argentina-southafrica',
+  'uk-ireland','uk-france','uk-norway',
+  'france-spain','france-germany','france-italy','france-morocco','france-nigeria',
+  'spain-portugal','spain-morocco',
+  'germany-poland','germany-italy','germany-ukraine',
+  'italy-turkey',
+  'poland-ukraine','poland-russia',
+  'ukraine-russia','ukraine-turkey',
+  'sweden-norway','sweden-russia','norway-russia',
+  'russia-kazakhstan','russia-mongolia','russia-china','russia-northkorea',
+  'morocco-algeria',
+  'algeria-libya','algeria-egypt',
+  'libya-egypt','libya-sudan',
+  'egypt-sudan','egypt-saudi',
+  'sudan-southsudan','sudan-ethiopia',
+  'southsudan-ethiopia','southsudan-drcongo','southsudan-uganda','southsudan-kenya',
+  'ethiopia-somalia','ethiopia-kenya',
+  'somalia-kenya',
+  'nigeria-cameroon','nigeria-ghana',
+  'ghana-nigeria',
+  'cameroon-drcongo',
+  'drcongo-uganda','drcongo-tanzania','drcongo-angola','drcongo-zambia',
+  'uganda-kenya','uganda-tanzania',
+  'kenya-tanzania',
+  'angola-zambia','angola-southafrica',
+  'zambia-zimbabwe','zambia-mozambique','zambia-southafrica','zambia-tanzania',
+  'zimbabwe-mozambique','zimbabwe-southafrica',
+  'mozambique-southafrica','mozambique-tanzania',
+  'tanzania-madagascar',
+  'southafrica-madagascar',
+  'turkey-iran','turkey-iraq',
+  'iran-iraq','iran-pakistan','iran-afghanistan','iran-saudi',
+  'iraq-saudi',
+  'saudi-egypt','saudi-pakistan',
+  'pakistan-india','pakistan-afghanistan',
+  'afghanistan-iran',
+  'kazakhstan-russia','kazakhstan-china',
+  'india-pakistan','india-china','india-bangladesh','india-myanmar',
+  'bangladesh-myanmar',
+  'myanmar-thailand','myanmar-china',
+  'thailand-malaysia','thailand-vietnam',
+  'vietnam-china','vietnam-malaysia',
+  'malaysia-indonesia','malaysia-philippines',
+  'china-mongolia','china-northkorea',
+  'mongolia-russia',
+  'northkorea-southkorea',
+  'southkorea-japan',
+  'japan-china',
+  'philippines-indonesia',
+  'indonesia-australia','indonesia-papuang',
+  'australia-newzealand','australia-papuang',
+  'india-southafrica','india-indonesia',
+  'brazil-ecuador','colombia-ecuador','ecuador-peru',
+  'brazil-paraguay','brazil-uruguay','argentina-paraguay','argentina-uruguay','paraguay-bolivia',
+  'algeria-mali','algeria-niger','libya-chad','libya-niger','niger-chad','niger-mali','niger-nigeria','chad-sudan','chad-car','chad-nigeria',
+  'mali-senegal','mali-ivoire','mali-ghana','mali-nigeria',
+  'car-sudan','car-drcongo','car-cameroon',
+  'namibia-angola','namibia-southafrica','namibia-botswana','namibia-zambia',
+  'botswana-southafrica','botswana-zimbabwe','botswana-zambia',
+  'senegal-ghana','ivoire-ghana','ivoire-senegal',
+  'syria-turkey','syria-iraq','syria-jordan','jordan-iraq','jordan-saudi','jordan-egypt',
+  'nepal-india','nepal-china',
+  'srilanka-india',
+  'cambodia-thailand','cambodia-vietnam',
+];
+
+// ── EVOLUTION TREE ──────────────────────────────────────────────────────────
+const EVO = {
+  t:[
+    // Water branch
+    {id:'w1',n:'Waterborne 1',c:3,r:[],d:'Contaminates water supplies',fx:v=>{v.ws+=0.04}},
+    {id:'w2',n:'Waterborne 2',c:5,r:['w1'],d:'Infiltrates treatment plants',fx:v=>{v.ws+=0.07}},
+    {id:'w3',n:'Waterborne 3',c:10,r:['w2'],d:'Total water supply takeover',fx:v=>{v.ws+=0.12;v.cb+=0.15}},
+    {id:'sw',n:'Sewage Vector',c:6,r:['w1'],d:'Spreads through waste systems',fx:v=>{v.ws+=0.05;v.bs+=0.02}},
+    // Air branch
+    {id:'a1',n:'Airborne 1',c:5,r:[],d:'Aerosol transmission',fx:v=>{v.as+=0.04}},
+    {id:'a2',n:'Airborne 2',c:9,r:['a1'],d:'Long-range aerosols',fx:v=>{v.as+=0.07;v.cb+=0.3}},
+    {id:'xbio',n:'Extreme Aerosol',c:15,r:['a2'],d:'Massive atmospheric spread',fx:v=>{v.as+=0.12;v.cb+=0.5}},
+    {id:'dp',n:'Droplet Dispersal',c:6,r:['a1'],d:'Explosive sneezing clouds',fx:v=>{v.as+=0.05;v.sv+=0.003}},
+    // Blood/contact branch
+    {id:'bl',n:'Blood Contact',c:4,r:[],d:'Spreads via bodily fluids',fx:v=>{v.bs+=0.03}},
+    {id:'bl2',n:'Blood Contact 2',c:6,r:['bl'],d:'Enhanced fluid transmission',fx:v=>{v.bs+=0.05}},
+    {id:'fm',n:'Fomite Spread',c:7,r:['bl'],d:'Survives hours on surfaces',fx:v=>{v.bs+=0.04;v.cb+=0.1}},
+    // Vector branch
+    {id:'ins',n:'Insect Vector',c:8,r:['bl'],d:'Mosquito transmission',fx:v=>{v.insect=true}},
+    {id:'tick',n:'Tick Vector',c:11,r:['ins'],d:'Cold-climate insects spread virus',fx:v=>{v.bs+=0.04;v.cold=Math.max(v.cold,1)}},
+    {id:'rat',n:'Rodent Vector',c:9,r:['ins'],d:'Rats carry virus across borders',fx:v=>{v.bs+=0.06;v.cb+=0.2}},
+    // Animal/environment
+    {id:'zoo',n:'Zoonotic Shift',c:10,r:[],d:'Wildlife reservoir established',fx:v=>{v.bs+=0.05;v.cb+=0.2}},
+    {id:'ls',n:'Livestock Transfer',c:12,r:['zoo'],d:'Spreads through food chain globally',fx:v=>{v.bs+=0.07;v.cb+=0.3}},
+    {id:'urban',n:'Urban Adaptation',c:8,r:[],d:'Thrives in dense population centres',fx:v=>{v.bs+=0.06;v.ws+=0.03}},
+  ],
+  s:[
+    // Mild entry symptoms
+    {id:'hd',n:'Headache',c:1,r:[],d:'Subtle, rarely detected',fx:v=>{v.bs+=0.01;v.sv+=0.001}},
+    {id:'ft',n:'Fatigue',c:2,r:[],d:'Weakens immune response',fx:v=>{v.bs+=0.015;v.lt+=0.0005}},
+    {id:'mp',n:'Muscle Pain',c:3,r:['ft'],d:'Difficult to diagnose',fx:v=>{v.lt+=0.002;v.sv+=0.003}},
+    {id:'ra',n:'Rash',c:3,r:['ft'],d:'Skin rash, slightly visible',fx:v=>{v.lt+=0.001;v.sv+=0.008}},
+    // Respiratory branch
+    {id:'sn',n:'Sneezing',c:2,r:[],d:'+spread, noticed faster',fx:v=>{v.bs+=0.02;v.sv+=0.005}},
+    {id:'co',n:'Coughing',c:3,r:['sn'],d:'+air spread, alarming',fx:v=>{v.as+=0.03;v.sv+=0.008}},
+    {id:'pn',n:'Pneumonia',c:6,r:['co'],d:'Lung infection, significant lethality',fx:v=>{v.lt+=0.008;v.sv+=0.01}},
+    {id:'resp',n:'Resp. Failure',c:12,r:['pn'],d:'Lungs shut down, extreme lethality',fx:v=>{v.lt+=0.020;v.sv+=0.015}},
+    // GI branch
+    {id:'na',n:'Nausea',c:2,r:[],d:'GI distress, mild lethality',fx:v=>{v.lt+=0.001;v.ws+=0.02}},
+    {id:'vo',n:'Vomiting',c:3,r:['na'],d:'+lethality, contaminates water',fx:v=>{v.lt+=0.002;v.ws+=0.04}},
+    {id:'di',n:'Diarrhea',c:3,r:['na'],d:'Massive water spread',fx:v=>{v.ws+=0.06;v.sv+=0.005}},
+    {id:'ibl',n:'Internal Bleeding',c:9,r:['vo'],d:'GI haemorrhage, very lethal',fx:v=>{v.lt+=0.014}},
+    // Fever/haemorrhage chain
+    {id:'fv',n:'Fever',c:3,r:[],d:'Lethality, noticed by doctors',fx:v=>{v.lt+=0.002;v.sv+=0.01}},
+    {id:'sk',n:'Skin Lesions',c:4,r:['fv'],d:'+lethality, highly visible',fx:v=>{v.lt+=0.003;v.sv+=0.015}},
+    {id:'hm',n:'Hemorrhaging',c:7,r:['sk'],d:'High lethality, alarming',fx:v=>{v.lt+=0.010;v.sv+=0.02}},
+    {id:'an',n:'Anaemia',c:9,r:['hm'],d:'Blood cell destruction',fx:v=>{v.lt+=0.014;v.sv+=0.008}},
+    {id:'bmd',n:'Bone Marrow Death',c:14,r:['an'],d:'Immune system collapses',fx:v=>{v.lt+=0.022;v.sv+=0.01}},
+    // Neuro chain
+    {id:'pa',n:'Paralysis',c:8,r:['fv'],d:'+lethality, slows cure',fx:v=>{v.lt+=0.005;v.cs+=0.1}},
+    {id:'sz',n:'Seizures',c:9,r:['pa'],d:'High lethality, widespread panic',fx:v=>{v.lt+=0.012;v.sv+=0.01}},
+    {id:'bd',n:'Brain Damage',c:11,r:['sz'],d:'Irreversible, slows cure research',fx:v=>{v.lt+=0.016;v.cs+=0.15}},
+    {id:'cm',n:'Coma',c:13,r:['pa'],d:'Massive lethality',fx:v=>{v.lt+=0.022;v.sv+=0.005}},
+    // End-stage
+    {id:'of',n:'Organ Failure',c:14,r:['hm','sz'],d:'Multiple organs shut down',fx:v=>{v.lt+=0.028}},
+    {id:'nc',n:'Necrosis',c:18,r:['of'],d:'Tissue death, near-max lethality',fx:v=>{v.lt+=0.042}},
+    {id:'sys',n:'Systemic Collapse',c:24,r:['nc','bd'],d:'Total body failure — maximum lethality',fx:v=>{v.lt+=0.06;v.cs+=0.1}},
+  ],
+  a:[
+    // Drug resistance chain
+    {id:'dr1',n:'Drug Resist 1',c:4,r:[],d:'Survives basic medications',fx:v=>{v.cs+=0.15}},
+    {id:'dr2',n:'Drug Resist 2',c:7,r:['dr1'],d:'Resists most pharmaceuticals',fx:v=>{v.cs+=0.25}},
+    {id:'abr',n:'Antibiotic Resist',c:9,r:['dr1'],d:'Defeats antibiotic treatment',fx:v=>{v.cs+=0.2;v.lt+=0.003}},
+    {id:'vxr',n:'Vaccine Resist',c:18,r:['dr2'],d:'Defeats vaccine development',fx:v=>{v.cs+=0.38}},
+    // Climate adaptations
+    {id:'cr1',n:'Cold Resist 1',c:3,r:[],d:'Survives cold climates',fx:v=>{v.cold=1}},
+    {id:'cr2',n:'Cold Resist 2',c:5,r:['cr1'],d:'Thrives in arctic conditions',fx:v=>{v.cold=2}},
+    {id:'hr1',n:'Heat Resist 1',c:3,r:[],d:'Survives hot arid climates',fx:v=>{v.heat=1}},
+    {id:'hr2',n:'Heat Resist 2',c:5,r:['hr1'],d:'Thrives in desert heat',fx:v=>{v.heat=2}},
+    {id:'hum',n:'Humidity Adapt',c:4,r:[],d:'Enhanced spread in humid air',fx:v=>{v.as+=0.03;v.bs+=0.02}},
+    {id:'ext',n:'Extremophile',c:14,r:['cr2','hr2'],d:'Thrives in ANY climate',fx:v=>{v.cold=2;v.heat=2;v.bs+=0.05}},
+    // Cure resistance
+    {id:'gh1',n:'Genetic Hardening',c:6,r:[],d:'Genome hard to analyse',fx:v=>{v.cs+=0.2}},
+    {id:'gh2',n:'Gene Re-shuffle',c:10,r:['gh1'],d:'Resets cure progress −25%',fx:(v,g)=>{g.cure=Math.max(0,g.cure-25);v.cs+=0.15}},
+    {id:'gh3',n:'Gene Splicing',c:16,r:['gh2'],d:'Resets cure progress −40%',fx:(v,g)=>{g.cure=Math.max(0,g.cure-40);v.cs+=0.2}},
+    {id:'lat',n:'Latency',c:9,r:['gh1'],d:'Dormant phase evades all detection',fx:v=>{v.cs+=0.25;v.sv*=0.45}},
+    // Stealth chain
+    {id:'st',n:'Stealthy',c:5,r:[],d:'Symptoms far less noticed',fx:v=>{v.sv*=0.4}},
+    {id:'ie',n:'Immune Evasion',c:9,r:['st'],d:'Mimics normal cells perfectly',fx:v=>{v.cs+=0.15;v.sv*=0.55}},
+    {id:'sym',n:'Symbiosis',c:14,r:['ie'],d:'Appears beneficial — zero detection',fx:v=>{v.sv*=0.2;v.cs+=0.15}},
+    // Speed/mutation
+    {id:'mj',n:'Metabolic Jump',c:7,r:[],d:'+base transmission rate',fx:v=>{v.bs+=0.04}},
+    {id:'mj2',n:'Hyper Evolution',c:12,r:['mj'],d:'Rapid mutation boosts all spread',fx:v=>{v.bs+=0.06;v.ws+=0.04;v.as+=0.04;v.cb+=0.2}},
+    {id:'spore',n:'Sporulation',c:15,r:['mj'],d:'Spores survive outside host — massive cross-border boost',fx:v=>{v.cb+=0.9;v.bs+=0.04}},
+  ]
+};
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+const G = {
+  started:false, picking:false, speed:1,
+  day:0, dna:3, cure:0, cureOn:false,
+  name:'PATHOGEN', owned:new Set(),
+  milestones:new Set(),
+  v:{bs:0.10,ws:0,as:0,lt:0,sv:0,cs:0,cb:1,insect:false,cold:0,heat:0},
+  countries:[], conns:[], passiveTick:0,
+};
+
+let bubbles = []; // {x, y, dna, born, vy}
+
+// Build ISO numeric -> game country id lookup
+const isoToGame = {};
+CD.forEach(([id,name,isoNum])=>{ isoToGame[isoNum]=id; });
+
+function initWorld(){
+  G.countries = CD.map(([id,name,isoNum,lat,lon,pop,cl,wl,pt,ap])=>({
+    id,name,isoNum,lat,lon,pop,healthy:pop,infected:0,dead:0,cl,wl,pt,ap,
+    x:0,y:0, path:null
+  }));
+  const idx = o => G.countries.find(c=>c.id===o);
+  G.conns = CONN_PAIRS.map(p=>{
+    const [a,b]=p.split('-');
+    return {a:idx(a),b:idx(b)};
+  }).filter(({a,b})=>a&&b);
+}
+
+// ── CANVAS ───────────────────────────────────────────────────────────────────
+const cv = document.getElementById('map');
+const cx = cv.getContext('2d');
+let W=0, H=0;
+
+// Offscreen canvas for static base map
+let staticCanvas = null;
+let staticDirty = true;
+let worldData = null; // parsed topojson
+
+// Mercator projection, clipped at ±85°
+const _MMAX = Math.log(Math.tan(Math.PI/4 + 85*Math.PI/360));
+function ll2xy(lat, lon){
+  const x = (lon+180)/360*W;
+  const clat = Math.max(-85, Math.min(85, lat));
+  const mN = Math.log(Math.tan(Math.PI/4 + clat*Math.PI/360));
+  const y = (1 - (mN + _MMAX)/(2*_MMAX)) * H;
+  return [x, y];
+}
+
+// Convert GeoJSON geometry to Path2D using equirectangular projection
+function geoToPath(geometry){
+  if(!geometry) return null;
+  const p = new Path2D();
+
+  function addRing(coords){
+    if(!coords||coords.length===0) return;
+    let first=true, prevLon=null;
+    for(const [lon,lat] of coords){
+      const [x,y] = ll2xy(lat,lon);
+      if(first){ p.moveTo(x,y); first=false; }
+      else if(prevLon!==null && Math.abs(lon-prevLon)>180){ p.moveTo(x,y); }
+      else p.lineTo(x,y);
+      prevLon=lon;
+    }
+    p.closePath();
+  }
+
+  function addLineString(coords){
+    if(!coords||coords.length===0) return;
+    let first=true, prevLon=null;
+    for(const [lon,lat] of coords){
+      const [x,y] = ll2xy(lat,lon);
+      if(first){ p.moveTo(x,y); first=false; }
+      else if(prevLon!==null && Math.abs(lon-prevLon)>180){ p.moveTo(x,y); }
+      else p.lineTo(x,y);
+      prevLon=lon;
+    }
+  }
+
+  const t = geometry.type;
+  if(t==='Polygon'){
+    geometry.coordinates.forEach(addRing);
+  } else if(t==='MultiPolygon'){
+    geometry.coordinates.forEach(poly=>poly.forEach(addRing));
+  } else if(t==='LineString'){
+    addLineString(geometry.coordinates);
+  } else if(t==='MultiLineString'){
+    geometry.coordinates.forEach(addLineString);
+  }
+  return p;
+}
+
+// ── MAP RENDERING ─────────────────────────────────────────────────────────────
+
+// Build paths for all countries from world atlas data
+let allCountryPaths = []; // [{id, isoNum, path}]
+let meshPath = null;
+const gameCountryMap = {}; // id -> country object
+
+function buildPaths(){
+  if(!worldData) return;
+  allCountryPaths = [];
+  gameCountryMap;
+
+  // Build game country lookup
+  G.countries.forEach(c=>{ gameCountryMap[c.id]=c; });
+
+  const countries = topojson.feature(worldData, worldData.objects.countries);
+
+  countries.features.forEach(feature=>{
+    const isoNum = +feature.id;
+    const path = geoToPath(feature.geometry);
+    const gameId = isoToGame[isoNum];
+    allCountryPaths.push({isoNum, path, gameId: gameId||null});
+    if(gameId && gameCountryMap[gameId]){
+      gameCountryMap[gameId].path = path;
+    }
+  });
+
+  // Build border mesh
+  const mesh = topojson.mesh(worldData, worldData.objects.countries);
+  meshPath = geoToPath(mesh);
+
+  // Update dot positions
+  G.countries.forEach(c=>{
+    const [x,y] = ll2xy(c.lat,c.lon);
+    c.x=x; c.y=y;
+  });
+
+  staticDirty = true;
+}
+
+function drawStaticLayer(){
+  if(!staticCanvas || staticCanvas.width!==W || staticCanvas.height!==H){
+    staticCanvas = new OffscreenCanvas(W, H);
+  }
+  const sc = staticCanvas.getContext('2d');
+  sc.clearRect(0,0,W,H);
+
+  // Ocean — radial gradient for depth feel
+  const og = sc.createRadialGradient(W*0.5,H*0.42,0, W*0.5,H*0.42,Math.max(W,H)*0.65);
+  og.addColorStop(0,'#082030');
+  og.addColorStop(0.5,'#051620');
+  og.addColorStop(1,'#020b12');
+  sc.fillStyle=og;
+  sc.fillRect(0,0,W,H);
+
+  if(!worldData){ staticDirty=false; return; }
+
+  // Graticule
+  sc.strokeStyle='#0c2218'; sc.lineWidth=0.35;
+  [-60,-30,0,30,60].forEach(lat=>{
+    sc.beginPath();
+    for(let lo=-180;lo<=180;lo+=3){const[x,y]=ll2xy(lat,lo);lo===-180?sc.moveTo(x,y):sc.lineTo(x,y);}
+    sc.stroke();
+  });
+  for(let lo=-150;lo<180;lo+=30){
+    sc.beginPath();
+    for(let la=-85;la<=85;la+=3){const[x,y]=ll2xy(la,lo);la===-85?sc.moveTo(x,y):sc.lineTo(x,y);}
+    sc.stroke();
+  }
+
+  // Non-game country land fill
+  allCountryPaths.forEach(({path,gameId})=>{
+    if(gameId||!path) return;
+    sc.fillStyle='#143614'; sc.fill(path);
+  });
+
+  // Subtle inner coastline glow on all land
+  sc.shadowColor='#1a4a1a'; sc.shadowBlur=4;
+  allCountryPaths.forEach(({path})=>{ if(path){ sc.strokeStyle='#163016'; sc.lineWidth=0.8; sc.stroke(path); }});
+  sc.shadowBlur=0;
+
+  // Border mesh on top
+  if(meshPath){ sc.strokeStyle='#1e3e1e'; sc.lineWidth=0.4; sc.stroke(meshPath); }
+
+  staticDirty=false;
+}
+
+function infectionColor(ifrac, dfrac){
+  if(dfrac>0.9) return '#300000';
+  if(dfrac>0.5) return '#5a0000';
+  if(ifrac>0.7) return '#6a0800';
+  if(ifrac>0.4) return '#6a2a00';
+  if(ifrac>0.15) return '#4a4200';
+  if(ifrac>0.02) return '#2a4800';
+  return '#142814';
+}
+
+function drawMap(){
+  if(staticDirty) drawStaticLayer();
+
+  cx.clearRect(0,0,W,H);
+  if(staticCanvas) cx.drawImage(staticCanvas,0,0);
+  else{ cx.fillStyle='#020b12'; cx.fillRect(0,0,W,H); }
+
+  if(!worldData){
+    cx.fillStyle='#1a4a2a'; cx.font='bold 14px Courier New';
+    cx.textAlign='center'; cx.fillText('LOADING WORLD DATA...',W/2,H/2);
+    return;
+  }
+
+  const now=Date.now();
+
+  // Game country polygons with glow
+  allCountryPaths.forEach(({path,gameId})=>{
+    if(!gameId||!path) return;
+    const c=gameCountryMap[gameId]; if(!c) return;
+    const alive=c.pop-c.dead;
+    const ifrac=alive>0?c.infected/alive:0;
+    const dfrac=c.pop>0?c.dead/c.pop:0;
+
+    if(c.infected>0||c.dead>0){
+      const glowCol = dfrac>0.5?'#ff1100':ifrac>0.4?'#ff5500':'#88cc00';
+      cx.save();
+      cx.shadowColor=glowCol; cx.shadowBlur=25;
+      cx.fillStyle=infectionColor(ifrac,dfrac); cx.fill(path);
+      cx.shadowBlur=10; cx.fill(path);
+      cx.restore();
+    } else {
+      cx.fillStyle='#142814'; cx.fill(path);
+    }
+  });
+
+  // Border mesh on top of game countries
+  if(meshPath){ cx.strokeStyle='#1e3e1e'; cx.lineWidth=0.4; cx.stroke(meshPath); }
+
+  // Connection lines — only draw when either side has infection
+  G.conns.forEach(({a,b})=>{
+    if(!a||!b) return;
+    const aI=a.infected/Math.max(1,a.pop), bI=b.infected/Math.max(1,b.pop);
+    if(aI<0.005&&bI<0.005){ // draw faint uninfected lines
+      cx.beginPath(); cx.moveTo(a.x,a.y); cx.lineTo(b.x,b.y);
+      cx.strokeStyle='#0d2010'; cx.lineWidth=0.5; cx.stroke();
+    } else {
+      const pulse=0.5+0.5*Math.sin(now/600);
+      cx.save();
+      cx.beginPath(); cx.moveTo(a.x,a.y); cx.lineTo(b.x,b.y);
+      cx.shadowColor='#ff7700'; cx.shadowBlur=4+pulse*4;
+      cx.strokeStyle=`rgba(180,100,0,${0.5+pulse*0.3})`; cx.lineWidth=1;
+      cx.stroke(); cx.restore();
+    }
+  });
+
+  // Dots + labels
+  G.countries.forEach(c=>{
+    const alive=c.pop-c.dead;
+    const ifrac=alive>0?c.infected/alive:0;
+    const dfrac=c.pop>0?c.dead/c.pop:0;
+    const infected=c.infected>0||c.dead>0;
+
+    let dotCol,labelCol;
+    if(dfrac>0.9){dotCol='#550000';labelCol='#ff4444';}
+    else if(ifrac>0.6){dotCol='#cc1100';labelCol='#ff8866';}
+    else if(ifrac>0.2){dotCol='#bb5500';labelCol='#ffbb44';}
+    else if(ifrac>0.01){dotCol='#88aa00';labelCol='#ccee44';}
+    else{dotCol='#1a4a1a';labelCol='#336633';}
+
+    cx.save();
+    if(infected){
+      const pulse=0.5+0.5*Math.sin(now/500+c.lat);
+      cx.shadowColor=dotCol; cx.shadowBlur=8+pulse*8;
+    }
+    cx.beginPath(); cx.arc(c.x,c.y,3,0,Math.PI*2);
+    cx.fillStyle=dotCol; cx.fill();
+    cx.strokeStyle='rgba(0,0,0,0.6)'; cx.lineWidth=0.8; cx.stroke();
+    cx.restore();
+
+    // Label with shadow for readability
+    cx.save();
+    cx.shadowColor='#000'; cx.shadowBlur=4;
+    cx.fillStyle=labelCol;
+    cx.font=`${infected?'bold ':''} 9px Courier New`;
+    cx.textAlign='center';
+    cx.fillText(c.name, c.x, c.y-7);
+    cx.restore();
+  });
+
+  // DNA bubbles
+  const nt=Date.now();
+  bubbles.forEach(b=>{
+    const age=nt-b.born;
+    if(age>7000)return;
+    const alpha=Math.max(0,1-age/7000);
+    const by=b.y+(b.vy*age);
+    const pulse=0.75+0.25*Math.sin(nt/180);
+    const sz=b.dna>=5?22:b.dna>=3?18:15; // bigger for rarer bubbles
+    cx.save();
+    cx.globalAlpha=alpha*pulse;
+    cx.shadowColor=b.dna>=5?'#ffdd00':b.dna>=3?'#00ff88':'#00cc66';
+    cx.shadowBlur=12;
+    cx.font=`bold ${sz}px Arial`;
+    cx.fillStyle=b.dna>=5?'#ffee00':b.dna>=3?'#00ffcc':'#00ffaa';
+    cx.textAlign='center';
+    cx.fillText('☣',b.x,by);
+    cx.font=`bold 9px Courier New`;
+    cx.fillStyle='#ffee44';
+    cx.shadowBlur=3; cx.shadowColor='#aa6600';
+    cx.fillText(`+${b.dna}`,b.x+sz*0.6,by-sz*0.4);
+    cx.restore();
+  });
+
+  // Vignette overlay
+  const vign=cx.createRadialGradient(W/2,H/2,H*0.2, W/2,H/2,Math.max(W,H)*0.75);
+  vign.addColorStop(0,'rgba(0,0,0,0)');
+  vign.addColorStop(1,'rgba(0,0,0,0.55)');
+  cx.fillStyle=vign; cx.fillRect(0,0,W,H);
+}
+
+function resize(){
+  const mc = document.getElementById('map-container');
+  W = cv.width = mc.clientWidth;
+  H = cv.height = mc.clientHeight;
+  buildPaths();
+  staticDirty = true;
+}
+
+// ── WORLD ATLAS FETCH ────────────────────────────────────────────────────────
+async function loadWorldAtlas(){
+  try {
+    const resp = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+    worldData = await resp.json();
+    buildPaths();
+    staticDirty = true;
+  } catch(e){
+    console.error('Failed to load world atlas:', e);
+  }
+}
+
+// ── GAME TICK ────────────────────────────────────────────────────────────────
+let lastT=0;
+const SPEEDS=[0,1000,500,333];
+
+function tick(now){
+  if(!G.started||G.speed===0)return;
+  if(now-lastT<SPEEDS[G.speed])return;
+  lastT=now;
+  G.day++;
+  const v=G.v;
+
+  G.countries.forEach(c=>{
+    if(c.infected===0)return;
+    const alive=c.pop-c.dead;
+    if(alive<=0)return;
+    let cm=1;
+    if(c.cl===3){cm=v.cold===2?1.3:v.cold===1?0.9:0.45;}
+    if(c.cl===0){cm=v.heat===2?1.2:v.heat===1?0.85:0.6;}
+    if(c.cl===2&&v.insect)cm*=1.4;
+    const wm=1-(c.wl-1)*0.05;
+    const sr=(v.bs+v.ws+v.as)*cm*wm;
+    const ni=Math.min(Math.floor(c.infected*sr*(c.healthy/alive)*(0.85+Math.random()*0.3)),c.healthy);
+    c.healthy-=ni;c.infected+=ni;
+    if(v.lt>0){
+      const nd=Math.min(Math.floor(c.infected*v.lt),c.infected);
+      c.infected-=nd;c.dead+=nd;
+    }
+  });
+
+  G.conns.forEach(({a,b})=>{xspread(a,b);xspread(b,a);});
+
+  // Spawn DNA bubbles on infected countries
+  if(G.started){
+    G.countries.forEach(c=>{
+      if(c.infected<=0)return;
+      const ifrac=c.infected/c.pop;
+      // Higher spawn rate + chance for rare 5-DNA bubble
+      if(Math.random()<ifrac*0.22*G.speed){
+        const angle=Math.random()*Math.PI*2;
+        const r=8+Math.random()*20;
+        const roll=Math.random();
+        bubbles.push({
+          x:c.x+Math.cos(angle)*r,
+          y:c.y+Math.sin(angle)*r,
+          dna:roll<0.05?5:roll<0.2?3:roll<0.5?2:1,
+          born:Date.now(),
+          vy:-(0.35+Math.random()*0.35),
+        });
+      }
+    });
+    bubbles=bubbles.filter(b=>Date.now()-b.born<7000);
+    if(bubbles.length>50)bubbles=bubbles.slice(-50);
+  }
+
+  const affC=G.countries.filter(c=>c.infected>0||c.dead>0).length;
+  const totI=G.countries.reduce((s,c)=>s+c.infected+c.dead,0);
+  const ifrac=totI/7.9e9;
+  if(affC>2||ifrac>0.01)G.cureOn=true;
+  if(G.cureOn){
+    const wsum=G.countries.filter(c=>c.infected>0||c.dead>0).reduce((s,c)=>s+c.wl,0);
+    let spd=(v.sv+0.003+ifrac*0.15)*(1+wsum*0.02)*(1-Math.min(0.85,v.cs));
+    spd=Math.max(0.015,Math.min(4,spd));
+    G.cure=Math.min(100,G.cure+spd);
+  }
+
+  const totAll=G.countries.reduce((s,c)=>s+c.infected+c.dead,0);
+  const totDead=G.countries.reduce((s,c)=>s+c.dead,0);
+
+  // Infection milestones
+  [[1e3,1,'1K infected'],[1e5,2,'100K infected'],[1e6,2,'1M infected'],
+   [1e7,3,'10M infected'],[1e8,4,'100M infected'],[5e8,5,'500M infected'],
+   [1e9,6,'1B infected'],[3e9,8,'3B infected'],[7e9,12,'All humans infected']
+  ].forEach(([th,d,msg])=>{
+    if(totAll>=th&&!G.milestones.has('i'+th)){G.milestones.add('i'+th);G.dna+=d;notify(`${msg} (+${d} DNA)🧬`,'#ccaa00');}
+  });
+
+  // Death milestones — separate pool, fire as lethality increases
+  [[1e4,2,'10K dead'],[1e5,3,'100K dead'],[1e6,3,'1M dead'],
+   [1e7,4,'10M dead'],[5e7,5,'50M dead'],[1e8,6,'100M dead'],
+   [5e8,8,'500M dead'],[1e9,10,'1B dead'],[3e9,12,'3B dead'],
+   [6e9,18,'6B dead — nearly done']
+  ].forEach(([th,d,msg])=>{
+    if(totDead>=th&&!G.milestones.has('d'+th)){G.milestones.add('d'+th);G.dna+=d;notify(`${msg} (+${d} DNA)💀`,'#ff4444');}
+  });
+
+  // Country saturation milestones
+  [[10,3,'Virus in 10 countries'],[20,4,'Virus in 20 countries'],[40,6,'Virus in 40 countries'],
+   [affC>=G.countries.length?affC:Infinity,10,'Every country infected']
+  ].forEach(([th,d,msg])=>{
+    if(affC>=th&&!G.milestones.has('c'+th)){G.milestones.add('c'+th);G.dna+=d;notify(`${msg} (+${d} DNA)🌍`,'#00ffaa');}
+  });
+
+  // Passive DNA drip — 1 DNA every 30 ticks while any country is infected
+  if(G.started && affC>0){
+    G.passiveTick=(G.passiveTick||0)+1;
+    if(G.passiveTick>=30){G.passiveTick=0;G.dna+=1;}
+  }
+
+  const totH=G.countries.reduce((s,c)=>s+c.healthy,0);
+  if(G.cure>=100){endGame(false);return;}
+  if(totH<=0&&v.lt>0){endGame(true);return;}
+}
+
+function xspread(from,to){
+  if(!from||!to||from.infected===0||to.healthy===0)return;
+  const ifrac=from.infected/from.pop;
+  let p=Math.min(0.8,Math.pow(ifrac,0.4)*0.22*G.v.cb);
+  if(to.cl===3&&G.v.cold===0)p*=0.35;
+  if(to.cl===0&&G.v.heat===0)p*=0.55;
+  if(Math.random()<p){
+    const seed=Math.max(5,Math.floor(from.infected*0.0008));
+    if(to.infected===0&&to.dead===0){
+      notify(`${G.name} reaches ${to.name}!`,'#ffaa00');
+      G.dna+=2;
+    }
+    const actual=Math.min(seed,to.healthy);
+    to.infected+=actual;to.healthy-=actual;
+  }
+}
+
+function endGame(won){
+  G.speed=0;
+  const totD=G.countries.reduce((s,c)=>s+c.dead,0);
+  if(won){
+    document.getElementById('wmsg').textContent=`${G.name} eliminated ${fmt(totD)} humans in ${G.day} days. Humanity is extinct.`;
+    document.getElementById('ov-win').style.display='flex';
+  }else{
+    const totI=G.countries.reduce((s,c)=>s+c.infected+c.dead,0);
+    document.getElementById('lmsg').textContent=`A cure was synthesized on day ${G.day}. ${fmt(totI)} were infected. ${fmt(totD)} died. You failed.`;
+    document.getElementById('ov-lose').style.display='flex';
+  }
+}
+
+// ── EVOLUTION UI ─────────────────────────────────────────────────────────────
+let curTab='t';
+const allEvos=()=>[...EVO.t,...EVO.s,...EVO.a];
+
+function renderEvo(){
+  const el=document.getElementById('evo');
+  el.innerHTML='';
+  EVO[curTab].forEach(e=>{
+    const owned=G.owned.has(e.id);
+    const locked=!e.r.every(r=>G.owned.has(r));
+    const d=document.createElement('div');
+    d.className='enode'+(owned?' eowned':'')+(locked?' elocked':'');
+    const reqNames=e.r.map(r=>allEvos().find(x=>x.id===r)?.n||r).join(', ');
+    d.innerHTML=`<div class="ename">${e.n}</div>
+<div class="ecost">${owned?'OWNED':`🧬 ${e.c}`}</div>
+<div class="edesc">${locked&&reqNames?`Req: ${reqNames}`:e.d}</div>`;
+    if(!owned&&!locked)d.addEventListener('click',()=>buyEvo(e));
+    el.appendChild(d);
+  });
+  document.getElementById('dnacount').textContent=G.dna;
+}
+
+function buyEvo(e){
+  if(G.dna<e.c){notify('Not enough DNA!','#ff4444');return;}
+  if(G.owned.has(e.id))return;
+  G.dna-=e.c;G.owned.add(e.id);
+  e.fx(G.v,G);
+  notify(`Evolved: ${e.n}`,'#00ff88');
+  renderEvo();
+}
+
+// ── HOVER / CLICK DETECTION ──────────────────────────────────────────────────
+function cAt(mx, my){
+  // First try path hit-test for game countries
+  for(const c of G.countries){
+    if(c.path && cx.isPointInPath(c.path, mx, my)) return c;
+  }
+  // Fallback: dot proximity
+  let best=null, bd=Infinity;
+  G.countries.forEach(c=>{
+    const d=Math.hypot(c.x-mx,c.y-my);
+    if(d<12&&d<bd){bd=d;best=c;}
+  });
+  return best;
+}
+
+cv.addEventListener('mousemove',e=>{
+  const rc=cv.getBoundingClientRect();
+  const mx=e.clientX-rc.left, my=e.clientY-rc.top;
+  const c=cAt(mx,my);
+  const tip=document.getElementById('tip');
+  if(c){
+    document.getElementById('tn').textContent=c.name;
+    document.getElementById('tp').textContent=fmt(c.pop);
+    document.getElementById('ti').textContent=fmt(c.infected);
+    document.getElementById('tdead').textContent=fmt(c.dead);
+    const ts=document.getElementById('ts');
+    const alive=c.pop-c.dead;
+    const ifr=alive>0?c.infected/alive:0;
+    if(c.dead>c.pop*0.9){ts.textContent='EXTINCT';ts.style.color='#ff3300';}
+    else if(ifr>0.5){ts.textContent='OVERWHELMED';ts.style.color='#ff6600';}
+    else if(c.infected>0){ts.textContent='INFECTED';ts.style.color='#ffaa00';}
+    else{ts.textContent='HEALTHY';ts.style.color='#44ff88';}
+    const ibar=alive>0?Math.min(100,(c.infected/alive*100)).toFixed(1):0;
+    const dbar=Math.min(100,(c.dead/c.pop*100)).toFixed(1);
+    document.getElementById('ti-bar').style.width=ibar+'%';
+    document.getElementById('td-bar').style.width=dbar+'%';
+    tip.style.left=Math.min(mx+15,W-165)+'px';
+    tip.style.top=Math.max(5,my-90)+'px';
+    tip.style.display='block';
+  }else{tip.style.display='none';}
+});
+cv.addEventListener('mouseleave',()=>{document.getElementById('tip').style.display='none';});
+
+cv.addEventListener('click',e=>{
+  const rc=cv.getBoundingClientRect();
+  // Check bubble clicks first
+  const nt2=Date.now();
+  let clickedBubble=false;
+  bubbles=bubbles.filter(b=>{
+    const age=nt2-b.born;
+    const by=b.y+(b.vy*age);
+    if(Math.hypot(e.clientX-rc.left-b.x, e.clientY-rc.top-by)<22){
+      G.dna+=b.dna;
+      document.getElementById('dnacount').textContent=G.dna;
+      renderEvo();
+      // Floating +DNA text
+      notify(`+${b.dna} DNA collected!`,'#00ff88');
+      clickedBubble=true;
+      return false; // remove bubble
+    }
+    return true;
+  });
+  if(clickedBubble)return; // don't also trigger country selection
+
+  if(!G.picking)return;
+  const c=cAt(e.clientX-rc.left,e.clientY-rc.top);
+  if(!c)return;
+  c.infected=Math.max(1,Math.floor(c.pop*0.00005));
+  c.healthy=c.pop-c.infected;
+  G.picking=false;G.started=true;
+  document.getElementById('hint').style.display='none';
+  notify(`${G.name} emerges in ${c.name}...`,'#00ff88');
+});
+
+// ── HUD ──────────────────────────────────────────────────────────────────────
+function updateHUD(){
+  const ti=G.countries.reduce((s,c)=>s+c.infected,0);
+  const td=G.countries.reduce((s,c)=>s+c.dead,0);
+  const th=G.countries.reduce((s,c)=>s+c.healthy,0);
+  document.getElementById('si').textContent=fmt(ti);
+  document.getElementById('sd').textContent=fmt(td);
+  document.getElementById('sh').textContent=fmt(Math.max(0,th));
+  document.getElementById('cure-bar').style.width=G.cure.toFixed(1)+'%';
+  document.getElementById('curepct').textContent=`CURE ${G.cure.toFixed(1)}%`;
+  document.getElementById('sdate').textContent=`Day ${G.day}`;
+  document.getElementById('dnacount').textContent=G.dna;
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+function notify(msg,col='#3a6a3a'){
+  const c=document.getElementById('notifs');
+  if(!c)return;
+  const d=document.createElement('div');
+  d.className='notif';d.textContent=`▶ ${msg}`;d.style.color=col;
+  c.insertBefore(d,c.firstChild);
+  while(c.children.length>3)c.removeChild(c.lastChild);
+  setTimeout(()=>{if(d.parentNode)d.remove();},4000);
+}
+
+// ── NEWS TICKER ───────────────────────────────────────────────────────────────
+const NEWS = [
+  'Health authorities monitoring unusual respiratory illness',
+  'CDC issues advisory on new pathogen',
+  'Hospitals report increase in undiagnosed cases',
+  'Scientists scrambling to identify new disease agent',
+  'Travel advisories issued for affected regions',
+  'Global health emergency declared by WHO',
+  'Pharmaceutical companies begin vaccine trials',
+  'Cure research teams mobilized worldwide',
+  'Airport screenings intensified at major hubs',
+  'Schools and public spaces closing in affected areas',
+  'Morgues overwhelmed as death toll rises',
+  'Panic buying reported in major cities',
+  'Military deployed to enforce quarantine zones',
+  'Last known healthy communities established quarantine',
+];
+let tickerIdx=0;
+function rotateTicker(){
+  const el=document.getElementById('ticker');
+  if(!el)return;
+  const infected=G.countries.filter(c=>c.infected>0||c.dead>0);
+  let msg=NEWS[tickerIdx%NEWS.length];
+  if(infected.length>0){
+    const rc=infected[Math.floor(Math.random()*infected.length)];
+    const custom=[
+      `${G.name} detected in ${rc.name} — authorities alarmed`,
+      `Death toll rises to ${fmt(G.countries.reduce((s,c)=>s+c.dead,0))} worldwide`,
+      `${G.name} now present in ${infected.length} countries`,
+      `Cure research at ${G.cure.toFixed(0)}% — scientists working around the clock`,
+    ];
+    if(Math.random()<0.5)msg=custom[Math.floor(Math.random()*custom.length)];
+  }
+  tickerIdx++;
+  el.textContent='▶  '+msg+'  ◀';
+  el.style.animation='none';
+  el.offsetHeight; // reflow
+  el.style.animation=`tickerScroll ${Math.max(8,msg.length*0.18)}s linear`;
+}
+setInterval(rotateTicker,10000);
+rotateTicker();
+
+// ── FORMAT ────────────────────────────────────────────────────────────────────
+function fmt(n){
+  if(n>=1e9)return(n/1e9).toFixed(2)+'B';
+  if(n>=1e6)return(n/1e6).toFixed(2)+'M';
+  if(n>=1e3)return(n/1e3).toFixed(1)+'K';
+  return Math.floor(n).toString();
+}
+
+// ── LOOP ─────────────────────────────────────────────────────────────────────
+function loop(now){
+  tick(now);
+  drawMap();
+  updateHUD();
+  requestAnimationFrame(loop);
+}
+
+// ── EVENTS ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('.sbtn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    G.speed=+b.dataset.sp;
+    document.querySelectorAll('.sbtn').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+  });
+});
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    t.classList.add('on');curTab=t.dataset.t;renderEvo();
+  });
+});
+
+document.getElementById('startbtn').addEventListener('click',()=>{
+  const v=document.getElementById('vname').value.trim();
+  G.name=v||'PATHOGEN';
+  document.getElementById('dname').textContent=G.name;
+  document.getElementById('ov-start').style.display='none';
+  G.picking=true;
+  document.getElementById('hint').style.display='block';
+  renderEvo();
+});
+
+window.addEventListener('resize',()=>{ resize(); });
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+initWorld();
+resize();
+loadWorldAtlas(); // async fetch; will call buildPaths() and set staticDirty when done
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

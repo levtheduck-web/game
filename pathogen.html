@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PATHOGEN</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --red:#ff2200;--teal:#00ddbb;--green:#44ff00;--blue:#0099ff;
+  --panel:rgba(2,5,14,0.97);--border:rgba(20,50,100,0.2);
+  --text:#c0d0e0;--dim:#3a5060;
+}
+body{
+  background:#02050c;color:var(--text);
+  font-family:'Share Tech Mono',monospace;
+  height:100vh;display:flex;flex-direction:column;overflow:hidden;
+  user-select:none;
+}
+/* --- TOPBAR --- */
+#topbar{
+  display:flex;align-items:center;gap:20px;padding:8px 18px;
+  background:rgba(2,4,12,0.98);
+  border-bottom:1px solid rgba(0,180,150,0.10);
+  flex-shrink:0;position:relative;
+  box-shadow:0 2px 24px rgba(0,0,0,.7);
+}
+#topbar::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,220,180,.15),transparent);
+}
+#game-title{
+  font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;
+  color:var(--red);letter-spacing:4px;
+  text-shadow:0 0 20px rgba(255,30,0,.6),0 0 40px rgba(255,30,0,.2);
+  flex-shrink:0;
+}
+.tstat{display:flex;flex-direction:column;flex-shrink:0;}
+.tstat-lbl{font-size:8px;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase;}
+.tstat-val{font-size:15px;font-weight:bold;letter-spacing:1px;}
+.ti{color:#ff4422;text-shadow:0 0 8px rgba(255,60,20,.4);}
+.td{color:#990000;text-shadow:0 0 8px rgba(150,0,0,.4);}
+.th{color:#22ccaa;text-shadow:0 0 8px rgba(0,200,160,.3);}
+#cure-wrap{flex:1;min-width:140px;}
+#cure-lbl{font-size:8px;color:var(--dim);letter-spacing:1px;display:flex;justify-content:space-between;margin-bottom:4px;}
+#cure-track{
+  background:#040d1a;height:8px;border-radius:4px;overflow:hidden;
+  border:1px solid rgba(0,100,200,.2);
+  box-shadow:inset 0 1px 4px rgba(0,0,0,.5);
+}
+#cure-fill{
+  height:100%;width:0%;border-radius:4px;
+  background:linear-gradient(90deg,#002266,#0055aa,#2299ff);
+  transition:width .6s ease;
+  box-shadow:0 0 8px rgba(0,150,255,.5);
+  position:relative;overflow:hidden;
+}
+#cure-fill::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.18) 50%,transparent 100%);
+  animation:shimmer 2s infinite linear;
+}
+@keyframes shimmer{from{transform:translateX(-100%)}to{transform:translateX(200%)}}
+#speed-btns{display:flex;gap:4px;flex-shrink:0;}
+.sp-btn{
+  background:rgba(4,8,22,.8);border:1px solid rgba(30,55,100,.4);
+  color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:9px;
+  padding:4px 9px;cursor:pointer;border-radius:3px;letter-spacing:.5px;
+  transition:all .2s;
+}
+.sp-btn.active{border-color:var(--red);color:var(--red);box-shadow:0 0 8px rgba(255,30,0,.2);}
+.sp-btn:hover:not(.active){border-color:rgba(100,150,200,.5);color:#88aacc;}
+/* --- MAIN --- */
+#main{display:flex;flex:1;overflow:hidden;min-height:0;}
+#map-area{flex:1;position:relative;overflow:hidden;}
+#map-canvas{display:block;}
+/* --- SIDEBAR --- */
+#sidebar{
+  width:240px;
+  background:rgba(2,5,14,0.97);
+  border-left:1px solid rgba(20,50,100,.2);
+  display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;
+  box-shadow:-4px 0 30px rgba(0,0,0,.5);
+}
+#disease-panel{
+  padding:14px 14px 12px;
+  border-bottom:1px solid rgba(20,50,100,.2);
+  background:linear-gradient(180deg,rgba(20,5,5,.4),transparent);
+  flex-shrink:0;
+}
+#disease-name-display{
+  font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;
+  color:var(--red);letter-spacing:2px;margin-bottom:10px;
+  text-shadow:0 0 15px rgba(255,30,0,.5);
+}
+.stat-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.stat-row-lbl{font-size:8px;color:var(--dim);width:70px;letter-spacing:1px;text-transform:uppercase;flex-shrink:0;}
+.stat-track{flex:1;height:5px;background:#04090f;border-radius:3px;overflow:visible;position:relative;}
+.stat-fill{height:100%;border-radius:3px;transition:width .4s;position:relative;}
+.sf-inf{background:linear-gradient(90deg,#112244,#44ff66);box-shadow:0 0 6px rgba(50,220,80,.4);}
+.sf-sev{background:linear-gradient(90deg,#442200,#ff8822);box-shadow:0 0 6px rgba(255,120,20,.4);}
+.sf-leth{background:linear-gradient(90deg,#330000,#ff2222);box-shadow:0 0 6px rgba(255,20,20,.4);}
+.stat-row-num{font-size:9px;color:#445566;width:28px;text-align:right;flex-shrink:0;}
+#dna-panel{
+  padding:12px 14px;
+  border-bottom:1px solid rgba(20,50,100,.2);
+  display:flex;align-items:center;gap:12px;flex-shrink:0;
+  background:linear-gradient(180deg,transparent,rgba(10,30,5,.2),transparent);
+}
+#dna-count{
+  font-size:36px;font-weight:bold;color:var(--green);
+  font-family:'Rajdhani',sans-serif;
+  text-shadow:0 0 15px rgba(68,255,0,.4),0 0 30px rgba(68,255,0,.1);
+  line-height:1;
+}
+#dna-info{display:flex;flex-direction:column;gap:2px;}
+#dna-lbl{font-size:8px;color:#3a6020;letter-spacing:1.5px;text-transform:uppercase;}
+#dna-rate{font-size:10px;color:#4a7a28;}
+#evo-tabs{display:flex;gap:0;flex-shrink:0;border-bottom:1px solid rgba(20,50,100,.2);}
+.etab{
+  flex:1;background:transparent;border:none;border-bottom:2px solid transparent;
+  color:#2a4060;font-family:'Share Tech Mono',monospace;font-size:9px;
+  padding:7px 4px;cursor:pointer;letter-spacing:.8px;text-transform:uppercase;
+  transition:color .18s,border-color .18s;
+}
+.etab:hover{color:#6688aa;}
+.etab.active{color:var(--teal);border-bottom-color:var(--teal);}
+#evo-scroll{flex:1;overflow-y:auto;padding:10px 10px 16px;}
+#evo-scroll::-webkit-scrollbar{width:3px;}
+#evo-scroll::-webkit-scrollbar-track{background:transparent;}
+#evo-scroll::-webkit-scrollbar-thumb{background:rgba(40,70,120,.3);border-radius:2px;}
+.evo-cat{margin-bottom:12px;}
+.evo-cat-title{
+  font-size:8px;color:rgba(60,100,140,.8);text-transform:uppercase;
+  letter-spacing:2px;margin-bottom:5px;padding-bottom:3px;
+  border-bottom:1px solid rgba(20,40,80,.4);display:flex;align-items:center;gap:6px;
+}
+.evo-cat-title::before{content:'';flex:1;height:1px;}
+.evo-node{
+  display:flex;align-items:center;gap:6px;
+  background:rgba(4,8,22,.6);
+  border:1px solid rgba(20,45,90,.3);
+  border-radius:4px;padding:6px 8px;margin-bottom:3px;
+  cursor:pointer;font-size:10px;color:#6688aa;
+  width:100%;text-align:left;font-family:'Share Tech Mono',monospace;
+  transition:border-color .2s,color .2s,background .2s,box-shadow .2s;
+  position:relative;overflow:hidden;
+}
+.evo-node::before{
+  content:'';position:absolute;inset:0;opacity:0;
+  background:linear-gradient(135deg,transparent,rgba(255,255,255,.03),transparent);
+  transition:opacity .2s;
+}
+.evo-node:hover:not(:disabled):not(.owned)::before{opacity:1;}
+.evo-node:hover:not(:disabled):not(.owned){
+  border-color:rgba(100,220,80,.5);color:#99ee66;
+  background:rgba(8,22,6,.8);box-shadow:0 0 10px rgba(80,200,50,.1);
+}
+.evo-node:disabled{opacity:.25;cursor:not-allowed;}
+.evo-node.owned{
+  background:rgba(4,14,4,.7);border-color:rgba(25,70,18,.5);
+  color:#448833;cursor:default;
+}
+.evo-node.owned .evo-cost{color:#2a5018;}
+.evo-node.mut{
+  border-color:rgba(180,80,255,.6) !important;color:#cc77ff !important;
+  background:rgba(20,5,35,.8) !important;
+  box-shadow:0 0 12px rgba(150,50,255,.2) !important;
+  animation:mutglow 1.2s ease-in-out infinite;
+}
+@keyframes mutglow{
+  0%,100%{box-shadow:0 0 8px rgba(150,50,255,.2);}
+  50%{box-shadow:0 0 18px rgba(180,80,255,.4);}
+}
+.evo-icon{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.ei-t{background:radial-gradient(#66ffaa,#228844);}
+.ei-s{background:radial-gradient(#ffaa44,#884422);}
+.ei-a{background:radial-gradient(#4488ff,#224488);}
+.evo-name{flex:1;line-height:1.2;}
+.evo-pre{font-size:8px;color:rgba(50,70,100,.6);display:block;margin-top:1px;}
+.evo-cost{font-size:9px;color:var(--green);flex-shrink:0;font-weight:bold;}
+/* --- BOTTOM --- */
+#newsbar{
+  height:28px;background:rgba(2,4,12,.98);
+  border-top:1px solid rgba(0,180,150,.07);
+  display:flex;align-items:center;padding:0 14px;flex-shrink:0;
+  box-shadow:0 -2px 15px rgba(0,0,0,.4);
+}
+#newsbar::before{content:'▶';color:rgba(0,180,150,.4);margin-right:10px;font-size:9px;}
+#news-text{font-size:10px;color:#2a4050;letter-spacing:.5px;transition:opacity .3s;}
+/* --- SCREENS --- */
+.screen{
+  position:fixed;inset:0;background:#02050c;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:100;
+}
+.screen h1{
+  font-family:'Rajdhani',sans-serif;font-size:64px;letter-spacing:8px;
+  margin-bottom:8px;line-height:1;
+}
+.screen .sub{color:#2a4050;font-size:11px;margin-bottom:32px;letter-spacing:3px;}
+.form-label{font-size:10px;color:#2a5060;letter-spacing:2px;margin-bottom:8px;text-transform:uppercase;}
+#name-input{
+  background:rgba(4,8,22,.9);
+  border:1px solid rgba(255,30,0,.3);border-radius:4px;
+  color:var(--red);font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:600;
+  padding:10px 18px;text-align:center;width:300px;margin-bottom:24px;
+  letter-spacing:3px;outline:none;
+  box-shadow:0 0 20px rgba(255,0,0,.05),inset 0 1px 3px rgba(0,0,0,.5);
+  transition:border-color .2s,box-shadow .2s;
+}
+#name-input:focus{border-color:rgba(255,30,0,.7);box-shadow:0 0 20px rgba(255,30,0,.1);}
+#name-input::placeholder{color:rgba(100,20,10,.5);letter-spacing:2px;}
+.diff-label{font-size:10px;color:#2a5060;letter-spacing:2px;margin-bottom:8px;}
+.diff-row{display:flex;gap:8px;margin-bottom:6px;}
+.diff-btn{
+  background:rgba(4,8,22,.9);border:1px solid rgba(20,45,90,.4);
+  color:#2a4060;font-family:'Share Tech Mono',monospace;font-size:11px;
+  padding:9px 20px;cursor:pointer;border-radius:4px;letter-spacing:1px;
+  transition:all .2s;
+}
+.diff-btn:hover,.diff-btn.sel{
+  border-color:rgba(255,30,0,.5);color:var(--red);
+  background:rgba(12,4,4,.9);box-shadow:0 0 12px rgba(255,0,0,.08);
+}
+.diff-hint{font-size:9px;color:#162028;margin-bottom:20px;letter-spacing:.5px;text-align:center;}
+.start-btn{
+  background:transparent;border:1px solid rgba(255,30,0,.6);
+  color:var(--red);font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:600;
+  padding:13px 44px;cursor:pointer;letter-spacing:3px;border-radius:4px;
+  transition:all .25s;margin-top:8px;
+  box-shadow:0 0 20px rgba(255,0,0,.05);
+}
+.start-btn:hover{
+  background:rgba(255,30,0,.9);color:#000;
+  box-shadow:0 0 30px rgba(255,0,0,.3);
+}
+/* tooltip */
+#tip{
+  position:absolute;background:rgba(2,5,14,.96);
+  border:1px solid rgba(0,180,150,.12);
+  padding:8px 12px;font-size:10px;pointer-events:none;
+  display:none;border-radius:4px;line-height:1.7;z-index:20;
+  box-shadow:0 4px 20px rgba(0,0,0,.7);backdrop-filter:blur(4px);
+}
+/* mutation popup */
+#mut-popup{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(6,3,16,.97);border:1px solid rgba(180,80,255,.3);
+  border-radius:6px;padding:22px 26px;z-index:50;display:none;text-align:center;
+  min-width:280px;box-shadow:0 0 40px rgba(150,50,255,.15);backdrop-filter:blur(6px);
+}
+#mut-popup h3{
+  font-family:'Rajdhani',sans-serif;color:#cc77ff;margin-bottom:6px;
+  font-size:16px;letter-spacing:2px;
+  text-shadow:0 0 12px rgba(180,80,255,.4);
+}
+#mut-popup p{color:#664488;font-size:11px;margin-bottom:16px;line-height:1.6;}
+.mut-btns{display:flex;gap:10px;justify-content:center;}
+.mut-accept{
+  background:transparent;border:1px solid rgba(180,80,255,.5);color:#cc77ff;
+  font-family:'Share Tech Mono',monospace;font-size:10px;padding:8px 18px;
+  cursor:pointer;border-radius:3px;transition:all .2s;
+}
+.mut-accept:hover{background:rgba(180,80,255,.2);}
+.mut-devolve{
+  background:transparent;border:1px solid rgba(30,50,90,.4);color:#334455;
+  font-family:'Share Tech Mono',monospace;font-size:10px;padding:8px 18px;
+  cursor:pointer;border-radius:3px;transition:all .2s;
+}
+.mut-devolve:hover{border-color:rgba(80,120,180,.4);color:#6688aa;}
+</style>
+</head>
+<body>
+
+<!-- START SCREEN -->
+<div class="screen" id="screen-start">
+  <h1 style="color:var(--red);text-shadow:0 0 40px rgba(255,30,0,.5),0 0 80px rgba(255,0,0,.15);">PATHOGEN</h1>
+  <div class="sub">EVOLVE &nbsp;·&nbsp; INFECT &nbsp;·&nbsp; ERADICATE</div>
+  <div class="form-label">Name your pathogen</div>
+  <input id="name-input" type="text" maxlength="18" placeholder="ENTER NAME" spellcheck="false">
+  <div class="diff-label">Difficulty</div>
+  <div class="diff-row">
+    <button class="diff-btn" data-d="casual">CASUAL</button>
+    <button class="diff-btn sel" data-d="normal">NORMAL</button>
+    <button class="diff-btn" data-d="brutal">BRUTAL</button>
+  </div>
+  <div class="diff-hint">CASUAL — slow cure &nbsp;|&nbsp; NORMAL — balanced &nbsp;|&nbsp; BRUTAL — fast cure, aggressive nations</div>
+  <button class="start-btn" id="to-country-pick">DEPLOY PATHOGEN</button>
+</div>
+
+<!-- GAME SCREEN -->
+<div style="display:none;flex-direction:column;flex:1;overflow:hidden;" id="screen-game">
+  <div id="topbar">
+    <div id="game-title">PATHOGEN</div>
+    <div class="tstat"><span class="tstat-lbl">Infected</span><span class="tstat-val ti" id="si">0</span></div>
+    <div class="tstat"><span class="tstat-lbl">Dead</span><span class="tstat-val td" id="sd">0</span></div>
+    <div class="tstat"><span class="tstat-lbl">Healthy</span><span class="tstat-val th" id="sh">7.8B</span></div>
+    <div id="cure-wrap">
+      <div id="cure-lbl"><span>CURE RESEARCH</span><span id="cure-pct">0%</span></div>
+      <div id="cure-track"><div id="cure-fill"></div></div>
+    </div>
+    <div id="speed-btns">
+      <button class="sp-btn active" data-s="1">▶ 1×</button>
+      <button class="sp-btn" data-s="2">▶▶ 2×</button>
+      <button class="sp-btn" data-s="3">▶▶▶ 3×</button>
+    </div>
+  </div>
+  <div id="main">
+    <div id="map-area">
+      <canvas id="map-canvas"></canvas>
+      <div id="tip"></div>
+      <div id="mut-popup">
+        <h3 id="mut-title">SPONTANEOUS MUTATION</h3>
+        <p id="mut-desc"></p>
+        <div class="mut-btns">
+          <button class="mut-accept" id="mut-accept">ACCEPT</button>
+          <button class="mut-devolve" id="mut-devolve">DEVOLVE (+1 DNA)</button>
+        </div>
+      </div>
+    </div>
+    <div id="sidebar">
+      <div id="disease-panel">
+        <div id="disease-name-display">PATHOGEN</div>
+        <div class="stat-row">
+          <span class="stat-row-lbl">Infectivity</span>
+          <div class="stat-track"><div class="stat-fill sf-inf" id="bar-inf" style="width:0%"></div></div>
+          <span class="stat-row-num" id="num-inf">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-row-lbl">Severity</span>
+          <div class="stat-track"><div class="stat-fill sf-sev" id="bar-sev" style="width:0%"></div></div>
+          <span class="stat-row-num" id="num-sev">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-row-lbl">Lethality</span>
+          <div class="stat-track"><div class="stat-fill sf-leth" id="bar-leth" style="width:0%"></div></div>
+          <span class="stat-row-num" id="num-leth">0</span>
+        </div>
+      </div>
+      <div id="dna-panel">
+        <div id="dna-count">0</div>
+        <div id="dna-info">
+          <span id="dna-lbl">DNA Points</span>
+          <span id="dna-rate">+0.0 / sec</span>
+        </div>
+      </div>
+      <div id="evo-tabs">
+        <button class="etab active" data-t="T">SPREAD</button>
+        <button class="etab" data-t="S">SYMPTOMS</button>
+        <button class="etab" data-t="A">ABILITIES</button>
+      </div>
+      <div id="evo-scroll"><div id="evo-tree"></div></div>
+    </div>
+  </div>
+  <div id="newsbar"><span id="news-text">Global health monitoring active...</span></div>
+</div>
+
+<!-- GAME OVER -->
+<div class="screen" id="screen-over" style="display:none;">
+  <h1 id="over-title"></h1>
+  <div class="sub" id="over-sub"></div>
+  <div style="font-size:12px;color:#1a3040;margin-bottom:32px;text-align:center;letter-spacing:.5px;line-height:1.8;" id="over-body"></div>
+  <button class="start-btn" onclick="location.reload()">PLAY AGAIN</button>
+</div>
+
+<script>
+// ======================== PROJECTION ========================
+const PROJ={lon0:-175,lon1:182,lat0:78,lat1:-58};
+function geo(lon,lat,W,H){
+  return{
+    x:(lon-PROJ.lon0)/(PROJ.lon1-PROJ.lon0)*W,
+    y:(PROJ.lat0-lat)/(PROJ.lat0-PROJ.lat1)*H
+  };
+}
+
+// ======================== COUNTRY DATA ========================
+const COUNTRIES=[
+  {id:'canada',   name:'Canada',       lon:-96, lat:60, pop:38,   climate:'cold',
+   shape:[[-141,60],[-141,72],[-95,72],[-60,68],[-52,47],[-95,46],[-110,48],[-125,48]]},
+  {id:'usa',      name:'USA',          lon:-99, lat:38, pop:335,  climate:'temperate',
+   shape:[[-125,48],[-67,47],[-67,44],[-70,42],[-76,35],[-80,25],[-97,26],[-117,32],[-124,38]]},
+  {id:'mexico',   name:'Mexico',       lon:-102,lat:24, pop:130,  climate:'hot',
+   shape:[[-117,32],[-97,26],[-91,18],[-88,16],[-87,20],[-97,22],[-106,22],[-114,28]]},
+  {id:'brazil',   name:'Brazil',       lon:-52, lat:-14,pop:215,  climate:'hot',
+   shape:[[-74,6],[-50,6],[-35,-3],[-35,-25],[-50,-34],[-53,-34],[-60,-38],[-73,-18]]},
+  {id:'argentina',name:'Argentina',    lon:-64, lat:-34,pop:46,   climate:'temperate',
+   shape:[[-73,-18],[-60,-38],[-55,-38],[-67,-56],[-74,-52],[-73,-42]]},
+  {id:'uk',       name:'UK',           lon:-2,  lat:54, pop:68,   climate:'cold',
+   shape:[[-5,50],[2,51],[1,54],[-3,58],[-5,58],[-4,54],[-5,50]]},
+  {id:'france',   name:'France',       lon:2,   lat:46, pop:68,   climate:'temperate',
+   shape:[[-5,48],[2,51],[8,49],[7,44],[3,43],[-2,43],[-5,46]]},
+  {id:'germany',  name:'Germany',      lon:10,  lat:51, pop:84,   climate:'cold',
+   shape:[[6,55],[15,54],[15,48],[8,48],[6,50]]},
+  {id:'spain',    name:'Spain',        lon:-4,  lat:40, pop:47,   climate:'temperate',
+   shape:[[-9,44],[-2,44],[3,43],[3,36],[-2,36],[-9,38]]},
+  {id:'italy',    name:'Italy',        lon:12,  lat:42, pop:60,   climate:'temperate',
+   shape:[[7,44],[10,44],[14,46],[16,40],[15,38],[13,38],[10,38],[9,40],[10,42],[7,44]]},
+  {id:'russia',   name:'Russia',       lon:90,  lat:60, pop:145,  climate:'cold',
+   shape:[[28,60],[28,70],[80,72],[170,72],[170,50],[140,44],[110,46],[60,42],[30,46],[28,56]]},
+  {id:'egypt',    name:'Egypt',        lon:30,  lat:27, pop:105,  climate:'hot',
+   shape:[[25,22],[35,22],[35,30],[32,32],[24,32],[25,26]]},
+  {id:'nigeria',  name:'Nigeria',      lon:8,   lat:9,  pop:225,  climate:'hot',
+   shape:[[3,6],[14,6],[14,14],[3,14]]},
+  {id:'safrica',  name:'S. Africa',    lon:25,  lat:-29,pop:61,   climate:'temperate',
+   shape:[[17,-22],[32,-22],[33,-30],[28,-36],[18,-36],[16,-30]]},
+  {id:'saudi',    name:'Saudi Arabia', lon:45,  lat:23, pop:36,   climate:'hot',
+   shape:[[36,16],[44,16],[56,24],[56,28],[38,30],[37,28]]},
+  {id:'india',    name:'India',        lon:78,  lat:22, pop:1430, climate:'hot',
+   shape:[[68,36],[88,32],[88,8],[77,6],[70,14],[68,24]]},
+  {id:'china',    name:'China',        lon:104, lat:34, pop:1410, climate:'temperate',
+   shape:[[73,40],[120,40],[135,38],[135,22],[110,22],[100,24],[80,30],[73,36]]},
+  {id:'japan',    name:'Japan',        lon:138, lat:36, pop:125,  climate:'cold',
+   shape:[[130,34],[132,33],[136,36],[138,38],[142,40],[142,44],[138,44],[134,42],[130,40]]},
+  {id:'indonesia',name:'Indonesia',    lon:118, lat:-2, pop:278,  climate:'hot',
+   shape:[[95,6],[105,6],[115,4],[120,-4],[125,-8],[140,-8],[140,-4],[125,-3],[120,2],[105,4],[95,4]]},
+  {id:'australia',name:'Australia',    lon:134, lat:-25,pop:26,   climate:'hot',
+   shape:[[114,-22],[128,-14],[136,-12],[138,-14],[154,-28],[152,-38],[148,-38],[138,-36],[128,-36],[120,-34],[114,-30]]},
+];
+
+const ROUTES=[
+  ['canada','usa'],['usa','mexico'],['usa','uk'],['usa','brazil'],['usa','japan'],
+  ['canada','uk'],['mexico','brazil'],
+  ['brazil','argentina'],['brazil','nigeria'],['brazil','france'],
+  ['uk','france'],['uk','germany'],['uk','russia'],
+  ['france','germany'],['france','spain'],['france','italy'],['france','egypt'],
+  ['germany','russia'],['germany','italy'],
+  ['spain','nigeria'],['italy','egypt'],
+  ['russia','china'],['russia','india'],['russia','egypt'],
+  ['egypt','saudi'],['egypt','nigeria'],['egypt','safrica'],
+  ['saudi','india'],['nigeria','safrica'],
+  ['india','china'],['india','indonesia'],['india','saudi'],
+  ['china','japan'],['china','indonesia'],
+  ['japan','usa'],['japan','australia'],
+  ['indonesia','australia'],
+];
+
+// City dots [lon, lat] per country
+const CITY_DOTS={
+  usa:[[-74,41],[-87,42],[-118,34],[-96,30],[-122,38],[-80,26],[-112,33],[-104,40],[-90,30],[-157,21]],
+  canada:[[-79,43],[-123,49],[-114,51],[-63,46],[-97,50]],
+  mexico:[[-99,19],[-103,21],[-117,32],[-100,25],[-87,21]],
+  brazil:[[-46,-23],[-43,-22],[-48,-16],[-60,-3],[-35,-8],[-48,-28],[-51,-30]],
+  argentina:[[-58,-34],[-64,-31],[-70,-33],[-66,-24]],
+  uk:[[-0.1,51.5],[-3,53.5],[-4,55.9],[-3.2,51.5]],
+  france:[[2,49],[5,44],[4,46],[1,43],[-1.7,48]],
+  germany:[[13,52],[9,48],[7,51],[11,48],[10,53]],
+  spain:[[-3,40],[2,41],[-5,37],[-8,43],[-0.9,41]],
+  italy:[[12,41],[9,45],[15,38],[11,44],[16,41]],
+  russia:[[37,56],[83,55],[132,43],[60,56],[40,47],[56,58],[92,57]],
+  china:[[116,40],[121,31],[104,30],[113,23],[108,35],[91,30],[120,36],[104,22]],
+  india:[[77,28],[72,19],[80,13],[88,22],[78,17],[83,26],[75,13],[77,8]],
+  japan:[[139,36],[135,34],[141,43],[130,33],[135,35]],
+  australia:[[151,-34],[145,-37],[115,-32],[153,-27],[138,-35],[149,-35]],
+  indonesia:[[107,-6],[112,-7],[120,-9],[110,-8],[104,-1],[106,-6]],
+  egypt:[[31,30],[32,25],[34,31],[28,26]],
+  nigeria:[[7,6],[3,6],[8,12],[5,8]],
+  safrica:[[28,-26],[18,-34],[31,-30],[26,-30]],
+  saudi:[[46,24],[39,21],[50,26],[40,17],[43,25]],
+};
+
+// Background landmass polygons (draw before game countries, very dark)
+const BG_LANDS=[
+  [[-18,36],[25,36],[25,6],[14,6],[3,6],[3,14],[-18,14]],       // W/C Africa
+  [[24,14],[52,14],[52,-12],[24,-12],[24,6]],                   // E Africa
+  [[5,56],[12,56],[20,60],[30,72],[22,72],[14,68],[5,60]],       // Scandinavia
+  [[15,54],[28,60],[28,44],[22,38],[14,38],[14,48]],             // E Europe/Balkans
+  [[26,42],[44,42],[60,38],[60,28],[44,26],[36,28],[36,38]],     // Turkey+Caucasus
+  [[44,38],[90,50],[90,38],[60,28],[44,38]],                    // Iran+Central Asia
+  [[96,28],[110,22],[110,2],[96,2],[96,22]],                    // SE Asia mainland
+  [[-90,18],[-78,8],[-77,14],[-90,18]],                        // Central America
+  [[-45,60],[-20,62],[-18,76],[-35,84],[-60,82],[-52,70]],      // Greenland
+  [[-170,62],[-141,60],[-141,70],[-165,68]],                    // Alaska
+  [[-84,62],[-78,62],[-66,68],[-80,72],[-95,72]],               // NE Canada islands
+  [[14,55],[24,58],[24,54],[22,48],[14,50]],                    // Poland/Baltic
+  [[22,56],[38,56],[38,44],[28,44],[22,48]],                    // Ukraine/Belarus
+  [[22,48],[30,48],[30,44],[22,44]],                            // Romania
+  [[24,58],[30,70],[26,70],[20,60]],                            // Finland
+  [[50,56],[90,60],[90,50],[50,48],[44,50]],                    // Kazakhstan/W Siberia
+  [[88,50],[120,50],[120,42],[88,42]],                          // Mongolia
+  [[124,38],[130,38],[130,34],[124,34]],                        // Korea Peninsula
+  [[120,20],[122,20],[122,14],[120,14]],                        // Philippines Luzon
+  [[131,-2],[150,-2],[150,-10],[131,-8]],                       // New Guinea
+  [[172,-36],[178,-36],[178,-40],[172,-40]],                    // New Zealand N
+  [[168,-44],[172,-44],[172,-48],[168,-46]],                    // New Zealand S
+  [[44,-12],[50,-12],[50,-26],[44,-24]],                        // Madagascar
+  [[-76,-16],[-70,-16],[-70,-56],[-76,-54]],                    // Chile/Peru coast
+  [[-78,12],[-60,12],[-60,0],[-78,0]],                         // Colombia/Venezuela
+  [[-14,36],[0,36],[0,28],[-12,28]],                           // Morocco
+  [[-18,16],[3,16],[3,6],[-18,6]],                             // West Africa coast
+  [[16,-14],[36,-14],[36,-22],[16,-22]],                        // S Africa/Zimbabwe
+  [[50,26],[56,24],[56,16],[50,14],[44,16]],                    // Arabian tip/Yemen
+  [[60,36],[76,36],[76,24],[68,24],[60,28]],                    // Pakistan
+  [[88,26],[100,26],[100,16],[88,16]],                          // Myanmar/Bangladesh
+  [[122,10],[128,10],[128,6],[122,6]],                          // Philippines Mindanao
+  [[108,8],[118,8],[118,-4],[108,-4]],                          // Borneo
+  [[120,2],[124,2],[124,-4],[120,-4]],                          // Sulawesi
+  [[-84,23],[-74,23],[-74,20],[-84,20]],                        // Cuba/Caribbean
+  [[-168,66],[-141,66],[-141,72],[-168,72]],                    // Alaska body
+  [[-24,66],[-14,66],[-14,64],[-24,64]],                        // Iceland
+  [[-9,44],[3,44],[3,36],[-2,36],[-9,38]],                      // Spain interior
+  [[16,-22],[36,-22],[36,-36],[16,-36]],                        // Mozambique/Zambia
+  [[96,28],[112,28],[112,18],[96,18]],                          // Indochina
+  [[0,6],[14,6],[14,-12],[0,-12]],                              // Central Africa
+  [[-8,36],[0,36],[0,30],[-8,30]],                              // Algeria coast
+  [[0,30],[16,30],[16,18],[0,18]],                              // Libya/Chad
+  [[16,30],[36,30],[36,22],[16,22]],                            // Sudan/Ethiopia N
+  [[40,22],[52,22],[52,12],[40,12]],                            // Ethiopia/Somalia
+  [[52,12],[52,-4],[44,-4],[44,12]],                            // Somalia coast
+  [[-70,-16],[-56,-16],[-56,-36],[-70,-36]],                    // Paraguay/Bolivia
+  [[24,36],[40,38],[40,30],[30,28],[24,32]],                    // Greece/Cyprus
+];
+
+const UPGRADES=[
+  {id:'air1',   name:'Airborne',           cat:'T',cost:2, pre:[],          dInf:3,dSev:0, dLeth:0,      dCure:1.00,desc:'Spreads via airborne particles'},
+  {id:'air2',   name:'Aerosol',            cat:'T',cost:4, pre:['air1'],    dInf:4,dSev:0, dLeth:0,      dCure:1.00,desc:'Fine particle suspension in air'},
+  {id:'air3',   name:'Extreme Aerosol',    cat:'T',cost:9, pre:['air2'],    dInf:6,dSev:0, dLeth:0,      dCure:1.00,desc:'Long-range atmospheric spread'},
+  {id:'water1', name:'Water-borne',        cat:'T',cost:2, pre:[],          dInf:3,dSev:0, dLeth:0,      dCure:1.00,desc:'Contaminates water supplies'},
+  {id:'water2', name:'Water Stability',    cat:'T',cost:5, pre:['water1'],  dInf:5,dSev:0, dLeth:0,      dCure:1.00,desc:'Survives water treatment'},
+  {id:'insects',name:'Insect Vector',      cat:'T',cost:3, pre:[],          dInf:3,dSev:0, dLeth:0,      dCure:1.00,desc:'Mosquito transmission (hot climates)'},
+  {id:'zoonosis',name:'Zoonosis',          cat:'T',cost:6, pre:['insects'], dInf:5,dSev:0, dLeth:0,      dCure:1.00,desc:'Animal reservoir maintains spread'},
+  {id:'blood',  name:'Blood Contact',      cat:'T',cost:3, pre:[],          dInf:2,dSev:0, dLeth:0,      dCure:1.00,desc:'Direct blood transmission'},
+  {id:'sneeze', name:'Sneezing',           cat:'S',cost:1, pre:[],          dInf:2,dSev:1, dLeth:.00008, dCure:1.04,desc:'Respiratory droplet spread'},
+  {id:'cough',  name:'Coughing',           cat:'S',cost:2, pre:['sneeze'],  dInf:2,dSev:2, dLeth:.00012, dCure:1.07,desc:'Productive cough amplifies spread'},
+  {id:'pneumo', name:'Pneumonia',          cat:'S',cost:6, pre:['cough'],   dInf:0,dSev:4, dLeth:.0007,  dCure:1.18,desc:'Severe lung inflammation'},
+  {id:'organ',  name:'Organ Failure',      cat:'S',cost:13,pre:['pneumo'],  dInf:0,dSev:7, dLeth:.0022,  dCure:1.35,desc:'Multiple organ shutdown'},
+  {id:'hemor',  name:'Haemorrhagic Fever', cat:'S',cost:22,pre:['organ'],   dInf:0,dSev:10,dLeth:.0055,  dCure:1.65,desc:'Catastrophic systemic failure'},
+  {id:'nausea', name:'Nausea',             cat:'S',cost:1, pre:[],          dInf:0,dSev:1, dLeth:.0001,  dCure:1.04,desc:'Gastrointestinal distress'},
+  {id:'vomit',  name:'Vomiting',           cat:'S',cost:3, pre:['nausea'],  dInf:0,dSev:2, dLeth:.0004,  dCure:1.08,desc:'Severe gastrointestinal symptoms'},
+  {id:'seiz',   name:'Seizures',           cat:'S',cost:8, pre:['vomit'],   dInf:0,dSev:5, dLeth:.0016,  dCure:1.25,desc:'Neurological collapse'},
+  {id:'coma',   name:'Coma',               cat:'S',cost:16,pre:['seiz'],    dInf:0,dSev:8, dLeth:.0032,  dCure:1.40,desc:'Loss of consciousness'},
+  {id:'lesions',name:'Skin Lesions',       cat:'S',cost:2, pre:[],          dInf:0,dSev:2, dLeth:.0002,  dCure:1.07,desc:'Visible epidermal necrosis'},
+  {id:'necrosis',name:'Necrosis',          cat:'S',cost:7, pre:['lesions'], dInf:0,dSev:4, dLeth:.0012,  dCure:1.20,desc:'Tissue death spreading to organs'},
+  {id:'drugr1', name:'Drug Resistance I',  cat:'A',cost:5, pre:[],          dInf:0,dSev:0, dLeth:0,      dCure:.82, desc:'Partial pharmaceutical immunity'},
+  {id:'drugr2', name:'Drug Resistance II', cat:'A',cost:12,pre:['drugr1'],  dInf:0,dSev:0, dLeth:0,      dCure:.64, desc:'Full antibiotic resistance'},
+  {id:'camo',   name:'Genetic Camo',       cat:'A',cost:4, pre:[],          dInf:0,dSev:-3,dLeth:0,      dCure:1.00,desc:'Masks pathogen from detection systems'},
+  {id:'coldr',  name:'Cold Resistance',    cat:'A',cost:4, pre:[],          dInf:2,dSev:0, dLeth:0,      dCure:1.00,desc:'Thrives in cold climates'},
+  {id:'heatr',  name:'Heat Resistance',    cat:'A',cost:4, pre:[],          dInf:2,dSev:0, dLeth:0,      dCure:1.00,desc:'Thrives in hot climates'},
+  {id:'hard',   name:'Genetic Hardening',  cat:'A',cost:7, pre:['drugr1'],  dInf:0,dSev:0, dLeth:0,      dCure:.88, desc:'Resists targeted cure development'},
+];
+
+// ======================== CANVAS ========================
+const canvas=document.getElementById('map-canvas');
+const ctx=canvas.getContext('2d');
+const mapEl=document.getElementById('map-area');
+
+let countryPaths={}; // id -> Path2D
+
+function resize(){
+  canvas.width=mapEl.clientWidth;
+  canvas.height=mapEl.clientHeight;
+  buildPaths();
+}
+
+function buildPaths(){
+  const W=canvas.width,H=canvas.height;
+  if(G&&G.countries){
+    G.countries.forEach(c=>{
+      const p=new Path2D();
+      c.shape.forEach(([lon,lat],i)=>{
+        const{x,y}=geo(lon,lat,W,H);
+        i===0?p.moveTo(x,y):p.lineTo(x,y);
+      });
+      p.closePath();
+      c.path=p;
+    });
+  }
+}
+
+function centroidPx(c,W,H){
+  const{x,y}=geo(c.lon,c.lat,W,H);
+  return{x,y};
+}
+
+// ======================== ROUTE PARTICLES ========================
+let routeParticles=[];
+function spawnRouteParticle(ca,cb){
+  const W=canvas.width,H=canvas.height;
+  const pa=centroidPx(ca,W,H),pb=centroidPx(cb,W,H);
+  routeParticles.push({
+    x0:pa.x,y0:pa.y,x1:pb.x,y1:pb.y,
+    t:0,speed:.007+Math.random()*.007
+  });
+}
+
+// Bezier control point: midpoint + perpendicular offset
+function bezierCtrl(x0,y0,x1,y1){
+  const mx=(x0+x1)/2,my=(y0+y1)/2;
+  const dx=x1-x0,dy=y1-y0;
+  const len=Math.sqrt(dx*dx+dy*dy);
+  const offset=len*0.15;
+  return{cx:mx-dy/len*offset,cy:my+dx/len*offset};
+}
+
+// ======================== COUNTRY COLOR ========================
+function countryColor(infR,deadR){
+  if(deadR>0.99) return{r:20,g:0,b:0};
+  if(infR===0) return{r:14,g:26,b:36};
+  const t=Math.min(1,infR/0.7);
+  if(t<0.5){
+    const u=t*2;
+    return{r:Math.floor(14+u*230),g:Math.floor(26+u*76),b:Math.floor(36-u*36)};
+  } else {
+    const u=(t-0.5)*2;
+    return{r:Math.floor(244-u*60),g:Math.floor(102-u*102),b:0};
+  }
+}
+
+// ======================== DRAW ========================
+let ph=0;
+let hoveredCountry=null;
+
+function draw(){
+  if(!G) return;
+  ph+=0.035;
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  // 1. Ocean gradient
+  const ocean=ctx.createLinearGradient(0,0,W,H);
+  ocean.addColorStop(0,'#02050c');
+  ocean.addColorStop(1,'#03080f');
+  ctx.fillStyle=ocean;
+  ctx.fillRect(0,0,W,H);
+
+  // 2. Subtle dot grid
+  ctx.fillStyle='rgba(15,35,60,0.15)';
+  for(let gx=0;gx<W;gx+=50)for(let gy=0;gy<H;gy+=50){
+    ctx.beginPath();ctx.arc(gx,gy,1,0,Math.PI*2);ctx.fill();
+  }
+
+  // 3. BG_LANDS — very dark fill, thin stroke
+  BG_LANDS.forEach(pts=>{
+    ctx.beginPath();
+    const s0=geo(pts[0][0],pts[0][1],W,H);
+    ctx.moveTo(s0.x,s0.y);
+    for(let i=1;i<pts.length;i++){
+      const s=geo(pts[i][0],pts[i][1],W,H);
+      ctx.lineTo(s.x,s.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle='#08101a';
+    ctx.fill();
+    ctx.strokeStyle='#101c28';
+    ctx.lineWidth=0.8;
+    ctx.stroke();
+  });
+
+  // 4. Game country polygons
+  const cm={};G.countries.forEach(c=>cm[c.id]=c);
+
+  G.countries.forEach(c=>{
+    if(!c.path) return;
+    const alive=c.pop-c.dead;
+    const infR=alive>0?c.infected/alive:0;
+    const deadR=c.dead/c.pop;
+    const{r,g,b}=countryColor(infR,deadR);
+
+    // glow shadow for infected countries
+    if(c.infected>0&&deadR<0.99){
+      const pulse=0.7+Math.sin(ph+c.lon)*0.3;
+      ctx.save();
+      ctx.shadowColor=`rgba(${r},${Math.floor(g*0.6)},${b},${0.5*pulse})`;
+      ctx.shadowBlur=16;
+      ctx.fillStyle=`rgba(${r},${g},${b},1)`;
+      ctx.fill(c.path);
+      ctx.restore();
+    } else {
+      ctx.fillStyle=`rgb(${r},${g},${b})`;
+      ctx.fill(c.path);
+    }
+
+    // Border stroke
+    const isHovered=(hoveredCountry&&hoveredCountry.id===c.id);
+    if(isHovered){
+      ctx.strokeStyle='rgba(255,255,255,0.55)';
+      ctx.lineWidth=1.8;
+    } else if(c.bordersClosed){
+      ctx.strokeStyle='rgba(200,40,10,0.5)';
+      ctx.lineWidth=1.2;
+    } else if(c.detected){
+      ctx.strokeStyle='rgba(220,180,20,0.35)';
+      ctx.lineWidth=1.0;
+    } else {
+      ctx.strokeStyle='rgba(30,60,110,0.4)';
+      ctx.lineWidth=0.8;
+    }
+    ctx.stroke(c.path);
+  });
+
+  // 6. Route bezier curves
+  ROUTES.forEach(([a,b])=>{
+    const ca=cm[a],cb=cm[b];
+    if(!ca||!cb) return;
+    const pa=centroidPx(ca,W,H),pb=centroidPx(cb,W,H);
+    const{cx,cy}=bezierCtrl(pa.x,pa.y,pb.x,pb.y);
+    const closed=ca.airportClosed||cb.airportClosed||ca.bordersClosed||cb.bordersClosed;
+    const active=(ca.infected>0||cb.infected>0);
+    ctx.beginPath();
+    ctx.moveTo(pa.x,pa.y);
+    ctx.quadraticCurveTo(cx,cy,pb.x,pb.y);
+    if(closed){
+      ctx.strokeStyle='rgba(120,20,10,.14)';
+      ctx.lineWidth=0.8;
+      ctx.setLineDash([3,6]);
+    } else if(active){
+      ctx.strokeStyle='rgba(255,80,20,.20)';
+      ctx.lineWidth=1.2;
+      ctx.setLineDash([]);
+    } else {
+      ctx.strokeStyle='rgba(20,50,90,.18)';
+      ctx.lineWidth=0.8;
+      ctx.setLineDash([]);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // 7. Route particles (orange dots along bezier)
+  routeParticles=routeParticles.filter(p=>{
+    p.t+=p.speed;
+    if(p.t>=1) return false;
+    const{cx,cy}=bezierCtrl(p.x0,p.y0,p.x1,p.y1);
+    // quadratic bezier point
+    const t=p.t,mt=1-t;
+    const x=mt*mt*p.x0+2*mt*t*cx+t*t*p.x1;
+    const y=mt*mt*p.y0+2*mt*t*cy+t*t*p.y1;
+    const grd=ctx.createRadialGradient(x,y,0,x,y,5);
+    grd.addColorStop(0,'rgba(255,140,30,.95)');
+    grd.addColorStop(1,'rgba(255,60,0,0)');
+    ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);
+    ctx.fillStyle=grd;ctx.fill();
+    ctx.beginPath();ctx.arc(x,y,2,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,210,120,.95)';ctx.fill();
+    return true;
+  });
+
+  // 8. DNA bubbles
+  bubbles.forEach(b=>{
+    const a=Math.max(0,Math.min(1,(b.maxAge-b.age)/30));
+    const pulse=1+Math.sin(ph*2.5+b.phase)*.1;
+    const br=b.r*pulse;
+    const grd=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,br*3.5);
+    if(b.big){grd.addColorStop(0,`rgba(200,80,255,${a*.35})`);grd.addColorStop(1,'rgba(0,0,0,0)');}
+    else{grd.addColorStop(0,`rgba(255,150,20,${a*.35})`);grd.addColorStop(1,'rgba(0,0,0,0)');}
+    ctx.beginPath();ctx.arc(b.x,b.y,br*3.5,0,Math.PI*2);ctx.fillStyle=grd;ctx.fill();
+    ctx.beginPath();ctx.arc(b.x,b.y,br*1.6,0,Math.PI*2);
+    ctx.strokeStyle=b.big?`rgba(180,80,255,${a*.5})`:`rgba(255,130,20,${a*.5})`;
+    ctx.lineWidth=1;ctx.stroke();
+    const cGrd=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,br);
+    if(b.big){cGrd.addColorStop(0,`rgba(230,150,255,${a})`);cGrd.addColorStop(1,`rgba(160,50,220,${a*.8})`);}
+    else{cGrd.addColorStop(0,`rgba(255,210,80,${a})`);cGrd.addColorStop(1,`rgba(220,100,10,${a*.8})`);}
+    ctx.beginPath();ctx.arc(b.x,b.y,br,0,Math.PI*2);ctx.fillStyle=cGrd;ctx.fill();
+    ctx.fillStyle=`rgba(255,255,255,${a*.95})`;
+    ctx.font=`bold ${Math.max(8,br*.85)}px 'Rajdhani',sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(b.big?'◆':'+'+(b.val),b.x,b.y);
+    ctx.textBaseline='alphabetic';
+  });
+
+  // 5b. City dots
+  const cm2=cm;
+  Object.entries(CITY_DOTS).forEach(([id,cities])=>{
+    const c=cm2[id];
+    if(!c) return;
+    const alive=c.pop-c.dead,infR=alive>0?c.infected/alive:0,deadR=c.dead/c.pop;
+    cities.forEach(([lon,lat])=>{
+      const{x,y}=geo(lon,lat,W,H);
+      // glow
+      if(infR>0.05&&deadR<0.98){
+        ctx.beginPath();ctx.arc(x,y,4.5,0,Math.PI*2);
+        ctx.fillStyle=`rgba(255,80,20,${Math.min(0.35,infR*0.5)})`;ctx.fill();
+      }
+      ctx.beginPath();ctx.arc(x,y,1.8,0,Math.PI*2);
+      if(deadR>0.95) ctx.fillStyle='rgba(80,10,10,0.7)';
+      else if(infR>0.4) ctx.fillStyle=`rgba(255,${Math.floor(60-infR*40)},10,0.85)`;
+      else if(infR>0.05) ctx.fillStyle=`rgba(255,${Math.floor(150-infR*100)},40,0.80)`;
+      else ctx.fillStyle='rgba(80,160,140,0.45)';
+      ctx.fill();
+    });
+  });
+
+  // 9. Country name labels
+  G.countries.forEach(c=>{
+    if(!c.path) return;
+    const alive=c.pop-c.dead;
+    const infR=alive>0?c.infected/alive:0;
+    const deadR=c.dead/c.pop;
+    const{x,y}=centroidPx(c,W,H);
+    const{r,g,b}=countryColor(infR,deadR);
+
+    ctx.font='bold 9px "Share Tech Mono",monospace';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+
+    let color;
+    if(deadR>0.99) color='rgba(80,20,20,0.7)';
+    else if(infR>0.1) color=`rgba(${Math.min(255,r+40)},${Math.min(255,g+40)},${Math.min(255,b+40)},0.9)`;
+    else color='rgba(80,110,140,0.7)';
+
+    // tiny label background for legibility
+    const lbl=c.name;
+    const tw=ctx.measureText(lbl).width;
+    ctx.fillStyle='rgba(2,5,12,0.55)';
+    ctx.fillRect(x-tw/2-2,y-6,tw+4,12);
+    ctx.fillStyle=color;
+    ctx.fillText(lbl,x,y);
+    ctx.textBaseline='alphabetic';
+
+    // border closed indicator
+    if(c.bordersClosed){
+      ctx.font='10px Arial';
+      ctx.fillStyle='rgba(220,40,10,.85)';
+      ctx.textBaseline='middle';
+      ctx.fillText('✕',x,y-14);
+      ctx.textBaseline='alphabetic';
+    }
+  });
+
+  // 10. "Choose country" hint
+  if(G.choosingStart){
+    ctx.fillStyle='rgba(255,80,20,.85)';
+    ctx.font='bold 13px "Share Tech Mono",monospace';
+    ctx.textAlign='center';
+    ctx.textBaseline='alphabetic';
+    ctx.fillText('↓  CLICK A COUNTRY TO BEGIN YOUR OUTBREAK  ↓',W/2,24);
+  }
+
+  // 11. Scanline overlay
+  for(let sy=0;sy<H;sy+=3){
+    ctx.fillStyle=`rgba(0,0,8,0.04)`;
+    ctx.fillRect(0,sy,W,1);
+  }
+
+  // 12. Vignette
+  const vgrd=ctx.createRadialGradient(W/2,H/2,H*.25,W/2,H/2,H*.85);
+  vgrd.addColorStop(0,'rgba(0,0,0,0)');
+  vgrd.addColorStop(1,'rgba(0,0,8,.5)');
+  ctx.fillStyle=vgrd;ctx.fillRect(0,0,W,H);
+
+  // 13. Canvas corner notifications
+  notifs=notifs.filter(n=>n.age<n.maxAge);
+  ctx.save();
+  ctx.font='10px "Share Tech Mono",monospace';
+  notifs.forEach((n,i)=>{
+    n.age++;
+    const fadeIn=Math.min(1,n.age/12);
+    const fadeOut=Math.max(0,1-(n.age-n.maxAge+40)/40);
+    const alpha=Math.min(fadeIn,fadeOut);
+    const slide=Math.min(0,(n.age-1)*22-300+8); // slides in from right
+    const tw=ctx.measureText(n.msg).width;
+    const bw=tw+20,bh=20;
+    const bx=W-bw-8+slide,by=48+i*26;
+    ctx.globalAlpha=alpha*0.92;
+    ctx.fillStyle='rgba(2,5,14,0.95)';
+    ctx.beginPath();ctx.roundRect(bx,by,bw,bh,3);ctx.fill();
+    ctx.strokeStyle=n.col+'44';ctx.lineWidth=0.8;
+    ctx.beginPath();ctx.roundRect(bx,by,bw,bh,3);ctx.stroke();
+    // left accent bar
+    ctx.fillStyle=n.col;
+    ctx.fillRect(bx,by,2,bh);
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle=n.col;
+    ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(n.msg,bx+10,by+bh/2);
+  });
+  ctx.globalAlpha=1;ctx.textAlign='center';ctx.textBaseline='alphabetic';
+  ctx.restore();
+}
+
+let animId;
+function renderLoop(){draw();animId=requestAnimationFrame(renderLoop);}
+
+// ======================== GAME STATE ========================
+let G=null,tickTimer=null,diff='normal',diseaseName='',pendingMut=null;
+let bubbles=[];
+let notifs=[];
+function addNotif(msg,col){
+  notifs.unshift({msg,col:col||'#ffaa22',age:0,maxAge:260,slideAge:0});
+  if(notifs.length>6) notifs.pop();
+}
+
+const DIFF_CFG={
+  casual:{cureMult:.60,detMult:.50,dnaMult:1.5, bubRate:14,borderSpeed:.55},
+  normal:{cureMult:1.0,detMult:1.0,dnaMult:1.0, bubRate:22,borderSpeed:1.0},
+  brutal:{cureMult:1.7,detMult:1.7,dnaMult:.60, bubRate:36,borderSpeed:1.9},
+};
+
+function mkGame(){
+  return{
+    countries:COUNTRIES.map(c=>({...c,pop:c.pop*1_000_000,infected:0,dead:0,
+      detected:false,bordersClosed:false,airportClosed:false,visibility:0,responseLevel:0,
+      path:null})),
+    dna:0,dnaRate:0,owned:new Set(),
+    infectivity:0,severity:0,lethality:0,cureMult:1,
+    stealthBonus:0,coldBonus:false,hotBonus:false,insectBonus:false,
+    cure:0,cureStarted:false,tick:0,running:false,over:false,choosingStart:true,
+  };
+}
+
+// ======================== TICK ========================
+function tick(){
+  if(!G||!G.running||G.over) return;
+  G.tick++;
+  const cfg=DIFF_CFG[diff];
+  const cm={};G.countries.forEach(c=>cm[c.id]=c);
+  const delta={};G.countries.forEach(c=>{delta[c.id]=0;});
+
+  G.countries.forEach(c=>{
+    if(c.infected<=0) return;
+    const alive=c.pop-c.dead,healthy=Math.max(0,alive-c.infected);
+    if(healthy<=0) return;
+    delta[c.id]+=Math.floor(c.infected*getSpread(c)*(healthy/alive));
+  });
+  ROUTES.forEach(([a,b])=>{
+    const ca=cm[a],cb=cm[b];
+    if(ca.infected>0) routeSpread(ca,cb,delta,cfg);
+    if(cb.infected>0) routeSpread(cb,ca,delta,cfg);
+  });
+
+  G.countries.forEach(c=>{
+    const alive=c.pop-c.dead,healthy=Math.max(0,alive-c.infected);
+    const wasZero=c.infected===0;
+    c.infected=Math.min(c.infected+Math.min(delta[c.id],healthy),healthy);
+    if(wasZero&&c.infected>0) pushNews(`⚠ Outbreak seeded in ${c.name}`);
+    if(c.infected>0){
+      const k=Math.min(Math.floor(c.infected*G.lethality),c.infected);
+      c.dead=Math.min(c.dead+k,c.pop);c.infected=Math.max(0,c.infected-k);
+    }
+    if(G.cure>.65&&c.infected>0){
+      c.infected=Math.max(0,c.infected-Math.floor(c.infected*.006*(G.cure-.65)*2.5));
+    }
+    updateDetection(c,cfg);
+  });
+
+  // Route particles (spawn occasionally for active routes)
+  if(G.tick%8===0){
+    const active=ROUTES.filter(([a,b])=>cm[a].infected>0&&cm[b].infected<cm[b].pop*.9);
+    if(active.length){
+      const[a,b]=active[Math.floor(Math.random()*active.length)];
+      if(Math.random()<.4) spawnRouteParticle(cm[a],cm[b]);
+    }
+  }
+
+  const totalInf=G.countries.reduce((s,c)=>s+c.infected,0);
+  const earned=Math.sqrt(totalInf)*.00075*cfg.dnaMult;
+  G.dna+=earned;G.dnaRate=earned*(1000/getTickMs());
+
+  if(G.cureStarted){
+    const tp=G.countries.reduce((s,c)=>s+c.pop,0);
+    const td=G.countries.reduce((s,c)=>s+c.dead,0);
+    const ti=G.countries.reduce((s,c)=>s+c.infected,0);
+    const h=Math.max(0,tp-td-ti);
+    if(h/tp>.002) G.cure=Math.min(1,G.cure+h/tp*.0012*G.cureMult*cfg.cureMult);
+  }
+
+  if(G.tick%cfg.bubRate===0) spawnBubble();
+  if(G.tick%120===0&&!pendingMut) maybeMutate();
+  if(G.tick%55===0) periodicNews(totalInf);
+
+  const tp2=G.countries.reduce((s,c)=>s+c.pop,0);
+  const td2=G.countries.reduce((s,c)=>s+c.dead,0);
+  const ti2=G.countries.reduce((s,c)=>s+c.infected,0);
+  const h2=Math.max(0,tp2-td2-ti2);
+  if(G.cure>=1&&h2>tp2*.001){endGame(false);return;}
+  if(td2+ti2>=tp2*.999){endGame(true);return;}
+
+  updateHUD(ti2,td2,h2);
+  renderEvoButtons();
+}
+
+function getSpread(c){
+  let r=.008+G.infectivity*.0025;
+  if(G.insectBonus&&c.climate==='hot') r+=.005;
+  if(G.coldBonus&&c.climate==='cold') r+=.004;
+  if(G.hotBonus&&c.climate==='hot') r+=.004;
+  return r;
+}
+
+function routeSpread(from,to,delta,cfg){
+  const alive=to.pop-to.dead,healthy=Math.max(0,alive-to.infected);
+  if(healthy<=0) return;
+  let mult=from.bordersClosed||to.bordersClosed?.15:1;
+  if(from.airportClosed||to.airportClosed) mult=.02;
+  const sr=getSpread(from)*.22*mult;
+  if(Math.random()<sr*(from.infected/from.pop))
+    delta[to.id]+=Math.max(1,Math.floor(to.pop*.00006));
+}
+
+function updateDetection(c,cfg){
+  if(c.detected){
+    c.responseLevel=Math.min(1,c.responseLevel+(G.severity*.0012+.001)*cfg.borderSpeed);
+    if(c.responseLevel>.4&&!c.bordersClosed){c.bordersClosed=true;pushNews(`🚫 ${c.name} closes borders`);}
+    if(c.responseLevel>.8&&!c.airportClosed){c.airportClosed=true;pushNews(`✈ ${c.name} shuts airports`);}
+  } else {
+    if(c.infected<=0) return;
+    const sev=Math.max(0,G.severity+G.stealthBonus);
+    c.visibility=Math.min(1,c.visibility+(sev*.0006+c.infected/c.pop*1.5)*cfg.detMult);
+    if(c.visibility>=1){
+      c.detected=true;G.cureStarted=true;
+      pushNews(`🔬 ${c.name} confirms pathogen — cure research begins`);
+    }
+  }
+}
+
+// ======================== BUBBLES ========================
+function spawnBubble(){
+  const inf=G.countries.filter(c=>c.infected>200);
+  if(!inf.length) return;
+  const c=inf[Math.floor(Math.random()*inf.length)];
+  const W=canvas.width,H=canvas.height;
+  const{x,y}=centroidPx(c,W,H);
+  const big=Math.random()<.10;
+  bubbles.push({
+    x:x+(Math.random()-.5)*80,y:y+(Math.random()-.5)*55,
+    r:big?13:8,val:big?Math.floor(Math.random()*4)+3:1,
+    big,age:0,maxAge:170,phase:Math.random()*Math.PI*2,
+  });
+}
+
+// ======================== MUTATIONS ========================
+function maybeMutate(){
+  if(G.countries.every(c=>c.infected===0)) return;
+  if(Math.random()<.3){
+    const pool=UPGRADES.filter(u=>u.cat==='S'&&!G.owned.has(u.id));
+    if(!pool.length) return;
+    pendingMut=pool[Math.floor(Math.random()*pool.length)];
+    document.getElementById('mut-title').textContent='SPONTANEOUS MUTATION';
+    document.getElementById('mut-desc').textContent=`Your pathogen evolved "${pendingMut.name}". ${pendingMut.desc}.`;
+    document.getElementById('mut-popup').style.display='block';
+  }
+}
+
+// ======================== NEWS ========================
+const NEWS=[
+  'Unusual illness spreading in local communities.',
+  'Health officials urge calm amid rising cases.',
+  'WHO advisory issued for affected regions.',
+  'International airports begin passenger screening.',
+  'Hospitals overwhelmed in outbreak epicenters.',
+  'Scientists identify novel pathogen genomic sequence.',
+  'Emergency vaccine development program accelerated.',
+  'Military quarantine enforced in hot zones.',
+  'Global summit convened to coordinate pandemic response.',
+  'Cure research gains critical momentum.',
+  'Riots outside hospitals as fear spreads globally.',
+  'Morgues at capacity in multiple affected cities.',
+  'Final cure trial shows promising preliminary results.',
+];
+function pushNews(msg,notifCol){
+  const el=document.getElementById('news-text');
+  el.style.opacity='0';
+  setTimeout(()=>{el.textContent=msg;el.style.transition='opacity .35s';el.style.opacity='1';},240);
+  // auto-color by message type
+  const col=notifCol||(msg.includes('🔬')?'#ffcc00':msg.includes('🚫')||msg.includes('✈')?'#ff4422':msg.includes('⚠')?'#ff8822':msg.includes('Evolved')?'#44ff88':'#aabbcc');
+  addNotif(msg,col);
+}
+function periodicNews(inf){
+  const frac=inf/(G.countries.reduce((s,c)=>s+c.pop,0)||1);
+  pushNews(NEWS[Math.min(NEWS.length-1,Math.floor(frac*30))]);
+}
+
+// ======================== HUD ========================
+function fmt(n){
+  if(n>=1e9) return(n/1e9).toFixed(2)+'B';
+  if(n>=1e6) return(n/1e6).toFixed(1)+'M';
+  if(n>=1e3) return(n/1e3).toFixed(0)+'K';
+  return Math.floor(n)+'';
+}
+function updateHUD(inf,dead,healthy){
+  document.getElementById('si').textContent=fmt(inf);
+  document.getElementById('sd').textContent=fmt(dead);
+  document.getElementById('sh').textContent=fmt(healthy);
+  document.getElementById('dna-count').textContent=Math.floor(G.dna);
+  document.getElementById('dna-rate').textContent='+'+G.dnaRate.toFixed(1)+'/sec';
+  const cp=Math.floor(G.cure*100);
+  document.getElementById('cure-pct').textContent=cp+'%';
+  document.getElementById('cure-fill').style.width=cp+'%';
+  document.getElementById('bar-inf').style.width=Math.min(100,G.infectivity/32*100)+'%';
+  document.getElementById('bar-sev').style.width=Math.min(100,Math.max(0,G.severity)/32*100)+'%';
+  document.getElementById('bar-leth').style.width=Math.min(100,G.lethality/.032*100)+'%';
+  document.getElementById('num-inf').textContent=Math.round(G.infectivity);
+  document.getElementById('num-sev').textContent=Math.max(0,Math.round(G.severity));
+  document.getElementById('num-leth').textContent=G.lethality>0?(G.lethality*100).toFixed(2)+'%':'0';
+}
+
+// ======================== EVO TREE ========================
+let activeCat='T';
+function renderEvoTree(){
+  const el=document.getElementById('evo-tree');el.innerHTML='';
+  const cat=activeCat;
+  UPGRADES.filter(u=>u.cat===cat).forEach(u=>{
+    const owned=G.owned.has(u.id);
+    const preOk=u.pre.every(p=>G.owned.has(p));
+    const btn=document.createElement('button');
+    btn.className='evo-node'+(owned?' owned':'');
+    btn.title=u.id;
+    const ic={T:'ei-t',S:'ei-s',A:'ei-a'}[cat];
+    const preStr=u.pre.length?`<span class="evo-pre">Req: ${u.pre.map(p=>{const up=UPGRADES.find(x=>x.id===p);return up?up.name:p;}).join(', ')}</span>`:'';
+    const costStr=owned?'✓':`${u.cost} DNA`;
+    btn.innerHTML=`<span class="evo-icon ${ic}"></span><span class="evo-name">${u.name}${preStr}<span class="evo-pre" style="color:#1a3a26;margin-top:2px">${u.desc}</span></span><span class="evo-cost">${costStr}</span>`;
+    btn.disabled=owned||!preOk||Math.floor(G.dna)<u.cost;
+    btn.onclick=()=>buyUpgrade(u.id);
+    el.appendChild(btn);
+  });
+}
+document.querySelectorAll('.etab').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.etab').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    activeCat=b.dataset.t;
+    if(G) renderEvoTree();
+  });
+});
+let _evoBtnTick=0;
+function renderEvoButtons(){
+  _evoBtnTick++;
+  // Rebuild tree every 10 ticks to keep affordability correct without full rebuild every tick
+  if(_evoBtnTick%10===0) renderEvoTree();
+  else document.querySelectorAll('.evo-node:not(.owned)').forEach(btn=>{
+    const u=UPGRADES.find(u=>u.id===btn.title);
+    if(!u) return;
+    btn.disabled=!u.pre.every(p=>G.owned.has(p))||Math.floor(G.dna)<u.cost;
+  });
+  document.getElementById('dna-count').textContent=Math.floor(G.dna);
+}
+function buyUpgrade(id,free=false){
+  const u=UPGRADES.find(u=>u.id===id);
+  if(!u||G.owned.has(u.id)||((!free)&&Math.floor(G.dna)<u.cost)) return;
+  if(!free) G.dna-=u.cost;
+  G.owned.add(u.id);
+  G.infectivity+=u.dInf;G.severity+=u.dSev;G.lethality+=u.dLeth;G.cureMult*=u.dCure;
+  if(u.id==='insects') G.insectBonus=true;
+  if(u.id==='coldr')   G.coldBonus=true;
+  if(u.id==='heatr')   G.hotBonus=true;
+  if(u.id==='camo')    G.stealthBonus=-3;
+  pushNews(`Evolved: ${u.name}`);
+  renderEvoTree();
+}
+
+// ======================== SPEED ========================
+let speed=1;
+function getTickMs(){return{1:500,2:250,3:125}[speed]||500;}
+function setSpeed(s){
+  speed=s;
+  document.querySelectorAll('.sp-btn').forEach(b=>b.classList.toggle('active',+b.dataset.s===s));
+  if(G?.running){clearInterval(tickTimer);tickTimer=setInterval(tick,getTickMs());}
+}
+
+// ======================== ENDGAME ========================
+function endGame(won){
+  G.running=false;G.over=true;
+  const tp=G.countries.reduce((s,c)=>s+c.pop,0);
+  const td=G.countries.reduce((s,c)=>s+c.dead,0);
+  const pct=(td/tp*100).toFixed(1);
+  document.getElementById('screen-game').style.display='none';
+  const os=document.getElementById('screen-over');os.style.display='flex';
+  if(won){
+    document.getElementById('over-title').style.cssText='color:#cc0000;text-shadow:0 0 50px rgba(180,0,0,.5)';
+    document.getElementById('over-title').textContent='EXTINCTION';
+    document.getElementById('over-sub').textContent=`${diseaseName} has consumed humanity`;
+    document.getElementById('over-body').innerHTML=`${fmt(td)} dead &mdash; ${pct}% of all humans.<br>The world is silent.`;
+  } else {
+    document.getElementById('over-title').style.cssText='color:#0077cc;text-shadow:0 0 50px rgba(0,100,200,.4)';
+    document.getElementById('over-title').textContent='CURE FOUND';
+    document.getElementById('over-sub').textContent='Humanity survived the outbreak.';
+    document.getElementById('over-body').innerHTML=`${fmt(td)} casualties &mdash; ${pct}% of the population.<br>${diseaseName} has been neutralized.`;
+  }
+}
+
+// ======================== INPUT ========================
+document.querySelectorAll('.diff-btn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.diff-btn').forEach(x=>x.classList.remove('sel'));
+    b.classList.add('sel');diff=b.dataset.d;
+  });
+});
+
+document.getElementById('to-country-pick').addEventListener('click',()=>{
+  const raw=document.getElementById('name-input').value.trim();
+  diseaseName=raw||'Pathogen';
+  document.getElementById('screen-start').style.display='none';
+  document.getElementById('screen-game').style.display='flex';
+  document.getElementById('disease-name-display').textContent=diseaseName;
+  document.getElementById('game-title').textContent=diseaseName.toUpperCase();
+  G=mkGame();
+  resize(); // builds paths after mkGame so G.countries exists
+  renderEvoTree();
+  pushNews('Select a country to seed patient zero...');
+  if(animId) cancelAnimationFrame(animId);
+  renderLoop();
+});
+
+canvas.addEventListener('click',e=>{
+  if(!G) return;
+  const rect=canvas.getBoundingClientRect();
+  const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
+  const my=(e.clientY-rect.top)*(canvas.height/rect.height);
+
+  // Bubbles first
+  for(let i=bubbles.length-1;i>=0;i--){
+    const b=bubbles[i];
+    if(Math.hypot(mx-b.x,my-b.y)<b.r*2.2){G.dna+=b.val;bubbles.splice(i,1);return;}
+  }
+
+  // Country polygon hit test via Path2D
+  if(G.choosingStart||true){
+    for(const c of G.countries){
+      if(c.path&&ctx.isPointInPath(c.path,mx,my)){
+        if(G.choosingStart){
+          c.infected=Math.floor(c.pop*.00008);
+          G.choosingStart=false;G.running=true;
+          pushNews(`Patient zero confirmed in ${c.name} — ${diseaseName} begins spreading`);
+          clearInterval(tickTimer);tickTimer=setInterval(tick,getTickMs());
+        }
+        break;
+      }
+    }
+  }
+});
+
+canvas.addEventListener('mousemove',e=>{
+  if(!G?.countries) return;
+  const rect=canvas.getBoundingClientRect();
+  const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
+  const my=(e.clientY-rect.top)*(canvas.height/rect.height);
+
+  let found=null;
+  for(const c of G.countries){
+    if(c.path&&ctx.isPointInPath(c.path,mx,my)){found=c;break;}
+  }
+  hoveredCountry=found;
+
+  const tip=document.getElementById('tip');
+  if(found){
+    const c=found;
+    const alive=c.pop-c.dead,h=Math.max(0,alive-c.infected);
+    const flags=[];
+    if(c.detected) flags.push('<span style="color:#ccaa20">DETECTED</span>');
+    if(c.bordersClosed) flags.push('<span style="color:#cc3311">BORDERS CLOSED</span>');
+    if(c.airportClosed) flags.push('<span style="color:#cc3311">AIRPORTS CLOSED</span>');
+    tip.style.display='block';
+    tip.style.left=Math.min(e.clientX+16,window.innerWidth-185)+'px';
+    tip.style.top=(e.clientY-12)+'px';
+    tip.innerHTML=`<b style="color:#ff4422">${c.name}</b>${flags.length?' &mdash; '+flags.join(' '):''}
+      <br>Infected: <span style="color:#ff4422">${fmt(c.infected)}</span>
+      <br>Dead: <span style="color:#880000">${fmt(c.dead)}</span>
+      <br>Healthy: <span style="color:#22ccaa">${fmt(h)}</span>`;
+  } else {
+    tip.style.display='none';
+  }
+});
+
+document.querySelectorAll('.sp-btn').forEach(b=>b.addEventListener('click',()=>setSpeed(+b.dataset.s)));
+
+document.getElementById('mut-accept').addEventListener('click',()=>{
+  if(!pendingMut) return;
+  buyUpgrade(pendingMut.id,true);
+  document.getElementById('mut-popup').style.display='none';pendingMut=null;
+});
+document.getElementById('mut-devolve').addEventListener('click',()=>{
+  if(!pendingMut) return;
+  G.dna+=1;pushNews(`Devolved: ${pendingMut.name}`);
+  document.getElementById('mut-popup').style.display='none';pendingMut=null;
+});
+
+window.addEventListener('resize',()=>{
+  resize();
+});
+
+// ======================== BOOT ========================
+// Boot: show start screen, render a decorative background loop
+G=mkGame();
+resize();
+renderLoop();
+</script>
+</body>
+</html>

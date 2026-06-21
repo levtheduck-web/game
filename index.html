@@ -1,650 +1,401 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>LEV ARCADE</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lev's Games</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
   :root {
-    --bg: #07070d;
-    --bg2: #0d0d1a;
-    --ink: #e9e9ff;
-    --dim: #8a8aaa;
-    --neon: #00ffd0;
-    --neon2: #ff3df0;
-    --neon3: #ffd400;
-    --card: rgba(255,255,255,0.03);
-    --border: rgba(255,255,255,0.08);
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; }
-  body {
-    background:
-      radial-gradient(1200px 800px at 20% -10%, rgba(255,61,240,0.18), transparent 60%),
-      radial-gradient(1000px 700px at 110% 10%, rgba(0,255,208,0.12), transparent 60%),
-      linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
-    color: var(--ink);
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    min-height: 100%;
-    overflow-x: hidden;
-  }
-  body::before {
-    content: "";
-    position: fixed; inset: 0;
-    background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.025) 0 1px, transparent 1px 3px);
-    pointer-events: none;
-    z-index: 1000;
-    mix-blend-mode: overlay;
+    --bg:       #0f1117;
+    --bg2:      #161b27;
+    --bg3:      #1e2535;
+    --sidebar:  #13171f;
+    --accent:   #5b6af5;
+    --accent2:  #7c3aed;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --border:   rgba(255,255,255,0.07);
+    --radius:   12px;
   }
 
-  /* ── HEADER ── */
-  header {
-    padding: 48px 32px 24px;
-    text-align: center;
-  }
-  h1 {
-    font-family: "Press Start 2P", ui-monospace, monospace;
-    font-size: clamp(22px, 5vw, 56px);
-    letter-spacing: 0.12em;
-    color: var(--ink);
-    text-shadow:
-      0 0 4px var(--neon),
-      0 0 16px var(--neon),
-      0 0 32px rgba(0,255,208,0.4),
-      2px 2px 0 var(--neon2);
-    animation: flicker 4s infinite;
-  }
-  @keyframes flicker {
-    0%, 92%, 100% { opacity: 1; }
-    93% { opacity: 0.6; }
-    94% { opacity: 1; }
-    95% { opacity: 0.8; }
-  }
-  .sub {
-    color: var(--dim);
-    margin: 12px 0 0;
-    letter-spacing: 0.3em;
-    font-size: 11px;
-    text-transform: uppercase;
-  }
+  html { font-family: 'Inter', sans-serif; font-size: 14px; }
+  body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
 
-  /* ── CONTROLS ── */
-  .controls {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 24px 24px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    align-items: center;
+  /* SIDEBAR */
+  .sidebar {
+    width: 220px; min-width: 220px;
+    background: var(--sidebar);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    position: sticky; top: 0; height: 100vh;
+    overflow-y: auto;
   }
-  .search-wrap {
-    position: relative;
-    flex: 1;
-    min-width: 200px;
-  }
-  .search-wrap::before {
-    content: "🔍";
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 14px;
-    pointer-events: none;
-  }
-  #search {
-    width: 100%;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--ink);
-    font: inherit;
-    font-size: 13px;
-    padding: 10px 14px 10px 36px;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-  #search:focus { border-color: var(--neon); box-shadow: 0 0 12px rgba(0,255,208,0.2); }
-  #search::placeholder { color: var(--dim); }
-
-  .cats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .cat {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    color: var(--dim);
-    font: inherit;
-    font-size: 11px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    padding: 6px 14px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .cat:hover, .cat.active {
-    border-color: var(--neon);
-    color: var(--neon);
-    box-shadow: 0 0 10px rgba(0,255,208,0.25);
-    background: rgba(0,255,208,0.07);
-  }
-
-  /* ── GRID ── */
-  main {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 24px 96px;
-  }
-  .count {
-    color: var(--dim);
-    font-size: 11px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    margin-bottom: 16px;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 20px;
-  }
-  .tile {
-    position: relative;
-    cursor: pointer;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    overflow: hidden;
-    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-  .tile:hover {
-    transform: translateY(-4px);
-    border-color: var(--neon);
-    box-shadow: 0 0 0 1px var(--neon), 0 0 24px rgba(0,255,208,0.3), 0 12px 40px rgba(0,0,0,0.6);
-  }
-  .tile[data-hidden] { display: none; }
-
-  .art {
-    aspect-ratio: 16 / 10;
-    display: grid;
-    place-items: center;
-    font-size: 56px;
-    background: linear-gradient(135deg, var(--c1, #222) 0%, var(--c2, #444) 100%);
-    position: relative;
-    overflow: hidden;
-  }
-  .art::after {
-    content: "";
-    position: absolute; inset: 0;
-    background: repeating-linear-gradient(45deg, transparent 0 10px, rgba(0,0,0,0.08) 10px 20px);
-    pointer-events: none;
-  }
-  .art span { filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5)); z-index: 1; }
-
-  .meta { padding: 12px 14px 16px; }
-  .title {
-    font-size: 13px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ink);
-    margin-bottom: 6px;
-  }
-  .row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-  }
-  .tag {
-    font-size: 10px;
-    letter-spacing: 0.15em;
-    color: var(--dim);
-    text-transform: uppercase;
-  }
-  .badge {
-    font-size: 9px;
-    letter-spacing: 0.2em;
-    padding: 2px 7px;
-    border-radius: 999px;
-    border: 1px solid rgba(255,255,255,0.15);
-    color: var(--dim);
-    text-transform: uppercase;
-  }
-  .badge.hot  { color: var(--neon3); border-color: var(--neon3); }
-  .badge.new  { color: var(--neon);  border-color: var(--neon); }
-  .badge.mp   { color: var(--neon2); border-color: var(--neon2); }
-  .badge.tool { color: #60a5fa;      border-color: #60a5fa; }
-
-  /* ── PLAYER ── */
-  .player {
-    position: fixed; inset: 0;
-    background: #000;
-    z-index: 2000;
-    display: none;
-    flex-direction: column;
-  }
-  .player.open { display: flex; }
-  .bar {
-    height: 44px;
-    background: linear-gradient(180deg, #1a1a2a, #0a0a14);
+  .sidebar-logo {
+    padding: 20px 18px 16px;
     border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    padding: 0 12px;
-    gap: 12px;
-    font-size: 12px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    flex-shrink: 0;
   }
-  .bar button {
-    background: transparent;
-    color: var(--ink);
-    border: 1px solid rgba(255,255,255,0.2);
-    padding: 6px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    font: inherit;
-    font-size: 11px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    transition: all 0.15s;
+  .sidebar-logo a {
+    text-decoration: none;
+    display: flex; align-items: center; gap: 10px; color: var(--text);
   }
-  .bar button:hover { border-color: var(--neon); color: var(--neon); box-shadow: 0 0 12px rgba(0,255,208,0.3); }
-  .bar .now { color: var(--dim); flex: 1; }
-  .bar .now b { color: var(--neon); font-weight: normal; }
-  iframe { flex: 1; width: 100%; border: 0; background: #000; }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .logo-text { font-size: 16px; font-weight: 800; letter-spacing: -0.5px; }
+  .sidebar-section { padding: 16px 12px 8px; }
+  .sidebar-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted);
+    padding: 0 6px 8px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 8px;
+    cursor: pointer; color: var(--muted); font-weight: 500;
+    transition: background 0.15s, color 0.15s;
+    text-decoration: none; font-size: 13px;
+  }
+  .nav-item:hover, .nav-item.active { background: rgba(91,106,245,0.12); color: var(--text); }
+  .nav-item.active { color: var(--accent); }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+  .nav-count {
+    margin-left: auto;
+    background: var(--bg3); color: var(--muted);
+    font-size: 10px; font-weight: 600;
+    padding: 2px 6px; border-radius: 20px;
+  }
 
-  footer {
-    text-align: center;
-    color: var(--dim);
-    font-size: 10px;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-    padding: 16px;
+  /* MAIN */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  /* TOP BAR */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(15,17,23,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 28px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .search-wrap { flex: 1; max-width: 500px; position: relative; }
+  .search-wrap input {
+    width: 100%;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 14px 9px 38px;
+    color: var(--text); font-size: 13px; font-family: inherit;
+    outline: none; transition: border-color 0.2s;
+  }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-wrap input::placeholder { color: var(--muted); }
+  .search-icon {
+    position: absolute; left: 12px; top: 50%;
+    transform: translateY(-50%); color: var(--muted);
+    font-size: 14px; pointer-events: none;
+  }
+  .tag-filter { display: flex; gap: 6px; margin-left: auto; }
+  .tag-btn {
+    padding: 5px 12px; border-radius: 20px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--muted); font-size: 12px; font-weight: 600;
+    font-family: inherit; cursor: pointer; transition: all 0.15s;
+  }
+  .tag-btn:hover, .tag-btn.active {
+    background: var(--accent); border-color: var(--accent); color: #fff;
   }
 
-  .empty {
-    display: none;
-    grid-column: 1/-1;
-    text-align: center;
-    color: var(--dim);
-    font-size: 12px;
-    letter-spacing: 0.2em;
-    padding: 64px 0;
+  /* CONTENT */
+  .content { padding: 28px; flex: 1; }
+
+  /* FEATURED */
+  .featured {
+    border-radius: 16px; overflow: hidden; position: relative;
+    height: 260px; margin-bottom: 36px; cursor: pointer;
+    display: flex; align-items: flex-end;
+    text-decoration: none; color: inherit;
+  }
+  .featured-bg {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #1a0533 0%, #0d1a3a 40%, #001a2c 100%);
+  }
+  .featured-glow {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 70% 50%, rgba(91,106,245,0.3), transparent 60%),
+                radial-gradient(ellipse at 20% 80%, rgba(124,58,237,0.25), transparent 50%);
+  }
+  .featured-info {
+    position: relative; z-index: 2; padding: 28px 32px;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+    width: 100%;
+  }
+  .featured-tag {
+    display: inline-block; background: var(--accent); color: #fff;
+    font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; padding: 3px 10px; border-radius: 4px; margin-bottom: 10px;
+  }
+  .featured h2 { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
+  .featured p { color: #94a3b8; font-size: 14px; max-width: 480px; }
+  .featured-play {
+    position: absolute; top: 50%; right: 40px; transform: translateY(-50%);
+    z-index: 2; width: 64px; height: 64px;
+    background: var(--accent); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 0 30px rgba(91,106,245,0.6);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .featured:hover .featured-play {
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 0 50px rgba(91,106,245,0.8);
+  }
+
+  /* SECTION */
+  .section { margin-bottom: 36px; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .section-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .section-title .dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 8px var(--accent); }
+
+  /* GAME GRID */
+  .game-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 14px;
+  }
+  .game-card {
+    background: var(--bg2); border-radius: var(--radius);
+    overflow: hidden; cursor: pointer;
+    transition: transform 0.18s, box-shadow 0.18s;
+    text-decoration: none; color: inherit;
+    display: flex; flex-direction: column;
+    border: 1px solid var(--border);
+  }
+  .game-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    border-color: rgba(91,106,245,0.3);
+  }
+  .game-thumb {
+    width: 100%; aspect-ratio: 16/10;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px; position: relative; overflow: hidden;
+  }
+  .game-thumb-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.5));
+    opacity: 0; transition: opacity 0.2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .game-card:hover .game-thumb-overlay { opacity: 1; }
+  .play-btn {
+    width: 44px; height: 44px;
+    background: rgba(91,106,245,0.9); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .game-info { padding: 10px 12px 12px; }
+  .game-name {
+    font-size: 13px; font-weight: 700; margin-bottom: 4px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .game-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .game-tag {
+    font-size: 10px; font-weight: 600; padding: 2px 7px;
+    border-radius: 4px; background: rgba(255,255,255,0.06); color: var(--muted);
+  }
+  .game-tag.hot { background: rgba(239,68,68,0.15); color: #f87171; }
+  .game-tag.new { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .game-tag.mp  { background: rgba(91,106,245,0.15); color: #818cf8; }
+
+  /* NO RESULTS */
+  .no-results { text-align: center; padding: 60px 20px; color: var(--muted); display: none; }
+  .no-results.show { display: block; }
+  .no-results-icon { font-size: 48px; margin-bottom: 16px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .featured { height: 200px; }
+    .featured h2 { font-size: 20px; }
+  }
+  @media (max-width: 600px) {
+    .content { padding: 16px; }
+    .topbar { padding: 10px 16px; }
+    .game-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    .tag-filter { display: none; }
   }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>LEV ARCADE</h1>
-  <p class="sub">Insert coin &middot; Press start</p>
-</header>
-
-<div class="controls">
-  <div class="search-wrap">
-    <input id="search" type="search" placeholder="Search games…" autocomplete="off" spellcheck="false" />
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <a href="#" onclick="filterCategory('all');return false;">
+      <div class="logo-icon">🎮</div>
+      <div class="logo-text">LEV GAMES</div>
+    </a>
   </div>
-  <div class="cats" id="cats"></div>
-</div>
-
-<main>
-  <div class="count" id="count"></div>
-  <div class="grid" id="grid">
-    <div class="empty" id="empty">No games found</div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">Browse</div>
+    <a class="nav-item active" id="nav-all" href="#" onclick="filterCategory('all');return false;"><span class="nav-icon">🏠</span> All Games <span class="nav-count" id="cnt-all">0</span></a>
+    <a class="nav-item" id="nav-action" href="#" onclick="filterCategory('action');return false;"><span class="nav-icon">⚔️</span> Action <span class="nav-count" id="cnt-action">0</span></a>
+    <a class="nav-item" id="nav-strategy" href="#" onclick="filterCategory('strategy');return false;"><span class="nav-icon">🧠</span> Strategy <span class="nav-count" id="cnt-strategy">0</span></a>
+    <a class="nav-item" id="nav-puzzle" href="#" onclick="filterCategory('puzzle');return false;"><span class="nav-icon">🧩</span> Puzzle <span class="nav-count" id="cnt-puzzle">0</span></a>
+    <a class="nav-item" id="nav-simulation" href="#" onclick="filterCategory('simulation');return false;"><span class="nav-icon">🏙️</span> Simulation <span class="nav-count" id="cnt-simulation">0</span></a>
+    <a class="nav-item" id="nav-adventure" href="#" onclick="filterCategory('adventure');return false;"><span class="nav-icon">🗺️</span> Adventure <span class="nav-count" id="cnt-adventure">0</span></a>
+    <a class="nav-item" id="nav-multiplayer" href="#" onclick="filterCategory('multiplayer');return false;"><span class="nav-icon">👥</span> Multiplayer <span class="nav-count" id="cnt-multiplayer">0</span></a>
+    <a class="nav-item" id="nav-other" href="#" onclick="filterCategory('other');return false;"><span class="nav-icon">✨</span> Other <span class="nav-count" id="cnt-other">0</span></a>
   </div>
-</main>
+</nav>
 
-<footer>&copy; A homemade arcade</footer>
-
-<div class="player" id="player">
-  <div class="bar">
-    <button id="back">&larr; Back</button>
-    <div class="now">Now playing &mdash; <b id="nowTitle"></b></div>
-    <button id="fs">Fullscreen</button>
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search" placeholder="Search games…" oninput="handleSearch()" />
+    </div>
+    <div class="tag-filter">
+      <button class="tag-btn active" onclick="setSort('all',this)">All</button>
+      <button class="tag-btn" onclick="setSort('hot',this)">🔥 Hot</button>
+      <button class="tag-btn" onclick="setSort('new',this)">✨ New</button>
+      <button class="tag-btn" onclick="setSort('mp',this)">👥 Multiplayer</button>
+    </div>
   </div>
-  <iframe id="frame" allow="autoplay; fullscreen; gamepad; microphone; camera"></iframe>
+
+  <div class="content">
+
+    <!-- FEATURED BANNER -->
+    <a class="featured" href="pixel-war.html">
+      <div class="featured-bg"><div class="featured-glow"></div></div>
+      <div class="featured-play">▶</div>
+      <div class="featured-info">
+        <div class="featured-tag">Featured</div>
+        <h2>Pixel War</h2>
+        <p>War Thunder-style vehicle combat — pilot tanks, planes, ships, and AA guns against AI. Armor pen, module damage, and B-2 bombers.</p>
+      </div>
+    </a>
+
+    <!-- GAMES -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">
+          <div class="dot"></div>
+          <span id="section-label">All Games</span>
+        </div>
+      </div>
+      <div class="game-grid" id="game-grid"></div>
+      <div class="no-results" id="no-results">
+        <div class="no-results-icon">🕹️</div>
+        <div>No games found.</div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <script>
-const games = [
-  // ── ACTION / COMBAT ──
-  {
-    title: "Pixel War",
-    file: "pixel-war.html",
-    emoji: "⚔️",
-    c1: "#1a0a0a", c2: "#7f1d1d",
-    cat: "Action",
-    badge: "hot",
-    desc: "Tanks, planes, ships & AA vs AI. Armor pen, module damage, capture points.",
-  },
-  {
-    title: "War Combined",
-    file: "war-combined.html",
-    emoji: "🎖️",
-    c1: "#1a1408", c2: "#854d0e",
-    cat: "Action",
-    badge: "new",
-    desc: "Pixel War merged with a friend's Tank War — subs, carriers, jets, helis.",
-  },
-  {
-    title: "Nuclear",
-    file: "nuclear.html",
-    emoji: "☢️",
-    c1: "#7f1d1d", c2: "#facc15",
-    cat: "Action",
-    badge: "hot",
-    desc: "DEFCON-style nuke game. Launch ICBMs, defend cities, end civilisation.",
-  },
-  {
-    title: "Yellowstone Carnage",
-    file: "yellowstone-carnage.html",
-    emoji: "🐻",
-    c1: "#14532d", c2: "#a16207",
-    cat: "Action",
-    badge: "new",
-    desc: "Survive the wilderness — bears, geysers, and pure chaos.",
-  },
-  {
-    title: "Speed Stars",
-    file: "speed-stars.html",
-    emoji: "🏃",
-    c1: "#dc2626", c2: "#fbbf24",
-    cat: "Action",
-    badge: "new",
-    desc: "High-speed running — dodge, dash, and beat the clock.",
-  },
-  // ── SCI-FI / SPACE ──
-  {
-    title: "Spaceship Solo",
-    file: "spaceship-solo.html",
-    emoji: "🚀",
-    c1: "#0a0a2a", c2: "#312e81",
-    cat: "Sci-Fi",
-    badge: null,
-    desc: "Solo spaceship action — upgrades with Q, no server needed.",
-  },
-  {
-    title: "Spaceship",
-    file: "spaceship.html",
-    emoji: "🛸",
-    c1: "#0d1a3a", c2: "#1e3a8a",
-    cat: "Sci-Fi",
-    badge: null,
-    desc: "Original spaceship build.",
-  },
-  {
-    title: "Spaceship MP",
-    file: "spaceship-mp.html",
-    emoji: "👾",
-    c1: "#0a0a2a", c2: "#6d28d9",
-    cat: "Sci-Fi",
-    badge: "mp",
-    desc: "Co-op multiplayer spaceship — needs local server.",
-  },
-  {
-    title: "The Last Transmission",
-    file: "last-transmission.html",
-    emoji: "📡",
-    c1: "#0a1a2a", c2: "#0e4a6a",
-    cat: "Sci-Fi",
-    badge: "hot",
-    desc: "AI-driven sci-fi narrative. 5 endings, reactive choices, co-designed story.",
-  },
-  {
-    title: "Last Transmission 3D",
-    file: "last-transmission-3d.html",
-    emoji: "🌌",
-    c1: "#0a0a1a", c2: "#1a0a3a",
-    cat: "Sci-Fi",
-    badge: "new",
-    desc: "3D version of The Last Transmission.",
-  },
-  // ── STRATEGY / TYCOON ──
-  {
-    title: "Mars Colony",
-    file: "mars-colony.html",
-    emoji: "🔴",
-    c1: "#3b1c0a", c2: "#9a3412",
-    cat: "Strategy",
-    badge: "hot",
-    desc: "Red Horizon — build a Mars base. Grid layout, 8-resource sim, research tree.",
-  },
-  {
-    title: "Untamed",
-    file: "national-park-tycoon.html",
-    emoji: "🏞️",
-    c1: "#14532d", c2: "#166534",
-    cat: "Strategy",
-    badge: "new",
-    desc: "National park tycoon — trails, buildings, rangers, wildlife & seasons.",
-  },
-  {
-    title: "National Park Simulator",
-    file: "national-park-simulator.html",
-    emoji: "🌲",
-    c1: "#1a2e1a", c2: "#15803d",
-    cat: "Strategy",
-    badge: null,
-    desc: "Manage a national park — earlier build.",
-  },
-  {
-    title: "Build a Bridge",
-    file: "build-a-bridge.html",
-    emoji: "🌉",
-    c1: "#1e3a8a", c2: "#0ea5e9",
-    cat: "Strategy",
-    badge: "hot",
-    desc: "Canvas physics puzzle — build bridges that hold cars without snapping.",
-  },
-  // ── PARTY / MULTIPLAYER ──
-  {
-    title: "Fib Factory",
-    file: "fib-factory.html",
-    emoji: "🃏",
-    c1: "#1a0a2a", c2: "#7c3aed",
-    cat: "Party",
-    badge: "mp",
-    desc: "Fibbage-style bluff trivia — write lies, vote for truth. Needs local server.",
-  },
-  {
-    title: "Roach Rave",
-    file: "roach-rave.html",
-    emoji: "🪳",
-    c1: "#1a1400", c2: "#713f12",
-    cat: "Party",
-    badge: "mp",
-    desc: "Paste a YouTube link → cockroaches dance to the audio. Needs local server.",
-  },
-  // ── PUZZLE / CASUAL ──
-  {
-    title: "Cheese Heist 3D",
-    file: "cheese-heist-3d.html",
-    emoji: "🧀",
-    c1: "#7c2d12", c2: "#facc15",
-    cat: "Puzzle",
-    badge: "new",
-    desc: "3D cheese-stealing heist — stealth, traps, and fromage.",
-  },
-  {
-    title: "Decision Roulette",
-    file: "decision-roulette.html",
-    emoji: "🎯",
-    c1: "#4b0082", c2: "#ff3366",
-    cat: "Puzzle",
-    badge: "new",
-    desc: "Spin the wheel, let fate decide.",
-  },
-  {
-    title: "Case Board",
-    file: "case-board.html",
-    emoji: "🔍",
-    c1: "#1c1917", c2: "#44403c",
-    cat: "Puzzle",
-    badge: null,
-    desc: "Detective case board — connect the clues.",
-  },
-  {
-    title: "Nothing",
-    file: "nothing.html",
-    emoji: "🫥",
-    c1: "#27272a", c2: "#52525b",
-    cat: "Puzzle",
-    badge: null,
-    desc: "A game about nothing. Or is it?",
-  },
-  // ── MUSIC / CREATIVE ──
-  {
-    title: "DJ",
-    file: "dj.html",
-    emoji: "🎧",
-    c1: "#581c87", c2: "#ec4899",
-    cat: "Music",
-    badge: "new",
-    desc: "Mix beats, scratch records, feel the drop.",
-  },
-  // ── HACKING / TOOLS ──
-  {
-    title: "Hacker",
-    file: "hacker.html",
-    emoji: "💻",
-    c1: "#064e3b", c2: "#10b981",
-    cat: "Hacking",
-    badge: null,
-    desc: "Terminal hacking sim — break in, escalate, exfiltrate.",
-  },
-  {
-    title: "Homework Bot",
-    file: "homework-bot.html",
-    emoji: "📚",
-    c1: "#1e1b4b", c2: "#4338ca",
-    cat: "Hacking",
-    badge: "tool",
-    desc: "Auto-types Gemini answers into Google Classroom, Khan, Quizlet & more.",
-  },
-  {
-    title: "Homework Bot Web",
-    file: "homework-bot-web.html",
-    emoji: "🤖",
-    c1: "#1e1b4b", c2: "#7c3aed",
-    cat: "Hacking",
-    badge: "tool",
-    desc: "Web version of the homework bot.",
-  },
-  {
-    title: "Homework Bot Bookmarklet",
-    file: "homework-bot-bookmarklet.html",
-    emoji: "🔖",
-    c1: "#1e1b4b", c2: "#312e81",
-    cat: "Hacking",
-    badge: "tool",
-    desc: "Drag-to-bookmarks version of the homework bot.",
-  },
+const GAMES = [
+  { name:'Pixel War',           file:'pixel-war.html',             emoji:'🪖', color:['#1a2a0a','#2d4a10'], category:'action',      tags:['hot'],       desc:'War Thunder-style vehicle combat' },
+  { name:'Pixel War (Alt)',     file:'pixelwar.html',              emoji:'⚔️', color:['#1a1a2a','#2d1a40'], category:'action',      tags:[],            desc:'Vehicle combat variant' },
+  { name:'Pixel War Solo',      file:'pixelwar-solo.html',         emoji:'🚀', color:['#0a1a2a','#10302a'], category:'action',      tags:[],            desc:'Solo vehicle combat' },
+  { name:'War Combined',        file:'war-combined.html',          emoji:'🛡️', color:['#1a0a0a','#3a1010'], category:'action',      tags:['hot'],       desc:'Pixel War + Tank War merged' },
+  { name:'Nuclear DEFCON',      file:'nuclear.html',               emoji:'☢️', color:['#1a1000','#2a2000'], category:'strategy',    tags:['hot'],       desc:'DEFCON-style nuke strategy' },
+  { name:'Spaceship',           file:'spaceship-solo.html',        emoji:'🚀', color:['#04080f','#0a1530'], category:'action',      tags:['hot'],       desc:'Co-op space shooter (solo)' },
+  { name:'Spaceship MP',        file:'spaceship-mp.html',          emoji:'🛸', color:['#060a18','#0d1530'], category:'multiplayer', tags:['mp'],        desc:'Multiplayer space shooter' },
+  { name:'Build a Bridge',      file:'build-a-bridge.html',        emoji:'🌉', color:['#0a1020','#10203a'], category:'puzzle',      tags:['hot'],       desc:'Physics bridge builder' },
+  { name:'Red Horizon',         file:'mars-colony.html',           emoji:'🔴', color:['#200a00','#3a1000'], category:'simulation',  tags:['new'],       desc:'Mars colony builder' },
+  { name:'Untamed',             file:'national-park-tycoon.html',  emoji:'🏞️', color:['#0a1a0a','#0f2a10'], category:'simulation',  tags:['new'],       desc:'National park tycoon' },
+  { name:'Park Simulator',      file:'national-park-simulator.html',emoji:'⛺', color:['#0a1400','#142000'], category:'simulation',  tags:[],            desc:'National park management' },
+  { name:'Virus',               file:'virus.html',                 emoji:'🦠', color:['#100a1a','#1a0a2a'], category:'strategy',    tags:['hot'],       desc:'Plague Inc.-style world infection' },
+  { name:'Pathogen',            file:'pathogen.html',              emoji:'🧬', color:['#0a1a10','#102a18'], category:'strategy',    tags:[],            desc:'Evolve your pathogen' },
+  { name:'Last Transmission',   file:'last-transmission.html',     emoji:'📡', color:['#080f1a','#0d1a30'], category:'adventure',   tags:['new'],       desc:'Sci-fi narrative with 5 endings' },
+  { name:'Last Transmission 3D',file:'last-transmission-3d.html',  emoji:'🌌', color:['#040810','#080f20'], category:'adventure',   tags:['new'],       desc:'3D sci-fi narrative' },
+  { name:'Cheese Heist 3D',     file:'cheese-heist-3d.html',       emoji:'🧀', color:['#1a1500','#2a2200'], category:'action',      tags:[],            desc:'3D heist game' },
+  { name:'Fib Factory',         file:'fib-factory.html',           emoji:'🎭', color:['#1a001a','#2a002a'], category:'multiplayer', tags:['mp'],        desc:'Fibbage-style bluff trivia' },
+  { name:'Yellowstone Carnage', file:'yellowstone-carnage.html',   emoji:'🌋', color:['#1a0a00','#2a1500'], category:'action',      tags:['new'],       desc:'Survive the eruption' },
+  { name:'Speed Stars',         file:'speed-stars.html',           emoji:'🏎️', color:['#000a1a','#001030'], category:'action',      tags:[],            desc:'High-speed racing' },
+  { name:'Hacker',              file:'hacker.html',                emoji:'💻', color:['#001a00','#003300'], category:'puzzle',      tags:[],            desc:'Terminal hacking simulator' },
+  { name:'DJ',                  file:'dj.html',                    emoji:'🎧', color:['#0a001a','#15002a'], category:'other',       tags:[],            desc:'Mix beats in the browser' },
+  { name:'Decision Roulette',   file:'decision-roulette.html',     emoji:'🎰', color:['#1a0000','#2a0a00'], category:'other',       tags:[],            desc:'Let fate decide' },
+  { name:'Case Board',          file:'case-board.html',            emoji:'🔎', color:['#0a0a0a','#181818'], category:'puzzle',      tags:[],            desc:'Detective mystery board' },
+  { name:'Roach Rave',          file:'roach-rave.html',            emoji:'🪳', color:['#0d0a00','#1a1400'], category:'other',       tags:[],            desc:'Cockroaches dance to YouTube' },
+  { name:'Nothing',             file:'nothing.html',               emoji:'⬜', color:['#0a0a0a','#111111'], category:'other',       tags:[],            desc:'Absolutely nothing' },
 ];
 
-// ── BUILD CATEGORY PILLS ──
-const allCats = ["All", ...new Set(games.map(g => g.cat))];
-const catsEl = document.getElementById("cats");
-let activeCat = "All";
+let currentCategory = 'all';
+let currentSort = 'all';
 
-for (const c of allCats) {
-  const btn = document.createElement("button");
-  btn.className = "cat" + (c === "All" ? " active" : "");
-  btn.textContent = c;
-  btn.addEventListener("click", () => {
-    activeCat = c;
-    document.querySelectorAll(".cat").forEach(b => b.classList.toggle("active", b.textContent === c));
-    filter();
-  });
-  catsEl.appendChild(btn);
+function filterCategory(cat) {
+  currentCategory = cat;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('nav-' + cat);
+  if (el) el.classList.add('active');
+  const labels = { all:'All Games', action:'Action', strategy:'Strategy', puzzle:'Puzzle', simulation:'Simulation', adventure:'Adventure', multiplayer:'Multiplayer', other:'Other' };
+  document.getElementById('section-label').textContent = labels[cat] || 'Games';
+  renderGames();
 }
 
-// ── BUILD TILES ──
-const grid = document.getElementById("grid");
-const tiles = [];
+function setSort(sort, btn) {
+  currentSort = sort;
+  document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderGames();
+}
 
-for (const g of games) {
-  const tile = document.createElement("div");
-  tile.className = "tile";
-  tile.dataset.title = g.title.toLowerCase();
-  tile.dataset.cat = g.cat;
-  tile.innerHTML = `
-    <div class="art" style="--c1:${g.c1};--c2:${g.c2}">
-      <span>${g.emoji}</span>
-    </div>
-    <div class="meta">
-      <div class="title">${g.title}</div>
-      <div class="row">
-        <span class="tag">${g.cat}</span>
-        ${g.badge ? `<span class="badge ${g.badge}">${g.badge === "mp" ? "Multiplayer" : g.badge}</span>` : ""}
+function handleSearch() {
+  renderGames();
+}
+
+function renderGames() {
+  const q = document.getElementById('search').value.toLowerCase().trim();
+  let games = GAMES;
+  if (currentCategory !== 'all') games = games.filter(g => g.category === currentCategory);
+  if (currentSort === 'hot') games = games.filter(g => g.tags.includes('hot'));
+  else if (currentSort === 'new') games = games.filter(g => g.tags.includes('new'));
+  else if (currentSort === 'mp') games = games.filter(g => g.tags.includes('mp') || g.category === 'multiplayer');
+  if (q) games = games.filter(g => g.name.toLowerCase().includes(q) || g.desc.toLowerCase().includes(q) || g.category.includes(q));
+
+  const grid = document.getElementById('game-grid');
+  const noRes = document.getElementById('no-results');
+  grid.innerHTML = '';
+  if (!games.length) { noRes.classList.add('show'); return; }
+  noRes.classList.remove('show');
+
+  games.forEach(g => {
+    const a = document.createElement('a');
+    a.className = 'game-card';
+    a.href = g.file;
+    const badges = g.tags.map(t => `<span class="game-tag ${t}">${t==='hot'?'🔥 Hot':t==='new'?'✨ New':t==='mp'?'👥 MP':t}</span>`).join('');
+    a.innerHTML = `
+      <div class="game-thumb" style="background:linear-gradient(135deg,${g.color[0]},${g.color[1]})">
+        <span>${g.emoji}</span>
+        <div class="game-thumb-overlay"><div class="play-btn">▶</div></div>
       </div>
-    </div>
-  `;
-  tile.addEventListener("click", () => launch(g));
-  grid.insertBefore(tile, document.getElementById("empty"));
-  tiles.push(tile);
+      <div class="game-info">
+        <div class="game-name">${g.name}</div>
+        <div class="game-meta"><span class="game-tag">${g.category}</span>${badges}</div>
+      </div>`;
+    grid.appendChild(a);
+  });
 }
 
-// ── FILTER ──
-const countEl = document.getElementById("count");
-const emptyEl = document.getElementById("empty");
-
-function filter() {
-  const q = document.getElementById("search").value.toLowerCase().trim();
-  let visible = 0;
-  for (const tile of tiles) {
-    const matchCat = activeCat === "All" || tile.dataset.cat === activeCat;
-    const matchQ = !q || tile.dataset.title.includes(q);
-    const show = matchCat && matchQ;
-    tile.toggleAttribute("data-hidden", !show);
-    if (show) visible++;
-  }
-  countEl.textContent = `${visible} game${visible !== 1 ? "s" : ""}`;
-  emptyEl.style.display = visible === 0 ? "block" : "none";
+function updateCounts() {
+  ['all','action','strategy','puzzle','simulation','adventure','multiplayer','other'].forEach(cat => {
+    const el = document.getElementById('cnt-' + cat);
+    if (el) el.textContent = cat === 'all' ? GAMES.length : GAMES.filter(g => g.category === cat).length;
+  });
 }
 
-document.getElementById("search").addEventListener("input", filter);
-filter();
-
-// ── PLAYER ──
-const player = document.getElementById("player");
-const frame  = document.getElementById("frame");
-const nowTitle = document.getElementById("nowTitle");
-
-function launch(g) {
-  frame.src = g.file;
-  nowTitle.textContent = g.title;
-  player.classList.add("open");
-  document.body.style.overflow = "hidden";
-  location.hash = encodeURIComponent(g.title);
-}
-function closePlayer() {
-  player.classList.remove("open");
-  frame.src = "about:blank";
-  document.body.style.overflow = "";
-  if (location.hash) history.replaceState(null, "", location.pathname);
-}
-
-document.getElementById("back").addEventListener("click", closePlayer);
-document.getElementById("fs").addEventListener("click", () => {
-  if (!document.fullscreenElement) player.requestFullscreen?.();
-  else document.exitFullscreen?.();
-});
-document.addEventListener("keydown", e => {
-  if (e.key === "Escape" && player.classList.contains("open")) closePlayer();
-});
-
-// deep-link
-if (location.hash) {
-  const want = decodeURIComponent(location.hash.slice(1)).toLowerCase();
-  const g = games.find(x => x.title.toLowerCase() === want);
-  if (g) launch(g);
-}
+updateCounts();
+renderGames();
 </script>
 </body>
 </html>
