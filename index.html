@@ -216,6 +216,78 @@ body::before {
   clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%);
 }
 .logout-btn:hover { background:rgba(255,0,128,0.12); box-shadow:0 0 12px var(--glow-p); }
+.sidebar-user-info { cursor:pointer; }
+.sidebar-user-meta { font-size:10px; color:var(--cyan); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sidebar-user-meta b { color:#fff; }
+
+/* ── PROFILE MODAL ── */
+.profile-modal {
+  position:fixed; inset:0; z-index:9000; display:none; align-items:flex-start; justify-content:center;
+  padding:40px 20px; overflow-y:auto; background:rgba(3,5,12,0.82); backdrop-filter:blur(6px);
+}
+.profile-modal.show { display:flex; }
+.profile-card {
+  position:relative; width:100%; max-width:520px; background:rgba(8,11,20,0.97);
+  border:1px solid rgba(0,245,255,0.18); box-shadow:0 0 44px rgba(0,245,255,0.12),0 0 90px rgba(255,0,128,0.07);
+  clip-path:polygon(0 0,calc(100% - 24px) 0,100% 24px,100% 100%,24px 100%,0 calc(100% - 24px));
+}
+.profile-banner {
+  height:96px; position:relative;
+  background:radial-gradient(ellipse at 70% 40%,rgba(255,0,128,0.28),transparent 60%),
+             radial-gradient(ellipse at 20% 70%,rgba(0,245,255,0.22),transparent 55%),linear-gradient(120deg,#0d0022,#001622);
+  border-bottom:1px solid rgba(0,245,255,0.14);
+}
+.profile-banner::after { content:''; position:absolute; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.14) 2px,rgba(0,0,0,0.14) 4px); }
+.profile-close {
+  position:absolute; top:12px; right:14px; z-index:3; background:rgba(0,0,0,0.4); border:1px solid rgba(255,0,128,0.4);
+  color:var(--pink); width:30px; height:30px; cursor:pointer; font-size:16px; line-height:1; transition:all 0.15s;
+  clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+}
+.profile-close:hover { background:rgba(255,0,128,0.15); box-shadow:0 0 12px var(--glow-p); }
+.profile-head { display:flex; align-items:flex-end; gap:16px; padding:0 26px; margin-top:-44px; position:relative; z-index:2; }
+.profile-avatar, .profile-avatar .avatar-fallback {
+  width:84px; height:84px; border:2px solid var(--cyan); box-shadow:0 0 20px var(--glow-c); object-fit:cover; flex-shrink:0; background:var(--bg3);
+  clip-path:polygon(12px 0%,100% 0%,calc(100% - 12px) 100%,0% 100%);
+}
+.profile-avatar .avatar-fallback { display:flex; align-items:center; justify-content:center; color:var(--cyan); font-weight:700; font-size:34px; }
+.profile-headtext { padding-bottom:6px; min-width:0; }
+.profile-name { font-family:'Press Start 2P',monospace; font-size:15px; color:#fff; text-shadow:0 0 14px rgba(0,245,255,0.4); margin-bottom:6px; word-break:break-word; }
+.profile-email { font-size:13px; color:var(--muted); font-weight:500; }
+.profile-stats { display:flex; gap:12px; padding:22px 26px 6px; }
+.stat-tile {
+  flex:1; text-align:center; padding:16px 8px; background:var(--bg3); border:1px solid rgba(0,245,255,0.12);
+  clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);
+}
+.stat-num { font-family:'Press Start 2P',monospace; font-size:20px; color:var(--cyan); text-shadow:0 0 12px var(--glow-c); }
+.stat-label { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-top:8px; font-weight:700; }
+.profile-section-title { font-family:'Press Start 2P',monospace; font-size:9px; letter-spacing:2px; color:var(--pink); text-shadow:0 0 8px var(--pink); padding:22px 26px 12px; }
+.add-friend { display:flex; gap:8px; padding:0 26px 14px; }
+.add-friend input {
+  flex:1; background:var(--bg3); border:1px solid rgba(0,245,255,0.15); color:var(--text); padding:9px 12px;
+  font-family:'Rajdhani',sans-serif; font-weight:600; font-size:13px; outline:none; letter-spacing:0.5px;
+  clip-path:polygon(5px 0%,100% 0%,calc(100% - 5px) 100%,0% 100%);
+}
+.add-friend input:focus { border-color:var(--cyan); box-shadow:0 0 12px rgba(0,245,255,0.2); }
+.add-friend input::placeholder { color:var(--muted); }
+.add-friend button {
+  background:var(--cyan); border:none; color:#000; font-weight:700; font-family:'Rajdhani',sans-serif; font-size:13px;
+  letter-spacing:1px; text-transform:uppercase; padding:9px 16px; cursor:pointer; transition:box-shadow 0.15s;
+  clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+}
+.add-friend button:hover { box-shadow:0 0 16px var(--glow-c); }
+.friends-list { padding:0 26px 24px; display:flex; flex-direction:column; gap:8px; }
+.friend-row {
+  display:flex; align-items:center; gap:12px; padding:10px 12px; background:var(--bg3); border-left:2px solid var(--cyan);
+}
+.friend-av { width:32px; height:32px; border:1px solid var(--cyan); background:var(--bg); display:flex; align-items:center; justify-content:center; color:var(--cyan); font-weight:700; font-size:14px; flex-shrink:0;
+  clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%); }
+.friend-info { flex:1; min-width:0; }
+.friend-name { font-size:14px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.friend-sub { font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.friend-remove { background:transparent; border:1px solid rgba(255,0,128,0.3); color:var(--pink); cursor:pointer; padding:4px 9px; font-size:12px; transition:all 0.15s;
+  clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); }
+.friend-remove:hover { background:rgba(255,0,128,0.12); }
+.friends-empty { color:var(--muted); font-size:13px; text-align:center; padding:18px; font-weight:500; }
 body.locked .main { filter:blur(6px); pointer-events:none; }
 </style>
 </head>
@@ -259,13 +331,36 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
   </div>
   <div class="sidebar-user" id="sidebar-user">
     <span id="user-avatar"></span>
-    <div class="sidebar-user-info">
+    <div class="sidebar-user-info" onclick="openProfile()" title="View profile">
       <div class="sidebar-user-name" id="user-name"></div>
-      <div class="sidebar-user-email" id="user-email"></div>
+      <div class="sidebar-user-meta">👥 <b id="friend-count">0</b> friends · profile</div>
     </div>
     <button class="logout-btn" id="logout-btn" title="Sign out" onclick="glitchLogout()">⏻</button>
   </div>
 </nav>
+<div class="profile-modal" id="profile-modal" onclick="if(event.target===this)closeProfile()">
+  <div class="profile-card">
+    <div class="profile-banner"><button class="profile-close" onclick="closeProfile()" title="Close">✕</button></div>
+    <div class="profile-head">
+      <span class="profile-avatar" id="profile-avatar"></span>
+      <div class="profile-headtext">
+        <div class="profile-name" id="profile-name"></div>
+        <div class="profile-email" id="profile-email"></div>
+      </div>
+    </div>
+    <div class="profile-stats">
+      <div class="stat-tile"><div class="stat-num" id="stat-friends">0</div><div class="stat-label">Friends</div></div>
+      <div class="stat-tile"><div class="stat-num" id="stat-played">0</div><div class="stat-label">Games Played</div></div>
+      <div class="stat-tile"><div class="stat-num" id="stat-since">—</div><div class="stat-label">Member Since</div></div>
+    </div>
+    <div class="profile-section-title">// FRIENDS</div>
+    <div class="add-friend">
+      <input type="text" id="friend-input" placeholder="Add friend by name or email..." onkeydown="if(event.key==='Enter')addFriend()" />
+      <button onclick="addFriend()">+ Add</button>
+    </div>
+    <div class="friends-list" id="friends-list"></div>
+  </div>
+</div>
 <div class="main">
   <div class="topbar">
     <div class="search-wrap">
@@ -763,16 +858,97 @@ function handleCredential(response){
   console.log(isNew ? 'Registered new player: '+user.email : 'Welcome back: '+user.email);
 }
 
+let currentUser = null;
+
+function avatarHtml(user, cls){
+  if(user.picture) return '<img class="'+cls+'" src="'+user.picture+'" alt="" referrerpolicy="no-referrer">';
+  return '<span class="'+cls+'"><span class="avatar-fallback">'+(user.name||'?').charAt(0).toUpperCase()+'</span></span>';
+}
+
 function applyUser(user){
+  currentUser = user;
   document.getElementById('auth-overlay').classList.add('hidden');
   document.body.classList.remove('locked');
   const av = document.getElementById('user-avatar');
   if(user.picture){ av.innerHTML = '<img src="'+user.picture+'" alt="" referrerpolicy="no-referrer">'; }
   else { av.innerHTML = '<span class="avatar-fallback">'+(user.name||'?').charAt(0).toUpperCase()+'</span>'; }
   document.getElementById('user-name').textContent = user.name;
-  document.getElementById('user-email').textContent = user.email;
   document.getElementById('sidebar-user').classList.add('show');
+  updateFriendCount();
 }
+
+// ── FRIENDS (stored per Google account, client-side) ──
+function friendsKey(){ return 'glitchbox_friends_'+(currentUser?currentUser.sub:'anon'); }
+function getFriends(){ try { return JSON.parse(localStorage.getItem(friendsKey())||'[]'); } catch(e){ return []; } }
+function saveFriends(list){ localStorage.setItem(friendsKey(), JSON.stringify(list)); updateFriendCount(); }
+
+function updateFriendCount(){
+  const n = getFriends().length;
+  const el = document.getElementById('friend-count'); if(el) el.textContent = n;
+  const st = document.getElementById('stat-friends'); if(st) st.textContent = n;
+}
+
+function addFriend(){
+  const inp = document.getElementById('friend-input');
+  const val = inp.value.trim();
+  if(!val) return;
+  const isEmail = val.includes('@');
+  const list = getFriends();
+  const key = val.toLowerCase();
+  if(list.some(f => (f.email||f.name||'').toLowerCase() === key)){ inp.value=''; return; }
+  list.push({ name: isEmail ? val.split('@')[0] : val, email: isEmail ? val : '', added: new Date().toISOString() });
+  saveFriends(list);
+  inp.value='';
+  renderFriends();
+}
+
+function removeFriend(i){
+  const list = getFriends();
+  list.splice(i,1);
+  saveFriends(list);
+  renderFriends();
+}
+
+function renderFriends(){
+  const box = document.getElementById('friends-list');
+  const list = getFriends();
+  if(!list.length){ box.innerHTML = '<div class="friends-empty">No friends yet — add someone above to grow your crew.</div>'; return; }
+  box.innerHTML = list.map((f,i) =>
+    '<div class="friend-row"><div class="friend-av">'+(f.name||'?').charAt(0).toUpperCase()+'</div>'+
+    '<div class="friend-info"><div class="friend-name">'+f.name+'</div>'+
+    (f.email?'<div class="friend-sub">'+f.email+'</div>':'')+'</div>'+
+    '<button class="friend-remove" onclick="removeFriend('+i+')">Remove</button></div>'
+  ).join('');
+}
+
+function openProfile(){
+  if(!currentUser) return;
+  document.getElementById('profile-avatar').innerHTML = currentUser.picture
+    ? '<img src="'+currentUser.picture+'" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover">'
+    : '<span class="avatar-fallback">'+(currentUser.name||'?').charAt(0).toUpperCase()+'</span>';
+  document.getElementById('profile-name').textContent = currentUser.name;
+  document.getElementById('profile-email').textContent = currentUser.email;
+  document.getElementById('stat-played').textContent = localStorage.getItem('glitchbox_played_'+currentUser.sub) || '0';
+  // Member-since from the accounts registry.
+  let since = '—';
+  try {
+    const acc = JSON.parse(localStorage.getItem('glitchbox_accounts')||'{}')[currentUser.sub];
+    if(acc && acc.firstSeen){ const d=new Date(acc.firstSeen); since = d.toLocaleDateString(undefined,{month:'short',year:'numeric'}); }
+  } catch(e){}
+  document.getElementById('stat-since').textContent = since;
+  updateFriendCount();
+  renderFriends();
+  document.getElementById('profile-modal').classList.add('show');
+}
+function closeProfile(){ document.getElementById('profile-modal').classList.remove('show'); }
+
+// Count a "game played" whenever a game tile is launched.
+document.getElementById('game-grid').addEventListener('click', e => {
+  if(currentUser && e.target.closest('.game-card')){
+    const k = 'glitchbox_played_'+currentUser.sub;
+    localStorage.setItem(k, (parseInt(localStorage.getItem(k)||'0',10)+1));
+  }
+});
 
 function glitchLogout(){
   localStorage.removeItem('glitchbox_user');
