@@ -6,6 +6,7 @@
 <title>GLITCHBOX</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -147,9 +148,97 @@ body::before {
 ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:var(--bg); } ::-webkit-scrollbar-thumb { background:rgba(0,245,255,0.2); }
 @media (max-width:900px) { .sidebar{display:none;} .featured{height:200px;} .featured h2{font-size:13px;} }
 @media (max-width:600px) { .content{padding:14px;} .topbar{padding:10px 14px;} .game-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;} .tag-filter{display:none;} }
+
+/* ── AUTH GATE ── */
+.auth-overlay {
+  position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center;
+  padding:24px; overflow-y:auto;
+  background:radial-gradient(ellipse at 50% 30%,rgba(255,0,128,0.12),transparent 55%),
+             radial-gradient(ellipse at 50% 90%,rgba(0,245,255,0.1),transparent 55%),
+             linear-gradient(160deg,#04060e,#080b16 55%,#06040f);
+}
+.auth-overlay::before {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background-image:linear-gradient(rgba(0,245,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,0.04) 1px,transparent 1px);
+  background-size:40px 40px;
+}
+.auth-overlay.hidden { display:none; }
+.auth-card {
+  position:relative; z-index:1; width:100%; max-width:400px; background:rgba(8,11,20,0.92);
+  border:1px solid rgba(0,245,255,0.18); padding:38px 32px 32px; text-align:center;
+  box-shadow:0 0 40px rgba(0,245,255,0.12),0 0 80px rgba(255,0,128,0.08);
+  clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,22px 100%,0 calc(100% - 22px));
+}
+.auth-card::after {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg,transparent,var(--cyan),var(--pink),transparent); opacity:0.7;
+}
+.auth-logo-icon {
+  width:60px; height:60px; margin:0 auto 18px; background:var(--bg3);
+  border:1px solid var(--cyan); box-shadow:0 0 18px var(--glow-c),inset 0 0 12px rgba(0,245,255,0.12);
+  display:flex; align-items:center; justify-content:center; font-size:30px;
+  clip-path:polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%);
+}
+.auth-title { font-family:'Press Start 2P',monospace; font-size:20px; color:#fff; letter-spacing:2px; text-shadow:0 0 18px rgba(0,245,255,0.5); margin-bottom:10px; }
+.auth-sub { font-family:'Press Start 2P',monospace; font-size:8px; letter-spacing:2px; color:var(--pink); text-shadow:0 0 10px var(--pink); margin-bottom:24px; }
+.auth-desc { color:#8090b0; font-size:14px; font-weight:500; line-height:1.5; margin-bottom:26px; }
+.auth-btn-wrap { display:flex; flex-direction:column; align-items:center; gap:14px; min-height:44px; }
+.auth-divider { display:flex; align-items:center; gap:10px; margin:24px 0 4px; color:var(--muted); font-size:10px; font-family:'Press Start 2P',monospace; letter-spacing:1px; }
+.auth-divider::before, .auth-divider::after { content:''; flex:1; height:1px; background:rgba(0,245,255,0.12); }
+.auth-note { color:var(--muted); font-size:12px; font-weight:500; line-height:1.6; margin-top:22px; }
+.auth-note code { color:var(--cyan); font-family:monospace; font-size:11px; word-break:break-all; }
+.auth-setup {
+  display:none; margin-top:20px; padding:16px; text-align:left; font-size:12.5px; line-height:1.7;
+  color:#9aa6c8; background:rgba(255,0,128,0.05); border:1px solid rgba(255,0,128,0.2);
+}
+.auth-setup.show { display:block; }
+.auth-setup b { color:var(--yellow); }
+.auth-setup code { color:var(--cyan); font-family:monospace; }
+
+/* ── SIDEBAR USER BLOCK ── */
+.sidebar-user {
+  margin-top:auto; padding:14px; border-top:1px solid rgba(0,245,255,0.1);
+  display:none; align-items:center; gap:10px;
+}
+.sidebar-user.show { display:flex; }
+.sidebar-user img, .sidebar-user .avatar-fallback {
+  width:36px; height:36px; border:1px solid var(--cyan); box-shadow:0 0 10px var(--glow-c);
+  object-fit:cover; flex-shrink:0;
+  clip-path:polygon(7px 0%,100% 0%,calc(100% - 7px) 100%,0% 100%);
+}
+.sidebar-user .avatar-fallback { display:flex; align-items:center; justify-content:center; background:var(--bg3); color:var(--cyan); font-weight:700; font-size:15px; }
+.sidebar-user-info { min-width:0; flex:1; }
+.sidebar-user-name { font-size:13px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sidebar-user-email { font-size:10px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.logout-btn {
+  background:transparent; border:1px solid rgba(255,0,128,0.3); color:var(--pink);
+  cursor:pointer; padding:6px 8px; font-size:14px; line-height:1; flex-shrink:0; transition:all 0.15s;
+  clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%);
+}
+.logout-btn:hover { background:rgba(255,0,128,0.12); box-shadow:0 0 12px var(--glow-p); }
+body.locked .main { filter:blur(6px); pointer-events:none; }
 </style>
 </head>
-<body>
+<body class="locked">
+<div class="auth-overlay" id="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo-icon">🕹</div>
+    <div class="auth-title">GLITCHBOX</div>
+    <div class="auth-sub">// ENTER THE GLITCH</div>
+    <div class="auth-desc">Sign in with your Google account to enter the arcade. First time? Signing in registers you automatically.</div>
+    <div class="auth-btn-wrap">
+      <div id="g-signin-btn"></div>
+    </div>
+    <div class="auth-setup" id="auth-setup">
+      <b>⚙ Setup needed:</b> to enable real Google login, create a free OAuth Client ID:<br>
+      1. Go to <code>console.cloud.google.com</code> → APIs &amp; Services → Credentials<br>
+      2. Create <b>OAuth client ID</b> → type <b>Web application</b><br>
+      3. Add authorized JavaScript origin: <code>https://levtheduck-web.github.io</code><br>
+      4. Copy the Client ID and paste it into <code>GOOGLE_CLIENT_ID</code> in this file.
+    </div>
+    <div class="auth-note">🔒 We only read your name, email &amp; profile photo — verified by Google.</div>
+  </div>
+</div>
 <nav class="sidebar">
   <div class="sidebar-logo">
     <a class="logo-link" href="#" onclick="filterCategory('all');return false;">
@@ -167,6 +256,14 @@ body::before {
     <a class="nav-item"        id="nav-adventure"   href="#" onclick="filterCategory('adventure');return false;"><span class="nav-icon">◬</span> Adventure       <span class="nav-count" id="cnt-adventure">0</span></a>
     <a class="nav-item"        id="nav-multiplayer" href="#" onclick="filterCategory('multiplayer');return false;"><span class="nav-icon">◎</span> Multiplayer     <span class="nav-count" id="cnt-multiplayer">0</span></a>
     <a class="nav-item"        id="nav-other"       href="#" onclick="filterCategory('other');return false;"><span class="nav-icon">◇</span> Other           <span class="nav-count" id="cnt-other">0</span></a>
+  </div>
+  <div class="sidebar-user" id="sidebar-user">
+    <span id="user-avatar"></span>
+    <div class="sidebar-user-info">
+      <div class="sidebar-user-name" id="user-name"></div>
+      <div class="sidebar-user-email" id="user-email"></div>
+    </div>
+    <button class="logout-btn" id="logout-btn" title="Sign out" onclick="glitchLogout()">⏻</button>
   </div>
 </nav>
 <div class="main">
@@ -635,6 +732,78 @@ function updateCounts(){
   });
 }
 updateCounts();renderGames();
+
+// ══════════════════ GOOGLE SIGN-IN / REGISTRATION ══════════════════
+// 👉 Paste your OAuth Client ID here (from Google Cloud Console → Credentials).
+//    It looks like: 1234567890-abcdefg.apps.googleusercontent.com
+const GOOGLE_CLIENT_ID = '292202234478-kdcu37vvdogpttpksc6acg85ljavkfj6.apps.googleusercontent.com';
+
+function decodeJwt(token){
+  try {
+    const p = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    return JSON.parse(decodeURIComponent(atob(p).split('').map(c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join('')));
+  } catch(e){ return null; }
+}
+
+function handleCredential(response){
+  const data = decodeJwt(response.credential);
+  if(!data){ alert('Sign-in failed — could not read Google response.'); return; }
+  const user = { sub:data.sub, name:data.name||data.email, email:data.email, picture:data.picture||'' };
+
+  // Registration tracking: first sign-in for this account = new registration.
+  let accounts = {};
+  try { accounts = JSON.parse(localStorage.getItem('glitchbox_accounts')||'{}'); } catch(e){}
+  const isNew = !accounts[user.sub];
+  if(isNew){ accounts[user.sub] = { email:user.email, name:user.name, firstSeen:new Date().toISOString() }; }
+  accounts[user.sub].lastSeen = new Date().toISOString();
+  localStorage.setItem('glitchbox_accounts', JSON.stringify(accounts));
+  localStorage.setItem('glitchbox_user', JSON.stringify(user));
+
+  applyUser(user);
+  console.log(isNew ? 'Registered new player: '+user.email : 'Welcome back: '+user.email);
+}
+
+function applyUser(user){
+  document.getElementById('auth-overlay').classList.add('hidden');
+  document.body.classList.remove('locked');
+  const av = document.getElementById('user-avatar');
+  if(user.picture){ av.innerHTML = '<img src="'+user.picture+'" alt="" referrerpolicy="no-referrer">'; }
+  else { av.innerHTML = '<span class="avatar-fallback">'+(user.name||'?').charAt(0).toUpperCase()+'</span>'; }
+  document.getElementById('user-name').textContent = user.name;
+  document.getElementById('user-email').textContent = user.email;
+  document.getElementById('sidebar-user').classList.add('show');
+}
+
+function glitchLogout(){
+  localStorage.removeItem('glitchbox_user');
+  if(window.google && google.accounts && google.accounts.id){ google.accounts.id.disableAutoSelect(); }
+  location.reload();
+}
+
+function initGoogleAuth(){
+  // Restore existing session immediately.
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('glitchbox_user')||'null'); } catch(e){}
+  if(saved && saved.email){ applyUser(saved); }
+
+  const configured = GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.startsWith('PASTE_YOUR_CLIENT_ID');
+  if(!configured){
+    // Show setup instructions until a Client ID is added.
+    if(!saved) document.getElementById('auth-setup').classList.add('show');
+    return;
+  }
+  if(!(window.google && google.accounts && google.accounts.id)){
+    // GIS script not ready yet — retry shortly.
+    return setTimeout(initGoogleAuth, 300);
+  }
+  google.accounts.id.initialize({ client_id:GOOGLE_CLIENT_ID, callback:handleCredential, auto_select:true });
+  google.accounts.id.renderButton(document.getElementById('g-signin-btn'), {
+    theme:'filled_black', size:'large', shape:'rectangular', text:'continue_with', width:300
+  });
+  if(!saved){ google.accounts.id.prompt(); }
+}
+
+window.addEventListener('load', initGoogleAuth);
 </script>
 </body>
 </html>
