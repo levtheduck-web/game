@@ -370,10 +370,16 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
       <div class="stat-tile"><div class="stat-num" id="stat-played">0</div><div class="stat-label">Games Played</div></div>
       <div class="stat-tile"><div class="stat-num" id="stat-since">—</div><div class="stat-label">Member Since</div></div>
     </div>
-    <div class="profile-section-title">// FIND PLAYERS</div>
+    <div class="profile-section-title">// YOUR FRIEND CODE</div>
+    <div style="display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid rgba(0,245,255,.3);border-radius:10px;padding:10px 14px;margin-bottom:8px;">
+      <span id="my-code" style="font-family:'Press Start 2P',monospace;font-size:16px;letter-spacing:.12em;color:var(--cyan);flex:1;">------</span>
+      <button id="copy-code-btn" onclick="copyCode()" style="flex-shrink:0;">Copy</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Share your code so friends can add you — no email or name search, so nobody can find you unless you give it out.</div>
+    <div class="profile-section-title">// ADD A FRIEND</div>
     <div class="add-friend">
-      <input type="text" id="friend-search" placeholder="Search players by name..." onkeydown="if(event.key==='Enter')doSearch()" />
-      <button onclick="doSearch()">Search</button>
+      <input type="text" id="friend-code-in" maxlength="6" placeholder="ENTER FRIEND CODE" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')" onkeydown="if(event.key==='Enter')addByCode()" />
+      <button onclick="addByCode()">Add</button>
     </div>
     <div class="friends-list" id="search-results"></div>
     <div class="profile-section-title" id="incoming-title" style="display:none">// FRIEND REQUESTS <span id="incoming-num"></span></div>
@@ -382,6 +388,8 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
     <div class="friends-list" id="outgoing-list"></div>
     <div class="profile-section-title">// FRIENDS</div>
     <div class="friends-list" id="friends-list"></div>
+    <div class="profile-section-title" id="blocked-title" style="display:none">// BLOCKED</div>
+    <div class="friends-list" id="blocked-list"></div>
   </div>
 </div>
 <div class="main">
@@ -869,8 +877,7 @@ function decodeJwt(token){
 const API_BASE = 'https://glitchbox-api.PLACEHOLDER.workers.dev';
 
 let currentUser = null;
-let lastState = { profile:null, friends:[], incoming:[], outgoing:[] };
-let lastSearch = [];
+let lastState = { profile:null, friends:[], incoming:[], outgoing:[], blocked:[] };
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function getSession(){ return localStorage.getItem('glitchbox_session') || ''; }
@@ -934,6 +941,7 @@ async function refreshState(){
 }
 
 function relStatus(sub){
+  if((lastState.blocked||[]).some(f=>f.sub===sub)) return 'blocked';
   if(lastState.friends.some(f=>f.sub===sub)) return 'friend';
   if(lastState.outgoing.some(f=>f.sub===sub)) return 'outgoing';
   if(lastState.incoming.some(f=>f.sub===sub)) return 'incoming';
@@ -949,7 +957,7 @@ function renderAll(){
   else { badge.classList.remove('show'); }
   if(document.getElementById('profile-modal').classList.contains('show')){
     updateProfileHeader();
-    renderFriends(); renderRequests(); renderSearch();
+    renderFriends(); renderRequests(); renderBlocked();
   }
 }
 
@@ -960,10 +968,13 @@ function rowInfo(u){ return '<div class="friend-info"><div class="friend-name">'
 function renderFriends(){
   const box = document.getElementById('friends-list');
   const list = lastState.friends;
-  if(!list.length){ box.innerHTML = '<div class="friends-empty">No friends yet — search for players above and send a request.</div>'; return; }
+  if(!list.length){ box.innerHTML = '<div class="friends-empty">No friends yet — share your friend code above, or add someone by theirs.</div>'; return; }
   box.innerHTML = list.map(f =>
     '<div class="friend-row">'+avInitial(f)+rowInfo(f)+
-    '<button class="friend-btn ghost" onclick="unfriend(\''+f.sub+'\')">Unfriend</button></div>'
+    '<div class="friend-actions">'+
+    '<button class="friend-btn ghost" onclick="unfriend(\''+f.sub+'\')">Unfriend</button>'+
+    '<button class="friend-btn ghost" onclick="block(\''+f.sub+'\')" title="Block this player">Block</button>'+
+    '</div></div>'
   ).join('');
 }
 
@@ -975,7 +986,8 @@ function renderRequests(){
     inBox.innerHTML = lastState.incoming.map(u =>
       '<div class="friend-row">'+avInitial(u)+rowInfo(u)+
       '<div class="friend-actions"><button class="friend-btn accept" onclick="acceptReq(\''+u.sub+'\')">Accept</button>'+
-      '<button class="friend-btn ghost" onclick="declineReq(\''+u.sub+'\')">Decline</button></div></div>'
+      '<button class="friend-btn ghost" onclick="declineReq(\''+u.sub+'\')">Decline</button>'+
+      '<button class="friend-btn ghost" onclick="report(\''+u.sub+'\')" title="Report &amp; block">⚑</button></div></div>'
     ).join('');
   } else { inTitle.style.display='none'; inBox.innerHTML=''; }
   if(lastState.outgoing.length){
@@ -987,37 +999,56 @@ function renderRequests(){
   } else { outTitle.style.display='none'; outBox.innerHTML=''; }
 }
 
-function renderSearch(){
+function renderBlocked(){
+  const box = document.getElementById('blocked-list'), title = document.getElementById('blocked-title');
+  const list = lastState.blocked || [];
+  if(!list.length){ title.style.display='none'; box.innerHTML=''; return; }
+  title.style.display='';
+  box.innerHTML = list.map(u =>
+    '<div class="friend-row">'+avInitial(u)+rowInfo(u)+
+    '<button class="friend-btn ghost" onclick="unblock(\''+u.sub+'\')">Unblock</button></div>'
+  ).join('');
+}
+
+function statusMsg(text, bad){
   const box = document.getElementById('search-results');
-  if(!lastSearch.length){ box.innerHTML=''; return; }
-  box.innerHTML = lastSearch.map(u => {
-    const st = relStatus(u.sub);
-    let btn;
-    if(st==='friend') btn = '<button class="friend-btn muted">Friends ✓</button>';
-    else if(st==='outgoing') btn = '<button class="friend-btn muted">Pending</button>';
-    else if(st==='incoming') btn = '<button class="friend-btn accept" onclick="acceptReq(\''+u.sub+'\')">Accept</button>';
-    else btn = '<button class="friend-btn add" onclick="sendRequest(\''+u.sub+'\')">+ Add</button>';
-    return '<div class="friend-row">'+avInitial(u)+rowInfo(u)+btn+'</div>';
-  }).join('');
+  box.innerHTML = '<div class="friends-empty"'+(bad?' style="color:var(--pink)"':'')+'>'+esc(text)+'</div>';
 }
 
-async function doSearch(){
-  const inp = document.getElementById('friend-search');
-  const q = inp.value.trim();
-  if(!q){ lastSearch=[]; renderSearch(); return; }
-  try { const res = await api('/api/search?q='+encodeURIComponent(q)); lastSearch = res.results||[]; renderSearch();
-    if(!lastSearch.length) document.getElementById('search-results').innerHTML='<div class="friends-empty">No players found for “'+esc(q)+'”.</div>';
-  } catch(e){ console.warn(e); }
+async function addByCode(){
+  const inp = document.getElementById('friend-code-in');
+  const code = (inp.value||'').trim().toUpperCase();
+  if(code.length < 6){ statusMsg('Enter a 6-character friend code.', true); return; }
+  try {
+    lastState = await api('/api/add-by-code', { method:'POST', body:{ code } });
+    inp.value = ''; renderAll();
+    statusMsg(lastState.message || 'Done.');
+  } catch(e){ statusMsg(e.message || 'Could not add player.', true); }
 }
 
-async function act(path, sub){
-  try { lastState = await api(path, { method:'POST', body:{ sub } }); renderAll(); }
+function copyCode(){
+  const c = lastState.profile && lastState.profile.code; if(!c) return;
+  if(navigator.clipboard) navigator.clipboard.writeText(c).catch(()=>{});
+  const b = document.getElementById('copy-code-btn'); const t = b.textContent;
+  b.textContent = 'Copied!'; setTimeout(()=>{ b.textContent = t; }, 1200);
+}
+
+async function act(path, body){
+  try { lastState = await api(path, { method:'POST', body }); renderAll(); }
   catch(e){ alert(e.message); }
 }
-function sendRequest(sub){ act('/api/request', sub); }
-function acceptReq(sub){ act('/api/accept', sub); }
-function declineReq(sub){ act('/api/decline', sub); }
-function unfriend(sub){ act('/api/unfriend', sub); }
+function acceptReq(sub){ act('/api/accept', { sub }); }
+function declineReq(sub){ act('/api/decline', { sub }); }
+function unfriend(sub){ act('/api/unfriend', { sub }); }
+function unblock(sub){ act('/api/unblock', { sub }); }
+function block(sub){
+  if(confirm('Block this player? They’ll be removed from your friends and can no longer contact you.')) act('/api/block', { sub });
+}
+function report(sub){
+  if(!confirm('Report this player? They’ll also be blocked.')) return;
+  const reason = prompt('What’s the problem? (optional)') || '';
+  act('/api/report', { sub, reason });
+}
 
 function updateProfileHeader(){
   document.getElementById('profile-avatar').innerHTML = currentUser.picture
@@ -1025,6 +1056,8 @@ function updateProfileHeader(){
     : '<span class="avatar-fallback">'+esc((currentUser.name||'?').charAt(0).toUpperCase())+'</span>';
   document.getElementById('profile-name').textContent = currentUser.name;
   document.getElementById('profile-email').textContent = currentUser.email;
+  const mc = document.getElementById('my-code');
+  if(mc) mc.textContent = (lastState.profile && lastState.profile.code) || '------';
   document.getElementById('stat-friends').textContent = lastState.friends.length;
   document.getElementById('stat-played').textContent = localStorage.getItem('glitchbox_played_'+currentUser.sub) || '0';
   let since = '—';
@@ -1035,8 +1068,8 @@ function updateProfileHeader(){
 
 async function openProfile(){
   if(!currentUser) return;
-  lastSearch = []; document.getElementById('friend-search').value=''; document.getElementById('search-results').innerHTML='';
-  updateProfileHeader(); renderFriends(); renderRequests();
+  document.getElementById('friend-code-in').value=''; document.getElementById('search-results').innerHTML='';
+  updateProfileHeader(); renderFriends(); renderRequests(); renderBlocked();
   document.getElementById('profile-modal').classList.add('show');
   await refreshState();
 }

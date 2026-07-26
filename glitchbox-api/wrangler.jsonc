@@ -1,0 +1,10 @@
+{
+  "name": "glitchbox-api",
+  "main": "src/index.js",
+  "compatibility_date": "2024-11-01",
+  "durable_objects": {
+    "bindings": [{ "name": "HUB", "class_name": "Hub" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Hub"] }],
+  "observability": { "enabled": true }
+}
