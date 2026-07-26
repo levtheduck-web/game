@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>BARRIER — Crowd Smash</title>
+<style>
+  :root{ --accent:#39e6b5; --danger:#ff4d6d; --gold:#ffd24a; }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; overflow:hidden; background:#070b14; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:#eaf2ff; }
+  #wrap{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
+  canvas{ display:block; touch-action:none; }
+  .overlay{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:24px; background:radial-gradient(120% 120% at 50% 0%, rgba(20,30,55,.85), rgba(5,8,16,.96)); z-index:10; }
+  .hidden{ display:none !important; }
+  h1{ font-size:clamp(44px,13vw,120px); font-weight:900; letter-spacing:-.04em; line-height:.9;
+    background:linear-gradient(180deg,#fff, #7fe9ff 60%, var(--accent)); -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 0 60px rgba(57,230,181,.35); }
+  .sub{ margin-top:14px; font-size:clamp(14px,3.6vw,19px); color:#9fb2d0; max-width:520px; line-height:1.5; }
+  .big{ margin-top:8px; font-size:clamp(28px,7vw,54px); font-weight:900; }
+  button{ margin-top:30px; font:inherit; font-weight:800; font-size:clamp(18px,5vw,24px); color:#04140f;
+    background:linear-gradient(180deg,#8dffdd,var(--accent)); border:0; border-radius:16px; padding:16px 44px; cursor:pointer;
+    box-shadow:0 12px 30px rgba(57,230,181,.35), inset 0 1px 0 rgba(255,255,255,.6); transition:transform .08s ease; }
+  button:active{ transform:translateY(2px) scale(.98); }
+  .tag{ position:absolute; top:16px; font-size:12px; letter-spacing:.35em; color:#54689a; font-weight:700; }
+  .stat{ color:var(--gold); font-weight:900; }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="c"></canvas></div>
+
+<div id="start" class="overlay">
+  <div class="tag">CROWD SMASH</div>
+  <h1>BARRIER</h1>
+  <div class="sub">Steer your crowd left & right. Pick the good gates to <b>multiply</b>, then <b>smash</b> through the numbered barriers. How far can you get?</div>
+  <div class="sub" style="margin-top:10px;color:#6f83a8">Drag / move mouse · or ← → keys</div>
+  <button id="playBtn">PLAY</button>
+</div>
+
+<div id="over" class="overlay hidden">
+  <div class="tag" id="overTag">WIPED OUT</div>
+  <h1 id="overTitle" style="font-size:clamp(36px,10vw,80px)">GAME OVER</h1>
+  <div class="big">Reached <span class="stat" id="scoreVal">0</span> m</div>
+  <div class="sub">Best <span class="stat" id="bestVal">0</span> m · Peak crowd <span class="stat" id="peakVal">0</span></div>
+  <button id="retryBtn">RUN AGAIN</button>
+</div>
+
+<script>
+(()=>{
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1;
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  W=window.innerWidth; H=window.innerHeight;
+  cv.width=W*DPR; cv.height=H*DPR; cv.style.width=W+'px'; cv.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,1*0+0*0, 0); ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize',resize); resize();
+
+// ---------- game state ----------
+const LANE={ get w(){ return Math.min(W*0.86, 460); }, get cx(){ return W/2; } };
+let state='menu';
+let best=+(localStorage.getItem('barrier_best')||0);
+
+let G; // game object
+function newGame(){
+  G={
+    dist:0, speed:520, targetX:LANE.cx, playerX:LANE.cx, playerY:H*0.78,
+    crowd:12, peak:12, runners:[], particles:[], floaters:[],
+    entities:[], nextSpawn:0, shake:0, flash:0, flashColor:'255,255,255',
+    dead:false, deadAt:0, spawnGap:340, sinceGate:0
+  };
+  seedRunners(G.crowd);
+}
+function seedRunners(n){
+  G.runners.length=0;
+  for(let i=0;i<Math.min(n,140);i++) G.runners.push(mkRunner());
+}
+function mkRunner(){
+  return { ox:(Math.random()*2-1), oy:(Math.random()*2-1), ph:Math.random()*6.28, sp:0.7+Math.random()*0.6 };
+}
+function syncRunners(){
+  const target=Math.min(G.crowd,140);
+  while(G.runners.length<target) G.runners.push(mkRunner());
+  if(G.runners.length>target) G.runners.length=target;
+}
+
+// ---------- entity spawning ----------
+// gate pair: two side-by-side gates with operations. barrier: full-width wall with HP.
+let rng=Math.random;
+function spawnAhead(){
+  const roll=Math.random();
+  const spawnY = -80; // enters at top, world moves it down (we move dist)
+  if(G.sinceGate>2 || roll<0.62){
+    G.sinceGate=0;
+    // gate pair
+    const ops=makeGatePair();
+    G.entities.push({ type:'gate', y:-100, left:ops[0], right:ops[1], done:false, w:LANE.w });
+  }else{
+    // barrier
+    const base=Math.max(8, Math.floor(G.crowd*(0.55+Math.random()*0.9)));
+    const hp=base + Math.floor(Math.random()*10);
+    G.entities.push({ type:'barrier', y:-140, hp:hp, max:hp, done:false, hit:0 });
+    G.sinceGate++;
+  }
+}
+function makeGatePair(){
+  // one usually good, one bad-ish, values scale with crowd
+  const c=G.crowd;
+  const pool=[
+    ()=>({op:'x',v:2,txt:'×2'}),
+    ()=>({op:'x',v:3,txt:'×3'}),
+    ()=>({op:'+',v:Math.max(5,Math.round(c*0.4)),txt:'+'+Math.max(5,Math.round(c*0.4))}),
+    ()=>({op:'+',v:Math.max(8,Math.round(c*0.7)),txt:'+'+Math.max(8,Math.round(c*0.7))}),
+    ()=>({op:'-',v:Math.max(5,Math.round(c*0.35)),txt:'−'+Math.max(5,Math.round(c*0.35))}),
+    ()=>({op:'x',v:1,add:-Math.round(c*0.5),txt:'÷2'}), // divide-ish
+  ];
+  function pick(good){
+    if(good){ return (Math.random()<0.5?pool[0]:pool[2])(); }
+    else { return (Math.random()<0.5?pool[4]:pool[5])(); }
+  }
+  let a,b;
+  const goodLeft=Math.random()<0.5;
+  // sometimes both good (reward), rarely both bad
+  const r=Math.random();
+  if(r<0.15){ a=pick(true); b=pick(true); }
+  else { a=pick(goodLeft); b=pick(!goodLeft); }
+  return [a,b];
+}
+function applyOp(o){
+  const before=G.crowd;
+  if(o.op==='x'){ G.crowd=Math.round(G.crowd*o.v + (o.add||0)); }
+  else if(o.op==='+'){ G.crowd+=o.v; }
+  else if(o.op==='-'){ G.crowd-=o.v; }
+  if(o.txt==='÷2'){ G.crowd=Math.round(before/2); }
+  G.crowd=Math.max(0,G.crowd);
+  const gain=G.crowd-before;
+  floater((gain>=0?'+':'')+gain, o.y||G.playerY, gain>=0?'57,230,181':'255,77,109');
+  if(G.crowd>G.peak) G.peak=G.crowd;
+  if(G.crowd<=0) die();
+  syncRunners();
+}
+
+function floater(txt,y,col){ G.floaters.push({txt,x:G.playerX,y:y,life:1,col}); }
+function burst(x,y,col,n){ for(let i=0;i<n;i++){ const a=Math.random()*6.28, s=60+Math.random()*260;
+  G.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-80,life:.5+Math.random()*.5,col}); } }
+
+function die(){
+  if(G.dead) return;
+  G.dead=true; G.deadAt=performance.now(); G.shake=22; G.flash=1; G.flashColor='255,77,109';
+  burst(G.playerX,G.playerY,'255,77,109',60);
+  best=Math.max(best,Math.floor(G.dist));
+  localStorage.setItem('barrier_best',best);
+  setTimeout(showOver, 700);
+}
+
+// ---------- input ----------
+let dragging=false;
+function setTargetFromX(px){
+  const half=LANE.w/2-18;
+  G.targetX=Math.max(LANE.cx-half, Math.min(LANE.cx+half, px));
+}
+cv.addEventListener('pointerdown',e=>{ dragging=true; setTargetFromX(e.clientX); });
+window.addEventListener('pointermove',e=>{ if(state!=='play')return; if(dragging|| (e.buttons===0)) setTargetFromX(e.clientX); });
+window.addEventListener('pointerup',()=>dragging=false);
+const keys={};
+window.addEventListener('keydown',e=>{ keys[e.key]=true; });
+window.addEventListener('keyup',e=>{ keys[e.key]=false; });
+
+// ---------- loop ----------
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(0.033,(now-last)/1000); last=now;
+  if(state==='play') update(dt);
+  render(now);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+function update(dt){
+  if(!G.dead){
+    G.speed=520 + Math.min(360, G.dist*0.35);
+    G.dist += G.speed*dt/60;
+
+    // keyboard steering
+    if(keys['ArrowLeft']||keys['a']) G.targetX-=520*dt;
+    if(keys['ArrowRight']||keys['d']) G.targetX+=520*dt;
+    const half=LANE.w/2-18;
+    G.targetX=Math.max(LANE.cx-half, Math.min(LANE.cx+half, G.targetX));
+    G.playerX += (G.targetX-G.playerX)*Math.min(1,dt*12);
+
+    // spawn
+    G.nextSpawn-=G.speed*dt;
+    if(G.nextSpawn<=0){ spawnAhead(); G.nextSpawn=G.spawnGap - Math.min(120,G.dist*0.1); }
+
+    // move entities down toward player
+    for(const e of G.entities){
+      e.y += G.speed*dt;
+      if(e.done) continue;
+      if(e.type==='gate'){
+        if(e.y>=G.playerY-6){
+          e.done=true;
+          const onLeft = G.playerX < LANE.cx;
+          const chosen = onLeft ? e.left : e.right;
+          chosen.y=G.playerY;
+          G.flash=.5; G.flashColor='140,230,255';
+          burst(G.playerX,G.playerY,'140,230,255',18);
+          applyOp(chosen);
+        }
+      } else if(e.type==='barrier'){
+        if(e.y>=G.playerY-30 && e.hp>0){
+          // crush: crowd depletes barrier
+          const rate = Math.max(40, G.crowd*3.5);
+          const amt=rate*dt;
+          e.hp-=amt; e.hit=0.6; G.shake=Math.max(G.shake,4);
+          // lose runners proportionally
+          G.crowd -= amt*0.9;
+          if(Math.random()<0.4) burst(G.playerX+(Math.random()*2-1)*LANE.w/3, G.playerY-30,'255,120,140',3);
+          if(G.crowd<=0){ G.crowd=0; die(); }
+          if(e.hp<=0){
+            e.hp=0; e.done=true; G.crowd=Math.round(G.crowd);
+            G.flash=.7; G.flashColor='255,210,74'; G.shake=14;
+            burst(G.playerX,G.playerY-30,'255,210,74',40);
+            floater('SMASH!',G.playerY-60,'255,210,74');
+            if(G.crowd>G.peak)G.peak=G.crowd;
+            syncRunners();
+          }
+        }
+      }
+    }
+    // barrier that reaches player still alive with crowd 0 handled above
+    G.entities=G.entities.filter(e=> e.y<H+160 && !(e.done && e.y>G.playerY+40));
+    syncRunners();
+  }
+
+  // fx
+  G.shake*=0.9; G.flash*=0.92;
+  for(const p of G.particles){ p.vy+=520*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt; }
+  G.particles=G.particles.filter(p=>p.life>0);
+  for(const f of G.floaters){ f.y-=60*dt; f.life-=dt*0.8; }
+  G.floaters=G.floaters.filter(f=>f.life>0);
+}
+
+// ---------- render ----------
+function render(now){
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  // bg
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#0b1526'); g.addColorStop(1,'#060a12');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+  ctx.save();
+  if(G && G.shake>0.2){ ctx.translate((Math.random()*2-1)*G.shake,(Math.random()*2-1)*G.shake); }
+
+  if(G){
+    drawLane(now);
+    drawEntities();
+    drawCrowd(now);
+    drawParticles();
+    drawFloaters();
+    drawHUD();
+  }
+  ctx.restore();
+
+  if(G && G.flash>0.01){
+    ctx.fillStyle='rgba('+G.flashColor+','+(G.flash*0.5)+')';
+    ctx.fillRect(0,0,W,H);
+  }
+}
+
+function laneX(side){ return LANE.cx + side*LANE.w/2; }
+function drawLane(now){
+  const lx=laneX(-1), rx=laneX(1);
+  // road
+  ctx.fillStyle='#0e1a30';
+  ctx.fillRect(lx,0,LANE.w,H);
+  // moving stripes
+  ctx.strokeStyle='rgba(120,160,220,.10)'; ctx.lineWidth=2;
+  const off=(G.dist*8)%60;
+  for(let y=-60+off;y<H;y+=60){ ctx.beginPath(); ctx.moveTo(lx,y); ctx.lineTo(rx,y); ctx.stroke(); }
+  // center divider
+  ctx.strokeStyle='rgba(140,190,255,.18)'; ctx.setLineDash([18,20]); ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(LANE.cx,0); ctx.lineTo(LANE.cx,H); ctx.stroke(); ctx.setLineDash([]);
+  // edges
+  ctx.fillStyle='var(--accent)';
+  ctx.fillStyle='rgba(57,230,181,.7)'; ctx.fillRect(lx-4,0,4,H); ctx.fillRect(rx,0,4,H);
+}
+
+function drawEntities(){
+  const lx=laneX(-1);
+  for(const e of G.entities){
+    if(e.type==='gate'){
+      const alpha = e.done?Math.max(0,1-(e.y-G.playerY)/60):1;
+      if(alpha<=0) continue;
+      ctx.globalAlpha=alpha;
+      drawGate(lx, e.y, LANE.w/2, e.left, -1);
+      drawGate(LANE.cx, e.y, LANE.w/2, e.right, 1);
+      ctx.globalAlpha=1;
+    } else if(e.type==='barrier'){
+      drawBarrier(e);
+    }
+  }
+}
+function drawGate(x,y,w,o,side){
+  const good = o.op==='x' && o.v>1 || (o.op==='+' );
+  const col = good? '57,230,181' : '255,77,109';
+  const grd=ctx.createLinearGradient(0,y-40,0,y+40);
+  grd.addColorStop(0,'rgba('+col+',.05)');
+  grd.addColorStop(1,'rgba('+col+',.32)');
+  ctx.fillStyle=grd; ctx.fillRect(x+2,y-2,w-4,64);
+  // top bar
+  ctx.fillStyle='rgba('+col+',.9)'; ctx.fillRect(x+2,y-8,w-4,10);
+  // posts
+  ctx.fillRect(x+2,y-8,6,72); ctx.fillRect(x+w-8,y-8,6,72);
+  // text
+  ctx.fillStyle='#fff'; ctx.font='900 '+Math.min(46,w*0.28)+'px -apple-system,sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.shadowColor='rgba('+col+',.9)'; ctx.shadowBlur=18;
+  ctx.fillText(o.txt, x+w/2, y+30);
+  ctx.shadowBlur=0;
+}
+function drawBarrier(e){
+  const lx=laneX(-1), w=LANE.w, y=e.y;
+  const frac=e.hp/e.max;
+  const h=64;
+  ctx.save();
+  if(e.hit>0){ ctx.translate((Math.random()*2-1)*e.hit*4,0); e.hit*=0.8; }
+  // wall
+  ctx.fillStyle='#20304e'; ctx.fillRect(lx,y-h/2,w,h);
+  // hp fill
+  ctx.fillStyle='rgba(255,77,109,.85)'; ctx.fillRect(lx,y-h/2,w*frac,h);
+  // hazard stripes
+  ctx.save(); ctx.beginPath(); ctx.rect(lx,y-h/2,w,h); ctx.clip();
+  ctx.strokeStyle='rgba(255,210,74,.25)'; ctx.lineWidth=10;
+  for(let i=-h;i<w+h;i+=26){ ctx.beginPath(); ctx.moveTo(lx+i,y-h/2); ctx.lineTo(lx+i+h,y+h/2); ctx.stroke(); }
+  ctx.restore();
+  ctx.strokeStyle='#0a1120'; ctx.lineWidth=4; ctx.strokeRect(lx,y-h/2,w,h);
+  // number
+  ctx.fillStyle='#fff'; ctx.font='900 40px -apple-system,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.shadowColor='#000'; ctx.shadowBlur=8;
+  ctx.fillText(Math.ceil(e.hp), lx+w/2, y);
+  ctx.shadowBlur=0;
+  ctx.restore();
+}
+
+function drawCrowd(now){
+  const t=now/1000;
+  const spread=Math.min(LANE.w/2-24, 40+Math.sqrt(Math.min(G.crowd,140))*10);
+  const rows=Math.ceil(Math.sqrt(G.runners.length));
+  for(let i=0;i<G.runners.length;i++){
+    const r=G.runners[i];
+    const x=G.playerX + r.ox*spread;
+    const y=G.playerY + r.oy*26 + 6;
+    const bob=Math.sin(t*10*r.sp+r.ph)*3;
+    drawStick(x,y+bob, 12, '#eaf2ff');
+  }
+  // count label
+  ctx.fillStyle='#fff'; ctx.font='900 '+Math.min(60,34+Math.log2(Math.max(2,G.crowd))*4)+'px -apple-system,sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='bottom';
+  ctx.shadowColor='rgba(57,230,181,.9)'; ctx.shadowBlur=20;
+  ctx.fillText(Math.floor(G.crowd), G.playerX, G.playerY-42);
+  ctx.shadowBlur=0;
+}
+function drawStick(x,y,s,col){
+  ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=2.2; ctx.lineCap='round';
+  // head
+  ctx.beginPath(); ctx.arc(x,y-s*0.7,s*0.28,0,6.28); ctx.fill();
+  // body
+  ctx.beginPath(); ctx.moveTo(x,y-s*0.42); ctx.lineTo(x,y+s*0.1); ctx.stroke();
+  // legs
+  ctx.beginPath(); ctx.moveTo(x,y+s*0.1); ctx.lineTo(x-s*0.22,y+s*0.4);
+  ctx.moveTo(x,y+s*0.1); ctx.lineTo(x+s*0.22,y+s*0.4); ctx.stroke();
+}
+function drawParticles(){
+  for(const p of G.particles){ ctx.globalAlpha=Math.max(0,p.life);
+    ctx.fillStyle='rgb('+p.col+')'; ctx.fillRect(p.x-2,p.y-2,4,4); }
+  ctx.globalAlpha=1;
+}
+function drawFloaters(){
+  for(const f of G.floaters){ ctx.globalAlpha=Math.max(0,f.life);
+    ctx.fillStyle='rgb('+f.col+')'; ctx.font='900 34px -apple-system,sans-serif'; ctx.textAlign='center';
+    ctx.shadowColor='rgb('+f.col+')'; ctx.shadowBlur=14;
+    ctx.fillText(f.txt,f.x,f.y); ctx.shadowBlur=0; }
+  ctx.globalAlpha=1;
+}
+function drawHUD(){
+  ctx.fillStyle='#eaf2ff'; ctx.font='900 22px -apple-system,sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText(Math.floor(G.dist)+' m', 18, 18);
+  ctx.fillStyle='#6f83a8'; ctx.font='700 13px -apple-system,sans-serif';
+  ctx.fillText('BEST '+best+' m', 20, 46);
+}
+
+// ---------- overlays ----------
+const startEl=document.getElementById('start'), overEl=document.getElementById('over');
+function play(){ newGame(); state='play'; startEl.classList.add('hidden'); overEl.classList.add('hidden'); }
+function showOver(){
+  state='over';
+  document.getElementById('scoreVal').textContent=Math.floor(G.dist);
+  document.getElementById('bestVal').textContent=best;
+  document.getElementById('peakVal').textContent=G.peak;
+  overEl.classList.remove('hidden');
+}
+document.getElementById('playBtn').onclick=play;
+document.getElementById('retryBtn').onclick=play;
+// build an initial (paused) game so bg isn't empty
+newGame(); state='menu';
+})();
+</script>
+</body>
+</html>

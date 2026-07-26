@@ -288,6 +288,21 @@ body::before {
   clip-path:polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%); }
 .friend-remove:hover { background:rgba(255,0,128,0.12); }
 .friends-empty { color:var(--muted); font-size:13px; text-align:center; padding:18px; font-weight:500; }
+.req-badge { display:none; margin-left:6px; background:var(--pink); color:#fff; font-size:10px; font-weight:800;
+  padding:1px 6px; border-radius:9px; box-shadow:0 0 8px var(--glow-p); }
+.req-badge.show { display:inline-block; }
+.friend-btn { border:none; cursor:pointer; padding:6px 12px; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:12px;
+  letter-spacing:0.5px; text-transform:uppercase; transition:box-shadow 0.15s,opacity 0.15s; flex-shrink:0;
+  clip-path:polygon(5px 0%,100% 0%,calc(100% - 5px) 100%,0% 100%); }
+.friend-btn.add { background:var(--cyan); color:#000; }
+.friend-btn.add:hover { box-shadow:0 0 14px var(--glow-c); }
+.friend-btn.accept { background:var(--green); color:#000; }
+.friend-btn.accept:hover { box-shadow:0 0 14px rgba(0,255,136,0.5); }
+.friend-btn.ghost { background:transparent; border:1px solid rgba(255,0,128,0.35); color:var(--pink); }
+.friend-btn.ghost:hover { background:rgba(255,0,128,0.12); }
+.friend-btn.muted { background:transparent; border:1px solid var(--muted); color:var(--muted); cursor:default; }
+.friend-actions { display:flex; gap:6px; flex-shrink:0; }
+.profile-section-title span { color:var(--muted); }
 body.locked .main { filter:blur(6px); pointer-events:none; }
 </style>
 </head>
@@ -333,7 +348,7 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
     <span id="user-avatar"></span>
     <div class="sidebar-user-info" onclick="openProfile()" title="View profile">
       <div class="sidebar-user-name" id="user-name"></div>
-      <div class="sidebar-user-meta">👥 <b id="friend-count">0</b> friends · profile</div>
+      <div class="sidebar-user-meta">👥 <b id="friend-count">0</b> friends · profile<span class="req-badge" id="req-badge"></span></div>
     </div>
     <button class="logout-btn" id="logout-btn" title="Sign out" onclick="glitchLogout()">⏻</button>
   </div>
@@ -353,11 +368,17 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
       <div class="stat-tile"><div class="stat-num" id="stat-played">0</div><div class="stat-label">Games Played</div></div>
       <div class="stat-tile"><div class="stat-num" id="stat-since">—</div><div class="stat-label">Member Since</div></div>
     </div>
-    <div class="profile-section-title">// FRIENDS</div>
+    <div class="profile-section-title">// FIND PLAYERS</div>
     <div class="add-friend">
-      <input type="text" id="friend-input" placeholder="Add friend by name or email..." onkeydown="if(event.key==='Enter')addFriend()" />
-      <button onclick="addFriend()">+ Add</button>
+      <input type="text" id="friend-search" placeholder="Search players by name or email..." onkeydown="if(event.key==='Enter')doSearch()" />
+      <button onclick="doSearch()">Search</button>
     </div>
+    <div class="friends-list" id="search-results"></div>
+    <div class="profile-section-title" id="incoming-title" style="display:none">// FRIEND REQUESTS <span id="incoming-num"></span></div>
+    <div class="friends-list" id="incoming-list"></div>
+    <div class="profile-section-title" id="outgoing-title" style="display:none">// PENDING SENT</div>
+    <div class="friends-list" id="outgoing-list"></div>
+    <div class="profile-section-title">// FRIENDS</div>
     <div class="friends-list" id="friends-list"></div>
   </div>
 </div>
@@ -397,6 +418,7 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
 </div>
 <script>
 const GAMES=[
+  {name:'Barrier',             file:'barrier.html',                emoji:'🚧',color:['#02140f','#04241b'],category:'action',     tags:['new','hot']},
   {name:'Pixel War',           file:'pixel-war.html',              emoji:'🪖',color:['#0a1800','#1a3008'],category:'action',     tags:['hot']},
   {name:'Pixel War Alt',       file:'pixelwar.html',               emoji:'⚔️',color:['#100a20','#201030'],category:'action',     tags:[]},
   {name:'Pixel War Solo',      file:'pixelwar-solo.html',          emoji:'🚀',color:['#00101a','#001828'],category:'action',     tags:[]},
@@ -840,29 +862,45 @@ function decodeJwt(token){
   } catch(e){ return null; }
 }
 
+// ══ Backend (Cloudflare Worker) ══
+const API_BASE = 'https://glitchbox-api.PLACEHOLDER.workers.dev';
+
+let currentUser = null;
+let lastState = { profile:null, friends:[], incoming:[], outgoing:[] };
+let lastSearch = [];
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function getSession(){ return localStorage.getItem('glitchbox_session') || ''; }
+
+async function api(path, opts){
+  opts = opts || {};
+  const headers = {};
+  if(getSession()) headers['Authorization'] = 'Bearer '+getSession();
+  let body;
+  if(opts.body){ headers['Content-Type']='application/json'; body = JSON.stringify(opts.body); }
+  const r = await fetch(API_BASE+path, { method:opts.method||'GET', headers, body });
+  const data = await r.json().catch(()=>({}));
+  if(!r.ok){ const e = new Error(data.error||('HTTP '+r.status)); e.status = r.status; throw e; }
+  return data;
+}
+
 function handleCredential(response){
   const data = decodeJwt(response.credential);
   if(!data){ alert('Sign-in failed — could not read Google response.'); return; }
   const user = { sub:data.sub, name:data.name||data.email, email:data.email, picture:data.picture||'' };
-
-  // Registration tracking: first sign-in for this account = new registration.
-  let accounts = {};
-  try { accounts = JSON.parse(localStorage.getItem('glitchbox_accounts')||'{}'); } catch(e){}
-  const isNew = !accounts[user.sub];
-  if(isNew){ accounts[user.sub] = { email:user.email, name:user.name, firstSeen:new Date().toISOString() }; }
-  accounts[user.sub].lastSeen = new Date().toISOString();
-  localStorage.setItem('glitchbox_accounts', JSON.stringify(accounts));
   localStorage.setItem('glitchbox_user', JSON.stringify(user));
-
   applyUser(user);
-  console.log(isNew ? 'Registered new player: '+user.email : 'Welcome back: '+user.email);
+  backendLogin(response.credential);
 }
 
-let currentUser = null;
-
-function avatarHtml(user, cls){
-  if(user.picture) return '<img class="'+cls+'" src="'+user.picture+'" alt="" referrerpolicy="no-referrer">';
-  return '<span class="'+cls+'"><span class="avatar-fallback">'+(user.name||'?').charAt(0).toUpperCase()+'</span></span>';
+async function backendLogin(credential){
+  try {
+    const res = await api('/api/login', { method:'POST', body:{ idToken:credential } });
+    localStorage.setItem('glitchbox_session', res.sessionToken);
+    if(res.profile) lastState.profile = res.profile;
+    console.log(res.isNew ? 'Registered new player' : 'Welcome back');
+    await refreshState();
+  } catch(e){ console.warn('Backend login failed:', e.message); }
 }
 
 function applyUser(user){
@@ -870,79 +908,136 @@ function applyUser(user){
   document.getElementById('auth-overlay').classList.add('hidden');
   document.body.classList.remove('locked');
   const av = document.getElementById('user-avatar');
-  if(user.picture){ av.innerHTML = '<img src="'+user.picture+'" alt="" referrerpolicy="no-referrer">'; }
-  else { av.innerHTML = '<span class="avatar-fallback">'+(user.name||'?').charAt(0).toUpperCase()+'</span>'; }
+  if(user.picture){ av.innerHTML = '<img src="'+esc(user.picture)+'" alt="" referrerpolicy="no-referrer">'; }
+  else { av.innerHTML = '<span class="avatar-fallback">'+esc((user.name||'?').charAt(0).toUpperCase())+'</span>'; }
   document.getElementById('user-name').textContent = user.name;
   document.getElementById('sidebar-user').classList.add('show');
-  updateFriendCount();
+  renderAll();
 }
 
-// ── FRIENDS (stored per Google account, client-side) ──
-function friendsKey(){ return 'glitchbox_friends_'+(currentUser?currentUser.sub:'anon'); }
-function getFriends(){ try { return JSON.parse(localStorage.getItem(friendsKey())||'[]'); } catch(e){ return []; } }
-function saveFriends(list){ localStorage.setItem(friendsKey(), JSON.stringify(list)); updateFriendCount(); }
-
-function updateFriendCount(){
-  const n = getFriends().length;
-  const el = document.getElementById('friend-count'); if(el) el.textContent = n;
-  const st = document.getElementById('stat-friends'); if(st) st.textContent = n;
+// ── STATE ──
+async function refreshState(){
+  if(!getSession()) return;
+  try {
+    lastState = await api('/api/me');
+    renderAll();
+  } catch(e){
+    if(e.status === 401){
+      localStorage.removeItem('glitchbox_session');
+      if(window.google && google.accounts && google.accounts.id){ google.accounts.id.prompt(); }
+    }
+  }
 }
 
-function addFriend(){
-  const inp = document.getElementById('friend-input');
-  const val = inp.value.trim();
-  if(!val) return;
-  const isEmail = val.includes('@');
-  const list = getFriends();
-  const key = val.toLowerCase();
-  if(list.some(f => (f.email||f.name||'').toLowerCase() === key)){ inp.value=''; return; }
-  list.push({ name: isEmail ? val.split('@')[0] : val, email: isEmail ? val : '', added: new Date().toISOString() });
-  saveFriends(list);
-  inp.value='';
-  renderFriends();
+function relStatus(sub){
+  if(lastState.friends.some(f=>f.sub===sub)) return 'friend';
+  if(lastState.outgoing.some(f=>f.sub===sub)) return 'outgoing';
+  if(lastState.incoming.some(f=>f.sub===sub)) return 'incoming';
+  return 'none';
 }
 
-function removeFriend(i){
-  const list = getFriends();
-  list.splice(i,1);
-  saveFriends(list);
-  renderFriends();
+function renderAll(){
+  const n = lastState.friends.length, inc = lastState.incoming.length;
+  document.getElementById('friend-count').textContent = n;
+  const stf = document.getElementById('stat-friends'); if(stf) stf.textContent = n;
+  const badge = document.getElementById('req-badge');
+  if(inc>0){ badge.textContent = inc+' request'+(inc>1?'s':''); badge.classList.add('show'); }
+  else { badge.classList.remove('show'); }
+  if(document.getElementById('profile-modal').classList.contains('show')){
+    updateProfileHeader();
+    renderFriends(); renderRequests(); renderSearch();
+  }
 }
+
+function avInitial(u){ return '<div class="friend-av">'+esc((u.name||'?').charAt(0).toUpperCase())+'</div>'; }
+function rowInfo(u){ return '<div class="friend-info"><div class="friend-name">'+esc(u.name)+'</div>'+(u.email?'<div class="friend-sub">'+esc(u.email)+'</div>':'')+'</div>'; }
 
 function renderFriends(){
   const box = document.getElementById('friends-list');
-  const list = getFriends();
-  if(!list.length){ box.innerHTML = '<div class="friends-empty">No friends yet — add someone above to grow your crew.</div>'; return; }
-  box.innerHTML = list.map((f,i) =>
-    '<div class="friend-row"><div class="friend-av">'+(f.name||'?').charAt(0).toUpperCase()+'</div>'+
-    '<div class="friend-info"><div class="friend-name">'+f.name+'</div>'+
-    (f.email?'<div class="friend-sub">'+f.email+'</div>':'')+'</div>'+
-    '<button class="friend-remove" onclick="removeFriend('+i+')">Remove</button></div>'
+  const list = lastState.friends;
+  if(!list.length){ box.innerHTML = '<div class="friends-empty">No friends yet — search for players above and send a request.</div>'; return; }
+  box.innerHTML = list.map(f =>
+    '<div class="friend-row">'+avInitial(f)+rowInfo(f)+
+    '<button class="friend-btn ghost" onclick="unfriend(\''+f.sub+'\')">Unfriend</button></div>'
   ).join('');
 }
 
-function openProfile(){
-  if(!currentUser) return;
+function renderRequests(){
+  const inBox = document.getElementById('incoming-list'), inTitle = document.getElementById('incoming-title');
+  const outBox = document.getElementById('outgoing-list'), outTitle = document.getElementById('outgoing-title');
+  if(lastState.incoming.length){
+    inTitle.style.display=''; document.getElementById('incoming-num').textContent = '('+lastState.incoming.length+')';
+    inBox.innerHTML = lastState.incoming.map(u =>
+      '<div class="friend-row">'+avInitial(u)+rowInfo(u)+
+      '<div class="friend-actions"><button class="friend-btn accept" onclick="acceptReq(\''+u.sub+'\')">Accept</button>'+
+      '<button class="friend-btn ghost" onclick="declineReq(\''+u.sub+'\')">Decline</button></div></div>'
+    ).join('');
+  } else { inTitle.style.display='none'; inBox.innerHTML=''; }
+  if(lastState.outgoing.length){
+    outTitle.style.display='';
+    outBox.innerHTML = lastState.outgoing.map(u =>
+      '<div class="friend-row">'+avInitial(u)+rowInfo(u)+
+      '<button class="friend-btn ghost" onclick="declineReq(\''+u.sub+'\')">Cancel</button></div>'
+    ).join('');
+  } else { outTitle.style.display='none'; outBox.innerHTML=''; }
+}
+
+function renderSearch(){
+  const box = document.getElementById('search-results');
+  if(!lastSearch.length){ box.innerHTML=''; return; }
+  box.innerHTML = lastSearch.map(u => {
+    const st = relStatus(u.sub);
+    let btn;
+    if(st==='friend') btn = '<button class="friend-btn muted">Friends ✓</button>';
+    else if(st==='outgoing') btn = '<button class="friend-btn muted">Pending</button>';
+    else if(st==='incoming') btn = '<button class="friend-btn accept" onclick="acceptReq(\''+u.sub+'\')">Accept</button>';
+    else btn = '<button class="friend-btn add" onclick="sendRequest(\''+u.sub+'\')">+ Add</button>';
+    return '<div class="friend-row">'+avInitial(u)+rowInfo(u)+btn+'</div>';
+  }).join('');
+}
+
+async function doSearch(){
+  const inp = document.getElementById('friend-search');
+  const q = inp.value.trim();
+  if(!q){ lastSearch=[]; renderSearch(); return; }
+  try { const res = await api('/api/search?q='+encodeURIComponent(q)); lastSearch = res.results||[]; renderSearch();
+    if(!lastSearch.length) document.getElementById('search-results').innerHTML='<div class="friends-empty">No players found for “'+esc(q)+'”.</div>';
+  } catch(e){ console.warn(e); }
+}
+
+async function act(path, sub){
+  try { lastState = await api(path, { method:'POST', body:{ sub } }); renderAll(); }
+  catch(e){ alert(e.message); }
+}
+function sendRequest(sub){ act('/api/request', sub); }
+function acceptReq(sub){ act('/api/accept', sub); }
+function declineReq(sub){ act('/api/decline', sub); }
+function unfriend(sub){ act('/api/unfriend', sub); }
+
+function updateProfileHeader(){
   document.getElementById('profile-avatar').innerHTML = currentUser.picture
-    ? '<img src="'+currentUser.picture+'" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover">'
-    : '<span class="avatar-fallback">'+(currentUser.name||'?').charAt(0).toUpperCase()+'</span>';
+    ? '<img src="'+esc(currentUser.picture)+'" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover">'
+    : '<span class="avatar-fallback">'+esc((currentUser.name||'?').charAt(0).toUpperCase())+'</span>';
   document.getElementById('profile-name').textContent = currentUser.name;
   document.getElementById('profile-email').textContent = currentUser.email;
+  document.getElementById('stat-friends').textContent = lastState.friends.length;
   document.getElementById('stat-played').textContent = localStorage.getItem('glitchbox_played_'+currentUser.sub) || '0';
-  // Member-since from the accounts registry.
   let since = '—';
-  try {
-    const acc = JSON.parse(localStorage.getItem('glitchbox_accounts')||'{}')[currentUser.sub];
-    if(acc && acc.firstSeen){ const d=new Date(acc.firstSeen); since = d.toLocaleDateString(undefined,{month:'short',year:'numeric'}); }
-  } catch(e){}
+  const created = lastState.profile && lastState.profile.created;
+  if(created){ since = new Date(created).toLocaleDateString(undefined,{month:'short',year:'numeric'}); }
   document.getElementById('stat-since').textContent = since;
-  updateFriendCount();
-  renderFriends();
+}
+
+async function openProfile(){
+  if(!currentUser) return;
+  lastSearch = []; document.getElementById('friend-search').value=''; document.getElementById('search-results').innerHTML='';
+  updateProfileHeader(); renderFriends(); renderRequests();
   document.getElementById('profile-modal').classList.add('show');
+  await refreshState();
 }
 function closeProfile(){ document.getElementById('profile-modal').classList.remove('show'); }
 
-// Count a "game played" whenever a game tile is launched.
+// Count a "game played" whenever a game tile is launched (local, per device).
 document.getElementById('game-grid').addEventListener('click', e => {
   if(currentUser && e.target.closest('.game-card')){
     const k = 'glitchbox_played_'+currentUser.sub;
@@ -952,26 +1047,19 @@ document.getElementById('game-grid').addEventListener('click', e => {
 
 function glitchLogout(){
   localStorage.removeItem('glitchbox_user');
+  localStorage.removeItem('glitchbox_session');
   if(window.google && google.accounts && google.accounts.id){ google.accounts.id.disableAutoSelect(); }
   location.reload();
 }
 
 function initGoogleAuth(){
-  // Restore existing session immediately.
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem('glitchbox_user')||'null'); } catch(e){}
-  if(saved && saved.email){ applyUser(saved); }
+  if(saved && saved.email){ applyUser(saved); refreshState(); }
 
   const configured = GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.startsWith('PASTE_YOUR_CLIENT_ID');
-  if(!configured){
-    // Show setup instructions until a Client ID is added.
-    if(!saved) document.getElementById('auth-setup').classList.add('show');
-    return;
-  }
-  if(!(window.google && google.accounts && google.accounts.id)){
-    // GIS script not ready yet — retry shortly.
-    return setTimeout(initGoogleAuth, 300);
-  }
+  if(!configured){ if(!saved) document.getElementById('auth-setup').classList.add('show'); return; }
+  if(!(window.google && google.accounts && google.accounts.id)){ return setTimeout(initGoogleAuth, 300); }
   google.accounts.id.initialize({ client_id:GOOGLE_CLIENT_ID, callback:handleCredential, auto_select:true });
   google.accounts.id.renderButton(document.getElementById('g-signin-btn'), {
     theme:'filled_black', size:'large', shape:'rectangular', text:'continue_with', width:300
@@ -979,6 +1067,8 @@ function initGoogleAuth(){
   if(!saved){ google.accounts.id.prompt(); }
 }
 
+// Poll for new friend requests while signed in.
+setInterval(() => { if(getSession()) refreshState(); }, 25000);
 window.addEventListener('load', initGoogleAuth);
 </script>
 </body>
