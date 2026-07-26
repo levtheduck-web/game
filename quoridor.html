@@ -35,11 +35,23 @@
   button.ghost{ background:transparent; }
   .hint{ margin-top:10px; color:#7f93b6; font-size:13px; text-align:center; max-width:560px; line-height:1.5; }
   .overlay{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column;
-    background:rgba(6,10,20,.82); backdrop-filter:blur(4px); z-index:20; padding:24px; text-align:center; }
+    background:rgba(6,10,20,.86); backdrop-filter:blur(5px); z-index:20; padding:24px; text-align:center; }
   .overlay.hidden{ display:none; }
-  .overlay h2{ font-size:clamp(32px,9vw,64px); font-weight:900; }
-  .overlay p{ color:#9fb2d0; margin-top:8px; font-size:16px; }
-  .wallpill{ display:inline-flex; }
+  .overlay h2{ font-size:clamp(30px,8vw,56px); font-weight:900; }
+  .overlay p{ color:#9fb2d0; margin-top:8px; font-size:15px; line-height:1.5; max-width:400px; }
+  .menu-card{ background:#0e1830; border:1px solid var(--line); border-radius:20px; padding:26px 24px; width:min(92vw,380px);
+    box-shadow:0 30px 80px rgba(0,0,0,.6); }
+  .menu-card h2{ font-size:26px; margin-bottom:4px; }
+  .menu-btns{ display:flex; flex-direction:column; gap:10px; margin-top:18px; }
+  .menu-btns button{ justify-content:center; padding:14px; font-size:16px; }
+  .primary{ background:linear-gradient(180deg,#2f5fb0,#244a8f); border-color:#4d84e0; color:#fff; }
+  .code-in{ font:inherit; font-weight:900; letter-spacing:.25em; text-align:center; text-transform:uppercase; font-size:22px;
+    padding:12px; border-radius:12px; border:1px solid var(--line); background:#0a142a; color:#fff; width:100%; }
+  .roomcode{ font-size:44px; font-weight:900; letter-spacing:.2em; color:var(--gold); margin:10px 0; text-shadow:0 0 24px rgba(255,210,74,.4); }
+  .status{ color:#9fb2d0; font-size:14px; margin-top:6px; min-height:20px; }
+  .status.err{ color:var(--red); }
+  .link{ color:var(--blue); text-decoration:underline; cursor:pointer; }
+  .back{ margin-top:14px; background:transparent; border:none; color:#7f93b6; }
 </style>
 </head>
 <body>
@@ -48,11 +60,11 @@
 
   <div class="players">
     <div class="pcard blue active" id="card-blue">
-      <div class="pname"><span class="dot"></span> YOU (Blue)</div>
+      <div class="pname"><span class="dot"></span> <span id="name-blue">Blue</span></div>
       <div class="prow"><span class="walls">Walls <b id="w-blue">10</b>/10</span><span class="clock" id="c-blue">1:00</span></div>
     </div>
     <div class="pcard red" id="card-red">
-      <div class="pname"><span class="dot"></span> CPU (Red)</div>
+      <div class="pname"><span class="dot"></span> <span id="name-red">Red</span></div>
       <div class="prow"><span class="walls">Walls <b id="w-red">10</b>/10</span><span class="clock" id="c-red">1:00</span></div>
     </div>
   </div>
@@ -63,19 +75,55 @@
     <button id="btn-move" class="sel">♟ Move</button>
     <button id="btn-h">▬ Wall H</button>
     <button id="btn-v">▮ Wall V</button>
-    <button id="btn-new" class="ghost">↻ New</button>
+    <button id="btn-menu" class="ghost">☰ Menu</button>
   </div>
-  <div class="hint" id="hint">Your turn. Tap a highlighted square to move. Pick a wall button then tap the board to place a wall (right-click flips orientation).</div>
+  <div class="hint" id="hint">Tap a highlighted square to move. Pick a wall button then tap the board to place a wall (right-click flips).</div>
 
+  <!-- MENU / LOBBY -->
+  <div class="overlay" id="menu">
+    <div class="menu-card" id="panel-home">
+      <h2>QUORIDOR</h2>
+      <p style="margin-top:2px">Choose how you want to play.</p>
+      <div class="menu-btns">
+        <button class="primary" id="m-cpu">🤖 Single Player <span style="opacity:.7">(vs CPU)</span></button>
+        <button id="m-online">🌐 Play Online <span style="opacity:.7">(with a friend)</span></button>
+      </div>
+    </div>
+
+    <div class="menu-card hidden" id="panel-online">
+      <h2>Play Online</h2>
+      <p>Create a game and share the code, or join a friend's.</p>
+      <div class="menu-btns">
+        <button class="primary" id="m-create">➕ Create Game</button>
+        <div style="display:flex; gap:8px;">
+          <input class="code-in" id="join-code" maxlength="4" placeholder="CODE" style="flex:1"/>
+          <button id="m-join">Join</button>
+        </div>
+      </div>
+      <div class="status" id="online-status"></div>
+      <button class="back" id="m-back1">← Back</button>
+    </div>
+
+    <div class="menu-card hidden" id="panel-wait">
+      <h2>Your code</h2>
+      <div class="roomcode" id="wait-code">----</div>
+      <p>Share this code with your friend. The game starts when they join.</p>
+      <div class="status" id="wait-status">Waiting for opponent…</div>
+      <button class="back" id="m-cancel">← Cancel</button>
+    </div>
+  </div>
+
+  <!-- GAME OVER -->
   <div class="overlay hidden" id="overlay">
     <h2 id="ov-title">Blue wins!</h2>
     <p id="ov-sub"></p>
-    <button id="ov-btn" class="sel" style="margin-top:22px;font-size:18px;">Play again</button>
+    <button id="ov-btn" class="primary" style="margin-top:22px;font-size:18px;padding:14px 28px;">Play again</button>
+    <button class="back" id="ov-menu">← Main menu</button>
   </div>
 
 <script>
 (()=>{
-const N=9;                       // 9x9 cells
+const N=9;
 const CELL=52, GAP=12, MARGIN=16;
 const SIZE = MARGIN*2 + N*CELL + (N-1)*GAP;
 const cv=document.getElementById('board'), ctx=cv.getContext('2d');
@@ -83,30 +131,13 @@ let DPR=Math.min(window.devicePixelRatio||1,2);
 cv.width=SIZE*DPR; cv.height=SIZE*DPR; cv.style.aspectRatio='1/1';
 ctx.scale(DPR,DPR);
 
-// ---- geometry helpers ----
+const $=id=>document.getElementById(id);
 const cellX=c=> MARGIN + c*(CELL+GAP);
 const cellY=r=> MARGIN + r*(CELL+GAP);
 const key=(r,c)=> r+','+c;
+const onBoard=(r,c)=> r>=0&&r<N&&c>=0&&c<N;
 
-// ---- game state ----
-let S;
-function reset(){
-  S={
-    blue:{r:8,c:4, goal:0, walls:10, color:'#3aa0ff'},
-    red :{r:0,c:4, goal:8, walls:10, color:'#ff4d6d'},
-    H:new Set(), V:new Set(),          // wall crosspoints (r,c) 0..7
-    turn:'blue', mode:'move', orient:'H',
-    clock:{blue:60, red:60}, over:false, winner:null,
-    hoverCell:null, hoverWall:null, legal:[]
-  };
-  computeLegal();
-  syncUI();
-  document.getElementById('overlay').classList.add('hidden');
-  setMode('move');
-  lastTick=performance.now();
-}
-
-// ---- wall/movement rules ----
+// ---------- pure rules ----------
 function openBetween(H,V,a,b){
   const dr=b.r-a.r, dc=b.c-a.c;
   if(dr===1&&dc===0){ const r=a.r,c=a.c; return !(H.has(key(r,c))||H.has(key(r,c-1))); }
@@ -115,180 +146,165 @@ function openBetween(H,V,a,b){
   if(dc===-1&&dr===0){ const r=a.r,c=b.c; return !(V.has(key(r,c))||V.has(key(r-1,c))); }
   return false;
 }
-const onBoard=(r,c)=> r>=0&&r<N&&c>=0&&c<N;
-
 function legalMoves(H,V,me,opp){
-  const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
-  const out=[];
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1]]; const out=[];
   for(const [dr,dc] of dirs){
     const n={r:me.r+dr,c:me.c+dc};
-    if(!onBoard(n.r,n.c)) continue;
-    if(!openBetween(H,V,me,n)) continue;
+    if(!onBoard(n.r,n.c)||!openBetween(H,V,me,n)) continue;
     if(!(n.r===opp.r&&n.c===opp.c)){ out.push(n); continue; }
-    // opponent adjacent -> try jump straight
     const beyond={r:n.r+dr,c:n.c+dc};
     if(onBoard(beyond.r,beyond.c)&&openBetween(H,V,n,beyond)){ out.push(beyond); }
-    else { // diagonal jumps
-      for(const [pr,pc] of [[dc,dr],[-dc,-dr]]){
-        const side={r:n.r+pr,c:n.c+pc};
-        if(onBoard(side.r,side.c)&&openBetween(H,V,n,side)) out.push(side);
-      }
+    else for(const [pr,pc] of [[dc,dr],[-dc,-dr]]){
+      const side={r:n.r+pr,c:n.c+pc};
+      if(onBoard(side.r,side.c)&&openBetween(H,V,n,side)) out.push(side);
     }
   }
   return out;
 }
-
-// BFS distance from a pawn to its goal row (walls only, pawns ignored). -1 if blocked.
 function bfsDist(H,V,start,goalRow){
   const seen=new Uint8Array(N*N); const q=[[start.r,start.c,0]]; seen[start.r*N+start.c]=1;
   const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
-  for(let i=0;i<q.length;i++){
-    const [r,c,d]=q[i];
+  for(let i=0;i<q.length;i++){ const [r,c,d]=q[i];
     if(r===goalRow) return d;
-    for(const [dr,dc] of dirs){
-      const nr=r+dr,nc=c+dc;
-      if(!onBoard(nr,nc)||seen[nr*N+nc]) continue;
-      if(!openBetween(H,V,{r,c},{r:nr,c:nc})) continue;
-      seen[nr*N+nc]=1; q.push([nr,nc,d+1]);
-    }
-  }
+    for(const [dr,dc] of dirs){ const nr=r+dr,nc=c+dc;
+      if(!onBoard(nr,nc)||seen[nr*N+nc]||!openBetween(H,V,{r,c},{r:nr,c:nc})) continue;
+      seen[nr*N+nc]=1; q.push([nr,nc,d+1]); } }
   return -1;
 }
-
-// ---- wall placement validity ----
 function wallConflicts(H,V,orient,r,c){
   if(r<0||r>N-2||c<0||c>N-2) return true;
-  if(orient==='H'){
-    if(H.has(key(r,c))||H.has(key(r,c-1))||H.has(key(r,c+1))) return true;
-    if(V.has(key(r,c))) return true;
-  }else{
-    if(V.has(key(r,c))||V.has(key(r-1,c))||V.has(key(r+1,c))) return true;
-    if(H.has(key(r,c))) return true;
-  }
+  if(orient==='H'){ if(H.has(key(r,c))||H.has(key(r,c-1))||H.has(key(r,c+1))||V.has(key(r,c))) return true; }
+  else { if(V.has(key(r,c))||V.has(key(r-1,c))||V.has(key(r+1,c))||H.has(key(r,c))) return true; }
   return false;
 }
 function wallLegal(H,V,orient,r,c){
   if(wallConflicts(H,V,orient,r,c)) return false;
-  const H2=new Set(H), V2=new Set(V);
-  (orient==='H'?H2:V2).add(key(r,c));
+  const H2=new Set(H), V2=new Set(V); (orient==='H'?H2:V2).add(key(r,c));
   return bfsDist(H2,V2,S.blue,S.blue.goal)>=0 && bfsDist(H2,V2,S.red,S.red.goal)>=0;
 }
 
-// ---- turn flow ----
+// ---------- state ----------
+let S, net={ws:null, connected:false, myColor:'blue', code:null};
+function reset(){
+  S={
+    blue:{r:8,c:4, goal:0}, red:{r:0,c:4, goal:8},
+    H:new Set(), V:new Set(),
+    turn:'blue', mode:'move', orient:'H',
+    clock:{blue:60, red:60}, over:false, winner:null,
+    hoverCell:null, hoverWall:null, legal:[],
+    walls:{blue:10, red:10},
+    vs:'cpu', myColor:'blue', flip:false
+  };
+}
+function myColor(){ return S.vs==='cpu' ? 'blue' : S.myColor; }
+function isMyTurn(){ return !S.over && S.turn===myColor() && (S.vs!=='online' || net.connected); }
+
+// ---------- display flip (each online player sees themselves at bottom) ----------
+function dCell(r,c){ return S.flip? {r:N-1-r,c:N-1-c}:{r,c}; }   // logical<->display (involution)
+function dCross(r,c){ return S.flip? {r:N-2-r,c:N-2-c}:{r,c}; }
+
+// ---------- turn flow ----------
 function computeLegal(){
-  const me=S[S.turn], opp=S[S.turn==='blue'?'red':'blue'];
-  S.legal = (S.turn==='blue'&&S.mode==='move')? legalMoves(S.H,S.V,me,opp) : [];
+  const me=S[myColor()], opp=S[myColor()==='blue'?'red':'blue'];
+  S.legal = (isMyTurn()&&S.mode==='move')? legalMoves(S.H,S.V,me,opp) : [];
 }
 function endTurnCheck(){
-  if(S.blue.r===S.blue.goal){ win('blue'); return true; }
-  if(S.red.r===S.red.goal){ win('red'); return true; }
+  if(S.blue.r===S.blue.goal) return win('blue');
+  if(S.red.r===S.red.goal) return win('red');
   return false;
 }
-function win(who){
+function win(who,reasonSub){
+  if(S.over) return true;
   S.over=true; S.winner=who;
-  const ov=document.getElementById('overlay');
-  document.getElementById('ov-title').textContent = who==='blue'?'You win! 🏆':'CPU wins';
-  document.getElementById('ov-title').style.color = who==='blue'?'var(--blue)':'var(--red)';
-  document.getElementById('ov-sub').textContent = who==='blue'?'You reached the top row first.':'Red reached the bottom row first.';
+  const ov=$('overlay'), youWon = who===myColor();
+  $('ov-title').textContent = S.vs==='cpu' ? (who==='blue'?'You win! 🏆':'CPU wins')
+                                           : (youWon?'You win! 🏆':'You lose');
+  $('ov-title').style.color = who==='blue'?'var(--blue)':'var(--red)';
+  $('ov-sub').textContent = reasonSub || (who==='blue'?'Blue reached the top row.':'Red reached the bottom row.');
   ov.classList.remove('hidden');
-  draw();
+  draw(); return true;
 }
 function switchTurn(){
   S.turn = S.turn==='blue'?'red':'blue';
   computeLegal(); syncUI();
-  if(S.turn==='red' && !S.over){ setTimeout(aiMove, 480); }
+  if(S.vs==='cpu' && S.turn==='red' && !S.over) setTimeout(aiMove, 480);
 }
 
-// ---- player actions ----
-function doMove(r,c){
-  const me=S[S.turn]; me.r=r; me.c=c;
-  if(endTurnCheck()) { draw(); return; }
+// ---------- actions ----------
+function applyMove(who,r,c){ S[who].r=r; S[who].c=c; }
+function applyWall(who,orient,r,c){ (orient==='H'?S.H:S.V).add(key(r,c)); S.walls[who]--; }
+
+function localMove(r,c){
+  const who=S.turn;
+  applyMove(who,r,c);
+  if(S.vs==='online') netSend({t:'action', kind:'move', r, c, clock:S.clock[who]});
+  if(endTurnCheck()){ draw(); return; }
   switchTurn(); draw();
 }
-function doWall(orient,r,c){
+function localWall(orient,r,c){
   if(!wallLegal(S.H,S.V,orient,r,c)) return false;
-  (orient==='H'?S.H:S.V).add(key(r,c));
-  S[S.turn].walls--;
-  setMode('move');
+  const who=S.turn;
+  applyWall(who,orient,r,c); setMode('move');
+  if(S.vs==='online') netSend({t:'action', kind:'wall', orient, r, c, clock:S.clock[who]});
   if(endTurnCheck()){ draw(); return true; }
   switchTurn(); draw(); return true;
 }
+// remote opponent action
+function remoteAction(m){
+  const who=S.turn; // opponent's turn
+  if(typeof m.clock==='number') S.clock[who]=m.clock;
+  if(m.kind==='move'){ applyMove(who,m.r,m.c); }
+  else if(m.kind==='wall'){ applyWall(who,m.orient,m.r,m.c); }
+  else if(m.kind==='timeout'){ return win(who==='blue'?'red':'blue', 'Opponent ran out of time.'); }
+  if(endTurnCheck()){ draw(); return; }
+  switchTurn(); draw();
+}
 
-// ---- AI (red) ----
+// ---------- AI (red) ----------
 function aiMove(){
   if(S.over) return;
-  const H=S.H, V=S.V;
-  const myDist = bfsDist(H,V,S.red,S.red.goal);
-  const oppDist= bfsDist(H,V,S.blue,S.blue.goal);
-
-  // best pawn move for red (minimize its own distance-to-goal)
+  const H=S.H,V=S.V;
+  const myDist=bfsDist(H,V,S.red,S.red.goal), oppDist=bfsDist(H,V,S.blue,S.blue.goal);
   const moves=legalMoves(H,V,S.red,S.blue);
-  let bestMove=null, bestMD=Infinity;
-  for(const m of moves){
-    const d=bfsDist(H,V,{r:m.r,c:m.c},S.red.goal);
-    const dd=(d<0?99:d) - (m.r>S.red.r?0.01:0); // tiny bias toward advancing down
-    if(dd<bestMD){ bestMD=dd; bestMove=m; }
-  }
-
-  // consider placing a wall if red has walls and isn't clearly ahead
-  let bestWall=null, bestScore=0;
-  const advantage = oppDist - myDist; // positive => red is closer/winning
-  if(S.red.walls>0 && advantage < 3){
-    for(let r=0;r<N-1;r++) for(let c=0;c<N-1;c++){
-      for(const orient of ['H','V']){
-        if(!wallLegal(H,V,orient,r,c)) continue;
-        const H2=new Set(H),V2=new Set(V); (orient==='H'?H2:V2).add(key(r,c));
-        const newOpp=bfsDist(H2,V2,S.blue,S.blue.goal);
-        const newMy =bfsDist(H2,V2,S.red,S.red.goal);
-        if(newOpp<0||newMy<0) continue;
-        // reward slowing opponent, penalize hurting self
-        const score=(newOpp-oppDist)*1.0 - (newMy-myDist)*1.15;
-        if(score>bestScore){ bestScore=score; bestWall={orient,r,c}; }
-      }
+  let bestMove=null,bestMD=Infinity;
+  for(const m of moves){ const d=bfsDist(H,V,{r:m.r,c:m.c},S.red.goal);
+    const dd=(d<0?99:d)-(m.r>S.red.r?0.01:0); if(dd<bestMD){bestMD=dd;bestMove=m;} }
+  let bestWall=null,bestScore=0;
+  if(S.walls.red>0 && (oppDist-myDist)<3){
+    for(let r=0;r<N-1;r++) for(let c=0;c<N-1;c++) for(const orient of ['H','V']){
+      if(!wallLegal(H,V,orient,r,c)) continue;
+      const H2=new Set(H),V2=new Set(V); (orient==='H'?H2:V2).add(key(r,c));
+      const no=bfsDist(H2,V2,S.blue,S.blue.goal), nm=bfsDist(H2,V2,S.red,S.red.goal);
+      if(no<0||nm<0) continue;
+      const sc=(no-oppDist)-(nm-myDist)*1.15;
+      if(sc>bestScore){bestScore=sc;bestWall={orient,r,c};}
     }
   }
-
-  // decision: wall if it meaningfully helps, else move
-  const wallWorth = bestWall && bestScore>=1 && (oppDist<=myDist+1 || bestScore>=2);
-  if(wallWorth){
-    (bestWall.orient==='H'?S.H:S.V).add(key(bestWall.r,bestWall.c));
-    S.red.walls--;
-    if(endTurnCheck()){ draw(); return; }
-    switchTurn(); draw();
-  } else if(bestMove){
-    S.red.r=bestMove.r; S.red.c=bestMove.c;
-    if(endTurnCheck()){ draw(); return; }
-    switchTurn(); draw();
-  } else {
-    switchTurn(); draw();
-  }
+  const wallWorth=bestWall && bestScore>=1 && (oppDist<=myDist+1||bestScore>=2);
+  if(wallWorth){ applyWall('red',bestWall.orient,bestWall.r,bestWall.c);
+    if(endTurnCheck()){draw();return;} switchTurn(); draw(); }
+  else if(bestMove){ applyMove('red',bestMove.r,bestMove.c);
+    if(endTurnCheck()){draw();return;} switchTurn(); draw(); }
+  else { switchTurn(); draw(); }
 }
 
-// ---- input ----
-function toLocal(e){
-  const rect=cv.getBoundingClientRect();
-  const x=(e.clientX-rect.left)*(SIZE/rect.width);
-  const y=(e.clientY-rect.top)*(SIZE/rect.height);
-  return {x,y};
-}
+// ---------- input ----------
+function toLocal(e){ const rect=cv.getBoundingClientRect();
+  return { x:(e.clientX-rect.left)*(SIZE/rect.width), y:(e.clientY-rect.top)*(SIZE/rect.height) }; }
 function cellAt(x,y){
   const c=Math.floor((x-MARGIN)/(CELL+GAP)), r=Math.floor((y-MARGIN)/(CELL+GAP));
-  if(!onBoard(r,c)) return null;
-  // ensure inside cell (not in gap)
-  if(x> cellX(c)+CELL || y> cellY(r)+CELL) return null;
-  return {r,c};
+  if(!onBoard(r,c)||x>cellX(c)+CELL||y>cellY(r)+CELL) return null;
+  const L=dCell(r,c); return L;  // display->logical
 }
 function wallAt(x,y,orient){
   const fr=(y-MARGIN)/(CELL+GAP), fc=(x-MARGIN)/(CELL+GAP);
   let r,c;
-  if(orient==='H'){ r=Math.round(fr)-1; c=Math.floor(fc); }
-  else { c=Math.round(fc)-1; r=Math.floor(fr); }
+  if(orient==='H'){ r=Math.round(fr)-1; c=Math.floor(fc); } else { c=Math.round(fc)-1; r=Math.floor(fr); }
   r=Math.max(0,Math.min(N-2,r)); c=Math.max(0,Math.min(N-2,c));
-  return {orient,r,c};
+  const L=dCross(r,c); return {orient, r:L.r, c:L.c};  // display->logical
 }
-
 cv.addEventListener('pointermove',e=>{
-  if(S.over||S.turn!=='blue') return;
+  if(!isMyTurn()) return;
   const {x,y}=toLocal(e);
   if(S.mode==='move'){ S.hoverCell=cellAt(x,y); S.hoverWall=null; }
   else { S.hoverWall=wallAt(x,y,S.orient); S.hoverCell=null; }
@@ -296,124 +312,174 @@ cv.addEventListener('pointermove',e=>{
 });
 cv.addEventListener('pointerleave',()=>{ S.hoverCell=null; S.hoverWall=null; draw(); });
 cv.addEventListener('pointerdown',e=>{
-  if(S.over||S.turn!=='blue') return;
+  if(!isMyTurn()) return;
   const {x,y}=toLocal(e);
-  if(S.mode==='move'){
-    const cell=cellAt(x,y); if(!cell) return;
-    if(S.legal.some(m=>m.r===cell.r&&m.c===cell.c)) doMove(cell.r,cell.c);
+  if(S.mode==='move'){ const cell=cellAt(x,y);
+    if(cell && S.legal.some(m=>m.r===cell.r&&m.c===cell.c)) localMove(cell.r,cell.c);
   } else {
-    if(S.blue.walls<=0) return;
-    const w=wallAt(x,y,S.orient);
-    doWall(w.orient,w.r,w.c);
+    if(S.walls[myColor()]<=0) return;
+    const w=wallAt(x,y,S.orient); localWall(w.orient,w.r,w.c);
   }
 });
-cv.addEventListener('contextmenu',e=>{
-  e.preventDefault();
-  if(S.mode!=='move'){ setMode(S.orient==='H'?'wallV':'wallH'); const {x,y}=toLocal(e); S.hoverWall=wallAt(x,y,S.orient); draw(); }
-});
+cv.addEventListener('contextmenu',e=>{ e.preventDefault();
+  if(S.mode!=='move'){ setMode(S.orient==='H'?'wallV':'wallH');
+    const {x,y}=toLocal(e); S.hoverWall=wallAt(x,y,S.orient); draw(); } });
 
-// ---- controls ----
+// ---------- controls ----------
 function setMode(m){
-  if(m==='move'){ S.mode='move'; }
+  if(m==='move') S.mode='move';
   else if(m==='wallH'){ S.mode='wall'; S.orient='H'; }
   else if(m==='wallV'){ S.mode='wall'; S.orient='V'; }
-  document.getElementById('btn-move').classList.toggle('sel', S.mode==='move');
-  document.getElementById('btn-h').classList.toggle('sel', S.mode==='wall'&&S.orient==='H');
-  document.getElementById('btn-v').classList.toggle('sel', S.mode==='wall'&&S.orient==='V');
-  S.hoverCell=null; S.hoverWall=null;
-  computeLegal(); draw();
+  $('btn-move').classList.toggle('sel', S.mode==='move');
+  $('btn-h').classList.toggle('sel', S.mode==='wall'&&S.orient==='H');
+  $('btn-v').classList.toggle('sel', S.mode==='wall'&&S.orient==='V');
+  S.hoverCell=null; S.hoverWall=null; computeLegal(); draw();
 }
-document.getElementById('btn-move').onclick=()=>setMode('move');
-document.getElementById('btn-h').onclick=()=>{ if(S.blue.walls>0) setMode('wallH'); };
-document.getElementById('btn-v').onclick=()=>{ if(S.blue.walls>0) setMode('wallV'); };
-document.getElementById('btn-new').onclick=reset;
-document.getElementById('ov-btn').onclick=reset;
+$('btn-move').onclick=()=>setMode('move');
+$('btn-h').onclick=()=>{ if(S.walls[myColor()]>0) setMode('wallH'); };
+$('btn-v').onclick=()=>{ if(S.walls[myColor()]>0) setMode('wallV'); };
+$('btn-menu').onclick=openMenu;
 
-// ---- UI sync ----
-function fmt(t){ t=Math.max(0,t); const s=Math.floor(t); return (s>=60?'1:00':'0:'+String(s).padStart(2,'0')); }
+// ---------- UI ----------
+function fmt(t){ t=Math.max(0,t); const s=Math.floor(t); return s>=60?'1:00':'0:'+String(s).padStart(2,'0'); }
 function syncUI(){
-  document.getElementById('w-blue').textContent=S.blue.walls;
-  document.getElementById('w-red').textContent=S.red.walls;
-  document.getElementById('card-blue').classList.toggle('active', S.turn==='blue'&&!S.over);
-  document.getElementById('card-red').classList.toggle('active', S.turn==='red'&&!S.over);
-  const hint=document.getElementById('hint');
-  if(S.over) hint.textContent = S.winner==='blue'?'You win! Press New to play again.':'CPU wins. Press New to play again.';
-  else if(S.turn==='red') hint.textContent='CPU is thinking…';
+  $('w-blue').textContent=S.walls.blue; $('w-red').textContent=S.walls.red;
+  $('card-blue').classList.toggle('active', S.turn==='blue'&&!S.over);
+  $('card-red').classList.toggle('active', S.turn==='red'&&!S.over);
+  // labels
+  if(S.vs==='cpu'){ $('name-blue').textContent='You (Blue)'; $('name-red').textContent='CPU (Red)'; }
+  else { $('name-blue').textContent=(myColor()==='blue'?'You (Blue)':'Opp (Blue)');
+         $('name-red').textContent=(myColor()==='red'?'You (Red)':'Opp (Red)'); }
+  const hint=$('hint');
+  if(S.over) hint.textContent='Game over. Press Menu to play again.';
+  else if(!isMyTurn()) hint.textContent = S.vs==='cpu'?'CPU is thinking…':"Opponent's turn…";
   else if(S.mode==='move') hint.textContent='Your turn — tap a highlighted square to move.';
   else hint.textContent='Placing '+(S.orient==='H'?'horizontal':'vertical')+' wall — tap the board (right-click flips).';
-  document.getElementById('btn-h').style.opacity=S.blue.walls>0?1:.4;
-  document.getElementById('btn-v').style.opacity=S.blue.walls>0?1:.4;
+  $('btn-h').style.opacity=S.walls[myColor()]>0?1:.4;
+  $('btn-v').style.opacity=S.walls[myColor()]>0?1:.4;
 }
 
-// ---- clock ----
+// ---------- clock ----------
 let lastTick=performance.now();
 function tick(now){
   const dt=(now-lastTick)/1000; lastTick=now;
-  if(S && !S.over){
+  if(S && !S.over && (S.vs!=='online' || net.connected)){
     S.clock[S.turn]-=dt;
-    if(S.clock[S.turn]<=0){ S.clock[S.turn]=0; win(S.turn==='blue'?'red':'blue');
-      document.getElementById('ov-sub').textContent=(S.turn==='blue'?'Your':'Red\'s')+' clock ran out.'; }
-    const cb=document.getElementById('c-blue'), cr=document.getElementById('c-red');
-    cb.textContent=fmt(S.clock.blue); cr.textContent=fmt(S.clock.red);
-    cb.classList.toggle('low',S.clock.blue<10); cr.classList.toggle('low',S.clock.red<10);
+    if(S.clock[S.turn]<=0){ S.clock[S.turn]=0;
+      const loser=S.turn;
+      if(S.vs==='online'){ if(loser===myColor()){ netSend({t:'action',kind:'timeout'}); win(myColor()==='blue'?'red':'blue','You ran out of time.'); } }
+      else win(loser==='blue'?'red':'blue', (loser==='blue'?'You':'CPU')+' ran out of time.');
+    }
+    $('c-blue').textContent=fmt(S.clock.blue); $('c-red').textContent=fmt(S.clock.red);
+    $('c-blue').classList.toggle('low',S.clock.blue<10); $('c-red').classList.toggle('low',S.clock.red<10);
   }
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
 
-// ---- rendering ----
+// ---------- render ----------
 function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y);
   ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 function draw(){
   ctx.clearRect(0,0,SIZE,SIZE);
-  // goal zones
-  ctx.fillStyle='rgba(58,160,255,.07)'; ctx.fillRect(0,0,SIZE,cellY(0)+CELL*0+MARGIN); // top (blue goal)
-  ctx.fillStyle='rgba(58,160,255,.09)'; ctx.fillRect(MARGIN,cellY(0),N*CELL+(N-1)*GAP,CELL);
-  ctx.fillStyle='rgba(255,77,109,.09)'; ctx.fillRect(MARGIN,cellY(8),N*CELL+(N-1)*GAP,CELL);
-  // cells
+  // goal tints (map logical goal rows to display)
+  const blueGoalDisp=dCell(0,0).r, redGoalDisp=dCell(8,0).r;
+  ctx.fillStyle='rgba(58,160,255,.10)'; ctx.fillRect(MARGIN,cellY(blueGoalDisp),N*CELL+(N-1)*GAP,CELL);
+  ctx.fillStyle='rgba(255,77,109,.10)'; ctx.fillRect(MARGIN,cellY(redGoalDisp),N*CELL+(N-1)*GAP,CELL);
   for(let r=0;r<N;r++) for(let c=0;c<N;c++){
-    roundRect(cellX(c),cellY(r),CELL,CELL,8);
-    ctx.fillStyle='#14213c'; ctx.fill();
+    roundRect(cellX(c),cellY(r),CELL,CELL,8); ctx.fillStyle='#14213c'; ctx.fill();
     ctx.strokeStyle='rgba(120,150,200,.08)'; ctx.lineWidth=1; ctx.stroke();
   }
-  // legal move hints
-  if(S.turn==='blue'&&S.mode==='move'&&!S.over){
-    for(const m of S.legal){
-      ctx.beginPath(); ctx.arc(cellX(m.c)+CELL/2,cellY(m.r)+CELL/2,10,0,7);
-      ctx.fillStyle= (S.hoverCell&&S.hoverCell.r===m.r&&S.hoverCell.c===m.c)?'rgba(58,160,255,.85)':'rgba(58,160,255,.35)';
-      ctx.fill();
+  if(isMyTurn()&&S.mode==='move'){
+    for(const m of S.legal){ const d=dCell(m.r,m.c);
+      ctx.beginPath(); ctx.arc(cellX(d.c)+CELL/2,cellY(d.r)+CELL/2,10,0,7);
+      ctx.fillStyle=(S.hoverCell&&S.hoverCell.r===m.r&&S.hoverCell.c===m.c)?'rgba(58,160,255,.85)':'rgba(58,160,255,.35)'; ctx.fill();
     }
   }
-  // placed walls
-  for(const kk of S.H){ const [r,c]=kk.split(',').map(Number); drawWall('H',r,c,'#e7c46b',1); }
-  for(const kk of S.V){ const [r,c]=kk.split(',').map(Number); drawWall('V',r,c,'#e7c46b',1); }
-  // hover ghost wall
-  if(S.hoverWall&&S.mode==='wall'&&!S.over&&S.blue.walls>0){
-    const w=S.hoverWall; const ok=wallLegal(S.H,S.V,w.orient,w.r,w.c);
-    drawWall(w.orient,w.r,w.c, ok?'#59e6a0':'#ff5a76', .55);
+  for(const kk of S.H){ const [r,c]=kk.split(',').map(Number); const d=dCross(r,c); drawWall('H',d.r,d.c,'#e7c46b',1); }
+  for(const kk of S.V){ const [r,c]=kk.split(',').map(Number); const d=dCross(r,c); drawWall('V',d.r,d.c,'#e7c46b',1); }
+  if(S.hoverWall&&S.mode==='wall'&&isMyTurn()&&S.walls[myColor()]>0){
+    const w=S.hoverWall, ok=wallLegal(S.H,S.V,w.orient,w.r,w.c), d=dCross(w.r,w.c);
+    drawWall(w.orient,d.r,d.c, ok?'#59e6a0':'#ff5a76', .55);
   }
-  // pawns
-  drawPawn(S.red,'#ff4d6d','#ff98ac');
-  drawPawn(S.blue,'#3aa0ff','#9fd0ff');
+  const rd=dCell(S.red.r,S.red.c), bd=dCell(S.blue.r,S.blue.c);
+  drawPawn(rd,'#ff4d6d','#ff98ac'); drawPawn(bd,'#3aa0ff','#9fd0ff');
 }
 function drawWall(orient,r,c,col,alpha){
-  ctx.save(); ctx.globalAlpha=alpha;
-  let x,y,w,h;
-  if(orient==='H'){ x=cellX(c); y=cellY(r)+CELL+ (GAP-8)/2; w=CELL*2+GAP; h=8; }
+  ctx.save(); ctx.globalAlpha=alpha; let x,y,w,h;
+  if(orient==='H'){ x=cellX(c); y=cellY(r)+CELL+(GAP-8)/2; w=CELL*2+GAP; h=8; }
   else { x=cellX(c)+CELL+(GAP-8)/2; y=cellY(r); w=8; h=CELL*2+GAP; }
-  roundRect(x,y,w,h,4); ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=12; ctx.fill();
-  ctx.restore();
+  roundRect(x,y,w,h,4); ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=12; ctx.fill(); ctx.restore();
 }
-function drawPawn(p,col,hi){
-  const x=cellX(p.c)+CELL/2, y=cellY(p.r)+CELL/2;
+function drawPawn(d,col,hi){
+  const x=cellX(d.c)+CELL/2, y=cellY(d.r)+CELL/2;
   ctx.beginPath(); ctx.arc(x,y,CELL*0.34,0,7);
-  const g=ctx.createRadialGradient(x-5,y-6,3,x,y,CELL*0.4);
-  g.addColorStop(0,hi); g.addColorStop(1,col);
+  const g=ctx.createRadialGradient(x-5,y-6,3,x,y,CELL*0.4); g.addColorStop(0,hi); g.addColorStop(1,col);
   ctx.fillStyle=g; ctx.shadowColor=col; ctx.shadowBlur=18; ctx.fill(); ctx.shadowBlur=0;
   ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.stroke();
 }
 
-reset(); draw();
+// ---------- menu / networking ----------
+function showPanel(id){ ['panel-home','panel-online','panel-wait'].forEach(p=>$(p).classList.toggle('hidden',p!==id)); }
+function openMenu(){ $('menu').classList.remove('hidden'); $('overlay').classList.add('hidden'); showPanel('panel-home'); }
+function closeMenu(){ $('menu').classList.add('hidden'); }
+
+function startCPU(){
+  reset(); S.vs='cpu'; S.myColor='blue'; S.flip=false;
+  closeMenu(); setMode('move'); computeLegal(); syncUI(); draw(); lastTick=performance.now();
+}
+function startOnline(color){
+  reset(); S.vs='online'; S.myColor=color; S.flip=(color==='red');
+  net.connected=true; closeMenu(); setMode('move'); computeLegal(); syncUI(); draw(); lastTick=performance.now();
+}
+
+$('m-cpu').onclick=startCPU;
+$('m-online').onclick=()=>{ showPanel('panel-online'); $('online-status').textContent=''; };
+$('m-back1').onclick=()=>showPanel('panel-home');
+$('m-cancel').onclick=()=>{ netClose(); showPanel('panel-online'); };
+$('m-create').onclick=()=>netConnect(()=>netSend({t:'create'}));
+$('m-join').onclick=()=>{ const code=$('join-code').value.trim().toUpperCase();
+  if(code.length<4){ setStatus('Enter a 4-letter code.',true); return; }
+  netConnect(()=>netSend({t:'join',code})); };
+$('ov-btn').onclick=()=>{ if(S.vs==='online'){ netSend({t:'rematch'}); doRematch(); } else startCPU(); };
+$('ov-menu').onclick=()=>{ netClose(); openMenu(); };
+$('join-code').addEventListener('input',e=>{ e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,''); });
+
+function setStatus(t,err){ const s=$('online-status'); s.textContent=t; s.classList.toggle('err',!!err); }
+function wsURL(){ const proto=location.protocol==='https:'?'wss:':'ws:'; return proto+'//'+location.host+'/ws'; }
+
+function netConnect(onOpen){
+  if(net.ws && net.ws.readyState===1){ onOpen(); return; }
+  setStatus('Connecting…');
+  let ws;
+  try { ws=new WebSocket(wsURL()); } catch(e){ setStatus('Online needs the game server (run quoridor-server.js).',true); return; }
+  net.ws=ws;
+  ws.onopen=()=>{ net.connected=false; onOpen(); };
+  ws.onmessage=ev=>{ let m; try{m=JSON.parse(ev.data);}catch{return;} handleNet(m); };
+  ws.onerror=()=>setStatus('Couldn’t reach the server. Online play needs quoridor-server.js running.',true);
+  ws.onclose=()=>{ if(S && S.vs==='online' && !S.over){ /* opponent/server gone */ } };
+}
+function netSend(obj){ if(net.ws && net.ws.readyState===1) net.ws.send(JSON.stringify(obj)); }
+function netClose(){ if(net.ws){ try{net.ws.close();}catch{} net.ws=null; } net.connected=false; }
+
+function handleNet(m){
+  if(m.t==='created'){ net.code=m.code; net.myColor='blue';
+    $('wait-code').textContent=m.code; showPanel('panel-wait'); $('wait-status').textContent='Waiting for opponent…'; }
+  else if(m.t==='joined'){ net.myColor='red'; setStatus('Joined! Starting…'); }
+  else if(m.t==='start'){ startOnline(net.myColor); }
+  else if(m.t==='action'){ remoteAction(m); }
+  else if(m.t==='rematch'){ doRematch(); }
+  else if(m.t==='left'){ if(S && !S.over){ win(myColor(), 'Opponent left the game.'); } }
+  else if(m.t==='error'){ setStatus(m.msg||'Error.', true); }
+}
+function doRematch(){
+  const color=net.myColor;
+  reset(); S.vs='online'; S.myColor=color; S.flip=(color==='red'); net.connected=true;
+  $('overlay').classList.add('hidden'); closeMenu(); setMode('move'); computeLegal(); syncUI(); draw(); lastTick=performance.now();
+}
+
+// ---------- boot ----------
+reset(); syncUI(); draw(); openMenu();
 })();
 </script>
 </body>
