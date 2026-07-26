@@ -61,11 +61,11 @@
   <div class="players">
     <div class="pcard blue active" id="card-blue">
       <div class="pname"><span class="dot"></span> <span id="name-blue">Blue</span></div>
-      <div class="prow"><span class="walls">Walls <b id="w-blue">10</b>/10</span><span class="clock" id="c-blue">1:00</span></div>
+      <div class="prow"><span class="walls">Walls <b id="w-blue">10</b>/10</span><span class="clock" id="c-blue">5:00</span></div>
     </div>
     <div class="pcard red" id="card-red">
       <div class="pname"><span class="dot"></span> <span id="name-red">Red</span></div>
-      <div class="prow"><span class="walls">Walls <b id="w-red">10</b>/10</span><span class="clock" id="c-red">1:00</span></div>
+      <div class="prow"><span class="walls">Walls <b id="w-red">10</b>/10</span><span class="clock" id="c-red">5:00</span></div>
     </div>
   </div>
 
@@ -190,7 +190,7 @@ function reset(){
     blue:{r:8,c:4, goal:0}, red:{r:0,c:4, goal:8},
     H:new Set(), V:new Set(),
     turn:'blue', mode:'move', orient:'H',
-    clock:{blue:60, red:60}, over:false, winner:null,
+    clock:{blue:300, red:300}, over:false, winner:null,
     hoverCell:null, hoverWall:null, legal:[],
     walls:{blue:10, red:10},
     vs:'cpu', myColor:'blue', flip:false
@@ -341,7 +341,7 @@ $('btn-v').onclick=()=>{ if(S.walls[myColor()]>0) setMode('wallV'); };
 $('btn-menu').onclick=openMenu;
 
 // ---------- UI ----------
-function fmt(t){ t=Math.max(0,t); const s=Math.floor(t); return s>=60?'1:00':'0:'+String(s).padStart(2,'0'); }
+function fmt(t){ t=Math.max(0,t); const s=Math.floor(t); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
 function syncUI(){
   $('w-blue').textContent=S.walls.blue; $('w-red').textContent=S.walls.red;
   $('card-blue').classList.toggle('active', S.turn==='blue'&&!S.over);
