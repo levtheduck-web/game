@@ -311,7 +311,7 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
   <div class="auth-card">
     <div class="auth-logo-icon">🕹</div>
     <div class="auth-title">GLITCHBOX</div>
-    <div class="auth-sub">// ENTER THE GLITCH</div>
+    <div class="auth-sub" id="auth-sub">// ENTER THE GLITCH</div>
     <div class="auth-desc">Sign in with Google to save your stats and add friends. You don't need an account to play — you can browse and play everything as a guest.</div>
     <div class="auth-btn-wrap">
       <div id="g-signin-btn"></div>
@@ -353,7 +353,10 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
     </div>
     <button class="logout-btn" id="logout-btn" title="Sign out" onclick="glitchLogout()">⏻</button>
   </div>
-  <button id="guest-signin" onclick="openAuth()" style="display:none;margin:8px 12px;padding:9px;background:transparent;border:1px solid rgba(0,245,255,.35);color:var(--cyan);border-radius:8px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;">👥 Sign in for friends</button>
+  <div id="guest-auth" style="display:none;gap:8px;padding:10px 12px;">
+    <button onclick="openAuth('login')" style="flex:1;padding:10px;background:transparent;border:1px solid rgba(0,245,255,.45);color:var(--cyan);border-radius:8px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;">Log In</button>
+    <button onclick="openAuth('signup')" style="flex:1;padding:10px;background:var(--cyan);border:1px solid var(--cyan);color:#001014;border-radius:8px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;">Sign Up</button>
+  </div>
 </nav>
 <div class="profile-modal" id="profile-modal" onclick="if(event.target===this)closeProfile()">
   <div class="profile-card">
@@ -922,7 +925,7 @@ function applyUser(user){
   else { av.innerHTML = '<span class="avatar-fallback">'+esc((user.name||'?').charAt(0).toUpperCase())+'</span>'; }
   document.getElementById('user-name').textContent = user.name;
   document.getElementById('sidebar-user').classList.add('show');
-  const gs = document.getElementById('guest-signin'); if(gs) gs.style.display = 'none';
+  const ga = document.getElementById('guest-auth'); if(ga) ga.style.display = 'none';
   renderAll();
 }
 
@@ -1094,7 +1097,11 @@ function glitchLogout(){
 // (not the PLACEHOLDER), the arcade runs guest-only: full catalog, no login wall.
 const BACKEND_READY = /^https?:\/\//.test(API_BASE) && !/PLACEHOLDER/i.test(API_BASE);
 
-function openAuth(){ document.getElementById('auth-overlay').classList.remove('hidden'); }
+function openAuth(mode){
+  const sub = document.getElementById('auth-sub');
+  if(sub) sub.textContent = mode==='signup' ? '// CREATE ACCOUNT' : mode==='login' ? '// LOG IN' : '// ENTER THE GLITCH';
+  document.getElementById('auth-overlay').classList.remove('hidden');
+}
 function closeAuth(){ document.getElementById('auth-overlay').classList.add('hidden'); }
 
 function initGoogleAuth(){
@@ -1102,13 +1109,14 @@ function initGoogleAuth(){
   document.body.classList.remove('locked');
   document.getElementById('auth-overlay').classList.add('hidden');
 
-  if(!BACKEND_READY) return; // guest-only; friends/profile stay hidden until the Worker is live
-
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem('glitchbox_user')||'null'); } catch(e){}
-  const gs = document.getElementById('guest-signin');
-  if(gs) gs.style.display = saved ? 'none' : '';
-  if(saved && saved.email){ applyUser(saved); refreshState(); }
+  if(saved && saved.email){ applyUser(saved); if(BACKEND_READY) refreshState(); }
+
+  // Guest gets optional Log In / Sign Up buttons. (Friends data only fills in once
+  // BACKEND_READY, but signing in for your identity works regardless.)
+  const ga = document.getElementById('guest-auth');
+  if(ga) ga.style.display = saved ? 'none' : 'flex';
 
   const configured = GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.startsWith('PASTE_YOUR_CLIENT_ID');
   if(!configured){ document.getElementById('auth-setup').classList.add('show'); return; }
