@@ -306,16 +306,17 @@ body::before {
 body.locked .main { filter:blur(6px); pointer-events:none; }
 </style>
 </head>
-<body class="locked">
-<div class="auth-overlay" id="auth-overlay">
+<body>
+<div class="auth-overlay hidden" id="auth-overlay">
   <div class="auth-card">
     <div class="auth-logo-icon">🕹</div>
     <div class="auth-title">GLITCHBOX</div>
     <div class="auth-sub">// ENTER THE GLITCH</div>
-    <div class="auth-desc">Sign in with your Google account to enter the arcade. First time? Signing in registers you automatically.</div>
+    <div class="auth-desc">Sign in with Google to save your stats and add friends. You don't need an account to play — you can browse and play everything as a guest.</div>
     <div class="auth-btn-wrap">
       <div id="g-signin-btn"></div>
     </div>
+    <button onclick="closeAuth()" style="margin-top:14px;background:transparent;border:none;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;text-decoration:underline;">Browse as guest →</button>
     <div class="auth-setup" id="auth-setup">
       <b>⚙ Setup needed:</b> to enable real Google login, create a free OAuth Client ID:<br>
       1. Go to <code>console.cloud.google.com</code> → APIs &amp; Services → Credentials<br>
@@ -352,6 +353,7 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
     </div>
     <button class="logout-btn" id="logout-btn" title="Sign out" onclick="glitchLogout()">⏻</button>
   </div>
+  <button id="guest-signin" onclick="openAuth()" style="display:none;margin:8px 12px;padding:9px;background:transparent;border:1px solid rgba(0,245,255,.35);color:var(--cyan);border-radius:8px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;">👥 Sign in for friends</button>
 </nav>
 <div class="profile-modal" id="profile-modal" onclick="if(event.target===this)closeProfile()">
   <div class="profile-card">
@@ -370,7 +372,7 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
     </div>
     <div class="profile-section-title">// FIND PLAYERS</div>
     <div class="add-friend">
-      <input type="text" id="friend-search" placeholder="Search players by name or email..." onkeydown="if(event.key==='Enter')doSearch()" />
+      <input type="text" id="friend-search" placeholder="Search players by name..." onkeydown="if(event.key==='Enter')doSearch()" />
       <button onclick="doSearch()">Search</button>
     </div>
     <div class="friends-list" id="search-results"></div>
@@ -913,6 +915,7 @@ function applyUser(user){
   else { av.innerHTML = '<span class="avatar-fallback">'+esc((user.name||'?').charAt(0).toUpperCase())+'</span>'; }
   document.getElementById('user-name').textContent = user.name;
   document.getElementById('sidebar-user').classList.add('show');
+  const gs = document.getElementById('guest-signin'); if(gs) gs.style.display = 'none';
   renderAll();
 }
 
@@ -951,7 +954,8 @@ function renderAll(){
 }
 
 function avInitial(u){ return '<div class="friend-av">'+esc((u.name||'?').charAt(0).toUpperCase())+'</div>'; }
-function rowInfo(u){ return '<div class="friend-info"><div class="friend-name">'+esc(u.name)+'</div>'+(u.email?'<div class="friend-sub">'+esc(u.email)+'</div>':'')+'</div>'; }
+// Privacy: never expose other players' email addresses in the UI — show display name only.
+function rowInfo(u){ return '<div class="friend-info"><div class="friend-name">'+esc(u.name)+'</div></div>'; }
 
 function renderFriends(){
   const box = document.getElementById('friends-list');
@@ -1053,19 +1057,33 @@ function glitchLogout(){
   location.reload();
 }
 
+// Social features require a deployed backend. Until API_BASE points at a real Worker
+// (not the PLACEHOLDER), the arcade runs guest-only: full catalog, no login wall.
+const BACKEND_READY = /^https?:\/\//.test(API_BASE) && !/PLACEHOLDER/i.test(API_BASE);
+
+function openAuth(){ document.getElementById('auth-overlay').classList.remove('hidden'); }
+function closeAuth(){ document.getElementById('auth-overlay').classList.add('hidden'); }
+
 function initGoogleAuth(){
+  // Catalog is always open — never lock the body or force the overlay.
+  document.body.classList.remove('locked');
+  document.getElementById('auth-overlay').classList.add('hidden');
+
+  if(!BACKEND_READY) return; // guest-only; friends/profile stay hidden until the Worker is live
+
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem('glitchbox_user')||'null'); } catch(e){}
+  const gs = document.getElementById('guest-signin');
+  if(gs) gs.style.display = saved ? 'none' : '';
   if(saved && saved.email){ applyUser(saved); refreshState(); }
 
   const configured = GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.startsWith('PASTE_YOUR_CLIENT_ID');
-  if(!configured){ if(!saved) document.getElementById('auth-setup').classList.add('show'); return; }
+  if(!configured){ document.getElementById('auth-setup').classList.add('show'); return; }
   if(!(window.google && google.accounts && google.accounts.id)){ return setTimeout(initGoogleAuth, 300); }
-  google.accounts.id.initialize({ client_id:GOOGLE_CLIENT_ID, callback:handleCredential, auto_select:true });
+  google.accounts.id.initialize({ client_id:GOOGLE_CLIENT_ID, callback:handleCredential, auto_select:false });
   google.accounts.id.renderButton(document.getElementById('g-signin-btn'), {
     theme:'filled_black', size:'large', shape:'rectangular', text:'continue_with', width:300
   });
-  if(!saved){ google.accounts.id.prompt(); }
 }
 
 // Poll for new friend requests while signed in.
