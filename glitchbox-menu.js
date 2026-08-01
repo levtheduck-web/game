@@ -16,6 +16,10 @@
      mouse-driven game must never throw away someone's run.
    - Re-parents itself into the fullscreen element so it survives games
      that call requestFullscreen() on their own container.
+
+   Self-tests (load any game with these hashes):
+       #menucheck  button is present, topmost and clickable
+       #menuquit   drives a real MENU -> QUIT pointer sequence and navigates
    ========================================================================== */
 (function () {
   if (window.__glitchboxMenu) return;            // never inject twice
@@ -74,11 +78,12 @@
       '.pop.on{display:block}' +
       '.pop p{margin:0 0 10px;font-size:11px;letter-spacing:.1em;color:#d0d8f0;white-space:nowrap}' +
       '.pop .row{display:flex;gap:7px}' +
-      '.pop button{font:inherit;font-size:10px;letter-spacing:.12em;padding:7px 12px;border-radius:5px;' +
-        'cursor:pointer;border:1px solid rgba(0,245,255,.35);background:transparent;color:#4a5580}' +
-      '.pop button:hover{color:#d0d8f0;border-color:rgba(0,245,255,.6)}' +
-      '.pop button.go{background:#00f5ff;border-color:#00f5ff;color:#04121b;font-weight:700}' +
-      '.pop button.go:hover{box-shadow:0 0 14px rgba(0,245,255,.55);color:#04121b}';
+      '.pop button,.pop a{font:inherit;font-size:10px;letter-spacing:.12em;padding:7px 12px;' +
+        'border-radius:5px;cursor:pointer;border:1px solid rgba(0,245,255,.35);' +
+        'background:transparent;color:#4a5580;text-decoration:none;display:inline-block;line-height:1.3}' +
+      '.pop button:hover,.pop a:hover{color:#d0d8f0;border-color:rgba(0,245,255,.6)}' +
+      '.pop .go{background:#00f5ff;border-color:#00f5ff;color:#04121b;font-weight:700}' +
+      '.pop .go:hover{box-shadow:0 0 14px rgba(0,245,255,.55);color:#04121b}';
 
     var wrap = document.createElement('div');
     wrap.className = 'wrap';
@@ -88,7 +93,9 @@
       '</button>' +
       '<div class="pop" role="dialog" aria-label="Quit to menu">' +
         '<p>Quit to menu?</p>' +
-        '<div class="row"><button class="go" type="button">QUIT</button>' +
+        // a real link, not a button: it still navigates if a game interferes
+        // with scripted clicks, and supports middle/ctrl-click to open a tab
+        '<div class="row"><a class="go" href="index.html">QUIT</a>' +
         '<button class="no" type="button">CANCEL</button></div>' +
       '</div>';
 
@@ -99,7 +106,14 @@
 
     var pop = wrap.querySelector('.pop');
     var open = false;
-    function setOpen(v) { open = v; pop.classList.toggle('on', v); }
+    function setOpen(v) {
+      open = v;
+      pop.classList.toggle('on', v);
+      // Hand keyboard focus back to the page when we close. A real click
+      // focuses the button, and a focused button would otherwise keep
+      // receiving the game's keys (arrows, space) instead of the game.
+      if (!v) { try { wrap.querySelector('.btn').blur(); } catch (_) {} }
+    }
 
     wrap.querySelector('.btn').addEventListener('click', function (e) {
       e.preventDefault(); e.stopPropagation(); setOpen(!open);
@@ -108,17 +122,34 @@
       e.preventDefault(); e.stopPropagation(); setOpen(false);
     });
     wrap.querySelector('.go').addEventListener('click', function (e) {
-      e.preventDefault(); e.stopPropagation();
+      e.stopPropagation();
+      // deliberately no preventDefault — the anchor's own navigation is the
+      // thing that gets you home, so it works even if scripting is hampered
       try { if (document.fullscreenElement) document.exitFullscreen(); } catch (_) {}
-      location.href = 'index.html';
     });
-    // clicking anywhere else dismisses the confirm
-    document.addEventListener('pointerdown', function () { if (open) setOpen(false); }, true);
+    // Clicking anywhere ELSE dismisses the confirm. This must ignore pointers
+    // landing on our own UI: it runs in the capture phase, so without the guard
+    // it hid the popover on pointerdown and the QUIT click never landed.
+    document.addEventListener('pointerdown', function (e) {
+      if (!open) return;
+      var path = e.composedPath ? e.composedPath() : [];
+      if (e.target === host || path.indexOf(host) !== -1) return;
+      setOpen(false);
+    }, true);
 
-    // swallow game input that would otherwise fall through to the canvas
-    ['pointerdown', 'mousedown', 'touchstart', 'keydown', 'keyup', 'wheel'].forEach(function (t) {
+    // Swallow pointer input so a click on the menu never also reaches the game
+    // canvas underneath. Key events are deliberately NOT swallowed: the button
+    // holds focus after a click, so doing so would deafen the game's controls.
+    ['pointerdown', 'mousedown', 'touchstart', 'wheel'].forEach(function (t) {
       wrap.addEventListener(t, function (e) { e.stopPropagation(); });
     });
+
+    // Escape closes the confirm — and only then, so games keep their own Esc.
+    document.addEventListener('keydown', function (e) {
+      if (open && (e.key === 'Escape' || e.key === 'Esc')) {
+        e.stopPropagation(); e.preventDefault(); setOpen(false);
+      }
+    }, true);
 
     (document.body || document.documentElement).appendChild(host);
 
@@ -127,6 +158,23 @@
       var fs = document.fullscreenElement;
       (fs || document.body || document.documentElement).appendChild(host);
     });
+
+    // #menuquit — end-to-end: drive a real pointer sequence through MENU then
+    // QUIT and let it navigate. Catches breakage that a scripted .click() misses.
+    if (location.hash === '#menuquit') {
+      setTimeout(function () {
+        var fire = function (el, t) {
+          var r = el.getBoundingClientRect();
+          var C = t.indexOf('pointer') === 0 ? PointerEvent : MouseEvent;
+          el.dispatchEvent(new C(t, { bubbles: true, cancelable: true, composed: true,
+            clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, button: 0 }));
+        };
+        var seq = ['pointerdown', 'mousedown', 'mouseup', 'click'];
+        seq.forEach(function (t) { fire(wrap.querySelector('.btn'), t); });
+        console.log('GBQUIT confirm_open=' + pop.classList.contains('on'));
+        seq.forEach(function (t) { fire(wrap.querySelector('.go'), t); });
+      }, 500);
+    }
 
     // #menucheck — verify the button is present, on top and clickable in this game
     if (location.hash === '#menucheck') {
