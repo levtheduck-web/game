@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>NEON PUTT</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;background:#05070c;overflow:hidden;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;color:#cfe9ff}
+  body{display:flex;align-items:center;justify-content:center}
+  #wrap{position:relative;width:min(100vw, calc((100vh - 96px) * 1.5));aspect-ratio:3/2;max-width:1200px}
+  canvas{display:block;width:100%;height:100%;border-radius:14px;
+    box-shadow:0 0 0 1px #12304a, 0 0 60px rgba(0,190,255,.14), 0 30px 80px rgba(0,0,0,.7)}
+  #hud{position:absolute;left:0;right:0;top:-42px;height:34px;display:flex;align-items:center;gap:14px;
+    font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#7fb7d8;user-select:none}
+  #hud b{color:#eafaff;font-weight:600}
+  .sp{flex:1}
+  .chip{padding:5px 11px;border:1px solid #17384f;border-radius:99px;background:rgba(10,26,40,.7);white-space:nowrap}
+  .chip.hot{border-color:#2de3ff;color:#bff3ff;box-shadow:0 0 14px rgba(45,227,255,.25)}
+  #ovr{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at center,rgba(4,10,18,.82),rgba(2,4,8,.96));border-radius:14px;
+    text-align:center;padding:22px;opacity:0;pointer-events:none;transition:opacity .22s}
+  #ovr.on{opacity:1;pointer-events:auto}
+  #ovr .card{max-width:560px}
+  h1{font-size:clamp(34px,7vw,68px);letter-spacing:.22em;font-weight:800;
+    background:linear-gradient(180deg,#eaffff,#33d6ff 55%,#0a86c8);-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 24px rgba(45,200,255,.45));margin-bottom:6px}
+  h2{font-size:clamp(22px,4.6vw,40px);letter-spacing:.16em;color:#eafaff;margin-bottom:8px;font-weight:700}
+  p{font-size:13px;line-height:1.9;letter-spacing:.09em;color:#7fb7d8}
+  .big{font-size:clamp(15px,2.4vw,20px);letter-spacing:.2em;color:#2de3ff;margin:10px 0}
+  button{margin-top:20px;padding:13px 30px;font:inherit;font-size:14px;letter-spacing:.2em;text-transform:uppercase;
+    color:#03121b;background:linear-gradient(180deg,#7ff0ff,#17b6e8);border:0;border-radius:99px;cursor:pointer;
+    box-shadow:0 0 26px rgba(45,227,255,.4);transition:transform .12s, box-shadow .12s}
+  button:hover{transform:translateY(-2px);box-shadow:0 0 38px rgba(45,227,255,.65)}
+  button.ghost{background:none;color:#7fb7d8;box-shadow:none;border:1px solid #1d4762;margin-left:8px}
+  button.ghost:hover{color:#cfe9ff;box-shadow:none}
+  table{margin:14px auto 0;border-collapse:collapse;font-size:12px;letter-spacing:.06em}
+  td,th{padding:3px 7px;border-bottom:1px solid #12293c;color:#8fc6e4;font-weight:400}
+  th{color:#4d7d99;font-size:10px;letter-spacing:.14em}
+  td.u{color:#5cff9d}td.o{color:#ff7a6b}td.e{color:#eafaff}
+  #tip{position:absolute;left:0;right:0;bottom:-30px;text-align:center;font-size:11px;letter-spacing:.16em;
+    color:#3f6c88;text-transform:uppercase;user-select:none}
+  @media (max-width:640px){#hud{font-size:10px;gap:7px;top:-36px}.chip{padding:4px 8px}}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud">
+    <span class="chip">Hole <b id="hNum">1</b>/18</span>
+    <span class="chip" id="hName">First Light</span>
+    <span class="chip">Par <b id="hPar">2</b></span>
+    <span class="sp"></span>
+    <span class="chip hot">Strokes <b id="hStr">0</b></span>
+    <span class="chip">Total <b id="hTot">E</b></span>
+  </div>
+  <canvas id="cv"></canvas>
+  <div id="tip">drag back from the ball &nbsp;•&nbsp; release to putt &nbsp;•&nbsp; [R] retry shot</div>
+  <div id="ovr" class="on"><div class="card" id="card"></div></div>
+</div>
+<script>
+"use strict";
+const W = 900, H = 600;
+
+/* ------------------------------------------------------------------ math */
+const clamp = (v,a,b)=> v<a?a:v>b?b:v;
+const lerp  = (a,b,t)=> a+(b-a)*t;
+const TAU = Math.PI*2;
+
+function closestOnSeg(px,py,ax,ay,bx,by){
+  const abx=bx-ax, aby=by-ay;
+  const d = abx*abx+aby*aby;
+  const t = d ? clamp(((px-ax)*abx+(py-ay)*aby)/d, 0, 1) : 0;
+  return [ax+abx*t, ay+aby*t];
+}
+function pointInPoly(x,y,poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i][0], yi=poly[i][1], xj=poly[j][0], yj=poly[j][1];
+    if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/((yj-yi)||1e-9)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function nearestOnPoly(x,y,poly){
+  let best=null, bd=1e18;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const p=closestOnSeg(x,y,poly[j][0],poly[j][1],poly[i][0],poly[i][1]);
+    const d=(p[0]-x)**2+(p[1]-y)**2;
+    if(d<bd){bd=d;best=p;}
+  }
+  return best;
+}
+const inRect = (x,y,r)=> x>r[0] && x<r[0]+r[2] && y>r[1] && y<r[1]+r[3];
+
+/* -------------------------------------------------------------- levels */
+/*LEVELS_START*/
+const R = (x,y,w,h)=>[[x,y],[x+w,y],[x+w,y+h],[x,y+h]];
+
+const LEVELS = [
+{ name:"First Light", par:2, start:[140,300], hole:[790,300],
+  greens:[R(60,220,780,160)] },
+
+{ name:"Dogleg", par:3, start:[140,460], hole:[440,150],
+  greens:[[[60,380],[360,380],[360,80],[520,80],[520,540],[60,540]]],
+  route:[[440,470]] },
+
+{ name:"The Pillar", par:3, start:[130,300], hole:[790,300],
+  greens:[R(60,120,780,360)], blocks:[R(370,220,160,160)] },
+
+{ name:"Bunkered", par:3, start:[120,300], hole:[800,300],
+  greens:[R(60,140,780,320)],
+  sand:[[280,180,150,120],[480,290,170,130]],
+  posts:[[450,430,18],[620,180,18]] },
+
+{ name:"Bounce House", par:3, start:[120,300], hole:[800,300],
+  greens:[R(60,100,780,400)],
+  bumpers:[[350,200,26],[350,400,26],[560,300,30]] },
+
+{ name:"Horseshoe", par:3, start:[155,170], hole:[740,170],
+  greens:[[[60,80],[260,80],[260,400],[640,400],[640,80],[840,80],[840,540],[60,540]]],
+  route:[[160,440],[450,430],[745,440]],
+  water:[[340,460,220,80]] },
+
+{ name:"Windmill", par:3, start:[120,300], hole:[790,300],
+  greens:[R(60,120,780,360)],
+  blocks:[R(420,120,40,80), R(420,400,40,80)],
+  fans:[{x:440,y:300,n:4,len:95,w:9,spd:1.7}] },
+
+{ name:"Black Ice", par:3, start:[120,300], hole:[790,220],
+  greens:[R(60,140,780,320)],
+  ice:[[250,140,400,320]],
+  water:[[300,160,110,60],[500,380,110,60]],
+  posts:[[700,320,20]] },
+
+{ name:"Wormhole", par:2, start:[130,300], hole:[790,300],
+  greens:[R(60,140,320,320), R(500,140,340,320)],
+  route:[[330,300]],
+  blocks:[R(660,140,30,110), R(660,390,30,70)],
+  portals:[{a:[330,300], b:[560,300], r:22}] },
+
+{ name:"Gatekeepers", par:3, start:[110,300], hole:[800,300],
+  greens:[R(60,100,780,400)],
+  movers:[{r:[320,220,36,160], a:[0,1], amp:120, spd:1.2, ph:0},
+          {r:[560,220,36,160], a:[0,1], amp:120, spd:1.2, ph:Math.PI}] },
+
+{ name:"Serpentine", par:4, start:[115,125], hole:[790,465],
+  greens:[[[70,80],[830,80],[830,340],[160,340],[160,420],[830,420],[830,510],[70,510],[70,250],[740,250],[740,170],[70,170]]],
+  route:[[300,125],[520,125],[790,125],[785,295],[600,295],[380,295],[115,295],[115,465],[350,465],[580,465]],
+  sand:[[300,255,140,85]] },
+
+{ name:"Kickstart", par:3, start:[110,300], hole:[790,300],
+  greens:[R(60,100,780,400)],
+  blocks:[R(400,100,36,140), R(400,360,36,140)],
+  bumpers:[[250,300,28],[620,200,24],[620,400,24]],
+  ice:[[470,150,300,300]],
+  boosts:[{r:[100,430,120,60], d:[1,0]},{r:[700,120,120,60], d:[-1,0]}] },
+
+{ name:"Islands", par:3, start:[140,300], hole:[790,300],
+  greens:[R(60,80,780,440)],
+  route:[[350,300],[620,300]],
+  water:[[250,80,180,180],[250,340,180,180],[560,80,120,175],[560,345,120,175]] },
+
+{ name:"Twin Fans", par:4, start:[110,300], hole:[800,300],
+  greens:[R(60,120,780,360)],
+  fans:[{x:330,y:300,n:3,len:105,w:9,spd:1.5},{x:620,y:300,n:3,len:105,w:9,spd:-1.9}],
+  posts:[[475,150,18],[475,450,18]] },
+
+{ name:"Pinball", par:4, start:[120,300], hole:[790,300],
+  greens:[R(60,80,780,440)],
+  blocks:[R(690,80,32,180), R(690,340,32,180)],
+  bumpers:[[300,200,26],[300,400,26],[440,300,30],[580,200,26],[580,400,26]] },
+
+{ name:"Slalom", par:5, start:[110,450], hole:[800,450],
+  greens:[R(60,80,780,440)],
+  route:[[265,450],[265,150],[406,150],[406,450],[546,450],[546,150],[681,150],[681,450]],
+  blocks:[R(180,80,32,290), R(320,230,32,290), R(460,80,32,290), R(600,230,32,290), R(730,80,32,290)],
+  sand:[[212,440,108,80],[492,440,108,80]] },
+
+{ name:"The Elbow", par:4, start:[150,150], hole:[780,440],
+  greens:[[[60,80],[420,80],[420,340],[840,340],[840,540],[60,540]]],
+  route:[[370,470],[620,470]],
+  fans:[{x:240,y:250,n:3,len:85,w:9,spd:1.6}],
+  water:[[120,420,200,80]],
+  sand:[[430,350,120,120]],
+  portals:[{a:[370,120], b:[620,400], r:20}] },
+
+{ name:"Grand Finale", par:5, start:[110,490], hole:[790,110],
+  greens:[R(60,60,780,480)],
+  route:[[340,378],[540,300],[700,180]],
+  water:[[220,60,60,300]],
+  sand:[[280,400,180,120]],
+  ice:[[660,180,160,160]],
+  movers:[{r:[600,210,34,180], a:[0,1], amp:150, spd:1.1, ph:0}],
+  fans:[{x:400,y:250,n:4,len:100,w:9,spd:-1.8}],
+  bumpers:[[700,430,26],[520,480,24]],
+  posts:[[140,300,16]] }
+];
+/*LEVELS_END*/
+
+const TOTAL_PAR = LEVELS.reduce((s,l)=>s+l.par,0);
+
+/* --------------------------------------------------------------- audio */
+let AC=null;
+function ac(){ if(!AC){ try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return AC; }
+let SILENT=false;
+function tone(f, dur, type, vol, slide){
+  if(SILENT) return;
+  const a=ac(); if(!a) return;
+  const t=a.currentTime, o=a.createOscillator(), g=a.createGain();
+  o.type=type||"sine"; o.frequency.setValueAtTime(f,t);
+  if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(30,slide), t+dur);
+  g.gain.setValueAtTime(0,t);
+  g.gain.linearRampToValueAtTime(vol||.14, t+.008);
+  g.gain.exponentialRampToValueAtTime(.0001, t+dur);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+dur+.03);
+}
+const S = {
+  putt : p => tone(180+p*180, .13, "triangle", .10+p*.10, 90),
+  wall : v => tone(320+Math.random()*90, .07, "square", clamp(v/900,.03,.10)),
+  bump : ()=>{ tone(660,.10,"square",.11,1180); tone(330,.14,"sine",.07); },
+  sand : ()=> tone(140,.10,"sawtooth",.035),
+  warp : ()=>{ tone(300,.22,"sine",.10,1400); },
+  boost: ()=> tone(500,.09,"sawtooth",.06,900),
+  water: ()=>{ tone(420,.30,"sine",.10,90); },
+  sink : ()=>{ [0,.09,.18].forEach((d,i)=>setTimeout(()=>tone([523,784,1046][i],.30,"triangle",.13),d*1000)); },
+  ui   : ()=> tone(720,.07,"triangle",.07)
+};
+
+/* --------------------------------------------------------------- state */
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+const off = document.createElement("canvas"), octx = off.getContext("2d");
+let DPR = 1;
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio||1);
+  cv.width = W*DPR; cv.height = H*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  off.width = W*DPR; off.height = H*DPR;
+  octx.setTransform(DPR,0,0,DPR,0,0);
+  if(level) buildStatic();
+}
+addEventListener("resize", resize);
+
+const BALL_R=7.5, MAX_DRAG=170, HOLE_R=15;
+const E_WALL=.62, E_BLOCK=.60, E_MOVER=.55, E_FAN=.58, E_POST=.75, E_BUMP=1.06;
+
+let level=null, li=0, ball=null, strokes=0, scores=[], time=0;
+let mode="title";            // title | aim | roll | done | fin
+let aiming=false, aimFrom=null, aimTo=null, restPos=[0,0];
+let particles=[], trail=[], shake=0, sinkT=0, stuckT=0, portalCool=0;
+let best = +(localStorage.getItem("neonputt.best")||0) || null;
+
+/* ------------------------------------------------------------ geometry */
+function moverPoly(m, t){
+  const s = Math.sin(t*m.spd + m.ph);
+  const ox = m.a[0]*m.amp*s, oy = m.a[1]*m.amp*s;
+  const c = Math.cos(t*m.spd + m.ph)*m.spd*m.amp;
+  const [x,y,w,h] = m.r;
+  return { poly: R(x+ox, y+oy, w, h), vx: m.a[0]*c, vy: m.a[1]*c };
+}
+function fanArms(f, t){
+  const out=[], base = t*f.spd;
+  for(let i=0;i<f.n;i++){
+    const a = base + i*TAU/f.n;
+    out.push([f.x, f.y, f.x+Math.cos(a)*f.len, f.y+Math.sin(a)*f.len]);
+  }
+  return out;
+}
+
+/* -------------------------------------------------------------- physics */
+function hitSeg(b, ax,ay,bx,by, thick, e, svx, svy, fx){
+  const rad = BALL_R + thick;
+  const p = closestOnSeg(b.x,b.y, ax,ay,bx,by);
+  let dx=b.x-p[0], dy=b.y-p[1];
+  let d = Math.hypot(dx,dy);
+  if(d >= rad) return false;
+  if(d < 1e-6){ dx = -(by-ay); dy = (bx-ax); d = Math.hypot(dx,dy)||1; }
+  const nx=dx/d, ny=dy/d;
+  b.x = p[0] + nx*(rad+.01);
+  b.y = p[1] + ny*(rad+.01);
+  const rvx = b.vx-(svx||0), rvy = b.vy-(svy||0);
+  const vn = rvx*nx + rvy*ny;
+  if(vn < 0){
+    b.vx -= (1+e)*vn*nx; b.vy -= (1+e)*vn*ny;
+    if(fx){
+      const sp = -vn;
+      if(sp > 60){ S.wall(sp); shake = Math.min(7, shake + sp/260); spark(p[0],p[1], nx,ny, sp); }
+    }
+  }
+  return true;
+}
+function collidePoly(b, poly, e, svx, svy, fx, outward){
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++)
+    hitSeg(b, poly[j][0],poly[j][1], poly[i][0],poly[i][1], 0, e, svx, svy, fx);
+  if(outward && pointInPoly(b.x,b.y,poly)){          // tunnelled inside — eject
+    const p = nearestOnPoly(b.x,b.y,poly);
+    let dx=p[0]-b.x, dy=p[1]-b.y, d=Math.hypot(dx,dy)||1;
+    b.x = p[0] + dx/d*BALL_R; b.y = p[1] + dy/d*BALL_R;
+    const vn = b.vx*(dx/d)+b.vy*(dy/d);
+    if(vn>0){ b.vx -= (1+e)*vn*(dx/d); b.vy -= (1+e)*vn*(dy/d); }
+  }
+}
+function hitCircle(b, cx,cy,cr, e, kick, fx){
+  let dx=b.x-cx, dy=b.y-cy, d=Math.hypot(dx,dy), rad=cr+BALL_R;
+  if(d>=rad || d<1e-6) return;
+  const nx=dx/d, ny=dy/d;
+  b.x = cx+nx*(rad+.01); b.y = cy+ny*(rad+.01);
+  const vn = b.vx*nx+b.vy*ny;
+  if(vn<0){
+    b.vx -= (1+e)*vn*nx; b.vy -= (1+e)*vn*ny;
+    if(kick){ b.vx += nx*kick; b.vy += ny*kick; }
+    if(fx){ if(kick){ S.bump(); shake=Math.max(shake,5); burst(cx+nx*cr, cy+ny*cr, 14, "#ff4fd8"); }
+            else if(-vn>60){ S.wall(-vn); spark(cx+nx*cr,cy+ny*cr,nx,ny,-vn); } }
+  }
+}
+function collideAll(b, t, fx){
+  const L = level;
+  for(const g of L.greens) collidePoly(b, g, E_WALL, 0,0, fx, false);
+  if(L.blocks) for(const p of L.blocks) collidePoly(b, p, E_BLOCK, 0,0, fx, true);
+  if(L.movers) for(const m of L.movers){
+    const st = moverPoly(m, t);
+    collidePoly(b, st.poly, E_MOVER, st.vx, st.vy, fx, true);
+  }
+  if(L.fans) for(const f of L.fans){
+    for(const a of fanArms(f,t)){
+      const p = closestOnSeg(b.x,b.y,a[0],a[1],a[2],a[3]);
+      const rx = p[0]-f.x, ry = p[1]-f.y;
+      hitSeg(b, a[0],a[1],a[2],a[3], f.w, E_FAN, -f.spd*ry, f.spd*rx, fx);
+    }
+    hitCircle(b, f.x, f.y, f.w+3, E_POST, 0, fx);
+  }
+  if(L.posts) for(const p of L.posts) hitCircle(b, p[0],p[1],p[2], E_POST, 0, fx);
+  if(L.bumpers) for(const p of L.bumpers) hitCircle(b, p[0],p[1],p[2], E_BUMP, 95, fx);
+
+  // outside every green? pull back in
+  let insideAny=false;
+  for(const g of L.greens) if(pointInPoly(b.x,b.y,g)){ insideAny=true; break; }
+  if(!insideAny){
+    let best=null, bd=1e18;
+    for(const g of L.greens){
+      const p = nearestOnPoly(b.x,b.y,g);
+      const d = (p[0]-b.x)**2+(p[1]-b.y)**2;
+      if(d<bd){bd=d;best=p;}
+    }
+    if(best){
+      let dx=best[0]-b.x, dy=best[1]-b.y, d=Math.hypot(dx,dy)||1;
+      b.x = best[0] + dx/d*(BALL_R+1); b.y = best[1] + dy/d*(BALL_R+1);
+      b.vx*=.4; b.vy*=.4;
+    }
+  }
+}
+// Teleport through at most ONE portal mouth per call and return the entry
+// point, so a fresh exit is never immediately re-consumed by its own twin.
+function takePortal(b){
+  if(!level.portals) return null;
+  for(const q of level.portals){
+    for(const [from,to] of [[q.a,q.b],[q.b,q.a]]){
+      if(Math.hypot(b.x-from[0], b.y-from[1]) < q.r){
+        const entry = [b.x, b.y];
+        b.x = to[0]; b.y = to[1];
+        return entry;
+      }
+    }
+  }
+  return null;
+}
+function terrainAt(x,y){
+  const L=level;
+  if(L.water) for(const r of L.water) if(inRect(x,y,r)) return "water";
+  if(L.sand)  for(const r of L.sand)  if(inRect(x,y,r)) return "sand";
+  if(L.ice)   for(const r of L.ice)   if(inRect(x,y,r)) return "ice";
+  return "green";
+}
+const FRIC = { green:1.15, sand:5.6, ice:.22, water:1.15 };
+
+function step(b, h, t, fx){
+  const terr = fx ? terrainAt(b.x,b.y) : "green";
+  // boost pads
+  if(fx && level.boosts) for(const bp of level.boosts){
+    if(inRect(b.x,b.y,bp.r)){
+      b.vx += bp.d[0]*1500*h; b.vy += bp.d[1]*1500*h;
+      if(Math.random()<h*22) S.boost();
+    }
+  }
+  // hole attraction
+  const hx=level.hole[0], hy=level.hole[1];
+  const dh = Math.hypot(hx-b.x, hy-b.y);
+  if(dh < 52){
+    const pull = (1 - dh/52) * 420;
+    b.vx += (hx-b.x)/(dh||1)*pull*h;
+    b.vy += (hy-b.y)/(dh||1)*pull*h;
+  }
+  const k = FRIC[terr];
+  const damp = Math.exp(-k*h);
+  b.vx*=damp; b.vy*=damp;
+  b.x += b.vx*h; b.y += b.vy*h;
+  collideAll(b, t, fx);
+}
+
+/* ------------------------------------------------------------ particles */
+function spark(x,y,nx,ny,sp){
+  if(SILENT) return;
+  const n = clamp(Math.round(sp/130),1,6);
+  for(let i=0;i<n;i++){
+    const a = Math.atan2(ny,nx) + (Math.random()-.5)*1.5;
+    const s = 40+Math.random()*sp*.35;
+    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:0,m:.28+Math.random()*.2,c:"#8fe9ff",r:1.6});
+  }
+}
+function burst(x,y,n,c){
+  if(SILENT) return;
+  for(let i=0;i<n;i++){
+    const a=Math.random()*TAU, s=60+Math.random()*230;
+    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:0,m:.4+Math.random()*.5,c,r:2+Math.random()*2});
+  }
+}
+
+/* --------------------------------------------------------------- flow */
+function loadLevel(i){
+  li = i; level = LEVELS[i];
+  ball = { x:level.start[0], y:level.start[1], vx:0, vy:0 };
+  restPos = [ball.x, ball.y];
+  strokes = 0; trail.length=0; particles.length=0;
+  mode="aim"; sinkT=0; stuckT=0; portalCool=0;
+  buildStatic(); syncHUD();
+}
+function syncHUD(){
+  document.getElementById("hNum").textContent = li+1;
+  document.getElementById("hName").textContent = level.name;
+  document.getElementById("hPar").textContent = level.par;
+  document.getElementById("hStr").textContent = strokes;
+  let d=0; for(let i=0;i<scores.length;i++) d += scores[i]-LEVELS[i].par;
+  document.getElementById("hTot").textContent = d===0?"E":(d>0?"+"+d:""+d);
+}
+function shoot(p, ang){
+  strokes++;
+  restPos = [ball.x, ball.y];
+  const sp = 130 + 800*p;
+  ball.vx = Math.cos(ang)*sp; ball.vy = Math.sin(ang)*sp;
+  mode="roll"; stuckT=0; S.putt(p);
+  syncHUD();
+}
+function sink(){
+  mode="done"; sinkT=0; scores[li]=strokes;
+  burst(level.hole[0], level.hole[1], 46, "#7ff0ff");
+  burst(level.hole[0], level.hole[1], 24, "#ffe98f");
+  shake = 8; S.sink(); syncHUD();
+  setTimeout(showHoleCard, 620);
+}
+const TERMS = { "-3":"ALBATROSS", "-2":"EAGLE", "-1":"BIRDIE", "0":"PAR", "1":"BOGEY", "2":"DOUBLE BOGEY", "3":"TRIPLE BOGEY" };
+function term(d){ return TERMS[String(d)] || (d<0 ? "ALBATROSS" : "+"+d); }
+
+const ovr = document.getElementById("ovr"), card = document.getElementById("card");
+function show(html){ card.innerHTML = html; ovr.classList.add("on"); }
+function hide(){ ovr.classList.remove("on"); }
+
+function showTitle(){
+  mode="title";
+  show(`<h1>NEON PUTT</h1>
+    <p>18 holes &nbsp;•&nbsp; par ${TOTAL_PAR}${best!==null?` &nbsp;•&nbsp; your best <b style="color:#2de3ff">${best>0?"+"+best:best===0?"E":best}</b>`:""}</p>
+    <div class="big">drag back from the ball, release to putt</div>
+    <p>bumpers kick &nbsp;•&nbsp; sand drags &nbsp;•&nbsp; ice slides<br>water costs a stroke &nbsp;•&nbsp; mind the fans</p>
+    <button id="go">Tee Off</button>`);
+  document.getElementById("go").onclick = ()=>{ ac(); S.ui(); scores=[]; hide(); loadLevel(0); };
+}
+function showHoleCard(){
+  const d = strokes - level.par;
+  const col = d<0 ? "#5cff9d" : d===0 ? "#eafaff" : "#ff9d6b";
+  const last = li === LEVELS.length-1;
+  show(`<h2 style="color:${col}">${term(d)}</h2>
+    <p>Hole ${li+1} &nbsp;—&nbsp; ${strokes} stroke${strokes>1?"s":""} on a par ${level.par}</p>
+    <button id="nx">${last?"See Card":"Next Hole"}</button>`);
+  document.getElementById("nx").onclick = ()=>{
+    S.ui(); hide();
+    if(last) setTimeout(showFinal,180); else loadLevel(li+1);
+  };
+}
+function showFinal(){
+  mode="fin";
+  const tot = scores.reduce((a,b)=>a+b,0), d = tot - TOTAL_PAR;
+  if(best===null || d<best){ best=d; localStorage.setItem("neonputt.best", String(d)); }
+  let rows="";
+  for(let r=0;r<2;r++){
+    let a="<tr><th>H</th>", b="<tr><td style='color:#4d7d99'>score</td>";
+    for(let i=r*9;i<r*9+9;i++){
+      const dd = scores[i]-LEVELS[i].par;
+      a += `<th>${i+1}</th>`;
+      b += `<td class="${dd<0?"u":dd>0?"o":"e"}">${scores[i]}</td>`;
+    }
+    rows += a+"</tr>"+b+"</tr>";
+  }
+  const grade = d<=-6?"LEGEND": d<=-2?"PRO": d<=2?"SOLID": d<=8?"CLUBHOUSE":"SCENIC ROUTE";
+  show(`<h2>${grade}</h2>
+    <p>${tot} strokes &nbsp;•&nbsp; par ${TOTAL_PAR} &nbsp;•&nbsp;
+       <b style="color:${d<0?"#5cff9d":d>0?"#ff9d6b":"#eafaff"}">${d>0?"+"+d:d===0?"E":d}</b></p>
+    <table>${rows}</table>
+    <p style="margin-top:12px">best: <b style="color:#2de3ff">${best>0?"+"+best:best===0?"E":best}</b></p>
+    <button id="ag">Play Again</button>`);
+  document.getElementById("ag").onclick = ()=>{ S.ui(); scores=[]; hide(); loadLevel(0); };
+}
+
+/* -------------------------------------------------------------- render */
+function neon(c, blur, fn){ ctx.save(); ctx.shadowColor=c; ctx.shadowBlur=blur; fn(); ctx.restore(); }
+function polyPath(g, poly){ g.beginPath(); g.moveTo(poly[0][0],poly[0][1]); for(let i=1;i<poly.length;i++) g.lineTo(poly[i][0],poly[i][1]); g.closePath(); }
+
+function buildStatic(){
+  const g = octx;
+  g.clearRect(0,0,W,H);
+  // backdrop
+  const bg = g.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,"#070c15"); bg.addColorStop(.5,"#050910"); bg.addColorStop(1,"#0a0f18");
+  g.fillStyle=bg; g.fillRect(0,0,W,H);
+  g.strokeStyle="rgba(60,130,180,.05)"; g.lineWidth=1;
+  for(let x=0;x<=W;x+=30){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
+  for(let y=0;y<=H;y+=30){ g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
+
+  // greens
+  for(const p of level.greens){
+    polyPath(g,p);
+    const gr = g.createLinearGradient(0,0,0,H);
+    gr.addColorStop(0,"#0d2b2a"); gr.addColorStop(1,"#08201f");
+    g.fillStyle=gr; g.fill();
+    g.save(); g.clip();
+    g.strokeStyle="rgba(80,255,200,.045)"; g.lineWidth=1;
+    for(let y=-W;y<H+W;y+=14){ g.beginPath(); g.moveTo(-10,y); g.lineTo(W+10,y+W); g.stroke(); }
+    g.restore();
+  }
+  // zones
+  const zone=(rects, fill, stroke, deco)=>{
+    if(!rects) return;
+    for(const r of rects){
+      g.save();
+      // clip hazards to the playable surface so they never spill past a wall
+      g.beginPath();
+      for(const p of level.greens){ g.moveTo(p[0][0],p[0][1]); for(let i=1;i<p.length;i++) g.lineTo(p[i][0],p[i][1]); g.closePath(); }
+      g.clip();
+      g.fillStyle=fill; g.fillRect(r[0],r[1],r[2],r[3]);
+      g.strokeStyle=stroke; g.lineWidth=1.5; g.strokeRect(r[0]+.5,r[1]+.5,r[2]-1,r[3]-1);
+      if(deco) deco(r);
+      g.restore();
+    }
+  };
+  zone(level.sand, "rgba(226,190,110,.20)", "rgba(255,214,130,.45)", r=>{
+    g.fillStyle="rgba(255,225,160,.28)";
+    for(let i=0;i<r[2]*r[3]/380;i++)
+      g.fillRect(r[0]+Math.random()*r[2], r[1]+Math.random()*r[3], 1.8,1.8);
+  });
+  zone(level.ice, "rgba(120,215,255,.13)", "rgba(160,235,255,.45)", r=>{
+    g.strokeStyle="rgba(200,245,255,.20)"; g.lineWidth=2;
+    for(let i=0;i<5;i++){
+      const x=r[0]+ (i+.5)*r[2]/5;
+      g.beginPath(); g.moveTo(x, r[1]+8); g.lineTo(x-26, r[1]+r[3]-8); g.stroke();
+    }
+  });
+  zone(level.water, "rgba(30,110,220,.34)", "rgba(90,180,255,.6)");
+  // boosts
+  if(level.boosts) for(const b of level.boosts){
+    const r=b.r;
+    g.fillStyle="rgba(255,90,220,.14)"; g.fillRect(r[0],r[1],r[2],r[3]);
+    g.strokeStyle="rgba(255,120,235,.6)"; g.lineWidth=1.5; g.strokeRect(r[0]+.5,r[1]+.5,r[2]-1,r[3]-1);
+    g.save(); g.translate(r[0]+r[2]/2, r[1]+r[3]/2); g.rotate(Math.atan2(b.d[1],b.d[0]));
+    g.strokeStyle="rgba(255,150,240,.85)"; g.lineWidth=3; g.lineCap="round";
+    for(let i=-1;i<=1;i++){
+      g.beginPath(); g.moveTo(i*18-8,-10); g.lineTo(i*18+6,0); g.lineTo(i*18-8,10); g.stroke();
+    }
+    g.restore();
+  }
+  // green outline
+  for(const p of level.greens){
+    polyPath(g,p);
+    g.save(); g.shadowColor="rgba(60,255,190,.75)"; g.shadowBlur=16;
+    g.strokeStyle="#3dffc0"; g.lineWidth=3; g.stroke();
+    g.restore();
+  }
+  // blocks
+  if(level.blocks) for(const p of level.blocks){
+    polyPath(g,p);
+    g.fillStyle="#0a1626"; g.fill();
+    g.save(); g.shadowColor="rgba(90,180,255,.6)"; g.shadowBlur=12;
+    g.strokeStyle="#4fa8ff"; g.lineWidth=2.5; g.stroke(); g.restore();
+  }
+}
+
+function draw(){
+  ctx.save();
+  if(shake>.15){
+    ctx.translate((Math.random()-.5)*shake, (Math.random()-.5)*shake);
+  }
+  ctx.drawImage(off, 0,0, W,H);
+
+  // water shimmer
+  if(level.water){
+    ctx.save();
+    ctx.beginPath();
+    for(const r of level.water) ctx.rect(r[0],r[1],r[2],r[3]);
+    ctx.clip();
+    ctx.strokeStyle="rgba(160,225,255,.22)"; ctx.lineWidth=2;
+    for(let y=0;y<H;y+=16){
+      ctx.beginPath();
+      for(let x=0;x<=W;x+=18) ctx.lineTo(x, y + Math.sin((x*.035)+time*1.6 + y*.2)*3);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // portals
+  if(level.portals) for(const p of level.portals){
+    for(const [pt,c1,c2] of [[p.a,"#c46bff","#7a2dff"],[p.b,"#ffb84f","#ff5f2d"]]){
+      ctx.save(); ctx.translate(pt[0],pt[1]);
+      ctx.shadowColor=c1; ctx.shadowBlur=22;
+      for(let i=0;i<3;i++){
+        ctx.beginPath();
+        ctx.arc(0,0, p.r - i*5 + Math.sin(time*3+i)*1.6, 0, TAU);
+        ctx.strokeStyle = i%2 ? c2 : c1; ctx.lineWidth=2.4; ctx.stroke();
+      }
+      ctx.rotate(time*1.4);
+      ctx.beginPath(); ctx.arc(0,0,p.r*.4,0,TAU*.7);
+      ctx.strokeStyle="#fff"; ctx.globalAlpha=.5; ctx.lineWidth=1.6; ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // hole
+  const hx=level.hole[0], hy=level.hole[1];
+  ctx.save();
+  ctx.beginPath(); ctx.arc(hx,hy,HOLE_R,0,TAU);
+  ctx.fillStyle="#02060a"; ctx.fill();
+  ctx.shadowColor="#ffe98f"; ctx.shadowBlur=16+Math.sin(time*3)*6;
+  ctx.strokeStyle="#ffe27a"; ctx.lineWidth=2.4; ctx.stroke();
+  ctx.restore();
+  // flag
+  ctx.save();
+  ctx.strokeStyle="#dfe9f2"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(hx,hy-2); ctx.lineTo(hx, hy-46); ctx.stroke();
+  ctx.fillStyle="#ff4f6b"; ctx.shadowColor="#ff4f6b"; ctx.shadowBlur=12;
+  ctx.beginPath(); ctx.moveTo(hx+1,hy-46);
+  ctx.quadraticCurveTo(hx+18, hy-42+Math.sin(time*4)*2.5, hx+1, hy-32);
+  ctx.fill(); ctx.restore();
+
+  // movers
+  if(level.movers) for(const m of level.movers){
+    const st = moverPoly(m, time);
+    polyPath(ctx, st.poly);
+    ctx.fillStyle="#141d34"; ctx.fill();
+    ctx.save(); ctx.shadowColor="rgba(255,120,235,.75)"; ctx.shadowBlur=14;
+    ctx.strokeStyle="#ff78eb"; ctx.lineWidth=2.5; ctx.stroke(); ctx.restore();
+  }
+  // fans
+  if(level.fans) for(const f of level.fans){
+    ctx.save(); ctx.lineCap="round";
+    ctx.shadowColor="rgba(255,190,60,.8)"; ctx.shadowBlur=16;
+    for(const a of fanArms(f,time)){
+      ctx.strokeStyle="#ffbe3c"; ctx.lineWidth=f.w*2;
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(a[2],a[3]); ctx.stroke();
+      ctx.strokeStyle="rgba(255,240,190,.85)"; ctx.lineWidth=f.w*.7;
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(a[2],a[3]); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(f.x,f.y,f.w+4,0,TAU);
+    ctx.fillStyle="#2a1c06"; ctx.fill(); ctx.strokeStyle="#ffbe3c"; ctx.lineWidth=2; ctx.stroke();
+    ctx.restore();
+  }
+  // posts / bumpers
+  if(level.posts) for(const p of level.posts){
+    ctx.save(); ctx.shadowColor="rgba(120,200,255,.7)"; ctx.shadowBlur=12;
+    ctx.beginPath(); ctx.arc(p[0],p[1],p[2],0,TAU);
+    ctx.fillStyle="#0d1a2c"; ctx.fill(); ctx.strokeStyle="#5fb6ff"; ctx.lineWidth=2.5; ctx.stroke();
+    ctx.restore();
+  }
+  if(level.bumpers) for(const p of level.bumpers){
+    const pu = 1 + Math.sin(time*2.4 + p[0]*.03)*.04;
+    ctx.save(); ctx.shadowColor="#ff4fd8"; ctx.shadowBlur=20;
+    ctx.beginPath(); ctx.arc(p[0],p[1],p[2]*pu,0,TAU);
+    const gr=ctx.createRadialGradient(p[0],p[1],1,p[0],p[1],p[2]*pu);
+    gr.addColorStop(0,"#5a1044"); gr.addColorStop(1,"#1a0620");
+    ctx.fillStyle=gr; ctx.fill();
+    ctx.strokeStyle="#ff4fd8"; ctx.lineWidth=3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(p[0],p[1],p[2]*.42,0,TAU);
+    ctx.strokeStyle="rgba(255,190,240,.75)"; ctx.lineWidth=1.6; ctx.stroke();
+    ctx.restore();
+  }
+
+  // trail
+  if(trail.length>1){
+    ctx.save(); ctx.lineCap="round";
+    for(let i=1;i<trail.length;i++){
+      const a=i/trail.length;
+      ctx.strokeStyle=`rgba(140,235,255,${a*.32})`; ctx.lineWidth=a*6;
+      ctx.beginPath(); ctx.moveTo(trail[i-1][0],trail[i-1][1]); ctx.lineTo(trail[i][0],trail[i][1]); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // aim preview
+  if(mode==="aim" && aiming && aimFrom && aimTo){
+    const dx = aimFrom[0]-aimTo[0], dy = aimFrom[1]-aimTo[1];
+    const dist = Math.hypot(dx,dy);
+    if(dist > 4){
+      const p = clamp(dist/MAX_DRAG, 0, 1), ang = Math.atan2(dy,dx);
+      // ghost path
+      const gb = {x:ball.x,y:ball.y,vx:Math.cos(ang)*(130+800*p),vy:Math.sin(ang)*(130+800*p)};
+      const pts=[]; const hstep=1/240;
+      for(let i=0;i<110;i++){ step(gb,hstep,time,false); if(i%7===0) pts.push([gb.x,gb.y]); }
+      ctx.save();
+      for(let i=0;i<pts.length;i++){
+        const a = 1 - i/pts.length;
+        ctx.fillStyle=`rgba(180,245,255,${a*.55})`;
+        ctx.beginPath(); ctx.arc(pts[i][0],pts[i][1], 2.6*a+1, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+      // pull line
+      ctx.save();
+      ctx.strokeStyle=`rgba(255,${255-p*160},${120+ (1-p)*100},.85)`; ctx.lineWidth=2.5; ctx.setLineDash([7,6]);
+      ctx.beginPath(); ctx.moveTo(ball.x,ball.y);
+      ctx.lineTo(ball.x - Math.cos(ang)*Math.min(dist,MAX_DRAG), ball.y - Math.sin(ang)*Math.min(dist,MAX_DRAG));
+      ctx.stroke(); ctx.restore();
+      // power ring
+      ctx.save(); ctx.shadowColor="#ffd24f"; ctx.shadowBlur=10;
+      ctx.strokeStyle=`hsl(${(1-p)*95},100%,60%)`; ctx.lineWidth=4; ctx.lineCap="round";
+      ctx.beginPath(); ctx.arc(ball.x,ball.y, 18, -Math.PI/2, -Math.PI/2 + TAU*p); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // ball
+  if(mode!=="done" || sinkT<.25){
+    const sc = mode==="done" ? clamp(1-sinkT*4,0,1) : 1;
+    ctx.save(); ctx.shadowColor="#bfefff"; ctx.shadowBlur=18;
+    ctx.beginPath(); ctx.arc(ball.x,ball.y,BALL_R*sc,0,TAU);
+    const gr=ctx.createRadialGradient(ball.x-2.5,ball.y-3,.5,ball.x,ball.y,BALL_R*sc);
+    gr.addColorStop(0,"#ffffff"); gr.addColorStop(1,"#8fd8f5");
+    ctx.fillStyle=gr; ctx.fill(); ctx.restore();
+  }
+
+  // particles
+  for(const p of particles){
+    const a = 1 - p.l/p.m;
+    ctx.globalAlpha = clamp(a,0,1);
+    ctx.fillStyle = p.c;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*a+.4,0,TAU); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  // vignette
+  const vg = ctx.createRadialGradient(W/2,H/2,H*.42,W/2,H/2,H*.95);
+  vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,.62)");
+  ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+  ctx.restore();
+}
+
+/* --------------------------------------------------------------- input */
+function toWorld(e){
+  const r = cv.getBoundingClientRect();
+  const t = e.touches ? e.touches[0] : e;
+  return [ (t.clientX-r.left)/r.width*W, (t.clientY-r.top)/r.height*H ];
+}
+function down(e){
+  ac();
+  if(mode!=="aim") return;
+  e.preventDefault();
+  aiming=true; aimFrom=[ball.x,ball.y]; aimTo=toWorld(e);
+}
+function move(e){ if(aiming){ e.preventDefault(); aimTo=toWorld(e); } }
+function up(e){
+  if(!aiming) return;
+  aiming=false;
+  if(mode!=="aim" || !aimTo) return;
+  const dx = ball.x-aimTo[0], dy = ball.y-aimTo[1], dist=Math.hypot(dx,dy);
+  if(dist < 12) return;
+  shoot(clamp(dist/MAX_DRAG,0,1), Math.atan2(dy,dx));
+}
+cv.addEventListener("mousedown",down); addEventListener("mousemove",move); addEventListener("mouseup",up);
+cv.addEventListener("touchstart",down,{passive:false});
+addEventListener("touchmove",move,{passive:false});
+addEventListener("touchend",up);
+addEventListener("keydown", e=>{
+  if(e.key==="r"||e.key==="R"){
+    if(mode==="roll"||mode==="aim"){ ball.x=restPos[0]; ball.y=restPos[1]; ball.vx=ball.vy=0; trail.length=0; mode="aim"; }
+  }
+});
+
+/* ---------------------------------------------------------------- loop */
+let last = performance.now();
+function frame(now){
+  requestAnimationFrame(frame);
+  let dt = Math.min(.05, (now-last)/1000); last = now;
+  if(mode==="title"){ time+=dt; draw(); return; }
+  time += dt;
+  shake *= Math.pow(.0015, dt);
+
+  if(mode==="roll"){
+    const n = Math.max(1, Math.ceil(dt*240));
+    const h = dt/n;
+    for(let i=0;i<n && mode==="roll";i++){
+      step(ball, h, time, true);
+      // hazards
+      const terr = terrainAt(ball.x,ball.y);
+      if(terr==="water"){
+        S.water(); burst(ball.x,ball.y,20,"#6bc4ff");
+        strokes++; ball.x=restPos[0]; ball.y=restPos[1]; ball.vx=ball.vy=0;
+        mode="aim"; syncHUD(); break;
+      }
+      if(portalCool>0) portalCool-=h;
+      if(level.portals && portalCool<=0){
+        const w = takePortal(ball);
+        if(w){
+          burst(w[0],w[1],16,"#c46bff"); burst(ball.x,ball.y,16,"#ffb84f");
+          portalCool=.35; S.warp();
+        }
+      }
+      const sp = Math.hypot(ball.vx,ball.vy);
+      const dh = Math.hypot(ball.x-level.hole[0], ball.y-level.hole[1]);
+      if(dh < HOLE_R*.85 && sp < 340){ sink(); break; }
+      if(sp < 7){ ball.vx=ball.vy=0; mode="aim"; restPos=[ball.x,ball.y]; break; }
+    }
+    stuckT += dt;
+    if(stuckT > 14 && mode==="roll"){ ball.vx*=.2; ball.vy*=.2; }
+    trail.push([ball.x,ball.y]); if(trail.length>26) trail.shift();
+  } else if(mode==="done"){
+    sinkT += dt;
+  } else if(trail.length){ trail.shift(); }
+
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.l+=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=.94; p.vy*=.94;
+    if(p.l>=p.m) particles.splice(i,1);
+  }
+  draw();
+}
+
+/* --------------------------------------------------- headless self-test */
+/* #smoke — an auto-golfer plays all 18 holes and reports strokes-to-sink.
+   Proves every hole is completable and that no shot rolls forever.        */
+function rng(seed){ let s=seed>>>0; return ()=>((s=(s*1664525+1013904223)>>>0)/4294967296); }
+
+function simShot(b, ang, p, t0, target){
+  const L = level;
+  let t = t0, pc = 0, near = 1e9;
+  b.vx = Math.cos(ang)*(130+800*p); b.vy = Math.sin(ang)*(130+800*p);
+  const h = 1/240;
+  for(let i=0;i<20*240;i++){
+    step(b, h, t, true); t += h;
+    if(target) near = Math.min(near, Math.hypot(b.x-target[0], b.y-target[1]));
+    if(terrainAt(b.x,b.y)==="water") return {r:"water", t, near};
+    if(pc>0) pc -= h;
+    if(L.portals && pc<=0 && takePortal(b)) pc = .35;
+    const sp = Math.hypot(b.vx,b.vy);
+    if(Math.hypot(b.x-L.hole[0], b.y-L.hole[1]) < HOLE_R*.85 && sp < 340) return {r:"sunk", t, near};
+    if(sp < 7){ b.vx=b.vy=0; return {r:"rest", t, near}; }
+  }
+  return {r:"timeout", t, near};
+}
+
+function smoke(){
+  SILENT = true;
+  const rows=[]; let fails=0, timeouts=0, totalStrokes=0;
+  for(let i=0;i<LEVELS.length;i++){
+    const rand = rng(20260801 + i*7919);   // per-hole seed: results stay independent
+    level = LEVELS[i];
+    const b = {x:level.start[0], y:level.start[1], vx:0, vy:0};
+    const route = level.route || [];
+    let rest=[b.x,b.y], strokes=0, t=0, res="rest", to=0, wp=0, miss=0;
+    while(strokes < 120){
+      const tgt = wp < route.length ? route[wp] : level.hole;
+      const dx=tgt[0]-b.x, dy=tgt[1]-b.y, d=Math.hypot(dx,dy);
+      // a golfer dials in: spread shrinks the longer one target resists
+      const spread = Math.max(.05, .9/(1+miss*.4));
+      const ang = Math.atan2(dy,dx) + (rand()-.5)*spread;
+      // roll-out on green is ~v0/k, so pick the speed that dies at the target
+      const v0  = clamp(d*FRIC.green*1.05, 130, 930);
+      const p   = clamp((v0-130)/800 + (rand()-.5)*spread*.35, 0, 1);
+      strokes++;
+      const out = simShot(b, ang, p, t, tgt);
+      t = out.t; res = out.r;
+      if(res==="sunk") break;
+      if(res==="timeout"){ to++; timeouts++; b.vx=b.vy=0; }
+      miss++;
+      if(res==="water"){ strokes++; b.x=rest[0]; b.y=rest[1]; b.vx=b.vy=0; }
+      else {
+        rest=[b.x,b.y];
+        // clear a waypoint only if the ball passed near it AND now shares a
+        // green with the next target (so a portal must actually be taken)
+        if(wp < route.length && out.near < 60){
+          const nxt = wp+1 < route.length ? route[wp+1] : level.hole;
+          if(level.greens.some(g=>pointInPoly(b.x,b.y,g) && pointInPoly(nxt[0],nxt[1],g))){ wp++; miss=0; }
+        }
+      }
+    }
+    const ok = res==="sunk";
+    if(!ok) fails++; else totalStrokes += strokes;
+    rows.push(`<tr><td>${i+1}</td><td style="text-align:left">${level.name}</td>
+      <td>${level.par}</td><td class="${ok?"u":"o"}">${ok?strokes:"—"}</td>
+      <td class="${to?"o":"e"}">${to||"·"}</td>
+      <td class="e">${route.length?wp+"/"+route.length:"·"}</td>
+      <td class="${ok?"u":"o"}">${ok?"SINKABLE":"FAILED"}</td></tr>`);
+    if(!ok) console.log(`hole ${i+1} ${level.name}: stuck at waypoint ${wp}/${route.length}`,
+                        `ball rested at`, rest.map(Math.round));
+  }
+  SILENT = false;
+  const pass = fails===0 && timeouts===0;
+  document.getElementById("tip").textContent = pass ? "smoke test passed" : "SMOKE TEST FAILED";
+  show(`<h2 style="color:${pass?"#5cff9d":"#ff7a6b"}">${pass?"SMOKE PASS":"SMOKE FAIL"}</h2>
+    <p>auto-golfer sank ${LEVELS.length-fails}/${LEVELS.length} holes in ${totalStrokes} strokes
+       &nbsp;•&nbsp; ${timeouts} stall(s)</p>
+    <table><tr><th>#</th><th>hole</th><th>par</th><th>strokes</th><th>stall</th><th>wp</th><th>result</th></tr>
+    ${rows.join("")}</table>`);
+  console.log(pass ? "SMOKE PASS" : "SMOKE FAIL", {fails, timeouts, totalStrokes});
+  return pass;
+}
+
+/* ---------------------------------------------------------------- boot */
+resize();
+level = LEVELS[0]; ball={x:LEVELS[0].start[0],y:LEVELS[0].start[1],vx:0,vy:0};
+buildStatic();
+
+const jump = /^#h(\d+)$/.exec(location.hash);   // #h7 -> practice hole 7
+if(location.hash === "#smoke"){
+  smoke();
+} else if(jump){
+  const n = clamp(+jump[1]-1, 0, LEVELS.length-1);
+  scores = LEVELS.slice(0,n).map(l=>l.par);
+  hide(); loadLevel(n);
+} else showTitle();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -431,6 +431,7 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
 </div>
 <script>
 const GAMES=[
+  {name:'Neon Putt',           file:'neon-putt.html',              emoji:'⛳',color:['#04120f','#0a2620'],category:'puzzle',     tags:['new','hot']},
   {name:'Barrier',             file:'barrier.html',                emoji:'🚧',color:['#02140f','#04241b'],category:'action',     tags:['new','hot']},
   {name:'Quoridor',            file:'quoridor.html',               emoji:'🧱',color:['#0a1428','#12233f'],category:'strategy',   tags:['new']},
   {name:'Pixel War',           file:'pixel-war.html',              emoji:'🪖',color:['#0a1800','#1a3008'],category:'action',     tags:['hot']},
@@ -470,6 +471,38 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
+
+'neon-putt':(c)=>{
+  _GV(c,0,0,320,200,'#05080f','#080d16');
+  // neon green with a dogleg wall
+  c.fillStyle='#0d2b2a';c.fillRect(24,34,272,132);
+  c.save();c.beginPath();c.rect(24,34,272,132);c.clip();
+  c.strokeStyle='rgba(80,255,200,0.05)';c.lineWidth=1;
+  for(let y=-140;y<200;y+=12){_L(c,20,y,300,y+280,'rgba(80,255,200,0.05)',1);}
+  c.restore();
+  c.save();c.shadowColor='rgba(60,255,190,0.8)';c.shadowBlur=9;
+  c.strokeStyle='#3dffc0';c.lineWidth=2.5;c.strokeRect(24,34,272,132);c.restore();
+  // sand bunker + block
+  c.fillStyle='rgba(226,190,110,0.20)';c.fillRect(96,116,54,38);
+  c.strokeStyle='rgba(255,214,130,0.45)';c.lineWidth=1;c.strokeRect(96,116,54,38);
+  c.fillStyle='#0a1626';c.fillRect(150,44,22,54);
+  c.strokeStyle='#4fa8ff';c.lineWidth=2;c.strokeRect(150,44,22,54);
+  // pink bumper
+  c.save();c.shadowColor='#ff4fd8';c.shadowBlur=12;
+  _C(c,206,132,13,'#2a0a20');c.strokeStyle='#ff4fd8';c.lineWidth=2.5;
+  c.beginPath();c.arc(206,132,13,0,6.28);c.stroke();c.restore();
+  // cup + flag
+  c.save();c.shadowColor='#ffe98f';c.shadowBlur=10;
+  _C(c,254,74,9,'#02060a');c.strokeStyle='#ffe27a';c.lineWidth=2;
+  c.beginPath();c.arc(254,74,9,0,6.28);c.stroke();c.restore();
+  _L(c,254,72,254,44,'#dfe9f2',2);
+  c.fillStyle='#ff4f6b';c.beginPath();c.moveTo(255,44);c.lineTo(271,49);c.lineTo(255,55);c.fill();
+  // aim line from ball
+  c.fillStyle='rgba(180,245,255,0.55)';
+  for(let i=0;i<7;i++)_C(c,78+i*13,110-i*4.5,2.4-i*0.18,'rgba(180,245,255,'+(0.6-i*0.06)+')');
+  c.save();c.shadowColor='#bfefff';c.shadowBlur=10;_C(c,70,116,6,'#ffffff');c.restore();
+  _SC(c);
+},
 
 'pixel-war':(c)=>{
   _GV(c,0,0,320,115,'#0c1a00','#1e3200');
