@@ -27,6 +27,22 @@
 
   var pos = (document.currentScript && document.currentScript.dataset.pos) || 'top-left';
 
+  // Favorites are shared with the hub (index.html): same localStorage key, same
+  // shape — a JSON array of game filenames. Keep the two in step.
+  var FAV_KEY = 'glitchbox.favs';
+  var GAME_FILE = (location.pathname.split('/').pop() || '');
+  function favList() {
+    try { var v = JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); return v instanceof Array ? v : []; }
+    catch (_) { return []; }
+  }
+  function isFav() { return favList().indexOf(GAME_FILE) !== -1; }
+  function toggleFav() {
+    var l = favList(), i = l.indexOf(GAME_FILE);
+    if (i === -1) l.push(GAME_FILE); else l.splice(i, 1);
+    try { localStorage.setItem(FAV_KEY, JSON.stringify(l)); } catch (_) {}
+    return i === -1;
+  }
+
   function build() {
     var host = document.createElement('div');
     host.id = 'glitchbox-menu-host';
@@ -83,7 +99,16 @@
         'background:transparent;color:#4a5580;text-decoration:none;display:inline-block;line-height:1.3}' +
       '.pop button:hover,.pop a:hover{color:#d0d8f0;border-color:rgba(0,245,255,.6)}' +
       '.pop .go{background:#00f5ff;border-color:#00f5ff;color:#04121b;font-weight:700}' +
-      '.pop .go:hover{box-shadow:0 0 14px rgba(0,245,255,.55);color:#04121b}';
+      '.pop .go:hover{box-shadow:0 0 14px rgba(0,245,255,.55);color:#04121b}' +
+      // .pop .fav outranks the generic .pop button rule above (two classes beats
+      // one class + an element), so these colours actually stick
+      '.pop .fav{display:flex;align-items:center;gap:7px;width:100%;margin:0 0 10px;' +
+        'padding:7px 10px;border:1px solid rgba(255,230,0,.3);color:#8a7f4a;' +
+        'background:transparent;text-align:left}' +
+      '.pop .fav:hover{color:#ffe600;border-color:rgba(255,230,0,.6)}' +
+      '.pop .fav.on{color:#ffe600;border-color:rgba(255,230,0,.6);' +
+        'box-shadow:0 0 10px rgba(255,230,0,.2)}' +
+      '.pop .fav .st{font-size:13px;line-height:1}';
 
     var wrap = document.createElement('div');
     wrap.className = 'wrap';
@@ -91,7 +116,11 @@
       '<button class="btn" type="button" title="Quit to GLITCHBOX menu" aria-label="Quit to menu">' +
         '<span class="ico">\u25C0</span><span class="lbl">MENU</span>' +
       '</button>' +
-      '<div class="pop" role="dialog" aria-label="Quit to menu">' +
+      '<div class="pop" role="dialog" aria-label="Game menu">' +
+        // \u escapes, not literal stars: this file is loaded without a charset
+        // over file://, where literal non-ASCII comes through as mojibake
+        '<button class="fav" type="button"><span class="st">\u2606</span>' +
+          '<span class="ft">FAVORITE</span></button>' +
         '<p>Quit to menu?</p>' +
         // a real link, not a button: it still navigates if a game interferes
         // with scripted clicks, and supports middle/ctrl-click to open a tab
@@ -105,9 +134,21 @@
     root.appendChild(wrap);
 
     var pop = wrap.querySelector('.pop');
+    var favBtn = wrap.querySelector('.fav');
     var open = false;
+
+    function paintFav() {
+      var on = isFav();
+      favBtn.classList.toggle('on', on);
+      favBtn.querySelector('.st').textContent = on ? '\u2605' : '\u2606';
+      favBtn.querySelector('.ft').textContent = on ? 'FAVORITED' : 'FAVORITE';
+      favBtn.setAttribute('aria-pressed', on);
+    }
+
     function setOpen(v) {
       open = v;
+      // re-read on open: another tab may have changed it since we last looked
+      if (v) paintFav();
       pop.classList.toggle('on', v);
       // Hand keyboard focus back to the page when we close. A real click
       // focuses the button, and a focused button would otherwise keep
@@ -120,6 +161,10 @@
     });
     wrap.querySelector('.no').addEventListener('click', function (e) {
       e.preventDefault(); e.stopPropagation(); setOpen(false);
+    });
+    favBtn.addEventListener('click', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      toggleFav(); paintFav();          // stays open: favoriting is not quitting
     });
     wrap.querySelector('.go').addEventListener('click', function (e) {
       e.stopPropagation();

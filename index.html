@@ -142,6 +142,22 @@ body::before {
 .game-tag.hot { background:rgba(255,0,128,0.12); color:var(--pink); }
 .game-tag.new { background:rgba(0,255,136,0.1); color:var(--green); }
 .game-tag.mp  { background:rgba(255,230,0,0.1); color:var(--yellow); }
+/* ── favorites ── sits top-left, the one card corner clip-path leaves square ── */
+.fav-btn { position:absolute; top:6px; left:6px; z-index:3; width:26px; height:26px;
+  display:flex; align-items:center; justify-content:center; font-size:14px; line-height:1;
+  cursor:pointer; border-radius:50%; background:rgba(6,8,16,0.72);
+  border:1px solid rgba(255,255,255,0.14); color:var(--muted); opacity:0.45;
+  transition:opacity 0.15s,color 0.15s,box-shadow 0.15s,transform 0.12s;
+  -webkit-user-select:none; user-select:none; }
+.game-card:hover .fav-btn { opacity:1; }
+.fav-btn:hover { transform:scale(1.12); color:var(--yellow); border-color:rgba(255,230,0,0.5); }
+.fav-btn.on { opacity:1; color:var(--yellow); border-color:rgba(255,230,0,0.55);
+  text-shadow:0 0 8px var(--yellow); box-shadow:0 0 12px rgba(255,230,0,0.25); }
+.nav-item.fav .nav-icon { color:var(--yellow); }
+.nav-item.fav:hover { color:var(--yellow); border-left-color:rgba(255,230,0,0.4); background:rgba(255,230,0,0.04); }
+.nav-item.fav.active { color:var(--yellow); border-left-color:var(--yellow);
+  background:rgba(255,230,0,0.07); text-shadow:0 0 8px rgba(255,230,0,0.5); }
+.nav-item.fav.active .nav-count { color:var(--yellow); }
 .no-results { text-align:center; padding:60px 20px; color:var(--muted); display:none; }
 .no-results.show { display:block; }
 .no-results p { font-family:'Press Start 2P',monospace; font-size:9px; margin-top:14px; }
@@ -336,6 +352,7 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">BROWSE</div>
+    <a class="nav-item fav"    id="nav-favorites"  href="#" onclick="filterCategory('favorites');return false;"><span class="nav-icon">★</span> Favorites       <span class="nav-count" id="cnt-favorites">0</span></a>
     <a class="nav-item active" id="nav-all"         href="#" onclick="filterCategory('all');return false;"><span class="nav-icon">◈</span> All Games       <span class="nav-count" id="cnt-all">0</span></a>
     <a class="nav-item"        id="nav-action"      href="#" onclick="filterCategory('action');return false;"><span class="nav-icon">⚔</span> Action          <span class="nav-count" id="cnt-action">0</span></a>
     <a class="nav-item"        id="nav-strategy"    href="#" onclick="filterCategory('strategy');return false;"><span class="nav-icon">◉</span> Strategy        <span class="nav-count" id="cnt-strategy">0</span></a>
@@ -852,13 +869,32 @@ fallback:(c,g)=>{
 },
 };
 
+// ══════════════════ FAVORITES ══════════════════
+// Shared with the in-game menu (glitchbox-menu.js): same localStorage key, same
+// shape — a JSON array of game filenames, e.g. ["neon-putt.html"]. Keep the two
+// in step if this ever changes.
+const FAV_KEY='glitchbox.favs';
+function favList(){
+  try{ const v=JSON.parse(localStorage.getItem(FAV_KEY)||'[]'); return Array.isArray(v)?v:[]; }
+  catch(e){ return []; }
+}
+function isFav(file){ return favList().indexOf(file)!==-1; }
+function toggleFav(file){
+  const l=favList(), i=l.indexOf(file);
+  if(i===-1) l.push(file); else l.splice(i,1);
+  try{ localStorage.setItem(FAV_KEY,JSON.stringify(l)); }catch(e){}
+  return i===-1;                       // true when it is now a favorite
+}
+// favorited from another tab (or from inside a game) — keep this view honest
+addEventListener('storage',e=>{ if(e.key===FAV_KEY){ updateCounts(); renderGames(); } });
+
 let activeCategory='all',activeSort='all';
 
 function filterCategory(cat){
   activeCategory=cat;
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
   const el=document.getElementById('nav-'+cat);if(el)el.classList.add('active');
-  const L={all:'ALL GAMES',action:'ACTION',strategy:'STRATEGY',puzzle:'PUZZLE',simulation:'SIMULATION',adventure:'ADVENTURE',multiplayer:'MULTIPLAYER',other:'OTHER'};
+  const L={all:'ALL GAMES',favorites:'FAVORITES',action:'ACTION',strategy:'STRATEGY',puzzle:'PUZZLE',simulation:'SIMULATION',adventure:'ADVENTURE',multiplayer:'MULTIPLAYER',other:'OTHER'};
   document.getElementById('section-label').textContent=L[cat]||'GAMES';
   renderGames();
 }
@@ -871,22 +907,48 @@ function setSort(sort,btn,colorClass){
 function renderGames(){
   const q=document.getElementById('search').value.toLowerCase().trim();
   let games=GAMES;
-  if(activeCategory!=='all')games=games.filter(g=>g.category===activeCategory);
+  if(activeCategory==='favorites')games=games.filter(g=>isFav(g.file));
+  else if(activeCategory!=='all')games=games.filter(g=>g.category===activeCategory);
   if(activeSort==='hot')games=games.filter(g=>g.tags.includes('hot'));
   else if(activeSort==='new')games=games.filter(g=>g.tags.includes('new'));
   else if(activeSort==='mp')games=games.filter(g=>g.tags.includes('mp')||g.category==='multiplayer');
   if(q)games=games.filter(g=>g.name.toLowerCase().includes(q)||g.category.includes(q));
   const grid=document.getElementById('game-grid'),noRes=document.getElementById('no-results');
   grid.innerHTML='';
-  if(!games.length){noRes.classList.add('show');return;}noRes.classList.remove('show');
+  if(!games.length){
+    const emptyFav=activeCategory==='favorites';
+    noRes.querySelector('div').textContent=emptyFav?'★':'🕹';
+    noRes.querySelector('p').textContent=emptyFav?'NO FAVORITES YET — TAP ☆ ON ANY GAME':'NO GAMES FOUND';
+    noRes.classList.add('show');return;
+  }
+  noRes.classList.remove('show');
   games.forEach(g=>{
     const a=document.createElement('a');a.className='game-card';a.href=g.file;
     const badges=g.tags.map(t=>`<span class="game-tag ${t}">${t==='hot'?'▲ HOT':t==='new'?'★ NEW':t==='mp'?'⬡ MULTI':t}</span>`).join('');
-    a.innerHTML=`<div class="game-thumb"><canvas class="thumb-canvas" width="320" height="200"></canvas><div class="game-thumb-scan"></div><div class="game-thumb-overlay"><div class="play-btn">▶</div></div></div><div class="game-info"><div class="game-name">${g.name}</div><div class="game-meta"><span class="game-tag cat">${g.category.toUpperCase()}</span>${badges}</div></div>`;
+    const on=isFav(g.file);
+    // a <span>, not a <button>: the card itself is an <a> and nesting a button
+    // inside a link is invalid HTML
+    const fav=`<span class="fav-btn${on?' on':''}" role="button" tabindex="0" aria-pressed="${on}" title="${on?'Remove from favorites':'Add to favorites'}">${on?'★':'☆'}</span>`;
+    a.innerHTML=`<div class="game-thumb"><canvas class="thumb-canvas" width="320" height="200"></canvas><div class="game-thumb-scan"></div><div class="game-thumb-overlay"><div class="play-btn">▶</div></div>${fav}</div><div class="game-info"><div class="game-name">${g.name}</div><div class="game-meta"><span class="game-tag cat">${g.category.toUpperCase()}</span>${badges}</div></div>`;
     grid.appendChild(a);
     const canvas=a.querySelector('.thumb-canvas'),ctx=canvas.getContext('2d');
     const gid=g.file.replace('.html','');
     (DRAW[gid]||DRAW.fallback)(ctx,g);
+    const star=a.querySelector('.fav-btn');
+    const hit=ev=>{
+      // stop the card's <a> from launching the game, and stop the grid's
+      // delegated click handler from counting this as a play
+      ev.preventDefault(); ev.stopPropagation();
+      const now=toggleFav(g.file);
+      star.classList.toggle('on',now);
+      star.textContent=now?'★':'☆';
+      star.setAttribute('aria-pressed',now);
+      star.title=now?'Remove from favorites':'Add to favorites';
+      updateCounts();
+      if(activeCategory==='favorites'&&!now)renderGames();   // drop it from this view
+    };
+    star.addEventListener('click',hit);
+    star.addEventListener('keydown',ev=>{ if(ev.key==='Enter'||ev.key===' ')hit(ev); });
   });
 }
 function updateCounts(){
@@ -894,6 +956,8 @@ function updateCounts(){
     const el=document.getElementById('cnt-'+cat);
     if(el)el.textContent=cat==='all'?GAMES.length:GAMES.filter(g=>g.category===cat).length;
   });
+  const f=document.getElementById('cnt-favorites');
+  if(f)f.textContent=GAMES.filter(g=>isFav(g.file)).length;   // count only games that still exist
 }
 updateCounts();renderGames();
 
