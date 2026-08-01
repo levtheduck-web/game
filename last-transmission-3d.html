@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>The Last Transmission [3D]</title>
+<script src="glitchbox-save.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #c8d4e0; }
@@ -777,6 +778,27 @@ updateHUD();
 // =============================================================================
 // ROOM DETECTION (for showing labels + auto-triggering ARIA voice)
 // =============================================================================
+// =============================================================================
+// ACCOUNT-BACKED SAVE (GLITCHBOX)
+// The ship itself is static geometry, so a save is the story state plus where
+// you were standing. Restoring leaves pointer lock off — click to take control.
+// =============================================================================
+if (window.GBSave) GBSave.register({
+  save: () => gameOver ? null : {
+    s: JSON.parse(JSON.stringify(state)),
+    pos: [camera.position.x, camera.position.y, camera.position.z],
+    rotY: camera.rotation.y
+  },
+  load: (d) => {
+    Object.assign(state, d.s || {});
+    state.flags = (d.s && d.s.flags) || {};
+    if (d.pos) camera.position.set(d.pos[0], d.pos[1], d.pos[2]);
+    if (d.rotY != null) camera.rotation.y = d.rotY;
+    gameOver = false;
+    updateHUD();
+  }
+});
+
 const rooms = [
   { name: 'CRYO BAY', xMin: -5, xMax: 5, zMin: -5, zMax: 5, onEnter: () => ariaSay('Hello. You\'re awake. Don\'t look at the other pods. Please. Just walk to the door.') },
   { name: 'CORRIDOR · STARBOARD', xMin: 5, xMax: 15, zMin: -1.5, zMax: 1.5, onEnter: () => ariaSay('Keep moving. Do not look behind you.') },

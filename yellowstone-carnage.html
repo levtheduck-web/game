@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>YELLOWSTONE CARNAGE</title>
+<script src="glitchbox-save.js"></script>
 <style>
   :root{ --ink:#e8f0d0; }
   *{box-sizing:border-box;}
@@ -361,6 +362,33 @@ function talkTo(n){
 // ── Inventory / economy ──
 function addInv(k,v){ player.inv[k]=(player.inv[k]||0)+1; if(!invVal[k])invVal[k]=v; sfx('pick'); }
 const invVal={};
+
+// ---------- account-backed save (GLITCHBOX) ----------
+// Tourists, rangers and cars repopulate on their own, so the save is what you
+// actually earned: your ranger sheet, gear, loot and heat. The park respawns
+// around you.
+if(window.GBSave) GBSave.register({
+  save:()=> started ? {
+    x:player.x, y:player.y, hp:player.hp, cash:player.cash, kills:player.kills,
+    spares:player.spares, inv:{...player.inv}, invVal:{...invVal},
+    gun:player.gun, boots:player.boots, vest:player.vest, heat
+  } : null,
+  load:d=>{
+    Object.assign(player,{
+      x:d.x, y:d.y, vx:0, vy:0, hp:d.hp!=null?d.hp:player.maxHp,
+      cash:d.cash||0, kills:d.kills||0, spares:d.spares||0,
+      inv:{...(d.inv||{})}, gun:!!d.gun, boots:!!d.boots, vest:!!d.vest,
+      car:null, attackCd:0, flash:0
+    });
+    Object.assign(invVal, d.invVal||{});
+    heat=d.heat||0;
+    bullets=[]; pickups=[];
+    started=true;
+    document.getElementById('start').style.display='none';
+    flash('Back on the trail. Cash $'+player.cash+', '+player.kills+' kills.');
+  },
+  autosave:30
+});
 function invCount(){ let n=0; for(const k in player.inv) n+=player.inv[k]; return n; }
 
 // ── Black market shop ──

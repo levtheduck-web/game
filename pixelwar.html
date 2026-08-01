@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PIXEL WAR</title>
+<script src="glitchbox-save.js"></script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;}
   html,body{height:100%;background:#0a0e0a;overflow:hidden;
@@ -6016,6 +6017,30 @@ function startGame(key){
   }
   enterPlanning(); // draw your plays before the action starts
 }
+// ── Account-backed save (GLITCHBOX) ──
+// Reinforcements respawn forever, so a saved battle is the score, who holds
+// each capture point, and your own vehicle. Solo only — a live network match
+// belongs to the room, not to one player's save slot.
+if(window.GBSave) GBSave.register({
+  save:()=> (started && player && !SCORE.over && (typeof NET==='undefined'||NET.mode==='solo')) ? {
+    key:player.key, x:player.x, y:player.y, hp:player.hp, ang:player.ang,
+    mods:player.mods?{...player.mods}:null,
+    blue:SCORE.blue, red:SCORE.red, myKills,
+    cps:cps.map(c=>[c.owner,c.cap])
+  } : null,
+  load:d=>{
+    startGame(d.key);
+    SCORE.blue=d.blue||0; SCORE.red=d.red||0; myKills=d.myKills||0;
+    (d.cps||[]).forEach(([owner,cap],i)=>{ if(cps[i]){ cps[i].owner=owner; cps[i].cap=cap; } });
+    Object.assign(player,{x:d.x, y:d.y, hp:d.hp, ang:d.ang, tang:d.ang});
+    if(d.mods && player.mods) Object.assign(player.mods, d.mods);
+    cam.x=clamp(player.x-W/(2*CAM_ZOOM),0,WORLD-W/CAM_ZOOM);
+    cam.y=clamp(player.y-H/(2*CAM_ZOOM),0,WORLD-H/CAM_ZOOM);
+    flash('Battle restored — BLUE '+SCORE.blue+' · RED '+SCORE.red);
+  },
+  autosave:30
+});
+
 function showRespawn(){
   if(SCORE.over)return;
   paused=false; // game keeps running

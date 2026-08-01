@@ -4,6 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <title>BARRIER — Crowd Smash</title>
+<script src="glitchbox-save.js" data-pos="bottom-left"></script>
 <style>
   :root{ --accent:#39e6b5; --danger:#ff4d6d; --gold:#ffd24a; }
   *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
@@ -80,7 +81,9 @@ function mkRunner(){
   return { ox:(Math.random()*2-1), oy:(Math.random()*2-1), ph:Math.random()*6.28, sp:0.7+Math.random()*0.6 };
 }
 function syncRunners(){
-  const target=Math.min(G.crowd,140);
+  // Floor it: crushing a barrier drains G.crowd by a fraction each frame, and
+  // a fractional array length throws RangeError.
+  const target=Math.max(0,Math.floor(Math.min(G.crowd,140)));
   while(G.runners.length<target) G.runners.push(mkRunner());
   if(G.runners.length>target) G.runners.length=target;
 }
@@ -402,6 +405,31 @@ function showOver(){
 }
 document.getElementById('playBtn').onclick=play;
 document.getElementById('retryBtn').onclick=play;
+
+// ---------- account-backed save ----------
+// Runners and particles are pure decoration, so the snapshot skips them and
+// re-seeds the crowd from its count — a saved run is the distance, the crowd
+// and the obstacles still on screen.
+if(window.GBSave) GBSave.register({
+  save:()=> state!=='play' ? null : {
+    best,
+    dist:G.dist, speed:G.speed, crowd:G.crowd, peak:G.peak,
+    playerX:G.playerX, targetX:G.targetX,
+    entities:G.entities, nextSpawn:G.nextSpawn, spawnGap:G.spawnGap, sinceGate:G.sinceGate
+  },
+  load:d=>{
+    newGame();
+    if(d.best!=null && d.best>best){ best=d.best; try{ localStorage.setItem('barrier_best',best); }catch(e){} }
+    Object.assign(G,{
+      dist:d.dist||0, speed:d.speed||520, crowd:d.crowd||12, peak:d.peak||d.crowd||12,
+      playerX:d.playerX!=null?d.playerX:LANE.cx, targetX:d.targetX!=null?d.targetX:LANE.cx,
+      entities:d.entities||[], nextSpawn:d.nextSpawn||0,
+      spawnGap:d.spawnGap||340, sinceGate:d.sinceGate||0
+    });
+    seedRunners(G.crowd);
+    state='play'; startEl.classList.add('hidden'); overEl.classList.add('hidden');
+  }
+});
 // build an initial (paused) game so bg isn't empty
 newGame(); state='menu';
 })();

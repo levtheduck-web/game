@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Cheese Heist 3D</title>
+<script src="glitchbox-save.js"></script>
 <style>
   html, body { margin: 0; height: 100%; background: #000; color: #eee; overflow: hidden;
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
@@ -807,6 +808,47 @@ document.getElementById('startBtn').addEventListener('click', () => {
   audio.resume();
   audio.startAmbient();
   renderer.domElement.requestPointerLock?.();
+});
+
+// ---------- account-backed save (GLITCHBOX) ----------
+// Cheese, guards and the vault are all rebuilt identically on every load, so a
+// save only needs where you are, which wheels you've lifted and how hot the
+// guards are. Restoring leaves you paused on the overlay — click to dive back in.
+if (window.GBSave) GBSave.register({
+  save: () => state !== 'playing' ? null : {
+    pos: [player.pos.x, player.pos.y, player.pos.z],
+    yaw: yaw.rotation.y, pitch: pitchObj.rotation.x,
+    suspicion,
+    taken: cheeses.map(c => c.taken ? 1 : 0),
+    guards: guards.map(g => [g.segment, g.t, g.alert])
+  },
+  load: (d) => {
+    player.pos.set(d.pos[0], d.pos[1], d.pos[2]);
+    player.vel.set(0, 0, 0);
+    yaw.position.copy(player.pos);
+    yaw.rotation.y = d.yaw || 0;
+    pitchObj.rotation.x = d.pitch || 0;
+    cheeses.forEach((c, i) => {
+      const want = !!(d.taken && d.taken[i]);
+      if (want && !c.taken) { scene.remove(c.mesh); scene.remove(c.halo); }
+      if (!want && c.taken) { scene.add(c.mesh); scene.add(c.halo); }
+      c.taken = want;
+    });
+    (d.guards || []).forEach((g, i) => {
+      if (!guards[i]) return;
+      guards[i].segment = g[0]; guards[i].t = g[1]; guards[i].alert = g[2];
+    });
+    suspicion = d.suspicion || 0;
+    susBar.style.width = Math.min(100, suspicion * 100) + '%';
+    prevSeen = false;
+    updateScore();
+    // Back to the overlay rather than straight into play: pointer lock needs a
+    // real click, and dropping someone into a guard's cone unprepared is cruel.
+    state = 'menu';
+    overlay.classList.remove('hidden');
+    document.getElementById('title').textContent = 'Heist Resumed';
+    document.getElementById('startBtn').textContent = 'Click to continue';
+  }
 });
 
 window.addEventListener('resize', () => {

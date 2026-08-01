@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Red Horizon — Mars Colony Tycoon</title>
+<script src="glitchbox-save.js"></script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔴</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -444,23 +445,29 @@ function allB(){ const a=[]; for(let r=0;r<CFG.ROWS;r++)for(let c=0;c<CFG.COLS;c
 
 /* ---------- save / load ---------- */
 const SAVE='redHorizonSave_v1';
-function save(){
-  try{
-    const CODE={flat:'F',rock:'R',crater:'C',ice:'I',mineral:'M'};
-    const terr=grid.map(row=>row.map(g=>CODE[g.terrain]).join('')).join('|');
-    const bs=[]; for(let r=0;r<CFG.ROWS;r++)for(let c=0;c<CFG.COLS;c++){const b=grid[r][c].b; if(b)bs.push([r,c,b.type,b.broken?1:0]);}
-    localStorage.setItem(SAVE, JSON.stringify({
-      terr, bs, credits:S.credits, research:S.research, popF:S.popF, morale:S.morale,
-      o2:S.o2, water:S.water, food:S.food, batt:S.batt, sol:S.sol, time:S.time,
-      techs:[...S.techs], done:[...S.done], won:S.won, muted,
-      storm:{active:S.storm.active,t:S.storm.t}, eventTimer:S.eventTimer, terra:S.terra,
-      flare:{active:S.flare.active,t:S.flare.t}, meteorFlash:S.meteorFlash||0
-    }));
-  }catch(e){}
+// The colony as a plain object. Split out from save() so the account-backed
+// save button (glitchbox-save.js) can store the same snapshot without going
+// through this game's own localStorage slot.
+function snapshot(){
+  const CODE={flat:'F',rock:'R',crater:'C',ice:'I',mineral:'M'};
+  const terr=grid.map(row=>row.map(g=>CODE[g.terrain]).join('')).join('|');
+  const bs=[]; for(let r=0;r<CFG.ROWS;r++)for(let c=0;c<CFG.COLS;c++){const b=grid[r][c].b; if(b)bs.push([r,c,b.type,b.broken?1:0]);}
+  return {
+    terr, bs, credits:S.credits, research:S.research, popF:S.popF, morale:S.morale,
+    o2:S.o2, water:S.water, food:S.food, batt:S.batt, sol:S.sol, time:S.time,
+    techs:[...S.techs], done:[...S.done], won:S.won, muted,
+    storm:{active:S.storm.active,t:S.storm.t}, eventTimer:S.eventTimer, terra:S.terra,
+    flare:{active:S.flare.active,t:S.flare.t}, meteorFlash:S.meteorFlash||0
+  };
 }
-function load(){
+function save(){
+  try{ localStorage.setItem(SAVE, JSON.stringify(snapshot())); }catch(e){}
+}
+// `d` lets a caller restore a snapshot from somewhere other than localStorage.
+function load(d){
   try{
-    const d=JSON.parse(localStorage.getItem(SAVE)); if(!d) return false;
+    if(!d) d=JSON.parse(localStorage.getItem(SAVE));
+    if(!d) return false;
     const DEC={F:'flat',R:'rock',C:'crater',I:'ice',M:'mineral'};
     const rows=d.terr.split('|');
     grid=[]; for(let r=0;r<CFG.ROWS;r++){grid[r]=[];for(let c=0;c<CFG.COLS;c++)grid[r][c]={terrain:DEC[(rows[r]||'')[c]]||'flat',b:null,mottle:Math.random()};}
@@ -1896,6 +1903,22 @@ const newBtn=document.getElementById('newBtn');
 if(hasSave()){ document.getElementById('startBtn').textContent='▶ RESUME COLONY'; newBtn.textContent='or start a new colony'; newBtn.style.display='block';
   newBtn.addEventListener('click',()=>{ localStorage.removeItem(SAVE); startGame(true); }); }
 else { newBtn.style.display='none'; }
+
+/* ---------- account-backed save (GLITCHBOX) ---------- */
+// Restores a snapshot into a live colony, whether or not the game has started.
+function restoreSnapshot(d){
+  if(!load(d)) return false;
+  prerenderTerrain(); rebuildDots(); buildToolbar(); selectTool('cursor'); setSpeed(1);
+  document.getElementById('btnMute').textContent=muted?'🔇':'🔊';
+  started=true; document.getElementById('intro').classList.add('hidden');
+  closeModals(); toast('📂 Colony restored.','good');
+  return true;
+}
+if(window.GBSave) GBSave.register({
+  save:()=> started ? snapshot() : null,   // nothing to keep on the title screen
+  load:restoreSnapshot,
+  autosave:30
+});
 
 /* ---------- main loop ---------- */
 let last=0, saveT=0, hudT=1;

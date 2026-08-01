@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script src="glitchbox-save.js"></script>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Spaceship — Solo (offline)</title>
@@ -1848,7 +1849,65 @@ function broadcast() {
     // 'rtc' (voice signaling) intentionally ignored — solo has no peers.
   }
 
-  return { connect, fromClient };
+  // ---- Save / restore, for the account-backed save button (glitchbox-save.js) ----
+  // Solo has exactly one player, so a snapshot is that pilot's ship and the
+  // region they were flying in. Enemies, bullets and loot are deliberately NOT
+  // kept: they respawn on their own, and restoring a half-finished dogfight
+  // would drop you into incoming fire you never saw coming.
+  function snapshotWorld() {
+    const p = players.values().next().value;
+    if (!p) return null;
+    return {
+      sector, totalKills, bossKillCounter,
+      region: { u: currentUniverse, g: currentGalaxy, m: currentMilkyWay, sing: inSingularity },
+      pilot: {
+        name: p.name, shipClass: p.shipClass,
+        x: p.x, y: p.y, a: p.a,
+        hp: p.hp, maxHp: p.maxHp, shield: p.shield, maxShield: p.maxShield,
+        warpCharge: p.warpCharge, maxWarpCharge: p.maxWarpCharge,
+        kills: p.kills,
+        fireRateMul: p.fireRateMul, dmgMul: p.dmgMul, warpSpeedMul: p.warpSpeedMul,
+        warpRegenMul: p.warpRegenMul, shieldRegen: p.shieldRegen, speedMul: p.speedMul,
+        upgradesTaken: [...p.upgradesTaken],
+        singularityTaken: [...p.singularityTaken],
+        travelTiers: p.travelTiers,
+      },
+    };
+  }
+
+  function restoreWorld(d) {
+    const p = players.values().next().value;
+    if (!p || !d || !d.pilot) return false;
+    sector = d.sector || 1;
+    totalKills = d.totalKills || 0;
+    bossKillCounter = d.bossKillCounter || 0;
+    const r = d.region || {};
+    currentUniverse = r.u || 0; currentGalaxy = r.g || 0; currentMilkyWay = r.m || 0;
+    inSingularity = !!r.sing;
+    loadCurrentMilkyWay();
+    anomalies = generateAnomalies();
+    mergeEvent = null; mergeHoles = []; scheduleNextMerge();
+    enemies.length = 0; bullets.length = 0; loot.length = 0;
+    boss = null; spawnTimer = 3;
+
+    const q = d.pilot;
+    Object.assign(p, {
+      name: q.name || p.name, shipClass: q.shipClass || p.shipClass,
+      x: q.x, y: q.y, a: q.a, vx: 0, vy: 0,
+      hp: q.hp, maxHp: q.maxHp, shield: q.shield, maxShield: q.maxShield,
+      warpCharge: q.warpCharge, maxWarpCharge: q.maxWarpCharge,
+      kills: q.kills || 0,
+      fireRateMul: q.fireRateMul, dmgMul: q.dmgMul, warpSpeedMul: q.warpSpeedMul,
+      warpRegenMul: q.warpRegenMul, shieldRegen: q.shieldRegen, speedMul: q.speedMul,
+      alive: true, respawnTimer: 0, warpActive: false, buffs: [],
+    });
+    if (q.travelTiers) p.travelTiers = q.travelTiers;
+    p.upgradesTaken = new Set(q.upgradesTaken || []);
+    p.singularityTaken = new Set(q.singularityTaken || []);
+    return true;
+  }
+
+  return { connect, fromClient, snapshotWorld, restoreWorld };
 })();
 
 // A fake WebSocket pair linking the client (clientSocket) to LocalServer (serverWs).
@@ -3244,6 +3303,24 @@ function loop() {
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+</script>
+<script src="glitchbox-menu.js" defer></script>
+<script>
+/* ===== GLITCHBOX save button — snapshots the embedded solo simulation ===== */
+(function () {
+  if (!window.GBSave) return;
+  GBSave.register({
+    save: function () {
+      try { return LocalServer.snapshotWorld(); } catch (e) { return null; }
+    },
+    load: function (d) {
+      if (!LocalServer.restoreWorld(d)) return;
+      // The HUD redraws itself from the next server snapshot (~20/s), so there
+      // is nothing to refresh here.
+    },
+    autosave: 30
+  });
+})();
 </script>
 </body>
 </html>

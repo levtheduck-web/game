@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>YELLOWSTONE · National Park Simulator</title>
+<script src="glitchbox-save.js"></script>
 <style>
   *{box-sizing:border-box;}
   html,body{margin:0;height:100%;background:#0d120c;overflow:hidden;color:#eef3e6;
@@ -208,6 +209,28 @@ let _wIdx=0;
 function recycleWildlife(){ const far=Math.max(W,H)*1.7, near=Math.max(W,H)*1.06;
   for(let n=0;n<12;n++){ if(!npcs.length) break; _wIdx=(_wIdx+1)%npcs.length; const a=npcs[_wIdx]; if(!a.wild) continue;
     if(Math.hypot(a.x-player.x,a.y-player.y)>far){ const p=placeNear(player.x,player.y,near,far*0.95,a.herd); a.x=p.x;a.y=p.y;a.vx=a.vy=0;a.spook=0; } } }
+
+// ── Account-backed save (GLITCHBOX) ──
+// Wildlife is recycled around the player constantly, so the save is the ranger
+// record — score, photos, journal and the places you've found — plus where you
+// stood. The park repopulates itself.
+if(window.GBSave) GBSave.register({
+  save:()=> started ? {
+    x:player.x, y:player.y, score, photos,
+    journal:[...journal], discovered:[...discovered]
+  } : null,
+  load:d=>{
+    player.x=d.x; player.y=d.y; player.vx=player.vy=0; player.car=null; player.dazed=0;
+    score=d.score||0; photos=d.photos||0;
+    journal.clear(); (d.journal||[]).forEach(k=>journal.add(k));
+    discovered.clear(); (d.discovered||[]).forEach(k=>discovered.add(k));
+    started=true;
+    document.getElementById('start').style.display='none';
+    document.getElementById('hPhotos').textContent=photos;
+    toast('📂 Back on patrol — '+score+' pts, '+photos+' photos.');
+  },
+  autosave:30
+});
 
 // ── Input ──
 const keys={}; let mx=W/2,my=H/2,started=false;

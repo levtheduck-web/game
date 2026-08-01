@@ -4,6 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <title>QUORIDOR — Wall Maze Duel</title>
+<script src="glitchbox-save.js"></script>
 <style>
   :root{ --blue:#3aa0ff; --red:#ff4d6d; --gold:#ffd24a; --line:#22314e; --bg:#0a1120; }
   *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
@@ -451,6 +452,27 @@ function startOnline(color){
   reset(); S.vs='online'; S.myColor=color; S.flip=(color==='red');
   net.connected=true; closeMenu(); setMode('move'); computeLegal(); syncUI(); draw(); lastTick=performance.now();
 }
+
+// ---------- account-backed save (GLITCHBOX) ----------
+// Only vs-CPU games: an online match can't be resumed later because the other
+// player's room is long gone. H/V are Sets of wall keys, so they go as arrays.
+if(window.GBSave) GBSave.register({
+  save:()=> (S && S.vs==='cpu' && !S.over) ? {
+    blue:{...S.blue}, red:{...S.red},
+    H:[...S.H], V:[...S.V],
+    turn:S.turn, clock:{...S.clock}, walls:{...S.walls}
+  } : null,
+  load:d=>{
+    reset(); S.vs='cpu'; S.myColor='blue'; S.flip=false;
+    S.blue={...S.blue, ...d.blue}; S.red={...S.red, ...d.red};
+    S.H=new Set(d.H||[]); S.V=new Set(d.V||[]);
+    S.turn=d.turn||'blue';
+    if(d.clock) S.clock={...S.clock, ...d.clock};
+    if(d.walls) S.walls={...S.walls, ...d.walls};
+    closeMenu(); setMode('move'); computeLegal(); syncUI(); draw();
+    lastTick=performance.now();
+  }
+});
 
 $('m-cpu').onclick=startCPU;
 $('m-online').onclick=()=>{ showPanel('panel-online'); $('online-status').textContent=''; };

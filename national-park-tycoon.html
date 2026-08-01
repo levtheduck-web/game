@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Untamed</title>
+<script src="glitchbox-save.js"></script>
 <style>
   *{box-sizing:border-box;}
   :root{ --glass:rgba(14,28,20,0.72); --line:rgba(120,200,140,0.22); --accent:#9be08a; --gold:#ffe08a; }
@@ -1343,9 +1344,12 @@ function saveGame(silent){ try{ const d=serializeGame();
     if(!d){ if(!silent) toast('Nothing to save yet — found a park first.'); return; }
     localStorage.setItem(SAVE_KEY, JSON.stringify(d)); if(!silent) toast('💾 Game saved — '+season()+' Year '+year()+'.'); }
   catch(e){ toast('⚠ Save failed: '+(e.message||e)); } }
-function loadGame(){ let raw=null; try{ raw=localStorage.getItem(SAVE_KEY); }catch(e){}
-  if(!raw){ toast('No saved game found.'); return false; }
-  let d; try{ d=JSON.parse(raw); }catch(e){ toast('⚠ Saved game is corrupted.'); return false; }
+// `preset` lets a caller (the account-backed save button) restore a snapshot
+// that never went through this game's own localStorage slot.
+function loadGame(preset){ let d=preset;
+  if(!d){ let raw=null; try{ raw=localStorage.getItem(SAVE_KEY); }catch(e){}
+    if(!raw){ toast('No saved game found.'); return false; }
+    try{ d=JSON.parse(raw); }catch(e){ toast('⚠ Saved game is corrupted.'); return false; } }
   cash=d.cash; month=d.month||0; parks=[]; visitMode=false; visitor=null;
   for(const sp of d.parks){ const w=WONDERS[sp.wi]; if(!w) continue; const p=makePark(w, sp.seed);
     p.owned.fill(0); let oc=0;
@@ -1384,6 +1388,12 @@ $('tGoals').onclick=()=>{ goalsHidden=!goalsHidden; $('tGoals').textContent=goal
 function showHelp(t,html){ closeMenus(null); $('mT').textContent=t; $('mP').innerHTML=html; modal.style.display='block'; }
 $('tHelp').onclick=()=>showHelp('📖 How to Play','Found a park from the 🗺️ U.S. Map. Build an <b>Entrance</b> on your land\'s edge, then a <b>Road</b> or <b>Trail</b> to the central wonder to open it to visitors.<br><br>Reach the glowing <b>?</b> landmarks with paths to discover them. Add parking, lodging, restrooms and attractions to grow visitors — but watch <b>🌿 conservation</b>, keep roads &amp; trails <b>repaired</b>, and promote your park from State Park up to a <b>World Heritage Site</b>.');
 $('tControls').onclick=()=>showHelp('🎮 Controls','<b>WASD / Arrows</b> — pan the park (or walk, in Visit mode)<br><b>Scroll</b> — zoom in / out<br><b>Drag</b> — pan, paint roads/trails, or buy land<br><b>Click a tool</b> then your land to build<br><b>🚶 Visit the Park</b> — tour it as a guest<br><b>Esc</b> — leave Visit mode');
+// Account-backed save button (GLITCHBOX) — reuses the same serializer.
+if(window.GBSave) GBSave.register({
+  save:()=> parks.length ? serializeGame() : null,   // nothing to keep before the first park
+  load:d=> loadGame(d),
+  autosave:30
+});
 addEventListener('beforeunload',()=>{ if(parks.length) saveGame(true); });   // autosave on close
 setInterval(()=>{ if(parks.length) saveGame(true); }, 30000);                 // autosave every 30s
 

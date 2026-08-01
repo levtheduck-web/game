@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Case Board</title>
+<script src="glitchbox-save.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 
@@ -480,6 +481,18 @@ function launchInv() {
   renderEvBoard();
   go('investigate');
 }
+
+// ─── ACCOUNT-BACKED SAVE (GLITCHBOX) ──────────────────
+// The whole case lives in `state`, so a save is a copy of it; restoring drops
+// you straight back onto the investigation board with your notes intact.
+if (window.GBSave) GBSave.register({
+  save: () => state.suspects.length ? JSON.parse(JSON.stringify(state)) : null,
+  load: (d) => {
+    state = Object.assign({ mode:'solo', mystery:'', when:'', suspects:[] }, d);
+    if (state.mystery) launchInv();
+    else { renderSetupList(); go('setup'); }
+  }
+});
 
 function renderCards() {
   document.getElementById('s-cards').innerHTML = state.suspects.map((s,i) => buildCard(s,i)).join('');

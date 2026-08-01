@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Last Transmission</title>
+<script src="glitchbox-save.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; font-family: 'Courier New', monospace; }
@@ -1000,6 +1001,13 @@ function startGame() {
   state.scene = 'start';
   render();
 }
+
+// Account-backed save (GLITCHBOX). The whole story is in `state`, so the
+// snapshot is a plain copy — flags included, since they gate later choices.
+if (window.GBSave) GBSave.register({
+  save: () => state.scene === 'title' ? null : JSON.parse(JSON.stringify(state)),
+  load: (d) => { Object.assign(state, d); state.flags = d.flags || {}; render(); }
+});
 
 function restart() {
   state.hp = 100;

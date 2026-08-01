@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>PATHOGEN</title>
+<script src="glitchbox-save.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -897,6 +898,47 @@ function mkGame(){
     cure:0,cureStarted:false,tick:0,running:false,over:false,choosingStart:true,
   };
 }
+
+// ==================== ACCOUNT-BACKED SAVE (GLITCHBOX) ====================
+// `path` on each country is a Path2D rebuilt by resize(), and `owned` is a Set,
+// so the snapshot stores the plague's numbers only and lets resize() redraw.
+const SAVE_C = ['infected','dead','detected','bordersClosed','airportClosed','visibility','responseLevel'];
+if(window.GBSave) GBSave.register({
+  save:()=> (G && G.running && !G.choosingStart) ? {
+    diff, diseaseName,
+    dna:G.dna, dnaRate:G.dnaRate, owned:[...G.owned],
+    infectivity:G.infectivity, severity:G.severity, lethality:G.lethality,
+    cureMult:G.cureMult, stealthBonus:G.stealthBonus, coldBonus:G.coldBonus,
+    hotBonus:G.hotBonus, insectBonus:G.insectBonus,
+    cure:G.cure, cureStarted:G.cureStarted, tick:G.tick, over:G.over,
+    countries:G.countries.map(c=>SAVE_C.map(k=>c[k]))
+  } : null,
+  load:d=>{
+    diff = d.diff || 'normal';
+    diseaseName = d.diseaseName || 'Pathogen';
+    G = mkGame();
+    Object.assign(G, {
+      dna:d.dna||0, dnaRate:d.dnaRate||0, owned:new Set(d.owned||[]),
+      infectivity:d.infectivity||0, severity:d.severity||0, lethality:d.lethality||0,
+      cureMult:d.cureMult!=null?d.cureMult:1, stealthBonus:d.stealthBonus||0,
+      coldBonus:!!d.coldBonus, hotBonus:!!d.hotBonus, insectBonus:!!d.insectBonus,
+      cure:d.cure||0, cureStarted:!!d.cureStarted, tick:d.tick||0,
+      over:!!d.over, choosingStart:false, running:true
+    });
+    (d.countries||[]).forEach((vals,i)=>{ const c=G.countries[i]; if(!c) return;
+      SAVE_C.forEach((k,j)=>{ c[k]=vals[j]; }); });
+    document.getElementById('screen-start').style.display='none';
+    document.getElementById('screen-game').style.display='flex';
+    document.getElementById('disease-name-display').textContent=diseaseName;
+    document.getElementById('game-title').textContent=diseaseName.toUpperCase();
+    resize();                       // rebuilds each country's Path2D
+    renderEvoTree();
+    pushNews('Outbreak restored — '+diseaseName+' is still spreading.');
+    if(animId) cancelAnimationFrame(animId);
+    renderLoop();
+  },
+  autosave:30
+});
 
 // ======================== TICK ========================
 function tick(){

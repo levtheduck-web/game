@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Build a Bridge</title>
+<script src="glitchbox-save.js"></script>
 <style>
 :root{
   --bg:#0d2a4a;
@@ -195,6 +196,41 @@ function addBeam(a,b){
   beams.push(beam);
   return beam;
 }
+
+/* ---------------------------------------------- account-backed save ----
+   Beams point at node OBJECTS, so the snapshot swaps them for indices and
+   rebuilds the references on the way back in. Coordinates are stored with
+   the canvas size they were drawn at and rescaled on load, so a bridge saved
+   on a laptop still meets the cliffs when reopened on a different window. */
+function bridgeSnapshot(){
+  const idx = new Map(); nodes.forEach((n,i)=>idx.set(n,i));
+  return {
+    level, w:W, h:H,
+    nodes: nodes.map(n=>[Math.round(n.x), Math.round(n.y), n.fixed?1:0, n.ground?1:0]),
+    beams: beams.map(b=>[idx.get(b.a), idx.get(b.b), b.broken?1:0])
+  };
+}
+function bridgeRestore(d){
+  if(!d || !d.nodes) return;
+  loadLevel(d.level||1);                       // rebuilds ground + anchors for the current size
+  const sx = d.w ? W/d.w : 1, sy = d.h ? H/d.h : 1;
+  nodes = d.nodes.map(([x,y,f,g])=>{
+    const n={x:x*sx, y:y*sy, ox:x*sx, oy:y*sy, fixed:!!f, ground:!!g}; return n;
+  });
+  beams = [];
+  for(const [ai,bi,br] of (d.beams||[])){
+    const a=nodes[ai], b=nodes[bi]; if(!a||!b) continue;
+    beams.push({a, b, rest:Math.hypot(a.x-b.x, a.y-b.y), broken:!!br, stress:0});
+  }
+  vehicle=null; mode='BUILD'; history=[];
+  document.getElementById('level').textContent = level;
+  updateBudgetUI();
+  setHint('Bridge restored. Keep building, or hit TEST.');
+}
+if(window.GBSave) GBSave.register({
+  save:()=> beams.length ? bridgeSnapshot() : null,   // an empty gap isn't worth a slot
+  load:bridgeRestore
+});
 
 function budgetSpent(){
   return beams.filter(b=>!b.broken).length * BEAM_COST;

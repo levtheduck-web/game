@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>NEON PUTT</title>
+<script src="glitchbox-save.js"></script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{height:100%;background:#05070c;overflow:hidden;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;color:#cfe9ff}
@@ -430,6 +431,19 @@ function syncHUD(){
   let d=0; for(let i=0;i<scores.length;i++) d += scores[i]-LEVELS[i].par;
   document.getElementById("hTot").textContent = d===0?"E":(d>0?"+"+d:""+d);
 }
+/* -------------------------------------------------- account-backed save */
+// A round is worth keeping, a ball mid-roll is not: the save records which
+// hole you're on and the card so far, and always resumes you teeing that hole.
+if(window.GBSave) GBSave.register({
+  save:()=> mode==="title" ? null : { li, scores:scores.slice(), best },
+  load:d=>{
+    scores = (d.scores||[]).slice();
+    if(d.best!=null) best = d.best;
+    hide();
+    loadLevel(Math.min(d.li||0, LEVELS.length-1));
+  }
+});
+
 function shoot(p, ang){
   strokes++;
   restPos = [ball.x, ball.y];
@@ -460,6 +474,13 @@ function showTitle(){
     <p>bumpers kick &nbsp;•&nbsp; sand drags &nbsp;•&nbsp; ice slides<br>water costs a stroke &nbsp;•&nbsp; mind the fans</p>
     <button id="go">Tee Off</button>`);
   document.getElementById("go").onclick = ()=>{ ac(); S.ui(); scores=[]; hide(); loadLevel(0); };
+  // Offer a resume alongside "Tee Off" when this player has a round in progress.
+  if(window.GBSave && GBSave.has()){
+    const r=document.createElement("button"); r.id="resume"; r.textContent="Resume Round";
+    r.style.marginLeft="10px";
+    r.onclick=()=>{ ac(); S.ui(); GBSave.load(); };
+    document.getElementById("go").after(r);
+  }
 }
 function showHoleCard(){
   const d = strokes - level.par;

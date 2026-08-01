@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>PATHOGEN</title>
+<script src="glitchbox-save.js"></script>
 <script src="https://unpkg.com/topojson@3/dist/topojson.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -946,6 +947,32 @@ cv.addEventListener('click',e=>{
   G.picking=false;G.started=true;
   document.getElementById('hint').style.display='none';
   notify(`${G.name} emerges in ${c.name}...`,'#00ff88');
+});
+
+// ── ACCOUNT-BACKED SAVE (GLITCHBOX) ──────────────────────────────────────────
+// G holds two Sets and a country list whose geometry (x/y/path) is rebuilt from
+// the map every frame, so the snapshot keeps only the epidemic itself: the
+// evolved traits and each country's healthy/infected/dead split, in CD order.
+if(window.GBSave) GBSave.register({
+  save:()=> G.started ? {
+    day:G.day, dna:G.dna, cure:G.cure, cureOn:G.cureOn, speed:G.speed, name:G.name,
+    owned:[...G.owned], milestones:[...G.milestones], v:{...G.v},
+    passiveTick:G.passiveTick,
+    pops:G.countries.map(c=>[Math.round(c.healthy),Math.round(c.infected),Math.round(c.dead)])
+  } : null,
+  load:d=>{
+    if(!G.countries.length) initWorld();
+    G.day=d.day||0; G.dna=d.dna||0; G.cure=d.cure||0; G.cureOn=!!d.cureOn;
+    G.speed=d.speed||1; G.name=d.name||G.name; G.passiveTick=d.passiveTick||0;
+    G.owned=new Set(d.owned||[]); G.milestones=new Set(d.milestones||[]);
+    Object.assign(G.v, d.v||{});
+    (d.pops||[]).forEach(([h,i,dd],k)=>{ const c=G.countries[k]; if(!c) return;
+      c.healthy=h; c.infected=i; c.dead=dd; });
+    G.picking=false; G.started=true;
+    const hint=document.getElementById('hint'); if(hint) hint.style.display='none';
+    updateHUD();
+  },
+  autosave:30
 });
 
 // ── HUD ──────────────────────────────────────────────────────────────────────
