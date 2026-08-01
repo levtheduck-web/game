@@ -507,6 +507,7 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
 </div>
 <script>
 const GAMES=[
+  {name:'Magic Wand',          file:'magic-wand.html',             emoji:'🪄',color:['#0a0616','#1a0f33'],category:'other',      tags:['new','hot']},
   {name:'Neon Putt',           file:'neon-putt.html',              emoji:'⛳',color:['#04120f','#0a2620'],category:'puzzle',     tags:['new','hot']},
   {name:'Barrier',             file:'barrier.html',                emoji:'🚧',color:['#02140f','#04241b'],category:'action',     tags:['new','hot']},
   {name:'Quoridor',            file:'quoridor.html',               emoji:'🧱',color:['#0a1428','#12233f'],category:'strategy',   tags:['new','mp']},
@@ -547,6 +548,45 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
+
+'magic-wand':(c)=>{
+  _GV(c,0,0,320,200,'#1a0f33','#05030a');
+  // glow behind the tip
+  const g=c.createRadialGradient(96,72,0,96,72,90);
+  g.addColorStop(0,'rgba(255,214,138,0.55)');g.addColorStop(.45,'rgba(199,125,255,0.18)');
+  g.addColorStop(1,'transparent');c.fillStyle=g;c.fillRect(0,0,320,200);
+  // wand, tip upper-left → handle lower-right
+  c.save();c.translate(96,72);c.rotate(0.72);
+  const wg=c.createLinearGradient(0,0,84,0);
+  wg.addColorStop(0,'#6b4a2a');wg.addColorStop(.5,'#3a2515');wg.addColorStop(1,'#1d120a');
+  c.fillStyle=wg;
+  c.beginPath();c.moveTo(2,-3.4);c.lineTo(46,-4.6);c.lineTo(84,-5.6);
+  c.lineTo(84,5.6);c.lineTo(46,4.6);c.lineTo(2,3.4);c.closePath();c.fill();
+  c.fillStyle='#c9a24a';c.fillRect(42,-5.2,5,10.4);c.fillRect(72,-6,6,12);
+  c.restore();
+  // sparkle stars trailing from the tip
+  const star=(x,y,r,col)=>{c.save();c.translate(x,y);c.fillStyle=col;
+    c.shadowColor=col;c.shadowBlur=r*2.4;c.beginPath();
+    for(let i=0;i<8;i++){const a=i*Math.PI/4,rr=(i%2)?r*.2:r;
+      const px=Math.cos(a)*rr,py=Math.sin(a)*rr;i?c.lineTo(px,py):c.moveTo(px,py)}
+    c.closePath();c.fill();c.restore()};
+  star(96,72,15,'#fff6de');
+  [[142,42,6],[168,64,4],[126,26,4],[60,40,5],[42,74,3],[186,36,3],[74,18,3]]
+    .forEach(([x,y,r],i)=>star(x,y,r,i%2?'#ffd48a':'#ff9de0'));
+  // little terminal window getting sped up
+  _F(c,180,104,116,66,'rgba(6,4,12,0.9)');
+  c.strokeStyle='rgba(255,160,90,0.35)';c.lineWidth=1;c.strokeRect(180.5,104.5,115,65);
+  _F(c,180,104,116,11,'rgba(255,255,255,0.07)');
+  _C(c,187,109.5,2.4,'#ff5f57');_C(c,195,109.5,2.4,'#febc2e');_C(c,203,109.5,2.4,'#28c840');
+  ['#ffb37a','#7dffb0','#7dffb0','#b9aee0'].forEach((col,i)=>
+    _F(c,186,122+i*10,[70,54,84,40][i],3,col));
+  _F(c,186,162,8,4,'#ffb37a');
+  // speed bar
+  _F(c,24,182,272,8,'rgba(255,255,255,0.06)');
+  const sg=c.createLinearGradient(24,0,250,0);
+  sg.addColorStop(0,'#6b5cff');sg.addColorStop(.5,'#ff9de0');sg.addColorStop(1,'#ffd48a');
+  c.fillStyle=sg;c.fillRect(24,182,226,8);
+},
 
 'neon-putt':(c)=>{
   _GV(c,0,0,320,200,'#05080f','#080d16');

@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>🪄 Magic Wand — Make The Terminal Go Faster</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#05030a}
+  body{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    color:#e8e2ff;cursor:none;-webkit-user-select:none;user-select:none;
+    touch-action:none;
+  }
+  #fx{position:fixed;inset:0;width:100%;height:100%;z-index:5;pointer-events:none}
+
+  /* ── ambient background ── */
+  #bg{position:fixed;inset:0;z-index:0;
+    background:
+      radial-gradient(1200px 700px at 50% 42%,#1a0f33 0%,#0a0616 45%,#05030a 100%);}
+  #aura{position:fixed;left:50%;top:50%;width:120vmax;height:120vmax;z-index:1;
+    transform:translate(-50%,-50%) scale(.4);pointer-events:none;opacity:0;
+    background:radial-gradient(circle,rgba(255,190,90,.16) 0%,rgba(150,90,255,.08) 35%,transparent 68%);
+    transition:opacity .3s}
+
+  /* ── layout ── */
+  #wrap{position:relative;z-index:3;height:100%;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:16px;padding:18px}
+
+  h1{font-size:clamp(17px,3.4vw,27px);letter-spacing:.22em;font-weight:700;
+    text-align:center;text-transform:uppercase;
+    background:linear-gradient(95deg,#ffd88a,#ff9de0,#9fb4ff,#ffd88a);
+    background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+    animation:shimmer 6s linear infinite;filter:drop-shadow(0 0 18px rgba(255,180,90,.35))}
+  @keyframes shimmer{to{background-position:300% 0}}
+  .sub{font-size:11px;letter-spacing:.16em;color:#8a7bb8;text-align:center;margin-top:-8px}
+
+  /* ── speed meter ── */
+  #meter{width:min(620px,94vw);display:flex;flex-direction:column;gap:7px}
+  #meterTop{display:flex;justify-content:space-between;align-items:flex-end;
+    font-size:11px;letter-spacing:.18em;color:#9d8ecb}
+  #mult{font-size:clamp(24px,6vw,40px);font-weight:700;letter-spacing:.02em;
+    line-height:1;color:#ffd48a;text-shadow:0 0 22px rgba(255,190,90,.6);font-variant-numeric:tabular-nums}
+  #tier{font-weight:700;letter-spacing:.2em;font-size:clamp(11px,2.4vw,14px);color:#ff9de0;
+    text-shadow:0 0 14px currentColor;transition:color .25s}
+  #bar{height:16px;border-radius:9px;background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.11);overflow:hidden;position:relative}
+  #fill{height:100%;width:0%;border-radius:9px;
+    background:linear-gradient(90deg,#6b5cff,#c77dff,#ff9de0,#ffd48a);
+    box-shadow:0 0 22px rgba(255,160,220,.55);transition:width .07s linear}
+  #bar::after{content:'';position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(90deg,transparent 0 22px,rgba(0,0,0,.35) 22px 24px)}
+
+  /* ── terminal ── */
+  #term{width:min(620px,94vw);height:min(300px,38vh);border-radius:11px;
+    background:rgba(6,4,12,.86);border:1px solid rgba(255,160,90,.20);
+    box-shadow:0 22px 70px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.03) inset;
+    display:flex;flex-direction:column;overflow:hidden;backdrop-filter:blur(6px)}
+  #tbar{display:flex;align-items:center;gap:7px;padding:8px 12px;flex:0 0 auto;
+    background:rgba(255,255,255,.045);border-bottom:1px solid rgba(255,255,255,.07)}
+  .dot{width:10px;height:10px;border-radius:50%}
+  #tbar span{margin-left:8px;font-size:10.5px;letter-spacing:.14em;color:#8f82ba}
+  #out{flex:1;overflow:hidden;padding:11px 13px;font-size:clamp(10.5px,2.1vw,12.5px);
+    line-height:1.62;display:flex;flex-direction:column;justify-content:flex-end;white-space:pre-wrap}
+  .ln{color:#b9aee0}
+  .ln.u{color:#ffb37a}
+  .ln.ok{color:#7dffb0}
+  .ln.dim{color:#6a5f8f}
+  .ln.hot{color:#ff9de0;font-weight:700}
+  #cur{display:inline-block;width:8px;height:1em;vertical-align:-2px;
+    background:#ffb37a;box-shadow:0 0 9px #ffb37a;animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  #hint{font-size:11px;letter-spacing:.12em;color:#6a5f8f;text-align:center;max-width:94vw}
+  #hint b{color:#ffb37a;font-weight:700}
+
+  /* ── floating combo text ── */
+  .pop{position:fixed;z-index:8;pointer-events:none;font-weight:700;letter-spacing:.12em;
+    text-shadow:0 0 16px currentColor;animation:pop 1s cubic-bezier(.2,.9,.3,1) forwards}
+  @keyframes pop{
+    0%{transform:translate(-50%,-50%) scale(.5);opacity:0}
+    18%{transform:translate(-50%,-58%) scale(1.14);opacity:1}
+    100%{transform:translate(-50%,-165%) scale(.94);opacity:0}}
+
+  #flash{position:fixed;inset:0;z-index:7;pointer-events:none;opacity:0;
+    background:radial-gradient(circle at var(--fx,50%) var(--fy,50%),rgba(255,225,180,.55),transparent 55%)}
+  #banner{position:fixed;left:50%;top:15%;transform:translateX(-50%);z-index:9;
+    font-size:clamp(15px,4vw,28px);font-weight:700;letter-spacing:.3em;opacity:0;
+    pointer-events:none;color:#fff;text-shadow:0 0 30px #ff9de0,0 0 60px #ff9de0}
+  @media (max-width:520px){ .sub{display:none} }
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<div id="aura"></div>
+
+<div id="wrap">
+  <div>
+    <h1>🪄 The Magic Wand</h1>
+    <div class="sub">wave it · click it · make the terminal fly</div>
+  </div>
+
+  <div id="meter">
+    <div id="meterTop">
+      <div><span id="tier">IDLE</span></div>
+      <div id="mult">×1.0</div>
+    </div>
+    <div id="bar"><div id="fill"></div></div>
+  </div>
+
+  <div id="term">
+    <div id="tbar">
+      <div class="dot" style="background:#ff5f57"></div>
+      <div class="dot" style="background:#febc2e"></div>
+      <div class="dot" style="background:#28c840"></div>
+      <span>claude — enchanted session</span>
+    </div>
+    <div id="out"></div>
+  </div>
+
+  <div id="hint">CLICK anywhere to cast · HOLD to charge a big one · <b>SPACE</b> works too</div>
+</div>
+
+<div id="flash"></div>
+<div id="banner"></div>
+<canvas id="fx"></canvas>
+
+<script>
+'use strict';
+/* ══════════════════════════════════════════════════════════════
+   A magic wand that speeds up a terminal. The terminal in the
+   middle of this page genuinely types faster the more power you
+   pour into the wand — that part is not a placebo. The Claude
+   Code process in your actual shell is, sadly, unenchantable;
+   for that one, `/fast` is the real spell.
+   ══════════════════════════════════════════════════════════════ */
+
+const cv=document.getElementById('fx'), cx=cv.getContext('2d');
+let W=0,H=0,DPR=1;
+function resize(){
+  DPR=Math.min(devicePixelRatio||1,2);
+  W=innerWidth;H=innerHeight;
+  cv.width=W*DPR;cv.height=H*DPR;
+  cx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener('resize',resize);resize();
+
+// ── state ───────────────────────────────────────────────────
+const S={
+  mx:W/2,my:H/2,px:W/2,py:H/2,vx:0,vy:0,
+  down:false,charge:0,
+  power:0,          // 0..1+, decays; drives everything
+  combo:0,comboT:0,
+  shake:0,tilt:0,
+  casts:0,peak:1,
+  hasMoved:false,
+};
+const TIERS=[
+  {at:1.0 ,name:'IDLE'       ,col:'#8f82ba'},
+  {at:1.6 ,name:'WARM'       ,col:'#9fb4ff'},
+  {at:3.0 ,name:'BRISK'      ,col:'#7dffb0'},
+  {at:5.5 ,name:'FAST MODE'  ,col:'#ffd48a'},
+  {at:9.0 ,name:'LUDICROUS'  ,col:'#ff9de0'},
+  {at:14.0,name:'PLAID'      ,col:'#ff6fae'},
+  {at:19.0,name:'QUANTUM'    ,col:'#ffffff'},
+];
+const mult=()=>1+S.power*20;
+function tierOf(m){let t=TIERS[0];for(const x of TIERS)if(m>=x.at)t=x;return t}
+let lastTier=TIERS[0];
+
+// ── audio ───────────────────────────────────────────────────
+let AC=null;
+const SCALE=[0,2,4,7,9,12,14,16,19,21,24,26,28,31];
+function actx(){ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended')AC.resume(); return AC }
+function chime(step,vol=.12,dur=.5,type='triangle'){
+  try{
+    const a=actx(),t=a.currentTime;
+    const o=a.createOscillator(),g=a.createGain();
+    o.type=type;o.frequency.setValueAtTime(523.25*Math.pow(2,step/12),t);
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(vol,t+.012);
+    g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+dur+.05);
+  }catch(e){}
+}
+function whoosh(vol=.1){
+  try{
+    const a=actx(),t=a.currentTime,len=a.sampleRate*.35;
+    const b=a.createBuffer(1,len,a.sampleRate),d=b.getChannelData(0);
+    for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.6);
+    const s=a.createBufferSource();s.buffer=b;
+    const f=a.createBiquadFilter();f.type='bandpass';f.frequency.setValueAtTime(700,t);
+    f.frequency.exponentialRampToValueAtTime(4200,t+.3);
+    const g=a.createGain();g.gain.value=vol;
+    s.connect(f);f.connect(g);g.connect(a.destination);s.start(t);
+  }catch(e){}
+}
+
+// ── particles ───────────────────────────────────────────────
+const P=[];
+function spark(x,y,o={}){
+  if(P.length>1400)return;
+  P.push({
+    x,y,
+    vx:o.vx??(Math.random()-.5)*2, vy:o.vy??(Math.random()-.5)*2,
+    r:o.r??(2+Math.random()*4),
+    life:1, decay:o.decay??(.008+Math.random()*.014),
+    rot:Math.random()*6.28, spin:(Math.random()-.5)*.16,
+    hue:o.hue??(30+Math.random()*50),
+    kind:o.kind??'star', drag:o.drag??.982, grav:o.grav??.012,
+  });
+}
+function ring(x,y,hue){ P.push({x,y,r:6,life:1,decay:.03,kind:'ring',hue,grow:o=>0}) }
+
+function drawStar(c,x,y,r,rot,col,alpha){
+  c.save();c.translate(x,y);c.rotate(rot);c.globalAlpha=alpha;
+  c.fillStyle=col;c.shadowColor=col;c.shadowBlur=r*2.6;
+  c.beginPath();
+  for(let i=0;i<8;i++){
+    const a=i*Math.PI/4, rr=(i%2)?r*.2:r;
+    const px=Math.cos(a)*rr,py=Math.sin(a)*rr;
+    i?c.lineTo(px,py):c.moveTo(px,py);
+  }
+  c.closePath();c.fill();c.restore();
+}
+
+// ── the wand itself ─────────────────────────────────────────
+function drawWand(x,y,ang,pow){
+  const L=78+pow*16;
+  cx.save();cx.translate(x,y);cx.rotate(ang);
+  // handle (tip is at 0,0 — the wand trails behind the cursor)
+  const g=cx.createLinearGradient(0,0,L,0);
+  g.addColorStop(0,'#6b4a2a');g.addColorStop(.45,'#3a2515');g.addColorStop(1,'#1d120a');
+  cx.fillStyle=g;
+  cx.beginPath();
+  cx.moveTo(2,-3.4);cx.lineTo(L*.55,-4.6);cx.lineTo(L,-5.6);
+  cx.lineTo(L,5.6);cx.lineTo(L*.55,4.6);cx.lineTo(2,3.4);
+  cx.closePath();cx.fill();
+  // gold bands
+  cx.fillStyle='#c9a24a';
+  cx.fillRect(L*.5,-5.2,5,10.4); cx.fillRect(L*.86,-6,6,12);
+  cx.restore();
+  // glowing tip
+  const hue=38-pow*10;
+  const r=9+pow*11+Math.sin(performance.now()/90)*1.6;
+  cx.save();cx.globalCompositeOperation='lighter';
+  const gg=cx.createRadialGradient(x,y,0,x,y,r*3.4);
+  gg.addColorStop(0,`hsla(${hue},100%,86%,.95)`);
+  gg.addColorStop(.35,`hsla(${hue+10},100%,66%,.45)`);
+  gg.addColorStop(1,'transparent');
+  cx.fillStyle=gg;cx.beginPath();cx.arc(x,y,r*3.4,0,6.28);cx.fill();
+  cx.restore();
+  drawStar(cx,x,y,r,performance.now()/620,'#fff6de',1);
+}
+
+// ── casting ─────────────────────────────────────────────────
+const flash=document.getElementById('flash');
+const banner=document.getElementById('banner');
+function pop(text,col,x,y,size){
+  const el=document.createElement('div');
+  el.className='pop';el.textContent=text;
+  el.style.cssText+=`left:${x}px;top:${y}px;color:${col};font-size:${size}px`;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),1000);
+}
+function showBanner(t,col){
+  banner.textContent=t;banner.style.color=col||'#fff';
+  banner.animate(
+    [{opacity:0,transform:'translateX(-50%) scale(.7)'},
+     {opacity:1,transform:'translateX(-50%) scale(1)',offset:.2},
+     {opacity:1,transform:'translateX(-50%) scale(1)',offset:.7},
+     {opacity:0,transform:'translateX(-50%) scale(1.25)'}],
+    {duration:1500,easing:'cubic-bezier(.2,.9,.3,1)'});
+}
+
+function cast(x,y,strength=1){
+  const t0=performance.now();
+  S.combo = (t0-S.comboT<820) ? S.combo+1 : 1;
+  S.comboT=t0;
+
+  const gain=(0.11+0.035*Math.min(S.combo,8))*strength;
+  S.power=Math.min(S.power+gain,1.15);
+  S.shake=Math.min(S.shake+5*strength,22);
+  S.casts++;
+
+  const n=Math.round((26+22*strength)*(1+S.combo*.12));
+  for(let i=0;i<n;i++){
+    const a=Math.random()*6.283, sp=(1.4+Math.random()*7)*strength;
+    spark(x,y,{vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,
+      r:2+Math.random()*(4+3*strength),decay:.009+Math.random()*.013,
+      hue:20+Math.random()*70,grav:.02});
+  }
+  ring(x,y,40);
+  if(strength>1.4){ring(x,y,300);}
+
+  flash.style.setProperty('--fx',x+'px');
+  flash.style.setProperty('--fy',y+'px');
+  flash.animate([{opacity:.55*Math.min(strength,2)},{opacity:0}],{duration:340});
+
+  const step=SCALE[Math.min(S.combo-1,SCALE.length-1)];
+  chime(step,.10*strength,.55);
+  chime(step+12,.05*strength,.35,'sine');
+  if(strength>1.4)whoosh(.16);
+
+  if(S.combo>=3) pop(`×${S.combo} COMBO`, S.combo>=8?'#ffd48a':'#ff9de0', x, y-14, 15+Math.min(S.combo,10));
+  else if(strength>1.4) pop('BIG ONE!','#ffd48a',x,y-14,22);
+
+  termCast(strength);
+}
+
+// ── input ───────────────────────────────────────────────────
+function at(e){
+  const t=e.touches&&e.touches[0];
+  return {x:(t?t.clientX:e.clientX)||S.mx, y:(t?t.clientY:e.clientY)||S.my};
+}
+function move(e){
+  const p=at(e);S.mx=p.x;S.my=p.y;S.hasMoved=true;
+}
+addEventListener('mousemove',move,{passive:true});
+addEventListener('touchmove',e=>{move(e);e.preventDefault()},{passive:false});
+
+function down(e){ const p=at(e);S.mx=p.x;S.my=p.y;S.down=true;S.charge=0;actx() }
+function up(){
+  if(!S.down)return;
+  S.down=false;
+  const strength=1+Math.min(S.charge,1)*1.6;
+  cast(S.mx,S.my,strength);
+  S.charge=0;
+}
+addEventListener('mousedown',down);
+addEventListener('mouseup',up);
+addEventListener('touchstart',e=>{down(e);e.preventDefault()},{passive:false});
+addEventListener('touchend',up);
+addEventListener('keydown',e=>{
+  if(e.code==='Space'&&!e.repeat){e.preventDefault();down({clientX:S.mx,clientY:S.my})}
+});
+addEventListener('keyup',e=>{ if(e.code==='Space'){e.preventDefault();up()} });
+addEventListener('contextmenu',e=>e.preventDefault());
+
+// ── the enchanted terminal ──────────────────────────────────
+const out=document.getElementById('out');
+const SESSION=[
+  {t:'> speed up my terminal',c:'u'},
+  {t:'⏺ Reading  wand.spell …',c:'dim'},
+  {t:'⏺ Found 1 enchantment. Applying.',c:''},
+  {t:'  ✓ compiled 812 modules',c:'ok'},
+  {t:'  ✓ tests 47 passed',c:'ok'},
+  {t:'> faster',c:'u'},
+  {t:'⏺ Rerouting tokens through the star at the tip…',c:'dim'},
+  {t:'  ✓ latency  412ms → 38ms',c:'ok'},
+  {t:'> FASTER',c:'u'},
+  {t:'⏺ Okay. Hold on to something.',c:'hot'},
+  {t:'  ✓ build finished before it started',c:'ok'},
+  {t:'  ✓ 3 bugs fixed themselves out of fear',c:'ok'},
+  {t:'⏺ The cursor is now ahead of the keyboard.',c:'dim'},
+  {t:'> can you go faster than light',c:'u'},
+  {t:'⏺ Already did. Twice. You missed it.',c:'hot'},
+  {t:'  ✓ npm install — 0.00s',c:'ok'},
+  {t:'  ✓ deployed to prod, then undeployed, safely',c:'ok'},
+  {t:'⏺ Wave the wand again. It likes that.',c:'dim'},
+];
+let li=0,ci=0,acc=0,curEl=null;
+const lines=[];
+function newLine(){
+  const s=SESSION[li%SESSION.length];
+  const el=document.createElement('div');
+  el.className='ln '+s.c;
+  out.appendChild(el);lines.push(el);
+  while(lines.length>16){ lines.shift().remove() }
+  curEl=el;
+}
+newLine();
+function typeStep(dt){
+  const cps=7+ (mult()-1)*13;          // chars/sec scales with wand power
+  acc+=cps*dt;
+  const s=SESSION[li%SESSION.length];
+  while(acc>=1){
+    acc-=1;
+    if(ci<s.t.length){ ci++; curEl.textContent=s.t.slice(0,ci) }
+    else{
+      curEl.innerHTML=s.t;             // drop cursor from finished line
+      li++;ci=0;newLine();
+      return;
+    }
+  }
+  curEl.innerHTML=escapeHtml(s.t.slice(0,ci))+'<i id="cur"></i>';
+}
+function escapeHtml(x){return x.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}
+function termCast(strength){
+  // the terminal reacts: a shove + a burst of instant characters
+  const t=document.getElementById('term');
+  t.animate([{transform:'scale(1)'},{transform:`scale(${1+.018*strength})`},{transform:'scale(1)'}],
+    {duration:260,easing:'ease-out'});
+  acc+=6*strength;
+}
+
+// ── HUD ─────────────────────────────────────────────────────
+const fillEl=document.getElementById('fill'),
+      multEl=document.getElementById('mult'),
+      tierEl=document.getElementById('tier'),
+      aura=document.getElementById('aura'),
+      wrap=document.getElementById('wrap');
+
+function hud(){
+  const m=mult();
+  if(m>S.peak)S.peak=m;
+  multEl.textContent='×'+m.toFixed(1);
+  fillEl.style.width=Math.min(S.power/1.15*100,100)+'%';
+  const t=tierOf(m);
+  if(t!==lastTier){
+    tierEl.textContent=t.name;tierEl.style.color=t.col;
+    if(t.at>lastTier.at){
+      showBanner(t.name,t.col);
+      chime(24+TIERS.indexOf(t)*2,.14,.9,'sine');
+      for(let i=0;i<40;i++){
+        const a=Math.random()*6.283,sp=2+Math.random()*9;
+        spark(W/2,H*.25,{vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,r:2+Math.random()*5,hue:20+Math.random()*80});
+      }
+    }
+    lastTier=t;
+  }
+  aura.style.opacity=Math.min(S.power*1.5,.9);
+  aura.style.transform=`translate(-50%,-50%) scale(${.4+S.power*.75})`;
+  multEl.style.color=t.col;
+}
+
+// ── main loop ───────────────────────────────────────────────
+let last=performance.now();
+function frame(now){
+  const dt=Math.min((now-last)/1000,.05);last=now;
+
+  // wand follows the pointer with a little lag → gives it weight
+  S.px+=(S.mx-S.px)*Math.min(1,dt*16);
+  S.py+=(S.my-S.py)*Math.min(1,dt*16);
+  const dx=S.mx-S.px, dy=S.my-S.py;
+  S.vx=dx;S.vy=dy;
+  const speed=Math.hypot(dx,dy);
+  // wand points back along the direction of travel, resting at 40°
+  const target=speed>1.2 ? Math.atan2(-dy,-dx) : Math.PI*0.72;
+  let d=target-S.tilt; while(d>Math.PI)d-=6.283; while(d<-Math.PI)d+=6.283;
+  S.tilt+=d*Math.min(1,dt*7);
+
+  // charging
+  if(S.down){
+    S.charge=Math.min(S.charge+dt*1.15,1);
+    if(Math.random()<.6+S.charge){
+      const a=Math.random()*6.283,rr=42*(1-S.charge*.72)+8;
+      spark(S.px+Math.cos(a)*rr,S.py+Math.sin(a)*rr,{
+        vx:-Math.cos(a)*3.2,vy:-Math.sin(a)*3.2,r:1.6+Math.random()*3,
+        decay:.045,grav:0,drag:.94,hue:20+Math.random()*60});
+    }
+  }
+
+  // wave-trail: moving the wand sprinkles sparks
+  const emit=Math.min(speed*.36,7)*(1+S.power);
+  for(let i=0;i<emit;i++){
+    const f=i/Math.max(emit,1);
+    spark(S.px+dx*f*-.5+(Math.random()-.5)*7, S.py+dy*f*-.5+(Math.random()-.5)*7,{
+      vx:(Math.random()-.5)*1.2, vy:(Math.random()-.5)*1.2-.35,
+      r:1.6+Math.random()*3.4, decay:.017+Math.random()*.018,
+      hue:26+Math.random()*(40+S.power*70), grav:-.006, drag:.965});
+  }
+
+  // power decay — the spell wears off, so keep waving
+  S.power=Math.max(0,S.power-dt*(0.085+S.power*0.16));
+  if(performance.now()-S.comboT>900)S.combo=0;
+  S.shake*=0.87;
+
+  // ── render ──
+  cx.clearRect(0,0,W,H);
+  const sh=S.shake+Math.max(0,(mult()-9))*0.35;
+  cx.save();
+  if(sh>0.2)cx.translate((Math.random()-.5)*sh,(Math.random()-.5)*sh);
+  cx.globalCompositeOperation='lighter';
+
+  for(let i=P.length-1;i>=0;i--){
+    const p=P[i];
+    p.life-=p.decay;
+    if(p.life<=0){P.splice(i,1);continue}
+    if(p.kind==='ring'){
+      const r=6+(1-p.life)*150;
+      cx.globalAlpha=p.life*.6;
+      cx.strokeStyle=`hsla(${p.hue},100%,72%,1)`;cx.lineWidth=2.5*p.life;
+      cx.shadowColor=cx.strokeStyle;cx.shadowBlur=18;
+      cx.beginPath();cx.arc(p.x,p.y,r,0,6.28);cx.stroke();cx.shadowBlur=0;
+      continue;
+    }
+    p.vy+=p.grav; p.vx*=p.drag; p.vy*=p.drag;
+    p.x+=p.vx; p.y+=p.vy; p.rot+=p.spin;
+    const a=p.life<.25 ? p.life/.25 : 1;
+    const tw=.72+.28*Math.sin(p.rot*3.4);
+    drawStar(cx,p.x,p.y,p.r*(.35+p.life*.65)*tw,p.rot,
+      `hsl(${p.hue},100%,${66+p.life*24}%)`, a*.95);
+  }
+  cx.globalAlpha=1;cx.shadowBlur=0;
+  cx.globalCompositeOperation='source-over';
+  if(S.hasMoved||S.down) drawWand(S.px,S.py,S.tilt,Math.min(S.power,1)+S.charge*.5);
+  // charge ring
+  if(S.down&&S.charge>.05){
+    cx.save();cx.globalCompositeOperation='lighter';
+    cx.strokeStyle=`hsla(${44-S.charge*30},100%,72%,${.35+S.charge*.5})`;
+    cx.lineWidth=3;cx.shadowColor=cx.strokeStyle;cx.shadowBlur=20;
+    cx.beginPath();cx.arc(S.px,S.py,20+ (1-S.charge)*34,0,6.283*S.charge);cx.stroke();
+    cx.restore();
+  }
+  cx.restore();
+
+  typeStep(dt);
+  hud();
+  wrap.style.transform = sh>0.2 ? `translate(${(Math.random()-.5)*sh*.35}px,${(Math.random()-.5)*sh*.35}px)` : '';
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// gentle idle nudge so the page isn't dead before the first move
+setTimeout(()=>{ if(!S.hasMoved){ S.mx=W/2;S.my=H*.62;S.hasMoved=true } },900);
+
+// ── #smoke : headless self-test ─────────────────────────────
+if(location.hash==='#smoke'){
+  const chk=[];const ok=(n,c)=>chk.push((c?'PASS':'FAIL')+' — '+n);
+  ok('canvas sized',W>0&&H>0);
+  ok('idle multiplier is 1', Math.abs(mult()-1)<1e-9);
+  cast(W/2,H/2,1);
+  ok('cast raises power',S.power>0);
+  ok('cast spawns particles',P.length>10);
+  ok('cast lifts multiplier',mult()>1.5);
+  ok('tier climbs', (()=>{const p=S.power;S.power=1;const t=tierOf(mult());S.power=p;return t.name==='QUANTUM'})());
+  ok('terminal has a line',out.children.length>0);
+  const before=out.lastChild.textContent.length;
+  for(let i=0;i<40;i++)typeStep(1/60);
+  ok('terminal types',out.lastChild.textContent.length!==before||li>0);
+  ok('power decays',(()=>{const a=S.power;S.power=Math.max(0,S.power-.5*(0.085+S.power*.16));return S.power<a})());
+  document.body.innerHTML='<pre style="padding:24px;font:13px monospace;color:#7dffb0;background:#05030a">'
+    +chk.join('\n')+'\n\n'+(chk.some(x=>x[0]==='F')?'❌ SMOKE FAILED':'✅ ALL SMOKE TESTS PASSED')+'</pre>';
+  document.body.style.cursor='auto';
+}
+</script>
+</body>
+</html>
