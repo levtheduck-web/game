@@ -53,7 +53,20 @@
   .status.err{ color:var(--red); }
   .link{ color:var(--blue); text-decoration:underline; cursor:pointer; }
   .back{ margin-top:14px; background:transparent; border:none; color:#7f93b6; }
+  /* in-game friend invites (waiting room) */
+  .wi-head{ font-size:11px; letter-spacing:2px; color:#7f93b6; text-align:left; margin:16px 0 8px; font-weight:800; }
+  .wi-row{ display:flex; align-items:center; gap:10px; padding:8px 10px; margin-bottom:6px;
+    background:rgba(255,255,255,.04); border-left:2px solid var(--gold); text-align:left; }
+  .wi-name{ flex:1; font-size:14px; font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .wi-dot{ width:7px; height:7px; border-radius:50%; background:#55627a; flex-shrink:0; }
+  .wi-dot.on{ background:#3ddc84; box-shadow:0 0 7px #3ddc84; }
+  .wi-btn{ flex-shrink:0; padding:5px 12px; font-size:12px; font-weight:800; cursor:pointer;
+    background:var(--gold); color:#1a1400; border:none; border-radius:4px; }
+  .wi-btn:disabled{ background:transparent; border:1px solid #55627a; color:#7f93b6; cursor:default; }
+  .wi-note{ font-size:12px; color:#7f93b6; text-align:left; }
 </style>
+<!-- Must load before the game script: online play reads GLITCHBOX_WS at boot. -->
+<script src="glitchbox-config.js"></script>
 </head>
 <body>
   <h1>QUORIDOR</h1>
@@ -109,6 +122,11 @@
       <h2>Your code</h2>
       <div class="roomcode" id="wait-code">----</div>
       <p>Share this code with your friend. The game starts when they join.</p>
+      <!-- Invite straight from the waiting room, so you never have to go back to the hub. -->
+      <div id="wait-invite" class="hidden">
+        <div class="wi-head">// INVITE A FRIEND</div>
+        <div id="wait-friends"></div>
+      </div>
       <div class="status" id="wait-status">Waiting for opponent…</div>
       <button class="back" id="m-cancel">← Cancel</button>
     </div>
@@ -438,34 +456,94 @@ $('m-cpu').onclick=startCPU;
 $('m-online').onclick=()=>{ showPanel('panel-online'); $('online-status').textContent=''; };
 $('m-back1').onclick=()=>showPanel('panel-home');
 $('m-cancel').onclick=()=>{ netClose(); showPanel('panel-online'); };
-$('m-create').onclick=()=>netConnect(()=>netSend({t:'create'}));
+$('m-create').onclick=()=>hostRoom(code4());
 $('m-join').onclick=()=>{ const code=$('join-code').value.trim().toUpperCase();
   if(code.length<4){ setStatus('Enter a 4-letter code.',true); return; }
-  netConnect(()=>netSend({t:'join',code})); };
+  joinRoom(code); };
+
+function hostRoom(code){ net.code=code; netConnect(code,'host',()=>netSend({t:'create',code})); }
+function joinRoom(code){ net.code=code; netConnect(code,'guest',()=>netSend({t:'join',code})); }
 $('ov-btn').onclick=()=>{ if(S.vs==='online'){ netSend({t:'rematch'}); doRematch(); } else startCPU(); };
 $('ov-menu').onclick=()=>{ netClose(); openMenu(); };
 $('join-code').addEventListener('input',e=>{ e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,''); });
 
 function setStatus(t,err){ const s=$('online-status'); s.textContent=t; s.classList.toggle('err',!!err); }
-function wsURL(){ const proto=location.protocol==='https:'?'wss:':'ws:'; return proto+'//'+location.host+'/ws'; }
 
-function netConnect(onOpen){
+// Room codes are generated here now: the relay is one Durable Object *per room*, so
+// the code has to be known before we connect rather than handed back by the server.
+const CODE_A='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function code4(){ let s=''; const r=new Uint8Array(4); (crypto.getRandomValues?crypto.getRandomValues(r):r.fill(0));
+  for(const b of r) s+=CODE_A[b%CODE_A.length]; return s; }
+
+// Prefer the GLITCHBOX Worker relay (works anywhere, nothing to run). Fall back to
+// the page's own host so a local `node quoridor-server.js` still works for dev.
+function wsURL(room, role){
+  const base = window.GLITCHBOX_WS && !/PLACEHOLDER/i.test(window.GLITCHBOX_WS)
+    ? window.GLITCHBOX_WS
+    : (location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws';
+  return base+'?room='+encodeURIComponent(room)+'&role='+role;
+}
+
+function netConnect(room, role, onOpen){
   if(net.ws && net.ws.readyState===1){ onOpen(); return; }
   setStatus('Connecting…');
   let ws;
-  try { ws=new WebSocket(wsURL()); } catch(e){ setStatus('Online needs the game server (run quoridor-server.js).',true); return; }
+  try { ws=new WebSocket(wsURL(room, role)); } catch(e){ setStatus('Couldn’t reach the game server.',true); return; }
   net.ws=ws;
   ws.onopen=()=>{ net.connected=false; onOpen(); };
   ws.onmessage=ev=>{ let m; try{m=JSON.parse(ev.data);}catch{return;} handleNet(m); };
-  ws.onerror=()=>setStatus('Couldn’t reach the server. Online play needs quoridor-server.js running.',true);
+  ws.onerror=()=>setStatus('Couldn’t reach the game server. Check your connection and try again.',true);
   ws.onclose=()=>{ if(S && S.vs==='online' && !S.over){ /* opponent/server gone */ } };
 }
 function netSend(obj){ if(net.ws && net.ws.readyState===1) net.ws.send(JSON.stringify(obj)); }
 function netClose(){ if(net.ws){ try{net.ws.close();}catch{} net.ws=null; } net.connected=false; }
 
+// ---------- invite friends from the waiting room ----------
+// Reuses the GLITCHBOX session token in localStorage; silently stays hidden for
+// guests or when the backend isn't deployed.
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function hubApi(path, body){
+  const token = localStorage.getItem('glitchbox_session')||'';
+  if(!token || !window.GLITCHBOX_BACKEND_READY) throw new Error('signed out');
+  const r = await fetch(window.GLITCHBOX_API+path, {
+    method: body?'POST':'GET',
+    headers: Object.assign({Authorization:'Bearer '+token}, body?{'Content-Type':'application/json'}:{}),
+    body: body?JSON.stringify(body):undefined });
+  const data = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(data.error||('HTTP '+r.status));
+  return data;
+}
+
+async function loadWaitFriends(){
+  const wrap=$('wait-invite'), box=$('wait-friends');
+  let state;
+  try { state = await hubApi('/api/me'); }
+  catch(e){ wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  const list = state.friends||[];
+  if(!list.length){ box.innerHTML='<div class="wi-note">No friends yet — add some from the GLITCHBOX menu.</div>'; return; }
+  box.innerHTML = list.map(f =>
+    '<div class="wi-row"><span class="wi-dot'+(f.online?' on':'')+'"></span>'+
+    '<span class="wi-name">'+esc(f.name)+'</span>'+
+    '<button class="wi-btn" data-sub="'+esc(f.sub)+'">Invite</button></div>').join('');
+  box.querySelectorAll('.wi-btn').forEach(b => b.onclick = () => inviteFriend(b));
+}
+
+async function inviteFriend(btn){
+  btn.disabled=true; btn.textContent='Sending…';
+  try {
+    // Point the invite at the room we're already sitting in, rather than minting a new
+    // one — otherwise the friend would join an empty room while we wait in this one.
+    await hubApi('/api/invite', { sub: btn.dataset.sub, game: 'quoridor.html', room: net.code });
+    btn.textContent='Invited ✓';
+  } catch(e){ btn.disabled=false; btn.textContent='Retry'; setStatus(e.message||'Could not send invite.', true); }
+}
+
 function handleNet(m){
-  if(m.t==='created'){ net.code=m.code; net.myColor='blue';
-    $('wait-code').textContent=m.code; showPanel('panel-wait'); $('wait-status').textContent='Waiting for opponent…'; }
+  if(m.t==='created'){ net.code=m.code||net.code; net.myColor='blue';
+    $('wait-code').textContent=net.code; showPanel('panel-wait'); $('wait-status').textContent='Waiting for opponent…';
+    loadWaitFriends(); }
   else if(m.t==='joined'){ net.myColor='red'; setStatus('Joined! Starting…'); }
   else if(m.t==='start'){ startOnline(net.myColor); }
   else if(m.t==='action'){ remoteAction(m); }
@@ -481,6 +559,17 @@ function doRematch(){
 
 // ---------- boot ----------
 reset(); syncUI(); draw(); openMenu();
+
+// Arrived from a GLITCHBOX invite? The hash carries the room and which side we are,
+// so both players land in the same game without anyone typing a code.
+(function autoRoom(){
+  const h = new URLSearchParams(location.hash.replace(/^#/,''));
+  const room = (h.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(!room) return;
+  const host = h.get('host')==='1';
+  showPanel('panel-online');
+  if(host) hostRoom(room); else joinRoom(room);
+})();
 })();
 </script>
 <script src="glitchbox-menu.js" defer></script>

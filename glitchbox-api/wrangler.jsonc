@@ -3,8 +3,14 @@
   "main": "src/index.js",
   "compatibility_date": "2024-11-01",
   "durable_objects": {
-    "bindings": [{ "name": "HUB", "class_name": "Hub" }]
+    "bindings": [
+      { "name": "HUB", "class_name": "Hub" },
+      { "name": "ROOM", "class_name": "Room" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Hub"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Hub"] },
+    { "tag": "v2", "new_sqlite_classes": ["Room"] }
+  ],
   "observability": { "enabled": true }
 }
