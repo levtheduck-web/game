@@ -1,0 +1,3050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>WET PAINT</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23000'/%3E%3Crect x='4' y='3' width='8' height='9' fill='%23fff'/%3E%3Crect x='4' y='8' width='8' height='4' fill='%23A85C3E'/%3E%3Crect x='6' y='5' width='2' height='2' fill='%23000'/%3E%3C/svg%3E">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;background:#000;overflow:hidden}
+  body{display:flex;align-items:center;justify-content:center;
+       font-family:ui-monospace,Menlo,Consolas,monospace}
+  #view{display:block;image-rendering:pixelated;image-rendering:crisp-edges;
+        touch-action:none;outline:none;background:#000}
+  #boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+        color:#B4B4B4;font-size:13px;letter-spacing:2px;background:#000;z-index:5}
+  #boot.gone{display:none}
+</style>
+</head>
+<body>
+<canvas id="view" tabindex="0"></canvas>
+<div id="boot">PRESS ANY KEY</div>
+<script>
+"use strict";
+/* WET PAINT — a single-file hiding game.
+   Original code, art, writing and audio. No external assets, no network. */
+const FONTDATA = {"alph": "0123456789abcdefghijklmnopqrstuv", "blob": "00000004444404aa00000aavavaa4fke5u4pp248jjcik8lid4400000248884284222480le4el0044v4400000448000v0000000040122488gehjlphe4c4444eeh1248vv2421he26aiv22vgu11he68guhhev124888ehhehheehhf12c04004000400448248g84200v0v008421248eh12404ehnlngeehhvhhhuhhuhhuehgggheuhhhhhuvgguggvvggugggehgnhhfhhhvhhhe44444e1111hhehikokihggggggvhrllhhhhplljhhehhhhheuhhugggehhhliduhhukihehge1hev444444hhhhhhehhhhha4hhhllrhhha4ahhhha4444v1248gv7444447g884221s44444s4ah0000000000v840000000e1fhfgguhhhu00eggge11fhhhf00ehvge698u8880fhhf1egguhhhh40c444e20222icggikokic44444e00qlllh00uhhhh00ehhhe0uhhugg0fhhf1100moggg00fge1u88u889600hhhhf00hhha400hllla00ha4ah0hhhf1e00v248v344c4434444444o44644o009li00", "w": 5, "h": 7, "first": 32};
+
+/* ==================== 01_font.js ==================== */
+/* ---------- 5x7 bitmap font baked into colour atlases ---------- */
+const FW = 5, FH = 7, CW = 6, CH = 8;      // glyph 5x7 inside a 6x8 cell
+
+function glyphRows(ch){
+  const code = ch.charCodeAt(0);
+  if (code < FONTDATA.first || code > FONTDATA.first + 94) return null;
+  const off = (code - FONTDATA.first) * FH;
+  const rows = [];
+  for (let r = 0; r < FH; r++){
+    const v = FONTDATA.alph.indexOf(FONTDATA.blob[off + r]);
+    rows.push(v);                            // 5 bits, msb = leftmost pixel
+  }
+  return rows;
+}
+
+const ATLAS = {};                            // colour -> canvas of 16x6 cells
+function bakeAtlas(colour){
+  const cols = 16, rows = 6;
+  const cv = document.createElement('canvas');
+  cv.width = cols * CW; cv.height = rows * CH;
+  const c = cv.getContext('2d');
+  c.imageSmoothingEnabled = false;
+  c.fillStyle = colour;
+  for (let i = 0; i < 95; i++){
+    const ch = String.fromCharCode(FONTDATA.first + i);
+    const g = glyphRows(ch); if (!g) continue;
+    const ox = (i % cols) * CW, oy = ((i / cols) | 0) * CH;
+    for (let y = 0; y < FH; y++){
+      const bits = g[y];
+      for (let x = 0; x < FW; x++)
+        if (bits & (1 << (FW - 1 - x))) c.fillRect(ox + x, oy + y, 1, 1);
+    }
+  }
+  return cv;
+}
+function atlas(colour){
+  if (!ATLAS[colour]) ATLAS[colour] = bakeAtlas(colour);
+  return ATLAS[colour];
+}
+
+/* draw text with the baked atlas — never fillText */
+function txt(c, s, x, y, colour, scale){
+  colour = colour || UI.WHITE; scale = scale || 1;
+  const a = atlas(colour);
+  x = Math.round(x); y = Math.round(y);
+  for (let i = 0; i < s.length; i++){
+    const code = s.charCodeAt(i) - FONTDATA.first;
+    if (code < 0 || code > 94){ x += CW * scale; continue; }
+    if (code !== 0){                              // skip blitting spaces
+      const sx = (code % 16) * CW, sy = ((code / 16) | 0) * CH;
+      c.drawImage(a, sx, sy, CW, CH, x, y, CW * scale, CH * scale);
+    }
+    x += CW * scale;
+  }
+  return x;
+}
+const txtW = (s, scale) => s.length * CW * (scale || 1);
+function txtC(c, s, cx, y, colour, scale){      // centred
+  txt(c, s, Math.round(cx - txtW(s, scale) / 2), y, colour, scale);
+}
+
+
+/* ==================== 02_core.js ==================== */
+/* ---------- engine spine: canvas, timestep, input, dialogue ---------- */
+const VW = 320, VH = 240, STEP = 1 / 60;
+const UI = { BLACK:'#000000', WHITE:'#FFFFFF', DIM:'#B4B4B4', GHOST:'#5A5A5A',
+             SOUL:'#FF4444', GOLD:'#F5D648', BLOOD:'#6E1B1B', CYAN:'#59D8E6' };
+
+const view = document.getElementById('view');
+const vctx = view.getContext('2d');
+const buf  = document.createElement('canvas'); buf.width = VW; buf.height = VH;
+const ctx  = buf.getContext('2d', { alpha:false });
+
+let SCALE = 1;
+function nosmooth(c){
+  c.imageSmoothingEnabled = false;
+  c.webkitImageSmoothingEnabled = false;
+  c.mozImageSmoothingEnabled = false;
+  c.msImageSmoothingEnabled = false;
+}
+function resize(){
+  SCALE = Math.max(1, Math.floor(Math.min(innerWidth / VW, innerHeight / VH)));
+  view.width = VW * SCALE; view.height = VH * SCALE;
+  view.style.width = (VW * SCALE) + 'px'; view.style.height = (VH * SCALE) + 'px';
+  nosmooth(vctx); nosmooth(ctx);
+}
+addEventListener('resize', resize);
+
+/* ---------- input ---------- */
+const KEYMAP = {
+  ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right',
+  KeyW:'up', KeyS:'down', KeyA:'left', KeyD:'right',
+  KeyZ:'ok', Enter:'ok', KeyX:'no', ShiftLeft:'no', ShiftRight:'no',
+  Backspace:'undo', KeyC:'menu', Escape:'pause', KeyM:'mute', KeyG:'ghost',
+  KeyF:'fill', KeyQ:'dither', Tab:'peek', Space:'ok',
+  Digit1:'s1', Digit2:'s2', Digit3:'s3', Digit4:'s4',
+  Digit5:'s5', Digit6:'s6', Digit7:'s7', Digit8:'s8',
+  BracketLeft:'brushdn', BracketRight:'brushup',
+  Comma:'shadedn', Period:'shadeup', KeyE:'mirror', KeyR:'sig',
+};
+const held = {}, pressed = {}, buffered = {};
+const BUFFER = 0.12;
+let anyKeyYet = false;
+
+function down(a){ return !!held[a]; }
+function hit(a){                                  // consumes a buffered press
+  if (buffered[a] > 0){ buffered[a] = 0; return true; }
+  return false;
+}
+function peekHit(a){ return buffered[a] > 0; }
+function clearHits(){ for (const k in buffered) buffered[k] = 0; }
+
+addEventListener('keydown', e => {
+  const a = KEYMAP[e.code];
+  if (a === 'peek' || e.code === 'Space' || e.code.startsWith('Arrow') ||
+      e.code === 'KeyZ' || e.code === 'KeyX' || e.code === 'Enter' ||
+      e.code === 'Backspace') e.preventDefault();
+  if (!anyKeyYet){ anyKeyYet = true; document.getElementById('boot').className = 'gone';
+                   Audio_.start(); }
+  if (e.repeat) return;                           // ignore auto-repeat entirely
+  if (!a) return;
+  held[a] = true; pressed[a] = true; buffered[a] = BUFFER;
+  if (a === 'left' || a === 'right' || a === 'up' || a === 'down') dirPush(a);
+  if (a === 'mute') Audio_.toggleMute();
+});
+addEventListener('keyup', e => {
+  const a = KEYMAP[e.code]; if (!a) return;
+  held[a] = false;
+  if (a === 'left' || a === 'right' || a === 'up' || a === 'down') dirPop(a);
+});
+addEventListener('blur', () => { for (const k in held) held[k] = false; dirStack.length = 0; });
+
+/* facing follows the press-order stack */
+const dirStack = [];
+function dirPush(d){ const i = dirStack.indexOf(d); if (i >= 0) dirStack.splice(i,1); dirStack.push(d); }
+function dirPop(d){ const i = dirStack.indexOf(d); if (i >= 0) dirStack.splice(i,1); }
+function topDir(){ return dirStack.length ? dirStack[dirStack.length-1] : null; }
+
+function axis(){
+  let ax = (down('right') ? 1 : 0) - (down('left') ? 1 : 0);
+  let ay = (down('down')  ? 1 : 0) - (down('up')   ? 1 : 0);
+  if (ax && ay){ ax *= 0.70711; ay *= 0.70711; }
+  return [ax, ay];
+}
+
+/* ---------- primitives (no strokeRect, no gradients, no blur) ---------- */
+function rect(c,x,y,w,h,col){ c.fillStyle = col; c.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h)); }
+function frame(c,x,y,w,h,t,col){                  // border as four fillRects
+  x=Math.round(x); y=Math.round(y); w=Math.round(w); h=Math.round(h);
+  rect(c,x,y,w,t,col); rect(c,x,y+h-t,w,t,col);
+  rect(c,x,y+t,t,h-2*t,col); rect(c,x+w-t,y+t,t,h-2*t,col);
+}
+function panel(c,x,y,w,h,t,col){ rect(c,x,y,w,h,UI.BLACK); frame(c,x,y,w,h,t,col||UI.WHITE); }
+
+/* 17-step ordered-dither wash, baked once — never globalAlpha */
+const BAYER = [ 0, 8, 2,10, 12, 4,14, 6, 3,11, 1, 9, 15, 7,13, 5 ];
+const DITHER = [];
+function bakeDither(){
+  for (let s = 0; s <= 16; s++){
+    const cv = document.createElement('canvas'); cv.width = 4; cv.height = 4;
+    const c = cv.getContext('2d'); c.fillStyle = '#000';
+    for (let i = 0; i < 16; i++) if (BAYER[i] < s) c.fillRect(i % 4, (i / 4) | 0, 1, 1);
+    DITHER.push(c.createPattern(cv, 'repeat'));
+  }
+}
+function wash(c, step){                            // step 0..16 of blackness
+  step = Math.max(0, Math.min(16, Math.round(step)));
+  if (!step) return;
+  if (step >= 16){ rect(c,0,0,VW,VH,UI.BLACK); return; }
+  c.fillStyle = DITHER[step]; c.fillRect(0,0,VW,VH);
+}
+
+/* ---------- screen shake ---------- */
+let shakeAmp = 0, shakeT = 0, shakeX = 0, shakeY = 0, shakeAcc = 0;
+function shake(amp){ shakeAmp = Math.max(shakeAmp, amp); shakeT = 0.25; }
+function shakeUpdate(dt){
+  if (shakeT <= 0){ shakeX = shakeY = 0; shakeAmp = 0; return; }
+  shakeT -= dt; shakeAcc += dt;
+  if (shakeAcc >= 1/30){
+    shakeAcc = 0;
+    const a = shakeAmp * Math.max(0, shakeT / 0.25);
+    shakeX = Math.round(a * (Math.random()*2-1));
+    shakeY = Math.round(a * (Math.random()*2-1));
+  }
+}
+
+/* ---------- hitstop ---------- */
+let hitstop = 0;
+const freeze = t => { hitstop = Math.max(hitstop, t); };
+
+/* ---------- typewriter dialogue ---------- */
+const BOX = { x:16, y:152, w:288, h:72, tx:28, ty:163, lh:14, lines:3, wrap:44, cwrap:42 };
+const Dlg = {
+  pages:[], page:0, lines:[], shown:0, total:0, acc:0, done:false, active:false,
+  rate:30, voice:null, lock:0, pause:0, chevron:0, onEnd:null, colour:UI.WHITE, mono:false,
+
+  wrap(s, bullet){
+    const out = [];
+    const first = bullet ? BOX.wrap : BOX.cwrap;
+    let words = s.split(' '), line = bullet ? '* ' : '';
+    const limit = () => (out.length === 0 && bullet) ? first : BOX.cwrap;
+    for (const w of words){
+      const cand = line.length ? line + ' ' + w : (out.length===0&&bullet ? '* ' + w : w);
+      if (cand.length > limit() && line.length){ out.push(line); line = w; }
+      else line = cand;
+    }
+    if (line.length) out.push(line);
+    return out;
+  },
+  queue(pages, opts){
+    opts = opts || {};
+    this.pages = pages.map(p => typeof p === 'string' ? { t:p } : p);
+    this.page = -1; this.active = true; this.onEnd = opts.onEnd || null;
+    this.voice = opts.voice || VOICE.plain;
+    this.colour = opts.colour || UI.WHITE;
+    this.mono = !!opts.mono;                        // lowercase inner monologue
+    this.rate = opts.rate || (this.mono ? 24 : 30);
+    this.next();
+  },
+  next(){
+    this.page++;
+    if (this.page >= this.pages.length){
+      this.active = false;
+      const f = this.onEnd; this.onEnd = null; if (f) f();
+      return;
+    }
+    const p = this.pages[this.page];
+    this.lines = this.wrap(p.t, !this.mono);
+    if (this.lines.length > BOX.lines) this.lines = this.lines.slice(0, BOX.lines);
+    this.total = this.lines.reduce((a,l) => a + l.length, 0);
+    this.shown = 0; this.acc = 0; this.done = false; this.chevron = 0; this.pause = 0;
+    if (p.voice) this.voice = p.voice;
+  },
+  update(dt){
+    if (!this.active) return;
+    if (this.lock > 0) this.lock -= dt;
+    const fast = down('ok') || down('no');
+    if (this.pause > 0){ this.pause -= dt * (fast ? 4 : 1); return; }
+    if (!this.done){
+      const rate = this.rate * (fast ? 4 : 1);
+      this.acc += dt;
+      while (this.acc >= 1 / rate && !this.done){
+        this.acc -= 1 / rate;
+        const ch = this.charAt(this.shown);
+        this.shown++;
+        if (this.shown >= this.total){ this.done = true; break; }
+        if (ch !== ' '){
+          if (!fast || this.shown % 3 === 0) Audio_.blip(this.voice);
+        }
+        const nx = this.charAt(this.shown);
+        if (nx === ' ' || nx === undefined){
+          if (ch === ',') this.pause = 0.08;
+          else if (ch === ';' || ch === ':') this.pause = 0.10;
+          else if (ch === '.' || ch === '!' || ch === '?') this.pause = 0.16;
+        }
+        if (this.pause > 0) break;
+      }
+    } else {
+      this.chevron += dt;
+      if (hit('ok') && this.lock <= 0) this.next();
+    }
+    if (!this.done && hit('ok') && this.lock <= 0){
+      this.shown = this.total; this.done = true; this.lock = 0.12;
+    }
+  },
+  charAt(i){
+    let n = 0;
+    for (const l of this.lines){
+      if (i < n + l.length) return l[i - n];
+      n += l.length;
+    }
+    return undefined;
+  },
+  draw(c){
+    if (!this.active) return;
+    panel(c, BOX.x, BOX.y, BOX.w, BOX.h, 2, UI.WHITE);
+    let n = 0;
+    for (let li = 0; li < this.lines.length; li++){
+      const l = this.lines[li];
+      const vis = Math.max(0, Math.min(l.length, this.shown - n));
+      const indent = (li > 0 && !this.mono) ? 12 : 0;
+      txt(c, l.slice(0, vis), BOX.tx + indent, BOX.ty + li * BOX.lh, this.colour);
+      n += l.length;
+    }
+    if (this.done && this.chevron > 0.25){
+      const bob = [0,0,1,2,2,1][Math.floor(this.chevron / 0.1) % 6];
+      const y = 211 + bob;
+      rect(c, 288, y,   7, 1, UI.WHITE);
+      rect(c, 289, y+1, 5, 1, UI.WHITE);
+      rect(c, 290, y+2, 3, 1, UI.WHITE);
+      rect(c, 291, y+3, 1, 1, UI.WHITE);
+    }
+  }
+};
+
+
+/* ==================== 03_palette.js ==================== */
+/* ---------- the 32-colour world palette (index = ramp*4 + value) ---------- */
+const RAMPS = ['BRICK','OCHRE','MOSS','TEAL','SLATE','PLUM','SUGAR','PAPER'];
+const PAL = [
+  '#3B1F1A','#6E3A2C','#A85C3E','#D18C63',   // BRICK
+  '#3A2E12','#6E5A22','#A88A38','#D8BE66',   // OCHRE
+  '#16281A','#2C4A2E','#4E7C47','#86AF63',   // MOSS
+  '#10262A','#1F4A50','#357C82','#6FB2B4',   // TEAL
+  '#14161C','#2C313D','#4E5666','#838C9E',   // SLATE
+  '#241428','#46264E','#6E3E7C','#A272B0',   // PLUM
+  '#4A1F3A','#8A3763','#C2618E','#F0A0BE',   // SUGAR
+  '#9C948A','#C7C0B2','#E8E4DA','#FFFFFF',   // PAPER
+];
+const WHITE_IDX = 31;                          // the unpainted Blank
+const SHADEWORD = ['DEEP','SHADE','MID','LIGHT'];
+const palName = i => RAMPS[i >> 2] + ' ' + (i & 3);
+
+/* rgb + luminance per index */
+const RGB = PAL.map(h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]);
+const LUM = RGB.map(([r,g,b]) => 0.299*r + 0.587*g + 0.114*b);
+
+/* ramp similarity, hand-authored, symmetric */
+const RS_RAW = [
+//BRICK OCHRE MOSS  TEAL  SLATE PLUM  SUGAR PAPER
+  [1.00, 0.55, 0.12, 0.05, 0.10, 0.35, 0.30, 0.18],
+  [0.55, 1.00, 0.35, 0.08, 0.10, 0.12, 0.18, 0.28],
+  [0.12, 0.35, 1.00, 0.45, 0.22, 0.06, 0.05, 0.12],
+  [0.05, 0.08, 0.45, 1.00, 0.50, 0.15, 0.08, 0.14],
+  [0.10, 0.10, 0.22, 0.50, 1.00, 0.30, 0.18, 0.40],
+  [0.35, 0.12, 0.06, 0.15, 0.30, 1.00, 0.60, 0.16],
+  [0.30, 0.18, 0.05, 0.08, 0.18, 0.60, 1.00, 0.30],
+  [0.18, 0.28, 0.12, 0.14, 0.40, 0.16, 0.30, 1.00],
+];
+const VSTEP = [1.00, 0.72, 0.26, 0.00];
+
+const MATCH = new Float32Array(32 * 32);
+(function bakeMatch(){
+  for (let a = 0; a < 32; a++) for (let b = 0; b < 32; b++){
+    let m;
+    if (a === b) m = 1;
+    else {
+      m = VSTEP[Math.abs((a & 3) - (b & 3))] * RS_RAW[a >> 2][b >> 2];
+      if (m < 0.05) m = 0;
+    }
+    MATCH[a * 32 + b] = m;
+  }
+})();
+const matchRaw = (a,b) => MATCH[a * 32 + b];
+const match = (a,b,textured) => textured ? Math.min(1, MATCH[a*32+b] + 0.10) : MATCH[a*32+b];
+
+/* heat buckets for the results overlay */
+function heatColour(m){
+  if (m >= 0.95) return PAL[31];
+  if (m >= 0.70) return PAL[10];
+  if (m >= 0.40) return PAL[7];
+  return PAL[2];
+}
+
+/* palette assertions the smoke test enforces */
+function paletteAudit(){
+  const out = [];
+  out.push(['exact match is 1.00', matchRaw(13,13) === 1]);
+  let s = 0, n = 0;
+  for (let r = 0; r < 8; r++) for (let v = 0; v < 3; v++){ s += matchRaw(r*4+v, r*4+v+1); n++; }
+  const sameRamp = s / n;
+  out.push(['same-ramp dv=1 mean in [.66,.78] (' + sameRamp.toFixed(3) + ')', sameRamp >= 0.66 && sameRamp <= 0.78]);
+  s = 0; n = 0;
+  for (let r = 0; r < 7; r++) for (let v = 0; v < 4; v++){ s += matchRaw(r*4+v, (r+1)*4+v); n++; }
+  const adj = s / n;
+  out.push(['adjacent-ramp dv=0 mean in [.20,.58] (' + adj.toFixed(3) + ')', adj >= 0.20 && adj <= 0.58]);
+  s = 0; n = 0;
+  for (let a = 0; a < 32; a++) for (let b = 0; b < 32; b++)
+    if (RS_RAW[a>>2][b>>2] < 0.15){ s += matchRaw(a,b); n++; }
+  const far = n ? s / n : 0;
+  out.push(['far-ramp mean < .12 (' + far.toFixed(3) + ')', far < 0.12]);
+  out.push(['palette is 32 entries', PAL.length === 32]);
+  out.push(['index 31 is white', PAL[31] === '#FFFFFF']);
+  return out;
+}
+
+
+/* ==================== 04_art.js ==================== */
+/* ---------- scene baking: one wrapper fills pixels, indices and tags ---------- */
+const TAGNAMES = ['NOTHING'];
+function tagId(name){
+  let i = TAGNAMES.indexOf(name);
+  if (i < 0){ i = TAGNAMES.length; TAGNAMES.push(name); }
+  return i;
+}
+
+/* deterministic hash noise so scenes bake identically every time */
+function nz(x, y, seed){
+  let h = (x * 374761393 + y * 668265263 + (seed|0) * 1442695040888963407) | 0;
+  h = (h ^ (h >>> 13)) * 1274126177;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+class Scene {
+  constructor(w, h){
+    this.w = w; this.h = h;
+    this.cv = document.createElement('canvas'); this.cv.width = w; this.cv.height = h;
+    this.c = this.cv.getContext('2d', { alpha:false }); nosmooth(this.c);
+    this.idx = new Uint8Array(w * h).fill(WHITE_IDX);
+    this.tag = new Uint8Array(w * h);
+    this.solid = new Uint8Array(w * h);          // collision mask
+    this.tagStack = [0];
+  }
+  /* paint-fill: the ONLY way scene pixels are written */
+  pf(x, y, w, h, pi, tag){
+    x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
+    if (w <= 0 || h <= 0) return;
+    const t = tag === undefined ? this.tagStack[this.tagStack.length-1] : (typeof tag === 'string' ? tagId(tag) : tag);
+    this.c.fillStyle = PAL[pi];
+    this.c.fillRect(x, y, w, h);
+    const x0 = Math.max(0,x), x1 = Math.min(this.w, x+w);
+    const y0 = Math.max(0,y), y1 = Math.min(this.h, y+h);
+    for (let yy = y0; yy < y1; yy++){
+      const row = yy * this.w;
+      this.idx.fill(pi, row + x0, row + x1);
+      this.tag.fill(t, row + x0, row + x1);
+    }
+  }
+  px(x, y, pi, tag){ this.pf(x, y, 1, 1, pi, tag); }
+  under(tag, fn){ this.tagStack.push(typeof tag === 'string' ? tagId(tag) : tag); fn(this); this.tagStack.pop(); }
+  block(x, y, w, h){                              // collision only, no pixels
+    x = Math.max(0, Math.round(x)); y = Math.max(0, Math.round(y));
+    const x1 = Math.min(this.w, x + Math.round(w)), y1 = Math.min(this.h, y + Math.round(h));
+    for (let yy = y; yy < y1; yy++) this.solid.fill(1, yy * this.w + x, yy * this.w + x1);
+  }
+  at(x, y){
+    x = Math.max(0, Math.min(this.w-1, x|0)); y = Math.max(0, Math.min(this.h-1, y|0));
+    return this.idx[y * this.w + x];
+  }
+  tagAt(x, y){
+    x = Math.max(0, Math.min(this.w-1, x|0)); y = Math.max(0, Math.min(this.h-1, y|0));
+    return this.tag[y * this.w + x];
+  }
+  solidAt(x, y){
+    if (x < 0 || y < 0 || x >= this.w || y >= this.h) return 1;
+    return this.solid[(y|0) * this.w + (x|0)];
+  }
+
+  /* ---- texture helpers: no backdrop may be a flat rectangle ---- */
+  grain(x, y, w, h, base, alt, seed, density, tag){   // horizontal plank grain
+    this.pf(x, y, w, h, base, tag);
+    for (let yy = 0; yy < h; yy++){
+      if ((yy + (nz(0,yy,seed) * 3 | 0)) % 4) continue;
+      for (let xx = 0; xx < w; xx++)
+        if (nz(xx, yy, seed) < (density || 0.72)) this.px(x+xx, y+yy, alt, tag);
+    }
+  }
+  speck(x, y, w, h, base, alts, seed, density, tag){  // noisy stone / soil
+    this.pf(x, y, w, h, base, tag);
+    for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++){
+      const r = nz(x+xx, y+yy, seed);
+      if (r < density) this.px(x+xx, y+yy, alts[(r * 977 | 0) % alts.length], tag);
+    }
+  }
+  checker(x, y, w, h, a, b, cell, tag){
+    for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++)
+      this.px(x+xx, y+yy, ((((x+xx)/cell)|0) + (((y+yy)/cell)|0)) % 2 ? b : a, tag);
+  }
+  stripe(x, y, w, h, a, b, wid, tag){
+    for (let xx = 0; xx < w; xx++)
+      this.pf(x+xx, y, 1, h, (((x+xx)/wid)|0) % 2 ? b : a, tag);
+  }
+  bricks(x, y, w, h, faceA, faceB, mortar, bw, bh, seed, tag){
+    this.pf(x, y, w, h, mortar, tag);
+    for (let ry = 0; ry * bh < h; ry++){
+      const off = (ry % 2) * (bw >> 1);
+      for (let rx = -1; rx * bw < w + bw; rx++){
+        const bx = x + rx * bw + off + 1, by = y + ry * bh + 1;
+        const f = nz(rx, ry, seed) < 0.42 ? faceB : faceA;
+        const cx0 = Math.max(x, bx), cy0 = Math.max(y, by);
+        const cx1 = Math.min(x + w, bx + bw - 1), cy1 = Math.min(y + h, by + bh - 1);
+        if (cx1 > cx0 && cy1 > cy0) this.pf(cx0, cy0, cx1-cx0, cy1-cy0, f, tag);
+        // weathering, so no brick is ever a flat rectangle
+        for (let k = 0; k < 3; k++){
+          if (nz(rx, ry, seed + 7 + k*5) > 0.72) continue;
+          const wx = bx + 1 + (nz(rx, ry+k, seed+9) * (bw-3) | 0);
+          const wy = by + (nz(rx+k, ry, seed+11) * (bh-2) | 0);
+          if (wx >= x && wx < x+w && wy >= y && wy < y+h)
+            this.px(wx, wy, k === 2 ? mortar : (f === faceA ? faceB : faceA), tag);
+        }
+      }
+    }
+  }
+  vgrad(x, y, w, h, idxs, tag){                    // banded vertical ramp
+    const n = idxs.length;
+    for (let i = 0; i < n; i++){
+      const y0 = y + Math.floor(h * i / n), y1 = y + Math.floor(h * (i+1) / n);
+      this.pf(x, y0, w, y1-y0, idxs[i], tag);
+    }
+  }
+}
+
+
+/* ==================== 05_rooms.js ==================== */
+/* ---------- spots: cover rect in world px; 1 body cell = 1 world pixel ---------- */
+const MASK_SIZE = { STAND:[11,20], CURL:[15,14], LIE:[22,9], FLATTEN:[16,16] };
+
+function mkSpot(o){
+  const a = {};
+  for (const p in MASK_SIZE){
+    const [mw, mh] = MASK_SIZE[p];
+    const cx = o.coverX + (o.coverW - mw) / 2;
+    const cy = (p === 'FLATTEN') ? o.coverY + (o.coverH - mh) / 2
+                                 : o.coverY + o.coverH - mh;
+    a[p] = [Math.round(cx), Math.round(cy)];
+  }
+  o.anchors = a;
+  o.absurd = o.absurd || [];
+  o.textured = !!o.textured;
+  return o;
+}
+
+const ROOMS = {};
+
+/* ============================ THE HUB ============================ */
+ROOMS.HUB = {
+  name:'UNDERCOAT', label:'THE UNDERCOAT',
+  start:[160,180], hub:true,
+  build(s){
+    s.under('THE UNDERCOAT', () => {
+      s.bricks(0,0,320,152, 28,29,27, 16,10, 3);            // pale plaster wall
+      s.pf(0,148,320,6, 27);
+      s.speck(0,154,320,86, 17,[16,18], 5, 0.30, 'THE FLOOR');
+    });
+    // Sienna's shopfront (left)
+    s.under('SIENNA SHOPFRONT', () => {
+      s.pf(14,54,86,98, 21); s.pf(18,58,78,66, 23);
+      for (let i=0;i<5;i++) s.pf(22+i*15,62,11,58, 20+(i%4));
+      s.pf(14,126,86,26, 22); s.pf(20,132,74,4, 25);
+    });
+    // gallery wall (right) — six empty frames
+    s.under('GALLERY WALL', () => {
+      s.pf(196,44,112,88, 30);
+      for (let i=0;i<6;i++){
+        const fx = 202 + (i%3)*36, fy = 50 + ((i/3)|0)*44;
+        s.pf(fx,fy,30,36,29); s.pf(fx+2,fy+2,26,32,31);
+      }
+    });
+    // the door
+    s.under('THE DOOR', () => {
+      s.pf(136,64,48,88, 4); s.pf(140,68,40,80, 6);
+      s.grain(140,68,40,80, 6, 5, 12, 0.6, 'THE DOOR');
+      s.pf(174,106,4,6, 3);
+    });
+    s.block(14,54,86,98); s.block(196,44,112,88); s.block(136,64,48,88);
+    s.block(0,0,320,150);
+  },
+  props:[
+    { x:14, y:120, w:86, h:34, name:'SIENNA', talk:'SIENNA' },
+    { x:196, y:110, w:112, h:24, name:'GALLERY', talk:'GALLERY' },
+    { x:136, y:126, w:48, h:26, name:'DOOR', door:true },
+  ],
+  spots:[],
+};
+
+/* ============================ CH1 — THE ALLEY ============================ */
+ROOMS.CH1 = {
+  name:'UNDERCOAT ALLEY', label:'THE ALLEY', prep:75, target:60, looker:'BIB',
+  start:[160,196], maxhp:20,
+  build(s){
+    s.under('UNDERCOAT BRICK', () => s.bricks(0,0,320,158, 1,2,0, 18,11, 1));
+    s.under('THE MORTAR', () => { for (let y=10;y<158;y+=11) s.pf(0,y,320,1, 0); });
+    s.under('THE COBBLES', () => { s.speck(0,158,320,82, 16,[17,4,12], 2, 0.22);
+      for (let y=164;y<240;y+=9) s.pf(0,y,320,1, 12); });
+    // drainpipe
+    s.under('EAST GUTTER', () => {
+      s.pf(246,0,12,158, 17); s.pf(248,0,3,158, 19); s.pf(255,0,2,158, 16);
+      s.pf(244,44,16,7, 18); s.pf(244,112,16,7, 18);
+    });
+    // three bins
+    s.under('THE BINS', () => {
+      for (let i=0;i<3;i++){
+        const bx = 30 + i*30;
+        s.pf(bx,112,26,46, 13); s.pf(bx+2,114,22,42, 14);
+        s.pf(bx,106,26,8, 15); s.pf(bx+8,102,10,5, 13);
+        for (let k=0;k<5;k++) s.pf(bx+3,120+k*7,20,1, 12);
+      }
+    });
+    // flyer stack
+    s.under('THE FLYERS', () => {
+      for (let i=0;i<9;i++){
+        const fy = 96 + i*3, w = 34 - (i%3)*2;
+        s.pf(146+(i%2),fy,w,3, i%2?30:29);
+      }
+      s.pf(146,124,36,4, 28);
+    });
+    // doorstep + door
+    s.under('THE DOORSTEP', () => {
+      s.pf(190,60,52,98, 4); s.pf(194,64,44,88, 18);
+      s.grain(194,64,44,88, 18, 17, 4, 0.55, 'THE DOORSTEP');
+      s.pf(190,150,56,10, 30); s.pf(190,158,56,4, 29);
+    });
+    s.block(30,106,86,52); s.block(190,60,56,98); s.block(244,0,16,158); s.block(0,0,320,156);
+  },
+  waypoints:[[40,190],[150,206],[268,190],[150,178]],
+  props:[{ x:150, y:96, w:36, h:32, name:'FLYERS', talk:'CH1_FLYERS' },
+         { x:30, y:100, w:86, h:20, name:'BINS', talk:'CH1_BINS' }],
+  spots:[
+    mkSpot({ id:'WALL', name:'THE FLAT WALL', coverX:96, coverY:60, coverW:36, coverH:40,
+      wantShape:'CUBE', wantPose:'FLATTEN', exposure:3, textured:false, walk:[112,178],
+      tagline:'* JUST WALL. NOTHING TO HIDE BEHIND. NOTHING TO GET WRONG.' }),
+    mkSpot({ id:'BINS', name:'BEHIND THE BINS', coverX:58, coverY:112, coverW:30, coverH:44,
+      wantShape:'BLOB', wantPose:'CURL', exposure:1, textured:false, walk:[72,182], absurd:['STAND'],
+      tagline:'* THREE BINS AND A GAP. THE GAP IS THE POINT.' }),
+    mkSpot({ id:'PIPE', name:'AGAINST THE DRAINPIPE', coverX:242, coverY:56, coverW:22, coverH:46,
+      wantShape:'CUBE', wantPose:'STAND', exposure:4, textured:false, walk:[236,180],
+      tagline:'* A TALL DARK STRIPE. YOU COULD BE A TALL DARK STRIPE.' }),
+    mkSpot({ id:'FLYER', name:'IN THE FLYER STACK', coverX:146, coverY:98, coverW:36, coverH:28,
+      wantShape:'CUBE', wantPose:'LIE', exposure:2, textured:true, walk:[164,178], absurd:['STAND'],
+      tagline:'* PAPER. LOTS OF IT. NOBODY READS ANY OF IT.' }),
+    mkSpot({ id:'STEP', name:'ON THE DOORSTEP', coverX:196, coverY:128, coverW:32, coverH:30,
+      wantShape:'BLOB', wantPose:'CURL', exposure:5, textured:false, walk:[212,180],
+      tagline:'* THIS IS WHERE HE STOPS TO WRITE THINGS DOWN.' }),
+  ],
+};
+
+/* ============================ CH2 — THE POTTING SHED ============================ */
+ROOMS.CH2 = {
+  name:'THE POTTING SHED', label:'THE SHED', prep:70, target:65, looker:'TACKLE',
+  start:[160,200], maxhp:22,
+  build(s){
+    s.under('A PLANK THAT HELD', () => s.grain(0,0,320,150, 5,4, 21, 0.68));
+    for (let x=0;x<320;x+=54) s.under('THE UPRIGHT', () => s.pf(x,0,3,150, 3));
+    s.under('THE SHED FLOOR', () => s.speck(0,150,320,90, 4,[5,0], 22, 0.22));
+    // potting bench
+    s.under('POTTING BENCH', () => {
+      s.pf(16,116,120,8, 6); s.pf(16,124,6,34, 5); s.pf(130,124,6,34, 5);
+      s.grain(16,116,120,8, 6,5, 23, 0.7, 'POTTING BENCH');
+      for (let i=0;i<4;i++){ const px=24+i*28;
+        s.pf(px,100,20,16, 2); s.pf(px-2,97,24,5, 3); s.pf(px+3,102,14,9, 1); }
+    });
+    // seed trays
+    s.under('SIX HUNDRED BROWNS', () => {
+      s.pf(150,126,60,26, 4);
+      s.speck(152,128,56,22, 1,[0,5,4], 24, 0.5, 'SIX HUNDRED BROWNS');
+      for (let i=1;i<4;i++) s.pf(150+i*15,126,1,26, 5);
+    });
+    // tool rail
+    s.under('THE TOOL RAIL', () => {
+      s.pf(224,40,86,4, 17);
+      const tool=(x,h,c)=>{ s.pf(x,44,3,h,c); s.pf(x-3,44+h,9,5,c); };
+      tool(234,26,18); tool(252,34,19); tool(272,22,16); tool(292,30,18);
+    });
+    // sack pile
+    s.under('THE SACKS', () => {
+      for (let i=0;i<3;i++){ const sx=232+i*22, sy=118+(i%2)*10;
+        s.pf(sx,sy,26,34, 29); s.pf(sx+2,sy+2,22,30, 28);
+        s.speck(sx+2,sy+2,22,30, 28,[29,30], 25+i, 0.25, 'THE SACKS'); }
+    });
+    // the door
+    s.under('THE SHED DOOR', () => { s.pf(150,30,58,86, 5); s.grain(153,33,52,80, 6,4, 26, 0.6, 'THE SHED DOOR'); });
+    s.block(16,96,120,62); s.block(150,120,60,34); s.block(232,112,70,44); s.block(0,0,320,150);
+  },
+  waypoints:[[36,192],[152,210],[276,192],[160,176]],
+  props:[{ x:224, y:34, w:86, h:24, name:'RAIL', talk:'CH2_RAIL' }],
+  spots:[
+    mkSpot({ id:'PLANKS', name:'IN THE PLANK STACK', coverX:60, coverY:58, coverW:44, coverH:26,
+      wantShape:'CUBE', wantPose:'LIE', exposure:2, textured:true, walk:[80,178], absurd:['STAND'],
+      tagline:'* GRAIN GOES ACROSS. SO SHOULD YOU.' }),
+    mkSpot({ id:'SACKS', name:'UNDER THE SACKS', coverX:238, coverY:116, coverW:32, coverH:38,
+      wantShape:'BLOB', wantPose:'CURL', exposure:1, textured:true, walk:[252,182], absurd:['STAND'],
+      tagline:'* LUMPY. FORGIVING. BORING.' }),
+    mkSpot({ id:'BENCH', name:'ON THE BENCH', coverX:44, coverY:92, coverW:30, coverH:26,
+      wantShape:'BLOB', wantPose:'STAND', exposure:4, textured:true, walk:[58,176],
+      tagline:'* AMONG THE POTS. BE A POT.' }),
+    mkSpot({ id:'TOOLS', name:'ON THE TOOL RAIL', coverX:264, coverY:42, coverW:30, coverH:30,
+      wantShape:'CUBE', wantPose:'FLATTEN', exposure:5, textured:false, walk:[278,172],
+      tagline:'* HE HANGS THINGS HERE. HE CHECKS WHAT HE HUNG.' }),
+    mkSpot({ id:'TRAY', name:'IN A SEED TRAY', coverX:154, coverY:126, coverW:30, coverH:26,
+      wantShape:'BLOB', wantPose:'CURL', exposure:3, textured:true, walk:[168,182], absurd:['STAND'],
+      tagline:'* SOIL. SIX HUNDRED SHADES OF NEARLY-BROWN.' }),
+    mkSpot({ id:'DOOR', name:'FLAT ON THE DOOR', coverX:160, coverY:46, coverW:36, coverH:36,
+      wantShape:'CUBE', wantPose:'FLATTEN', exposure:3, textured:true, walk:[178,172],
+      tagline:'* THE DOOR IS PLANKS TOO. BUT VERTICAL.' }),
+  ],
+};
+
+/* ============================ CH3 — THE SUGAR PARLOUR ============================ */
+ROOMS.CH3 = {
+  name:'THE SUGAR PARLOUR', label:'THE PARLOUR', prep:65, target:70, looker:'FONDANT',
+  start:[160,204], maxhp:24,
+  build(s){
+    s.under('SUGAR STRIPE', () => s.stripe(0,0,320,140, 27,26, 5));
+    s.under('THE PICTURE RAIL', () => { s.pf(0,138,320,5, 25); s.pf(0,143,320,2, 24); });
+    s.under('THE CHECKED FLOOR', () => s.checker(0,145,320,95, 30,25, 8));
+    // cake stand
+    s.under('THE CAKE STAND', () => {
+      s.pf(44,104,44,5, 31); s.pf(62,109,8,26, 30); s.pf(48,133,36,6, 31);
+      s.pf(50,84,32,20, 28); s.pf(54,80,24,6, 31);
+      for (let i=0;i<4;i++) s.pf(54+i*7,88,4,10, 29);
+    });
+    // booth
+    s.under('THE BOOTH', () => {
+      s.pf(214,92,96,52, 21); s.pf(218,96,88,44, 22);
+      for (let i=0;i<7;i++) s.pf(220+i*12,96,2,44, 21);
+      s.pf(214,138,96,8, 20);
+    });
+    // jar shelf
+    s.under('THE JAR SHELF', () => {
+      s.pf(120,58,84,5, 25);
+      for (let i=0;i<5;i++){ const jx=124+i*16;
+        s.pf(jx,36,12,22, 15); s.pf(jx+2,38,8,18, 14); s.pf(jx+1,32,10,5, 30); }
+    });
+    // menu board
+    s.under('CHALK ON NEARLY-BLACK', () => {
+      s.pf(226,26,74,52, 21); s.pf(230,30,66,44, 20);
+      for (let i=0;i<5;i++) s.pf(236,36+i*8, 20+((i*13)%34), 1, 30);
+    });
+    s.block(44,80,44,60); s.block(214,88,96,58); s.block(120,54,84,10); s.block(0,0,320,145);
+  },
+  waypoints:[[40,200],[150,216],[280,196],[160,182]],
+  props:[{ x:226, y:26, w:74, h:52, name:'MENU', talk:'CH3_MENU' }],
+  spots:[
+    mkSpot({ id:'STRIPE', name:'AGAINST THE STRIPES', coverX:100, coverY:80, coverW:34, coverH:38,
+      wantShape:'CUBE', wantPose:'FLATTEN', exposure:3, textured:false, walk:[116,178],
+      tagline:'* THE STRIPES ARE FIVE CELLS WIDE. COUNT THEM.' }),
+    mkSpot({ id:'CAKE', name:'ON THE CAKE STAND', coverX:50, coverY:82, coverW:32, coverH:24,
+      wantShape:'BLOB', wantPose:'CURL', exposure:5, textured:false, walk:[66,176], absurd:['STAND','LIE'],
+      tagline:'* A DOME UNDER GLASS. HE LOOKS HERE FIRST. HE ALWAYS LOOKS HERE FIRST.' }),
+    mkSpot({ id:'BOOTH', name:'IN THE BOOTH SEAT', coverX:230, coverY:100, coverW:36, coverH:32,
+      wantShape:'BLOB', wantPose:'LIE', exposure:1, textured:true, walk:[248,182], absurd:['STAND'],
+      tagline:'* VELVET. NOBODY HAS SAT HERE IN A DECADE.' }),
+    mkSpot({ id:'JARS', name:'ON THE JAR SHELF', coverX:156, coverY:34, coverW:26, coverH:26,
+      wantShape:'CUBE', wantPose:'STAND', exposure:4, textured:false, walk:[168,170],
+      tagline:'* BE A JAR. JARS ARE CYLINDERS. YOU ARE NOT. TRY ANYWAY.' }),
+    mkSpot({ id:'FLOOR', name:'ON THE CHECKED FLOOR', coverX:132, coverY:186, coverW:40, coverH:24,
+      wantShape:'CUBE', wantPose:'LIE', exposure:2, textured:false, walk:[152,214], absurd:['STAND'],
+      tagline:'* EIGHT-PIXEL CHECKS. GET THE PHASE RIGHT OR DO NOT BOTHER.' }),
+    mkSpot({ id:'SIGN', name:'BEHIND THE MENU BOARD', coverX:238, coverY:32, coverW:34, coverH:36,
+      wantShape:'CUBE', wantPose:'FLATTEN', exposure:2, textured:true, walk:[258,172],
+      tagline:'* CHALK DUST ON BLACK. NEARLY BLACK. NOT QUITE.' }),
+  ],
+};
+
+/* ============================ CH4 — THE DAMP ============================ */
+ROOMS.CH4 = {
+  name:'THE DAMP', label:'THE DAMP', prep:60, target:72, looker:'GRIT',
+  start:[160,200], maxhp:26,
+  build(s){
+    s.under('THE DAMP', () => s.speck(0,0,320,152, 16,[17,0,12], 31, 0.44));
+    s.under('THE COURSES', () => { for (let y=18;y<152;y+=22) s.pf(0,y,320,1, 12); });
+    s.under('THE WET FLOOR', () => s.speck(0,152,320,88, 12,[16,0], 32, 0.26));
+    // puddle
+    s.under('THE PUDDLE', () => {
+      s.pf(112,184,84,26, 13); s.pf(116,186,76,22, 14);
+      for (let i=0;i<7;i++) s.pf(122+i*10,190+((i*7)%12),6,1, 15);
+    });
+    // pipes
+    s.under('WET METAL', () => {
+      for (let i=0;i<2;i++){ const px=228+i*30;
+        s.pf(px,0,14,152, 17); s.pf(px+2,0,3,152, 19); s.pf(px+10,0,2,152, 16);
+        s.pf(px-2,58,18,8, 18); }
+    });
+    // coal heap
+    s.under('THE COAL', () => {
+      for (let i=0;i<26;i++){
+        const cx=24+((i*37)%76), cy=126+((i*23)%30), w=5+((i*11)%6);
+        s.pf(cx,cy,w,w-1, (i%7===0)?12:(i%3?0:16));
+      }
+      s.pf(20,152,90,8, 0);
+    });
+    // broken crate
+    s.under('SPLINTERS', () => {
+      s.pf(146,110,54,44, 4); s.pf(150,114,46,36, 5);
+      s.grain(150,114,46,36, 5,4, 33, 0.6, 'SPLINTERS');
+      s.pf(160,110,6,44, 0); s.pf(182,118,4,36, 0);
+    });
+    s.block(20,120,90,36); s.block(146,110,54,44); s.block(226,0,62,152); s.block(0,0,320,150);
+  },
+  waypoints:[[40,196],[160,214],[286,192],[150,178]],
+  props:[{ x:20, y:120, w:90, h:22, name:'COAL', talk:'CH4_COAL' }],
+  spots:[
+    mkSpot({ id:'STONE', name:'IN THE STONEWORK', coverX:60, coverY:52, coverW:36, coverH:38,
+      wantShape:'CUBE', wantPose:'FLATTEN', exposure:3, textured:true, walk:[78,176],
+      tagline:'* NOISE. GLORIOUS NOISE. FLAT COLOUR WILL DIE HERE.' }),
+    mkSpot({ id:'COAL', name:'IN THE COAL HEAP', coverX:44, coverY:124, coverW:34, coverH:30,
+      wantShape:'BLOB', wantPose:'CURL', exposure:2, textured:true, walk:[62,180], absurd:['STAND'],
+      tagline:'* BLACK, BLACK, BLACK AND ONE SURPRISING BLUE.' }),
+    mkSpot({ id:'PIPES', name:'BETWEEN THE PIPES', coverX:242, coverY:70, coverW:24, coverH:44,
+      wantShape:'CUBE', wantPose:'STAND', exposure:4, textured:false, walk:[254,178],
+      tagline:'* WET METAL. IT HAS A HIGHLIGHT. YOU WILL NEED ONE.' }),
+    mkSpot({ id:'PUDDLE', name:'LYING IN THE PUDDLE', coverX:126, coverY:186, coverW:44, coverH:22,
+      wantShape:'BLOB', wantPose:'LIE', exposure:5, textured:true, walk:[148,214], absurd:['STAND'],
+      tagline:'* HE WALKS THROUGH THIS. WITH BOOTS.' }),
+    mkSpot({ id:'CRATE', name:'IN THE BROKEN CRATE', coverX:152, coverY:116, coverW:34, coverH:32,
+      wantShape:'CUBE', wantPose:'CURL', exposure:1, textured:true, walk:[170,180],
+      tagline:'* SPLINTERS AND SHADOW. EASY. CHEAP.' }),
+  ],
+};
+
+/* ============================ CH5 — THE WHITE GALLERY ============================ */
+ROOMS.CH5 = {
+  name:'THE WHITE GALLERY', label:'THE GALLERY', prep:45, target:78, looker:'CURATOR',
+  start:[160,204], maxhp:32, finale:true,
+  build(s){
+    s.under('GALLERY WALL', () => s.pf(0,0,320,150, 31));
+    s.under('THE SHADOW BAND', () => { s.pf(0,52,320,3, 30); s.pf(0,55,320,1, 29); });
+    s.under('THE GALLERY FLOOR', () => {
+      s.pf(0,150,320,90, 30);
+      for (let i=0;i<6;i++) s.pf(0,152+i*15,320,1, 29);
+    });
+    s.under('EMPTY FRAME', () => {
+      for (let i=0;i<7;i++){ const fx=14+i*44;
+        s.pf(fx,64,34,44, 29); s.pf(fx+3,67,28,38, 28); s.pf(fx+5,69,24,34, 31);
+        s.pf(fx+10,112,14,3, 30); }
+    });
+    s.under('THE PLINTH', () => {
+      s.pf(136,120,48,34, 30); s.pf(140,116,40,6, 29); s.pf(144,122,32,28, 31);
+    });
+    s.block(136,116,48,38); s.block(0,0,320,150);
+  },
+  waypoints:[[40,196],[160,212],[286,192],[160,176]],
+  props:[],
+  spots:[
+    mkSpot({ id:'WHITE', name:'AGAINST THE WHITE WALL', coverX:196, coverY:80, coverW:36, coverH:40,
+      wantShape:'CUBE', wantPose:'FLATTEN', exposure:3, textured:false, walk:[214,176],
+      tagline:'* NOTHING. THERE IS NOTHING HERE TO MATCH.' }),
+    mkSpot({ id:'RAIL6', name:'UNDER THE PICTURE RAIL', coverX:250, coverY:40, coverW:34, coverH:24,
+      wantShape:'CUBE', wantPose:'FLATTEN', exposure:4, textured:false, walk:[266,170],
+      tagline:'* A BAND OF SHADOW. THREE PIXELS. ONE SHADE DOWN.' }),
+    mkSpot({ id:'FRAME', name:'INSIDE THE EMPTY FRAME', coverX:63, coverY:69, coverW:24, coverH:34,
+      wantShape:'CUBE', wantPose:'STAND', exposure:5, textured:false, walk:[76,172],
+      tagline:'* THERE IS A LABEL UNDER IT. THE LABEL IS BLANK.' }),
+    mkSpot({ id:'PLINTH', name:'ON THE PLINTH', coverX:144, coverY:122, coverW:32, coverH:28,
+      wantShape:'BLOB', wantPose:'CURL', exposure:5, textured:false, walk:[160,180], absurd:['LIE'],
+      tagline:'* HE PUT IT HERE THIS MORNING. FOR SOMETHING.' }),
+  ],
+};
+
+const CHAPTERS = ['CH1','CH2','CH3','CH4','CH5'];
+
+/* bake a room's three buffers once */
+const SCENES = {};
+function getScene(key){
+  if (!SCENES[key]){
+    const s = new Scene(VW, VH);
+    ROOMS[key].build(s);
+    SCENES[key] = s;
+  }
+  return SCENES[key];
+}
+
+
+/* ==================== 06_overworld.js ==================== */
+/* ---------- global run state ---------- */
+const G = {
+  st:'TITLE', chapter:0, room:'HUB',
+  px:160, py:190, facing:'down', animDist:0, animIdle:0, running:false,
+  shape:'BLOB', pose:'STAND', spot:null, spotIdx:0,
+  grid:null, gridW:0, gridH:0,
+  slots:new Uint8Array([31,31,31,31,31,31,31,31]), slot:0,
+  slotTag:['','','','','','','',''],
+  tags:new Set(), score:0, bars:null, prevSlot:1,
+  hp:20, maxhp:20, notice:0, style:0, streak:0,
+  prep:75, prepPenalty:false, coneHit:false,
+  passIdx:0, passes:2, rags:0, sigUnlocked:false,
+  chapterScores:[], grades:[], caught:0, bolted:false, shifted:false,
+  tool:{ size:1, mirror:false, dither:false }, ghostMode:1,
+  fade:0, fadeDir:0, fadeThen:null,
+  best:0, rivalRows:[], seenIntro:{},
+};
+
+/* ---------- fade helper ---------- */
+function fadeTo(fn, dur){
+  G.fadeDir = 1; G.fadeThen = fn; G.fadeDur = dur || 0.35; G.fadeT = 0;
+}
+function fadeUpdate(dt){
+  if (!G.fadeDir) return;
+  G.fadeT += dt;
+  const p = Math.min(1, G.fadeT / G.fadeDur);
+  if (G.fadeDir === 1){
+    G.fade = p * 16;
+    if (p >= 1){ const f = G.fadeThen; G.fadeThen = null; G.fadeDir = -1; G.fadeT = 0; if (f) f(); }
+  } else {
+    G.fade = (1 - p) * 16;
+    if (p >= 1){ G.fadeDir = 0; G.fade = 0; }
+  }
+}
+
+/* ---------- the Looker patrolling the room ---------- */
+const Looker = { x:0, y:0, wp:0, t:0, facing:'down', showPath:0, barked:false };
+function lookerInit(room){
+  const w = room.waypoints;
+  if (!w){ Looker.x = -99; Looker.y = -99; return; }
+  Looker.x = w[0][0]; Looker.y = w[0][1]; Looker.wp = 1; Looker.showPath = 1.5; Looker.barked = false;
+}
+function lookerUpdate(dt, room){
+  const w = room.waypoints; if (!w) return;
+  if (Looker.showPath > 0) Looker.showPath -= dt;
+  const t = w[Looker.wp];
+  const dx = t[0] - Looker.x, dy = t[1] - Looker.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 1.5){ Looker.wp = (Looker.wp + 1) % w.length; return; }
+  const sp = 40 * dt;
+  Looker.x += dx / d * sp; Looker.y += dy / d * sp;
+  Looker.facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+}
+/* 60-degree, 72px cone drawn on the floor */
+function inCone(x, y){
+  const dx = x - Looker.x, dy = y - Looker.y;
+  const d = Math.hypot(dx, dy);
+  if (d > 72 || d < 1) return false;
+  const fv = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] }[Looker.facing];
+  const dot = (dx/d) * fv[0] + (dy/d) * fv[1];
+  return dot > 0.866;                                  // half-angle 30 deg
+}
+function drawCone(c){
+  if (Looker.x < 0) return;
+  const fv = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] }[Looker.facing];
+  for (let r = 8; r < 72; r += 2){
+    const halfw = Math.round(r * 0.577);
+    for (let s = -halfw; s <= halfw; s += 2){
+      const px = Math.round(Looker.x + fv[0]*r - fv[1]*s);
+      const py = Math.round(Looker.y + fv[1]*r + fv[0]*s);
+      if ((px + py) % 4 === 0) rect(c, px, py, 1, 1, UI.GHOST);
+    }
+  }
+}
+function drawLooker(c){
+  if (Looker.x < 0) return;
+  const x = Math.round(Looker.x) - 7, y = Math.round(Looker.y) - 24;
+  const bob = Math.sin(performance.now() / 420) > 0 ? 0 : 1;
+  rect(c, x+1, y+bob, 13, 24, UI.BLACK);
+  rect(c, x+2, y+1+bob, 11, 22, UI.DIM);
+  rect(c, x+4, y+4+bob, 7, 5, UI.BLACK);
+  rect(c, x+5, y+5+bob, 2, 2, UI.WHITE);
+  rect(c, x+9, y+5+bob, 2, 2, UI.WHITE);
+  rect(c, x+3, y+14+bob, 9, 1, UI.BLACK);
+}
+
+/* ---------- the Blank's world sprite (baked from the paint grid) ---------- */
+let blankSprite = null, blankDirty = true;
+function bakeBlank(){
+  const m = maskFor(G.shape, G.pose);
+  const cv = document.createElement('canvas');
+  cv.width = m.w; cv.height = m.h;
+  const c = cv.getContext('2d'); nosmooth(c);
+  for (const cell of m.cells){
+    c.fillStyle = PAL[G.grid[cell.i]];
+    c.fillRect(cell.cx, cell.cy, 1, 1);
+  }
+  blankSprite = cv; blankDirty = false;
+}
+/* silhouette outline: only on boundary cells that differ from the world behind them */
+function drawBlank(c, wx, wy, scene, outline){
+  if (blankDirty) bakeBlank();
+  const m = maskFor(G.shape, G.pose);
+  c.drawImage(blankSprite, Math.round(wx), Math.round(wy));
+  if (!outline || !scene) return;
+  for (const cell of m.cells){
+    if (!cell.edge) continue;
+    const bx = Math.round(wx) + cell.cx, by = Math.round(wy) + cell.cy;
+    const mine = G.grid[cell.i];
+    // compare against the world pixel just outside the silhouette
+    for (const [ox,oy] of [[-1,0],[1,0],[0,-1],[0,1]]){
+      if (m.liveAt(cell.cx+ox, cell.cy+oy)) continue;
+      const wcol = scene.at(bx+ox, by+oy);
+      if (matchRaw(mine, wcol) < 0.55) rect(c, bx, by, 1, 1, PAL[mine]);
+    }
+  }
+}
+
+/* ---------- overworld ---------- */
+const OW = { hint:'', hintT:0, prompt:null };
+
+function enterRoom(key, spawn){
+  G.room = key;
+  const room = ROOMS[key];
+  getScene(key);
+  const st = spawn || room.start;
+  G.px = st[0]; G.py = st[1];
+  lookerInit(room);
+  OW.prompt = null;
+}
+
+function owUpdate(dt){
+  const room = ROOMS[G.room], scene = getScene(G.room);
+  if (Dlg.active){ Dlg.update(dt); return; }
+  if (room.waypoints) lookerUpdate(dt, room);
+
+  const [ax, ay] = axis();
+  G.running = down('no');
+  const sp = (G.running ? 160 : 90) * dt;
+  const d = topDir(); if (d) G.facing = d;
+
+  const feetW = 12, feetH = 8;
+  const canStand = (x, y) => {
+    const x0 = Math.round(x - feetW/2), y0 = Math.round(y - feetH);
+    for (let yy = y0; yy < y0 + feetH; yy++)
+      for (let xx = x0; xx < x0 + feetW; xx++)
+        if (scene.solidAt(xx, yy)) return false;
+    return x0 >= 0 && x0 + feetW <= VW && y0 >= 0 && y0 + feetH <= VH;
+  };
+  let nx = G.px + ax * sp, ny = G.py;
+  if (ax && canStand(nx, ny)) G.px = nx;
+  ny = G.py + ay * sp;
+  if (ay && canStand(G.px, ny)) G.py = ny;
+  if (ax || ay){ G.animDist += Math.abs(ax*sp) + Math.abs(ay*sp); G.animIdle = 0; }
+  else { G.animIdle += dt; }
+
+  // the Looker's cone costs prep time, once
+  if (room.waypoints && !G.coneHit && inCone(G.px, G.py - 6)){
+    G.coneHit = true;
+    OW.hint = '-15s  ' + (LOOKERS[room.looker] ? LOOKERS[room.looker].coneBark : 'SEEN.');
+    OW.hintT = 2.4;
+    Audio_.sfx('bad');
+  }
+
+  // interaction probe
+  OW.prompt = null;
+  const fv = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] }[G.facing];
+  const probe = { x: G.px - 6 + fv[0]*12, y: G.py - 12 + fv[1]*12, w:12, h:12 };
+  let best = null, bestOv = 0;
+  const cands = [];
+  for (const p of (room.props || [])) cands.push({ kind:'prop', r:p, p });
+  for (const s of (room.spots || [])) cands.push({ kind:'spot', r:{ x:s.walk[0]-9, y:s.walk[1]-16, w:18, h:18 }, p:s });
+  for (const cd of cands){
+    const ov = Math.max(0, Math.min(probe.x+probe.w, cd.r.x+cd.r.w) - Math.max(probe.x, cd.r.x)) *
+               Math.max(0, Math.min(probe.y+probe.h, cd.r.y+cd.r.h) - Math.max(probe.y, cd.r.y));
+    if (ov > bestOv){ bestOv = ov; best = cd; }
+  }
+  if (best) OW.prompt = best;
+
+  if (OW.hintT > 0) OW.hintT -= dt;
+
+  if (hit('ok') && best){
+    if (best.kind === 'spot'){ beginPrep(best.p); return; }
+    const p = best.p;
+    if (p.door){ enterChapterFromHub(); return; }
+    if (p.talk) talkProp(p.talk);
+  }
+}
+
+function owDraw(c){
+  const room = ROOMS[G.room], scene = getScene(G.room);
+  c.drawImage(scene.cv, 0, 0);
+  if (room.waypoints && Looker.showPath > 0){
+    const w = room.waypoints;
+    for (let i = 0; i < w.length; i++){
+      const a = w[i], b = w[(i+1) % w.length];
+      const steps = Math.hypot(b[0]-a[0], b[1]-a[1]) / 5 | 0;
+      for (let k = 0; k <= steps; k++){
+        if (k % 2) continue;
+        rect(c, a[0] + (b[0]-a[0]) * k/steps, a[1] + (b[1]-a[1]) * k/steps, 1, 1, UI.WHITE);
+      }
+    }
+  }
+  if (room.waypoints) drawCone(c);
+
+  // spot markers
+  for (const s of (room.spots || [])){
+    const on = OW.prompt && OW.prompt.kind === 'spot' && OW.prompt.p === s;
+    frame(c, s.coverX-1, s.coverY-1, s.coverW+2, s.coverH+2, 1, on ? UI.GOLD : UI.GHOST);
+  }
+
+  const m = maskFor(G.shape, G.pose);
+  drawBlank(c, G.px - m.w/2, G.py - m.h, scene, true);
+  if (room.waypoints) drawLooker(c);
+
+  // header
+  rect(c, 0, 0, VW, 10, UI.BLACK);
+  txt(c, room.label, 4, 2, UI.DIM);
+  if (!room.hub){
+    const t = Math.max(0, Math.ceil(G.prep));
+    txt(c, 'PREP ' + fmtClock(t), 240, 2, UI.WHITE);
+  }
+
+  if (OW.hintT > 0){ rect(c, 0, 226, VW, 12, UI.BLACK); txtC(c, OW.hint, 160, 228, UI.GOLD); }
+  else if (OW.prompt){
+    rect(c, 0, 226, VW, 12, UI.BLACK);
+    const p = OW.prompt;
+    const label = p.kind === 'spot' ? ('[Z] HIDE: ' + p.p.name) : ('[Z] ' + p.p.name);
+    txtC(c, label, 160, 228, UI.WHITE);
+  }
+  Dlg.draw(c);
+}
+
+const fmtClock = t => Math.floor(t/60) + ':' + String(Math.floor(t%60)).padStart(2,'0');
+
+
+/* ==================== 07_editor.js ==================== */
+/* ---------- body masks: 2 shapes x 4 poses, generated, then cached ---------- */
+const MASKS = {};
+function maskFor(shape, pose){
+  const key = shape + '_' + pose;
+  if (MASKS[key]) return MASKS[key];
+  const [w, h] = MASK_SIZE[pose];
+  const live = new Uint8Array(w * h);
+  const R = { STAND:[3,1], CURL:[6,2], LIE:[4,1], FLATTEN:[4,1] }[pose];
+  const r = shape === 'BLOB' ? R[0] : R[1];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+    let on = true;
+    const corners = [[r-1, r-1, x < r, y < r], [w-r, r-1, x >= w-r, y < r],
+                     [r-1, h-r, x < r, y >= h-r], [w-r, h-r, x >= w-r, y >= h-r]];
+    for (const [ccx, ccy, inx, iny] of corners){
+      if (inx && iny && Math.hypot(x - ccx, y - ccy) > r + 0.35) on = false;
+    }
+    if (shape === 'CUBE' && x === 0 && y === 0) on = false;      // 1-cell chamfer
+    if (shape === 'BLOB' && pose === 'STAND'){                    // narrow the head
+      if (y < 3 && (x < 2 || x >= w-2)) on = false;
+      if (y >= 4 && y <= 5 && (x === 0 || x === w-1)) on = false; // a suggestion of a neck
+    }
+    if (shape === 'BLOB' && pose === 'LIE' && y === 0 && (x < 3 || x >= w-3)) on = false;
+    live[y*w + x] = on ? 1 : 0;
+  }
+  const liveAt = (x,y) => (x < 0 || y < 0 || x >= w || y >= h) ? 0 : live[y*w + x];
+  const cells = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+    if (!live[y*w + x]) continue;
+    const edge = !liveAt(x-1,y) || !liveAt(x+1,y) || !liveAt(x,y-1) || !liveAt(x,y+1);
+    cells.push({ cx:x, cy:y, i:y*w + x, edge });
+  }
+  const m = { w, h, live, liveAt, cells, count:cells.length,
+              edges:cells.filter(c => c.edge).length };
+  MASKS[key] = m; return m;
+}
+
+/* ---------- the paint grid ---------- */
+function newGrid(shape, pose){
+  const m = maskFor(shape, pose);
+  return new Uint8Array(m.w * m.h).fill(WHITE_IDX);
+}
+function resampleGrid(oldGrid, oldShape, oldPose, shape, pose){
+  const a = maskFor(oldShape, oldPose), b = maskFor(shape, pose);
+  const out = new Uint8Array(b.w * b.h).fill(WHITE_IDX);
+  for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++){
+    const sx = Math.min(a.w-1, Math.round((x + 0.5) / b.w * a.w - 0.5));
+    const sy = Math.min(a.h-1, Math.round((y + 0.5) / b.h * a.h - 0.5));
+    out[y*b.w + x] = oldGrid[sy*a.w + sx];
+  }
+  return out;
+}
+function setPose(shape, pose){
+  if (G.grid) G.grid = resampleGrid(G.grid, G.shape, G.pose, shape, pose);
+  else G.grid = newGrid(shape, pose);
+  G.shape = shape; G.pose = pose;
+  const m = maskFor(shape, pose); G.gridW = m.w; G.gridH = m.h;
+  blankDirty = true;
+}
+/* the wall pixel under body cell (cx,cy) at the committed spot */
+function wallAt(cx, cy){
+  const sc = getScene(G.room), a = G.spot.anchors[G.pose];
+  return sc.at(a[0] + cx, a[1] + cy);
+}
+
+/* the animated white reset — the ritual at the top of every round */
+const Drain = { t:0, drops:[] };
+function whiteReset(){
+  const m = maskFor(G.shape, G.pose);
+  Drain.t = 0.8; Drain.drops = [];
+  for (let i = 0; i < 26; i++)
+    Drain.drops.push({ x: Math.random()*m.w, y: Math.random()*m.h,
+                       v: 26 + Math.random()*40, c: G.grid ? G.grid[(Math.random()*G.grid.length)|0] : 2 });
+  G.grid = newGrid(G.shape, G.pose);
+  blankDirty = true;
+  Audio_.sfx('drain');
+}
+
+/* ---------- editor ---------- */
+const ED = {
+  cx:0, cy:0, rep:0, meter:0, meterT:0, undo:[], painting:false,
+  lastX:0, lastY:0, peek:0, dropper:false, dx:0, dy:0, sampled:null, recent:[],
+};
+function edOpen(){
+  const m = maskFor(G.shape, G.pose);
+  ED.cx = m.w >> 1; ED.cy = m.h >> 1; ED.undo = []; ED.dropper = false;
+  ED.dx = G.spot.anchors[G.pose][0] + m.w/2; ED.dy = G.spot.anchors[G.pose][1] + m.h/2;
+  edMeter();
+}
+function edPushUndo(){
+  ED.undo.push(G.grid.slice());
+  if (ED.undo.length > 16) ED.undo.shift();
+}
+function edPaintAt(x, y, col){
+  const m = maskFor(G.shape, G.pose);
+  const sz = G.tool.size;
+  for (let oy = 0; oy < sz; oy++) for (let ox = 0; ox < sz; ox++){
+    const px = x + ox - ((sz-1) >> 1), py = y + oy - ((sz-1) >> 1);
+    if (!m.liveAt(px, py)) continue;
+    let c = col;
+    if (G.tool.dither) c = ((px + py) % 2) ? G.slots[G.prevSlot] : G.slots[G.slot];
+    G.grid[py*m.w + px] = c;
+    if (G.tool.mirror){
+      const mx = m.w - 1 - px;
+      if (m.liveAt(mx, py)) G.grid[py*m.w + mx] = G.tool.dither ? (((mx+py)%2) ? G.slots[G.prevSlot] : G.slots[G.slot]) : c;
+    }
+  }
+  blankDirty = true;
+}
+function edMeter(){
+  const s = computeScore();
+  ED.meter = Math.max(0, Math.min(5, Math.round(s.total / 20)));
+}
+
+function edUpdate(dt){
+  if (ED.dropper) return dropperUpdate(dt);
+  const m = maskFor(G.shape, G.pose);
+
+  if (hit('pause')){ closeEditor(); return; }
+  if (down('peek')) ED.peek = Math.min(1.2, ED.peek + dt); else ED.peek = Math.max(0, ED.peek - dt*3);
+
+  // cursor with auto-repeat
+  const dirs = [['left',-1,0],['right',1,0],['up',0,-1],['down',0,1]];
+  let moved = false;
+  for (const [k, dx, dy] of dirs){
+    if (hit(k)){ ED.cx += dx; ED.cy += dy; ED.rep = -0.14; moved = true; }
+  }
+  if (!moved){
+    let ax = (down('right')?1:0) - (down('left')?1:0);
+    let ay = (down('down')?1:0) - (down('up')?1:0);
+    if (ax || ay){
+      ED.rep += dt;
+      while (ED.rep >= 1/12){ ED.rep -= 1/12; ED.cx += ax; ED.cy += ay; moved = true; }
+    } else ED.rep = 0;
+  }
+  ED.cx = Math.max(0, Math.min(m.w-1, ED.cx));
+  ED.cy = Math.max(0, Math.min(m.h-1, ED.cy));
+
+  // paint (hold Z, interpolated so fast strokes leave no gaps)
+  if (down('ok')){
+    if (!ED.painting){ edPushUndo(); ED.painting = true; ED.lastX = ED.cx; ED.lastY = ED.cy; }
+    const steps = Math.max(1, Math.round(Math.hypot(ED.cx-ED.lastX, ED.cy-ED.lastY)));
+    for (let i = 1; i <= steps; i++){
+      edPaintAt(Math.round(ED.lastX + (ED.cx-ED.lastX)*i/steps),
+                Math.round(ED.lastY + (ED.cy-ED.lastY)*i/steps), G.slots[G.slot]);
+    }
+    ED.lastX = ED.cx; ED.lastY = ED.cy;
+    if (moved) Audio_.sfx('brush');
+  } else if (ED.painting){ ED.painting = false; }
+
+  if (hit('no')){ ED.dropper = true; Audio_.sfx('menu'); return; }
+
+  for (let i = 0; i < 8; i++) if (hit('s'+(i+1))){
+    if (i !== G.slot){ G.prevSlot = G.slot; G.slot = i; Audio_.sfx('menu'); }
+  }
+  if (hit('fill')){
+    edPushUndo();
+    if (down('no')){ for (const c of m.cells) G.grid[c.i] = G.slots[G.slot]; }   // BASE COAT
+    else floodFill(ED.cx, ED.cy, G.slots[G.slot]);
+    blankDirty = true; Audio_.sfx('fill');
+  }
+  if (hit('brushdn')) G.tool.size = Math.max(1, G.tool.size - 1);
+  if (hit('brushup')) G.tool.size = Math.min(3, G.tool.size + 1);
+  if (hit('mirror')) G.tool.mirror = !G.tool.mirror;
+  if (hit('dither')) G.tool.dither = !G.tool.dither;
+  if (hit('shadedn')){ const s = G.slots[G.slot]; G.slots[G.slot] = (s & ~3) | Math.max(0, (s&3)-1); }
+  if (hit('shadeup')){ const s = G.slots[G.slot]; G.slots[G.slot] = (s & ~3) | Math.min(3, (s&3)+1); }
+  if (hit('ghost')) G.ghostMode = (G.ghostMode + 1) % 3;
+  if (hit('undo') && ED.undo.length){ G.grid = ED.undo.pop(); blankDirty = true; Audio_.sfx('menu'); }
+
+  ED.meterT += dt;
+  if (ED.meterT >= 0.25){ ED.meterT = 0; edMeter(); }
+}
+function floodFill(x, y, col){
+  const m = maskFor(G.shape, G.pose);
+  const target = G.grid[y*m.w + x];
+  if (target === col) return;
+  const q = [[x,y]];
+  while (q.length){
+    const [cx, cy] = q.pop();
+    if (!m.liveAt(cx,cy)) continue;
+    if (G.grid[cy*m.w + cx] !== target) continue;
+    G.grid[cy*m.w + cx] = col;
+    q.push([cx-1,cy],[cx+1,cy],[cx,cy-1],[cx,cy+1]);
+  }
+}
+
+/* ---------- the eyedropper: the whole scene, a roaming crosshair ---------- */
+function dropperUpdate(dt){
+  const [ax, ay] = axis();
+  ED.dx = Math.max(0, Math.min(VW-1, ED.dx + ax * 176 * dt));
+  ED.dy = Math.max(0, Math.min(VH-1, ED.dy + ay * 176 * dt));
+  if (hit('ok')){
+    const sc = getScene(G.room);
+    const idx = sc.at(ED.dx, ED.dy), tg = sc.tagAt(ED.dx, ED.dy);
+    G.slots[G.slot] = idx;
+    G.slotTag[G.slot] = TAGNAMES[tg];
+    G.tags.add(TAGNAMES[tg]);
+    ED.sampled = { idx, tag:TAGNAMES[tg] };
+    ED.recent.unshift(idx); if (ED.recent.length > 8) ED.recent.pop();
+    Audio_.sfx('drop');
+  }
+  for (let i = 0; i < 8; i++) if (hit('s'+(i+1))){ G.prevSlot = G.slot; G.slot = i; Audio_.sfx('menu'); }
+  if (hit('no') || hit('pause')){ ED.dropper = false; Audio_.sfx('menu'); }
+}
+
+/* ---------- editor rendering ---------- */
+const CELL = 8, GX = 8, GY = 10;
+function edDraw(c){
+  rect(c, 0, 0, VW, VH, UI.BLACK);
+  if (ED.dropper) return dropperDraw(c);
+
+  const m = maskFor(G.shape, G.pose), sc = getScene(G.room), a = G.spot.anchors[G.pose];
+  const scale = Math.min(CELL, Math.floor(176 / m.w), Math.floor(160 / m.h));
+
+  // the wall patch behind the grid
+  if (G.ghostMode === 2 || G.ghostMode === 1)
+    c.drawImage(sc.cv, a[0], a[1], m.w, m.h, GX, GY, m.w*scale, m.h*scale);
+
+  for (const cell of m.cells){
+    const x = GX + cell.cx*scale, y = GY + cell.cy*scale;
+    const mine = G.grid[cell.i], wall = sc.at(a[0]+cell.cx, a[1]+cell.cy);
+    if (G.ghostMode === 0){ rect(c, x, y, scale, scale, PAL[mine]); }
+    else if (G.ghostMode === 1){
+      // WEAVE: 2px checker of your colour against the wall's
+      for (let yy = 0; yy < scale; yy += 2) for (let xx = 0; xx < scale; xx += 2)
+        rect(c, x+xx, y+yy, 2, 2, (((xx>>1)+(yy>>1)) % 2) ? PAL[wall] : PAL[mine]);
+    } else { /* WALL mode: leave the patch visible */ }
+  }
+  // cover rect + cursor
+  frame(c, GX-1, GY-1, m.w*scale+2, m.h*scale+2, 1, UI.GHOST);
+  const curX = GX + ED.cx*scale, curY = GY + ED.cy*scale;
+  frame(c, curX-1, curY-1, scale+2, scale+2, 1, UI.WHITE);
+  drawEmber(c, curX + scale/2, curY + scale/2, PAL[G.slots[G.slot]]);
+  if (G.tool.mirror){
+    const mx = GX + (m.w-1-ED.cx)*scale;
+    frame(c, mx-1, curY-1, scale+2, scale+2, 1, UI.GHOST);
+  }
+
+  // right-hand panel
+  panel(c, 192, 10, 32, 32, 2, UI.WHITE);
+  rect(c, 194, 12, 28, 28, PAL[G.slots[G.slot]]);
+  txt(c, 'SLOT ' + (G.slot+1), 228, 14, UI.WHITE);
+  txt(c, palName(G.slots[G.slot]), 228, 26, UI.DIM);
+  const tag = G.slotTag[G.slot] || 'MIXED BY HAND';
+  txt(c, tag.slice(0,21), 192, 46, UI.DIM);
+  txt(c, '/ ' + SHADEWORD[G.slots[G.slot] & 3], 192, 56, UI.DIM);
+
+  for (let i = 0; i < 8; i++){
+    const sx = 192 + (i%4)*16, sy = 70 + ((i/4)|0)*16;
+    rect(c, sx, sy, 14, 14, PAL[G.slots[i]]);
+    if (i === G.slot) frame(c, sx-1, sy-1, 16, 16, 1, UI.GOLD);
+    else frame(c, sx, sy, 14, 14, 1, UI.GHOST);
+  }
+  // coarse blend meter
+  for (let i = 0; i < 5; i++)
+    rect(c, 192+i*24, 110, 22, 8, i < ED.meter ? UI.GOLD : UI.BLOOD);
+  txt(c, fmtClock(Math.max(0, Math.ceil(G.prep))), 192, 124, UI.WHITE);
+  txt(c, ['BODY','WEAVE','WALL'][G.ghostMode], 232, 124, UI.CYAN);
+  txt(c, 'SIZE ' + G.tool.size, 192, 140, UI.DIM);
+  txt(c, 'MIRR ' + (G.tool.mirror?'ON':'OFF'), 192, 152, G.tool.mirror?UI.GOLD:UI.DIM);
+  txt(c, 'DITH ' + (G.tool.dither?'ON':'OFF'), 192, 164, G.tool.dither?UI.GOLD:UI.DIM);
+
+  // 1:1 preview of the real thing
+  panel(c, 248, 136, 60, 60, 2, UI.WHITE);
+  drawPreview(c, 250, 138, 56);
+
+  txt(c, 'Z PAINT  X DROPPER  F FILL  SH+F COAT', 8, 210, UI.DIM);
+  txt(c, 'G VIEW  E MIRROR  Q DITH  , . SHADE  ESC', 8, 222, UI.DIM);
+  if (ED.peek > 0) drawFullPreview(c);
+}
+function drawPreview(c, x, y, size){
+  const m = maskFor(G.shape, G.pose), sc = getScene(G.room), a = G.spot.anchors[G.pose];
+  const cx = a[0] + m.w/2, cy = a[1] + m.h/2;
+  const sx = Math.round(cx - size/2), sy = Math.round(cy - size/2);
+  c.save(); c.beginPath(); c.rect(x, y, size, size); c.clip();
+  c.drawImage(sc.cv, sx, sy, size, size, x, y, size, size);
+  if (blankDirty) bakeBlank();
+  c.drawImage(blankSprite, x + a[0] - sx, y + a[1] - sy);
+  c.restore();
+}
+function drawFullPreview(c){
+  const sc = getScene(G.room), a = G.spot.anchors[G.pose];
+  c.drawImage(sc.cv, 0, 0);
+  if (blankDirty) bakeBlank();
+  c.drawImage(blankSprite, a[0], a[1]);
+  txtC(c, 'RELEASE TAB', 160, 226, UI.DIM);
+}
+function dropperDraw(c){
+  const sc = getScene(G.room);
+  c.drawImage(sc.cv, 0, 0);
+  const m = maskFor(G.shape, G.pose), a = G.spot.anchors[G.pose];
+  if (blankDirty) bakeBlank();
+  c.drawImage(blankSprite, a[0], a[1]);
+  const x = Math.round(ED.dx), y = Math.round(ED.dy);
+  rect(c, x-2, y, 5, 1, UI.BLACK); rect(c, x, y-2, 1, 5, UI.BLACK);
+  rect(c, x-3, y, 2, 1, UI.WHITE); rect(c, x+2, y, 2, 1, UI.WHITE);
+  rect(c, x, y-3, 1, 2, UI.WHITE); rect(c, x, y+2, 1, 2, UI.WHITE);
+  // 3x3 magnified tile
+  const flip = x > 240, px = flip ? x - 66 : x + 10, py = Math.max(2, Math.min(VH-70, y - 28));
+  panel(c, px, py, 56, 56, 2, UI.WHITE);
+  for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++)
+    rect(c, px+3+(ox+1)*17, py+3+(oy+1)*17, 17, 17, PAL[sc.at(x+ox, y+oy)]);
+  const nm = TAGNAMES[sc.tagAt(x,y)];
+  rect(c, 0, 210, VW, 30, UI.BLACK);
+  txt(c, nm + ' / ' + SHADEWORD[sc.at(x,y)&3], 8, 212, UI.WHITE);
+  txt(c, 'Z SAMPLE INTO SLOT ' + (G.slot+1) + '   1-8 SLOT   X BACK', 8, 224, UI.DIM);
+  for (let i = 0; i < 8; i++){
+    const sx2 = 232 + (i%8)*11;
+    rect(c, sx2, 212, 9, 9, PAL[G.slots[i]]);
+    if (i === G.slot) frame(c, sx2-1, 211, 11, 11, 1, UI.GOLD);
+  }
+}
+/* the 7x7 ember: brush tip here, soul in the arena */
+const EMBER = ['...#...','..###..','.#####.','##.#.##','.#####.','..###..','...#...'];
+function drawEmber(c, cx, cy, col){
+  const x = Math.round(cx) - 3, y = Math.round(cy) - 3;
+  for (let r = 0; r < 7; r++) for (let q = 0; q < 7; q++){
+    if (EMBER[r][q] !== '#') continue;
+    rect(c, x+q, y+r, 1, 1, (r === 3 && q === 3) ? UI.WHITE : col);
+  }
+}
+
+
+/* ==================== 08_score.js ==================== */
+/* ---------- scoring: five bars, deterministic, no RNG ---------- */
+function stdev(arr){
+  if (!arr.length) return 0;
+  let m = 0; for (const v of arr) m += v; m /= arr.length;
+  let s = 0; for (const v of arr) s += (v - m) * (v - m);
+  return Math.sqrt(s / arr.length);
+}
+
+function computeScore(){
+  if (!G.spot || !G.grid) return { total:0, paint:0, texture:0, pose:0, spot:0, nerve:0, cellM:null };
+  const m = maskFor(G.shape, G.pose);
+  const sc = getScene(G.room), a = G.spot.anchors[G.pose], tex = G.spot.textured;
+
+  // 1. PAINT (50) — edge cells count triple
+  let num = 0, den = 0;
+  const cellM = new Float32Array(m.w * m.h).fill(-1);
+  const bodyL = [], wallL = [];
+  for (const cell of m.cells){
+    const wall = sc.at(a[0] + cell.cx, a[1] + cell.cy);
+    const mine = G.grid[cell.i];
+    const mv = match(mine, wall, tex);
+    cellM[cell.i] = mv;
+    const w = cell.edge ? 3 : 1;
+    num += w * mv; den += w;
+    bodyL.push(LUM[mine]); wallL.push(LUM[wall]);
+  }
+  const raw = den ? num / den : 0;                  // unclamped weighted match, 0..1
+  let paint = 50 * raw;
+  // flattening only helps if there is actually something to flatten:
+  // a single-colour base coat earns no craft bonus.
+  const distinct = new Set(); for (const cell of m.cells) distinct.add(G.grid[cell.i]);
+  if (G.pose === 'FLATTEN' && distinct.size > 1) paint *= 1.15;
+  paint = Math.min(50, paint);
+
+  // 2. TEXTURE (12) — does your roughness match the surface's?
+  // a flat body over a varied surface reads as a sticker — punish it hard
+  const texture = 12 * (1 - Math.min(1, Math.abs(stdev(bodyL) - stdev(wallL)) / 18));
+
+  // 3. POSE (20)
+  const poseFit = (G.shape === G.spot.wantShape && G.pose === G.spot.wantPose) ? 1.00
+                : (G.pose === G.spot.wantPose) ? 0.65
+                : (G.shape === G.spot.wantShape) ? 0.50 : 0.20;
+  const pose = 20 * poseFit;
+
+  // 4. SPOT (12) — plausibility: does your body actually fit here?
+  const sp = G.spot;
+  let overhang = 0;
+  overhang += Math.max(0, sp.coverX - a[0]);
+  overhang += Math.max(0, (a[0] + m.w) - (sp.coverX + sp.coverW));
+  overhang += Math.max(0, sp.coverY - a[1]);
+  overhang += Math.max(0, (a[1] + m.h) - (sp.coverY + sp.coverH));
+  const slack = (sp.coverW - m.w) + (sp.coverH - m.h);
+  let pl;
+  if (sp.absurd.indexOf(G.pose) >= 0) pl = 0.15;
+  else if (overhang > 2) pl = 0.15;
+  else if (overhang > 0 || slack > 26) pl = 0.60;
+  else pl = 1.00;
+  const spot = 12 * pl;
+
+  // 5. NERVE (6) — you get paid for choosing danger
+  const nerve = 6 * (sp.exposure / 5);
+
+  const total = Math.round(paint + texture + pose + spot + nerve);
+  return { total, paint, texture, pose, spot:spot, nerve, poseFit, pl, cellM, raw,
+           overhang, wantShape:sp.wantShape, wantPose:sp.wantPose };
+}
+
+const GRADES = [[92,'THE WALL ITSELF'],[80,'A'],[66,'B'],[50,'C'],[34,'D'],[-1,'IS THAT A GUY']];
+function gradeFor(s){ for (const [t, g] of GRADES) if (s >= t) return g; return 'IS THAT A GUY'; }
+const GRADEWORD = s => s >= 92 ? 'SEAMLESS' : s >= 80 ? 'CLOSE' : s >= 66 ? 'PASSABLE'
+                     : s >= 50 ? 'ROUGH' : s >= 34 ? 'OBVIOUS' : 'A WHITE SHAPE';
+
+/* which bar leaked the most points — drives the critique line and the bark */
+function worstCategory(b){
+  const loss = [['PAINT', 50 - b.paint], ['TEXTURE', 12 - b.texture], ['POSE', 20 - b.pose],
+                ['SPOT', 12 - b.spot], ['NERVE', 6 - b.nerve]];
+  loss.sort((x, y) => y[1] - x[1]);
+  return loss[0][0];
+}
+function critiqueLine(b){
+  const w = worstCategory(b);
+  if (w === 'PAINT')   return 'YOUR COLOUR IS THE PROBLEM. THE EDGES MOST OF ALL.';
+  if (w === 'TEXTURE') return b.texture < 6
+                              ? 'FLAT PAINT ON A ROUGH SURFACE. IT READS AS A STICKER.'
+                              : 'YOUR ROUGHNESS DOES NOT MATCH THIS SURFACE.';
+  if (w === 'POSE')    return 'WRONG SHAPE FOR THIS PLACE. TRY ' + b.wantShape + ' + ' + b.wantPose + '.';
+  if (w === 'SPOT')    return 'YOU DO NOT FIT HERE. PARTS OF YOU ARE SIMPLY OUT IN THE OPEN.';
+  return 'SAFE CHOICE. SAFE DOES NOT PAY.';
+}
+
+/* worst 5x5 window — the double-take zooms here */
+function worstWindow(){
+  const m = maskFor(G.shape, G.pose), b = computeScore();
+  let best = null, bestV = 2;
+  for (let y = 0; y <= m.h - 5; y++) for (let x = 0; x <= m.w - 5; x++){
+    let s = 0, n = 0;
+    for (let oy = 0; oy < 5; oy++) for (let ox = 0; ox < 5; ox++){
+      const v = b.cellM[(y+oy)*m.w + (x+ox)];
+      if (v >= 0){ s += v; n++; }
+    }
+    if (n < 6) continue;
+    const mean = s / n;
+    if (mean < bestV){ bestV = mean; best = { x, y, mean }; }
+  }
+  return best || { x:0, y:0, mean:1 };
+}
+
+
+/* ==================== 09_encounter.js ==================== */
+/* ---------- the encounter screen ---------- */
+const ARENA_STATES = {
+  MENU:[246,78], WIDE:[246,78], SQUARE:[94,94], TALL:[70,94], PINCH:[50,50]
+};
+const AR = {
+  cx:160, cy:140, iw:246, ih:78, tw:246, th:78,
+  soulX:160, soulY:140, iT:0, spawnFreeze:0,
+};
+function arenaSet(state, instant){
+  const [w, h] = ARENA_STATES[state];
+  AR.tw = w; AR.th = h;
+  if (instant){ AR.iw = w; AR.ih = h; }
+  AR.state = state;
+}
+function arenaStep(dt){
+  const rate = 180 * dt;
+  if (AR.iw !== AR.tw){ const d = Math.sign(AR.tw - AR.iw); AR.iw = Math.abs(AR.tw-AR.iw) <= rate ? AR.tw : AR.iw + d*rate; }
+  if (AR.ih !== AR.th){ const d = Math.sign(AR.th - AR.ih); AR.ih = Math.abs(AR.th-AR.ih) <= rate ? AR.th : AR.ih + d*rate; }
+  AR.iw = Math.max(40, Math.min(270, AR.iw)); AR.ih = Math.max(40, Math.min(94, AR.ih));
+  clampSoul();
+}
+function inner(){
+  const w = Math.round(AR.iw), h = Math.round(AR.ih);
+  return { x: Math.round(AR.cx - w/2), y: Math.round(AR.cy - h/2), w, h };
+}
+function clampSoul(){
+  const r = inner();
+  let lo = r.x + 3, hi = r.x + r.w - 3;
+  if (G.pose === 'FLATTEN'){                       // flattening halves your range
+    const q = r.w / 4; lo = r.x + q + 3; hi = r.x + r.w - q - 3;
+  }
+  AR.soulX = Math.max(lo, Math.min(hi, AR.soulX));
+  AR.soulY = Math.max(r.y + 3, Math.min(r.y + r.h - 3, AR.soulY));
+}
+function soulMove(dt){
+  const [ax, ay] = axis();
+  const sp = (down('no') ? 55 : 110) * dt;
+  const px = AR.soulX, py = AR.soulY;
+  AR.soulX += ax * sp; AR.soulY += ay * sp;
+  clampSoul();
+  return Math.hypot(AR.soulX - px, AR.soulY - py);
+}
+
+/* ---------- the 3x spot composite: the arena floor IS your paint job ---------- */
+let spotView = null, spotViewT = 0;
+function bakeSpotView(){
+  const m = maskFor(G.shape, G.pose), a = G.spot.anchors[G.pose], sc = getScene(G.room);
+  const pad = 46;
+  const sx = Math.max(0, a[0] - pad), sy = Math.max(0, a[1] - pad);
+  const sw = Math.min(VW - sx, m.w + pad*2), sh = Math.min(VH - sy, m.h + pad*2);
+  const cv = document.createElement('canvas');
+  cv.width = sw * 3; cv.height = sh * 3;
+  const c = cv.getContext('2d', { alpha:false }); nosmooth(c);
+  c.drawImage(sc.cv, sx, sy, sw, sh, 0, 0, sw*3, sh*3);
+  if (blankDirty) bakeBlank();
+  c.drawImage(blankSprite, 0, 0, m.w, m.h,
+              (a[0]-sx)*3, (a[1]-sy)*3, m.w*3, m.h*3);
+  spotView = { cv, sx, sy, bodyX:(a[0]-sx)*3, bodyY:(a[1]-sy)*3, bw:m.w*3, bh:m.h*3 };
+}
+function drawSpotView(c, r){
+  if (!spotView) bakeSpotView();
+  const bcx = spotView.bodyX + spotView.bw/2, bcy = spotView.bodyY + spotView.bh/2;
+  c.save(); c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
+  rect(c, r.x, r.y, r.w, r.h, UI.BLACK);
+  c.drawImage(spotView.cv, Math.round(r.x + r.w/2 - bcx), Math.round(r.y + r.h/2 - bcy));
+  c.restore();
+}
+/* map the soul's arena position back onto a body cell (for smudging) */
+function soulToCell(){
+  if (!spotView) bakeSpotView();
+  const r = inner();
+  const bcx = spotView.bodyX + spotView.bw/2, bcy = spotView.bodyY + spotView.bh/2;
+  const ox = Math.round(r.x + r.w/2 - bcx), oy = Math.round(r.y + r.h/2 - bcy);
+  const vx = AR.soulX - ox, vy = AR.soulY - oy;
+  return { cx: Math.floor((vx - spotView.bodyX) / 3), cy: Math.floor((vy - spotView.bodyY) / 3) };
+}
+
+/* ---------- buttons ---------- */
+const BTNS = ['PAINT','POSE','SPOT','HOLD'];
+const BTN_X = [15, 89, 163, 237];
+let btnSel = 3;
+function drawButtons(c, enabled){
+  for (let i = 0; i < 4; i++){
+    const x = BTN_X[i], y = 208, sel = i === btnSel;
+    const on = !enabled || enabled[i];
+    const col = !on ? UI.GHOST : sel ? UI.GOLD : UI.WHITE;
+    frame(c, x, y, 68, 28, 2, col);
+    txt(c, BTNS[i], x + 22, y + 11, col);
+    if (sel) drawEmber(c, x + 12, y + 14, UI.SOUL);
+  }
+}
+function buttonNav(enabled){
+  if (hit('left')){
+    for (let i = btnSel-1; i >= 0; i--) if (!enabled || enabled[i]){ btnSel = i; Audio_.sfx('menu'); break; }
+  }
+  if (hit('right')){
+    for (let i = btnSel+1; i < 4; i++) if (!enabled || enabled[i]){ btnSel = i; Audio_.sfx('menu'); break; }
+  }
+}
+
+/* ---------- generic submenu inside the arena ---------- */
+const SUB = { open:false, items:[], sel:0, title:'', onPick:null };
+function subOpen(title, items, onPick){
+  SUB.open = true; SUB.items = items; SUB.sel = 0; SUB.title = title; SUB.onPick = onPick;
+}
+function subUpdate(){
+  if (!SUB.open) return false;
+  const n = SUB.items.length;
+  if (hit('down')){ SUB.sel = (SUB.sel + 1) % n; Audio_.sfx('menu'); }
+  if (hit('up')){ SUB.sel = (SUB.sel - 1 + n) % n; Audio_.sfx('menu'); }
+  if (hit('right') && n > 3){ SUB.sel = Math.min(n-1, SUB.sel + Math.ceil(n/2)); Audio_.sfx('menu'); }
+  if (hit('left')  && n > 3){ SUB.sel = Math.max(0, SUB.sel - Math.ceil(n/2)); Audio_.sfx('menu'); }
+  if (hit('no')){ SUB.open = false; Audio_.sfx('back'); return true; }
+  if (hit('ok')){
+    const it = SUB.items[SUB.sel];
+    if (it.disabled){ Audio_.sfx('bad'); return true; }
+    SUB.open = false; Audio_.sfx('confirm');
+    if (SUB.onPick) SUB.onPick(it, SUB.sel);
+  }
+  return true;
+}
+function subDraw(c){
+  if (!SUB.open) return;
+  const r = inner();
+  rect(c, r.x, r.y, r.w, r.h, UI.BLACK);
+  txt(c, SUB.title, r.x + 10, r.y + 4, UI.DIM);
+  const half = Math.ceil(SUB.items.length / 2);
+  for (let i = 0; i < SUB.items.length; i++){
+    const col = i < half ? 0 : 1;
+    const row = i % half;
+    const x = r.x + 26 + col * (r.w/2 - 6), y = r.y + 16 + row * 14;
+    const it = SUB.items[i];
+    txt(c, it.label, x, y, it.disabled ? UI.GHOST : (i === SUB.sel ? UI.GOLD : UI.WHITE));
+    if (i === SUB.sel) drawEmber(c, x - 10, y + 3, UI.SOUL);
+  }
+}
+
+/* ---------- PREP ---------- */
+function beginPrep(spot){
+  G.spot = spot;
+  G.spotIdx = ROOMS[G.room].spots.indexOf(spot);
+  setPose(spot.wantShape === 'CUBE' ? 'CUBE' : 'BLOB', 'STAND');
+  whiteReset();
+  G.notice = 0; G.style = 0; G.streak = 0; G.bolted = false; G.shifted = false;
+  G.hp = G.maxhp;
+  btnSel = 3; arenaSet('MENU', true);
+  AR.soulX = 160; AR.soulY = 140;
+  spotView = null;
+  G.st = 'ENTRY'; G.entryT = 0;
+  if (!G.coneHit) { G.prep += 10; OW.hint = '+10s  UNSEEN'; OW.hintT = 2; }
+  Audio_.sfx('encounter');
+}
+function prepUpdate(dt){
+  if (Dlg.active){ Dlg.update(dt); return; }
+  if (SUB.open){ subUpdate(); return; }
+  arenaStep(dt);
+  G.prep -= dt;
+  if (G.prep <= 0){ G.prep = 0; commitHold(); return; }
+  buttonNav();
+  if (hit('ok')){
+    Audio_.sfx('confirm');
+    if (btnSel === 0){ G.st = 'EDITOR'; edOpen(); }
+    else if (btnSel === 1) openPoseMenu();
+    else if (btnSel === 2) openSpotMenu();
+    else commitHold();
+  }
+}
+function openPoseMenu(){
+  const items = [];
+  for (const sh of ['BLOB','CUBE']) for (const po of ['STAND','CURL','LIE','FLATTEN'])
+    items.push({ label: sh.slice(0,4) + ' ' + po, sh, po });
+  subOpen('SHAPE + POSE', items, it => {
+    setPose(it.sh, it.po); spotView = null;
+  });
+}
+function openSpotMenu(){
+  const items = ROOMS[G.room].spots.map(s => ({ label: s.name.slice(0,22), s }));
+  subOpen('MOVE TO', items, it => {
+    G.spot = it.s; G.spotIdx = ROOMS[G.room].spots.indexOf(it.s); spotView = null;
+  });
+}
+function commitHold(){
+  const b = computeScore();
+  G.bars = b; G.score = b.total;
+  bakeSpotView();
+  G.st = 'HOLDIN'; G.holdT = 0;
+  Audio_.sfx('commit');
+}
+
+function closeEditor(){ G.st = 'PREP'; spotView = null; Audio_.sfx('back'); }
+
+/* ---------- shared encounter chrome ---------- */
+function drawChrome(c, seekerName, showNotice){
+  rect(c, 0, 0, VW, VH, UI.BLACK);
+  txt(c, seekerName, 8, 6, UI.DIM);
+  if (showNotice){
+    txt(c, 'NOTICE ' + Math.round(G.notice), 8, 66, UI.WHITE);
+    rect(c, 8, 76, 88, 6, UI.BLOOD);
+    const w = Math.round(88 * G.notice / 100);
+    const flash = G.notice >= 85 && (frameCount % 4 < 2);
+    rect(c, 8, 76, w, 6, flash ? UI.WHITE : UI.GOLD);
+  } else {
+    txt(c, 'PREP ' + fmtClock(Math.max(0, Math.ceil(G.prep))), 8, 66, UI.WHITE);
+  }
+  txt(c, 'STYLE ' + G.style, 16, 196, UI.DIM);
+  txt(c, 'BLANK', 96, 196, UI.WHITE);
+  txt(c, 'HP', 152, 196, UI.WHITE);
+  rect(c, 170, 196, 96, 9, UI.BLOOD);
+  rect(c, 170, 196, Math.round(96 * Math.max(0,G.hp) / G.maxhp), 9, UI.GOLD);
+  txt(c, Math.max(0,Math.round(G.hp)) + '/' + G.maxhp, 272, 196, UI.WHITE);
+}
+function drawArenaFrame(c, withComposite){
+  const r = inner();
+  if (withComposite) drawSpotView(c, r); else rect(c, r.x, r.y, r.w, r.h, UI.BLACK);
+  frame(c, r.x - 5, r.y - 5, r.w + 10, r.h + 10, 5, UI.WHITE);
+}
+function drawSoul(c, hidden){
+  if (hidden) return;
+  if (AR.iT > 0 && Math.floor(AR.iT * 60 / 4) % 2) return;   // 4 on / 4 off
+  drawEmber(c, AR.soulX, AR.soulY, UI.SOUL);
+}
+
+function prepDraw(c){
+  drawChrome(c, LOOKERS[ROOMS[G.room].looker].name + '  —  PREPARING', false);
+  drawArenaFrame(c, true);
+  if (SUB.open) subDraw(c);
+  else {
+    const r = inner();
+    rect(c, r.x, r.y + r.h - 12, r.w, 12, UI.BLACK);
+    txt(c, G.spot.name + '   ' + G.shape + ' ' + G.pose, r.x + 6, r.y + r.h - 10, UI.DIM);
+  }
+  drawButtons(c);
+  Dlg.draw(c);
+}
+
+
+/* ==================== 10_sweep.js ==================== */
+/* ---------- the sweep: your camo score IS the difficulty dial ---------- */
+const SW = {
+  pass:0, passes:2, t:0, len:0, active:0, phase:'CMD',
+  motes:[], beams:[], telegraph:[], moteAcc:0, beamAcc:0,
+  moteEvery:1, beamCount:0, grey:false, stillT:0, nextCut:0,
+  steady:null, dropletFX:[], dmgFX:[], ko:0, koT:0, doubleT:0, worst:null,
+};
+
+function sweepBegin(){
+  const s = G.score;
+  const CERT = Math.max(5, Math.min(95, 100 - s));
+  SW.passes = 2 + Math.floor(CERT / 22);                 // 2..6
+  SW.pass = 0; SW.phase = 'CMD';
+  SW.motes = []; SW.beams = []; SW.telegraph = []; SW.dropletFX = []; SW.dmgFX = [];
+  SW.grey = s >= 70;
+  G.notice = Math.max(0, Math.min(40, (CERT - 45) * 0.6));
+  SW.ko = 0; SW.doubleT = 0;
+  AR.iT = 0;
+  arenaSet('MENU', true);
+  btnSel = 3;
+  G.st = 'SWEEP';
+  Audio_.music('sweep', 96 + (100 - s) * 0.6);
+}
+const PASS_LEN = [8.0, 8.0, 9.5, 9.5, 11.0, 11.0];
+const PASS_STATE = ['WIDE','WIDE','SQUARE','SQUARE','TALL','PINCH'];
+
+function passBegin(){
+  const s = G.score, CERT = Math.max(5, Math.min(95, 100 - s));
+  const len = PASS_LEN[Math.min(5, SW.pass)];
+  const threatTotal = Math.max(8, Math.min(40, 8 + 32 * (1 - s/100)));
+  let sum = 0; for (let i = 0; i < SW.passes; i++) sum += PASS_LEN[Math.min(5,i)];
+  SW.len = len;
+  SW.active = Math.min(len - 0.5, threatTotal * len / sum);
+  SW.t = 0; SW.moteAcc = 0; SW.beamAcc = 0;
+  SW.moteEvery = Math.max(0.22, 1.45 - CERT / 90) * (SW.perfectBonus ? 1.33 : 1);
+  SW.perfectBonus = false;
+  SW.beamCount = Math.round(1 + CERT / 28);
+  SW.speed = 0.70 + CERT / 120;
+  arenaSet(PASS_STATE[Math.min(5, SW.pass)]);
+  SW.phase = 'WAVE';
+  SW.telegraph.push({ t:0.45, x:inner().x + inner().w/2, side:'top' });
+}
+
+/* ---------- attacks ---------- */
+function spawnMote(heavy){
+  const r = inner();
+  const side = Math.floor(Math.random() * 4);
+  let x, y, vx, vy;
+  const sp = (heavy ? 34 : 52) * SW.speed;
+  if (side === 0){ x = r.x + Math.random()*r.w; y = r.y - 4; }
+  else if (side === 1){ x = r.x + r.w + 4; y = r.y + Math.random()*r.h; }
+  else if (side === 2){ x = r.x + Math.random()*r.w; y = r.y + r.h + 4; }
+  else { x = r.x - 4; y = r.y + Math.random()*r.h; }
+  // never spawn within 14px of the soul
+  if (Math.hypot(x - AR.soulX, y - AR.soulY) < 14) return;
+  const tx = r.x + 8 + Math.random() * (r.w - 16), ty = r.y + 8 + Math.random() * (r.h - 16);
+  const d = Math.hypot(tx - x, ty - y) || 1;
+  vx = (tx - x) / d * sp; vy = (ty - y) / d * sp;
+  SW.motes.push({ x, y, vx, vy, heavy, r: heavy ? 4 : 3, life: 6 });
+}
+function spawnBeam(){
+  const r = inner();
+  const vertical = Math.random() < 0.5;
+  SW.beams.push({ vertical, p: vertical ? r.x + 10 : r.y + 8,
+                  v: (vertical ? 26 : 18) * SW.speed * (Math.random() < 0.5 ? 1 : -1),
+                  life: 5.5, w: 3 });
+}
+
+function sweepUpdate(dt){
+  if (SW.ko > 0) return koUpdate(dt);
+  if (Dlg.active){ Dlg.update(dt); return; }
+  arenaStep(dt);
+
+  if (SW.phase === 'CMD'){ cmdUpdate(dt); return; }
+  if (SW.phase === 'STEADY'){ steadyUpdate(dt); return; }
+  if (SW.phase === 'DOUBLE'){ doubleUpdate(dt); return; }
+
+  // ---- WAVE ----
+  SW.t += dt;
+  if (AR.iT > 0) AR.iT -= dt;
+  if (AR.spawnFreeze > 0) AR.spawnFreeze -= dt;
+
+  const moved = soulMove(dt);
+  G.notice += moved * (down('no') ? 0.018 : 0.036);
+  if (moved < 0.01){ SW.stillT += dt; if (SW.stillT >= 1) G.notice -= 3 * dt; }
+  else SW.stillT = 0;
+
+  const threatOn = SW.t < SW.active;
+  if (threatOn && AR.spawnFreeze <= 0){
+    SW.moteAcc += dt;
+    while (SW.moteAcc >= SW.moteEvery){
+      SW.moteAcc -= SW.moteEvery;
+      spawnMote(Math.random() < 0.18 && G.score < 60);
+    }
+    SW.beamAcc += dt;
+    if (SW.beams.length < SW.beamCount && SW.beamAcc > 1.6){ SW.beamAcc = 0; spawnBeam(); }
+  }
+
+  const r = inner();
+  for (const m of SW.motes){
+    m.x += m.vx * dt; m.y += m.vy * dt; m.life -= dt;
+    if (m.x < r.x - 6 || m.x > r.x + r.w + 6) m.vx *= -1;
+    if (m.y < r.y - 6 || m.y > r.y + r.h + 6) m.vy *= -1;
+    if (AR.iT <= 0 && Math.abs(m.x - AR.soulX) < m.r + 2 && Math.abs(m.y - AR.soulY) < m.r + 2)
+      takeHit(m.heavy ? 4 : 3, m.heavy);
+  }
+  SW.motes = SW.motes.filter(m => m.life > 0);
+
+  for (const b of SW.beams){
+    b.p += b.v * dt; b.life -= dt;
+    const lim = b.vertical ? [r.x + 4, r.x + r.w - 4] : [r.y + 4, r.y + r.h - 4];
+    if (b.p < lim[0] || b.p > lim[1]) b.v *= -1;
+    // a beam over a badly-matched region raises notice
+    const cell = soulToCell();
+    const m = maskFor(G.shape, G.pose);
+    if (G.bars && cell.cx >= 0 && cell.cy >= 0 && cell.cx < m.w && cell.cy < m.h){
+      const mv = G.bars.cellM[cell.cy*m.w + cell.cx];
+      const onBeam = b.vertical ? Math.abs(AR.soulX - b.p) < 6 : Math.abs(AR.soulY - b.p) < 6;
+      if (onBeam && mv >= 0 && mv < 0.5){ G.notice += 8 * dt; G.style += Math.round(60 * dt); }
+    }
+  }
+  SW.beams = SW.beams.filter(b => b.life > 0);
+
+  for (const t of SW.telegraph) t.t -= dt;
+  SW.telegraph = SW.telegraph.filter(t => t.t > 0);
+  for (const d of SW.dropletFX){ d.y += 40*dt; d.t -= dt; }
+  SW.dropletFX = SW.dropletFX.filter(d => d.t > 0);
+  for (const d of SW.dmgFX) d.t -= dt;
+  SW.dmgFX = SW.dmgFX.filter(d => d.t > 0);
+
+  G.notice = Math.max(0, Math.min(100, G.notice));
+  if (G.notice >= 100 || G.hp <= 0) return startKO();
+
+  if (SW.t >= SW.len){
+    SW.motes = []; SW.beams = [];
+    SW.pass++;
+    if (SW.pass >= SW.passes){
+      if (G.score < 78){ beginDoubleTake(); }
+      else { G.st = 'REVEAL'; revealBegin(); }
+      return;
+    }
+    SW.phase = 'CMD'; arenaSet('MENU'); btnSel = 3;
+  }
+}
+
+function takeHit(dmg, heavy){
+  G.hp -= dmg; AR.iT = 1.10; AR.spawnFreeze = 0.35;
+  G.notice += heavy ? 14 : 10;
+  freeze(0.10); shake(3);
+  SW.dmgFX.push({ t:0.7, v:dmg, x:AR.soulX, y:AR.soulY });
+  Audio_.sfx('hurt');
+  smudge(heavy ? 8 : 5);
+}
+/* SMUDGE — damage lands on the painting, where your soul was standing */
+function smudge(n){
+  const m = maskFor(G.shape, G.pose);
+  const cell = soulToCell();
+  let cx = cell.cx, cy = cell.cy;
+  if (!m.liveAt(cx, cy)){                            // snap to the nearest live cell
+    let bd = 1e9;
+    for (const c of m.cells){ const d = Math.hypot(c.cx-cx, c.cy-cy); if (d < bd){ bd = d; cx = c.cx; cy = c.cy; } }
+  }
+  const hitCells = [];
+  const q = [[cx,cy]], seen = new Set();
+  while (q.length && hitCells.length < n){
+    const [x,y] = q.shift(); const k = y*m.w+x;
+    if (seen.has(k) || !m.liveAt(x,y)) continue;
+    seen.add(k);
+    if (G.grid[k] !== WHITE_IDX) hitCells.push(k);
+    q.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+  }
+  for (const k of hitCells){
+    G.grid[k] = WHITE_IDX;
+    SW.dropletFX.push({ x: AR.soulX + (Math.random()*8-4), y: AR.soulY, t:0.6 });
+  }
+  blankDirty = true;
+  const b = computeScore(); G.bars = b; G.score = b.total;
+  spotViewT = 0; bakeSpotView();
+}
+
+/* ---------- command phase between passes ---------- */
+function cmdUpdate(dt){
+  if (SUB.open){ subUpdate(); return; }
+  buttonNav();
+  if (!hit('ok')) return;
+  Audio_.sfx('confirm');
+  if (btnSel === 3){ beginSteady(); return; }
+  if (btnSel === 0){
+    subOpen('PAINT', [
+      { label:'TOUCH UP  +12 NOTICE', k:'touch' },
+      { label:'RAG  +9 HP  (' + G.rags + ')', k:'rag', disabled: G.rags <= 0 },
+    ], it => {
+      if (it.k === 'touch'){ G.notice += 12; G.st = 'TOUCHUP'; touchBegin(); }
+      else { G.rags--; G.hp = Math.min(G.maxhp, G.hp + 9); G.notice += 6; smudge(6); Audio_.sfx('heal'); }
+    });
+  } else if (btnSel === 1){
+    subOpen('POSE', [{ label: G.shifted ? 'SHIFT  (SPENT)' : 'SHIFT  +22 NOTICE', k:'shift', disabled:G.shifted }],
+      () => { G.shifted = true; G.notice += 22; openPoseMenuSweep(); });
+  } else {
+    const scramble = G.notice > 80;
+    subOpen('SPOT', [{ label: scramble ? 'SCRAMBLE  END ROUND' : 'BOLT  +30 NOTICE',
+                       k:'bolt', disabled: ROOMS[G.room].finale }], () => {
+      if (scramble){ G.score = Math.max(20, G.score - 25); G.st = 'REVEAL'; revealBegin(); }
+      else { G.notice += 30; openSpotMenuSweep(); }
+    });
+  }
+}
+function openPoseMenuSweep(){
+  const items = [];
+  for (const sh of ['BLOB','CUBE']) for (const po of ['STAND','CURL','LIE','FLATTEN'])
+    items.push({ label: sh.slice(0,4) + ' ' + po, sh, po });
+  subOpen('SHIFT TO', items, it => {
+    setPose(it.sh, it.po);
+    const b = computeScore(); G.bars = b; G.score = b.total; bakeSpotView();
+  });
+}
+function openSpotMenuSweep(){
+  const items = ROOMS[G.room].spots.map(s => ({ label:s.name.slice(0,22), s }));
+  subOpen('BOLT TO', items, it => {
+    G.spot = it.s; const b = computeScore(); G.bars = b; G.score = b.total; bakeSpotView();
+  });
+}
+
+/* ---------- TOUCH UP: a tiny live-timer editor inside the arena ---------- */
+const TU = { t:0, cells:0, cx:0, cy:0 };
+function touchBegin(){ TU.t = 6.0; TU.cells = 0; const m = maskFor(G.shape,G.pose); TU.cx = m.w>>1; TU.cy = m.h>>1; }
+function touchUpdate(dt){
+  TU.t -= dt;
+  const m = maskFor(G.shape, G.pose);
+  const maxc = G.chapter >= 3 ? 12 : 8;
+  for (const [k,dx,dy] of [['left',-1,0],['right',1,0],['up',0,-1],['down',0,1]])
+    if (hit(k)){ TU.cx = Math.max(0, Math.min(m.w-1, TU.cx+dx)); TU.cy = Math.max(0, Math.min(m.h-1, TU.cy+dy)); }
+  for (let i = 0; i < 8; i++) if (hit('s'+(i+1))) G.slot = i;
+  if (hit('ok') && TU.cells < maxc && m.liveAt(TU.cx, TU.cy)){
+    G.grid[TU.cy*m.w + TU.cx] = G.slots[G.slot]; TU.cells++;
+    blankDirty = true; Audio_.sfx('brush');
+  }
+  if (TU.t <= 0 || hit('pause') || hit('no') || TU.cells >= maxc){
+    const b = computeScore(); G.bars = b; G.score = b.total; bakeSpotView();
+    SW.grey = G.score >= 70;
+    G.st = 'SWEEP'; SW.phase = 'CMD';
+  }
+}
+function touchDraw(c){
+  drawChrome(c, 'TOUCHING UP', true);
+  const r = inner();
+  drawArenaFrame(c, false);
+  const m = maskFor(G.shape, G.pose);
+  const s = 3, ox = r.x + (r.w - m.w*s)/2, oy = r.y + (r.h - m.h*s)/2;
+  for (const cell of m.cells) rect(c, ox+cell.cx*s, oy+cell.cy*s, s, s, PAL[G.grid[cell.i]]);
+  frame(c, ox+TU.cx*s-1, oy+TU.cy*s-1, s+2, s+2, 1, UI.WHITE);
+  txt(c, 'CELLS ' + TU.cells + '/' + (G.chapter>=3?12:8) + '   ' + TU.t.toFixed(1) + 'S', r.x+6, r.y-16, UI.GOLD);
+  drawButtons(c);
+}
+
+/* ---------- STEADY: your paint job is the size of the window ---------- */
+function beginSteady(){
+  const r = inner();
+  const W = Math.round(18 + 62 * G.score / 100);
+  const core = Math.max(11, Math.round(0.30 * W));
+  const trackX = r.x + 13, trackW = 220;
+  SW.steady = { x:trackX, w:trackW, W, core,
+                zone: trackX + 24 + Math.random() * Math.max(1, trackW - W - 32),
+                mx: trackX, done:false, result:'', t:0 };
+  SW.phase = 'STEADY';
+  arenaSet('MENU');
+}
+function steadyUpdate(dt){
+  const s = SW.steady;
+  if (s.done){
+    s.t += dt;
+    if (s.t > 0.9){
+      SW.steady = null;
+      if (SW.pass === 0 && !SW.started){ SW.started = true; }
+      passBegin();
+    }
+    return;
+  }
+  s.mx += 220 * dt;
+  if (hit('ok')){
+    const centre = s.zone + s.W/2;
+    const d = Math.abs(s.mx - centre);
+    if (d <= s.core/2){
+      s.result = 'STILL AS PAINT';
+      G.notice -= 20 + 18 * G.score/100;
+      G.streak = Math.min(5, G.streak + 1);
+      G.style += 120 * G.streak;
+      SW.perfectBonus = true;
+      Audio_.sfx('perfect');
+    } else if (s.mx >= s.zone && s.mx <= s.zone + s.W){
+      s.result = 'STEADY';
+      G.notice -= 10 + 12 * G.score/100;
+      Audio_.sfx('good');
+    } else {
+      s.result = 'SLIP'; G.notice += 6; G.streak = 0; Audio_.sfx('bad');
+    }
+    G.notice = Math.max(0, Math.min(100, G.notice));
+    s.done = true; s.t = 0;
+    return;
+  }
+  if (s.mx > s.x + s.w){ s.result = 'SLIP'; G.notice += 6; G.streak = 0; s.done = true; s.t = 0; Audio_.sfx('bad'); }
+}
+function steadyDraw(c){
+  const s = SW.steady, r = inner();
+  frame(c, s.zone, r.y + 10, s.W, r.h - 20, 2, UI.GOLD);
+  rect(c, s.zone + s.W/2, r.y + 10, 1, r.h - 20, UI.GOLD);
+  rect(c, Math.round(s.mx), r.y + 10, 4, r.h - 20, UI.WHITE);
+  if (s.done) txtC(c, s.result, 160, r.y + r.h/2 - 4, s.result === 'SLIP' ? UI.SOUL : UI.GOLD);
+  else txtC(c, 'HOLD STILL — PRESS Z IN THE GOLD', 160, r.y - 16, UI.DIM);
+}
+
+/* ---------- the double-take ---------- */
+function beginDoubleTake(){
+  SW.phase = 'DOUBLE'; SW.doubleT = 0; SW.worst = worstWindow();
+  arenaSet('PINCH');
+  Audio_.sfx('encounter');
+}
+function doubleUpdate(dt){
+  SW.doubleT += dt;
+  const moved = soulMove(dt);
+  G.notice += moved * 0.036;
+  if (moved < 0.01) G.notice -= 3 * dt;
+  const m = maskFor(G.shape, G.pose);
+  const prog = Math.min(1, SW.doubleT / 3.0);
+  const col = Math.floor(prog * 5), cellIdx = (SW.worst.y + 2) * m.w + (SW.worst.x + col);
+  const mv = G.bars ? G.bars.cellM[cellIdx] : 1;
+  if (mv >= 0 && mv < 0.5) G.notice += 8 * dt;
+  G.notice = Math.max(0, Math.min(100, G.notice));
+  if (G.notice >= 100) return startKO();
+  if (SW.doubleT >= 3.4){ G.st = 'REVEAL'; revealBegin(); }
+}
+
+/* ---------- caught ---------- */
+function startKO(){
+  SW.ko = 1; SW.koT = 0; SW.motes = []; SW.beams = [];
+  SW.shards = [];
+  for (let i = 0; i < 8; i++)
+    SW.shards.push({ x:AR.soulX, y:AR.soulY, vx:(Math.random()*130-65), vy:-(60+Math.random()*85) });
+  freeze(0.15); Audio_.sfx('ko'); Audio_.music(null);
+}
+function koUpdate(dt){
+  SW.koT += dt;
+  for (const s of SW.shards){ s.x += s.vx*dt; s.y += s.vy*dt; s.vy += 330*dt; }
+  if (SW.koT > 2.2 && !Dlg.active && SW.ko === 1){
+    SW.ko = 2;
+    const L = LOOKERS[ROOMS[G.room].looker];
+    G.caught++;
+    Dlg.queue(L.capture, { voice:L.voice, onEnd(){
+      G.hp = G.maxhp; G.notice = 0; G.prep = ROOMS[G.room].prep;
+      G.st = 'PREP'; btnSel = 3; arenaSet('MENU', true); SW.ko = 0;
+      spotView = null; bakeSpotView();
+    }});
+  }
+  if (SW.ko === 2) Dlg.update(dt);
+}
+
+/* ---------- sweep rendering ---------- */
+function sweepDraw(c){
+  const L = LOOKERS[ROOMS[G.room].looker];
+  drawChrome(c, L.name, true);
+  drawSeeker(c, L);
+  const r = inner();
+
+  if (SW.ko){
+    drawArenaFrame(c, false);
+    for (const s of SW.shards) rect(c, s.x, s.y, 2, 2, UI.SOUL);
+    if (SW.koT > 1.1) wash(c, Math.min(16, (SW.koT - 1.1) / 0.5 * 16));
+    if (SW.koT > 2.2){ Dlg.draw(c); }
+    return;
+  }
+
+  drawArenaFrame(c, true);
+  c.save(); c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
+  const bcol = SW.grey ? UI.DIM : UI.WHITE;
+  for (const m of SW.motes){
+    rect(c, m.x - m.r - 1, m.y - m.r - 1, m.r*2 + 2, m.r*2 + 2, UI.BLACK);
+    rect(c, m.x - m.r + 1, m.y - m.r + 1, m.r*2 - 2, m.r*2 - 2, m.heavy ? UI.CYAN : bcol);
+  }
+  for (const b of SW.beams){
+    if (b.vertical){ rect(c, b.p-1, r.y, b.w+2, r.h, UI.BLACK); rect(c, b.p, r.y, b.w, r.h, bcol); }
+    else { rect(c, r.x, b.p-1, r.w, b.w+2, UI.BLACK); rect(c, r.x, b.p, r.w, b.w, bcol); }
+  }
+  for (const d of SW.dropletFX) rect(c, d.x, d.y, 1, 3, UI.WHITE);
+  if (SW.phase === 'STEADY' && SW.steady) steadyDraw(c);
+  if (SW.phase === 'DOUBLE'){
+    const prog = Math.min(1, SW.doubleT / 3.0);
+    rect(c, r.x + prog * r.w, r.y, 2, r.h, UI.CYAN);
+  }
+  drawSoul(c);
+  c.restore();
+
+  for (const t of SW.telegraph)
+    if (Math.floor(t.t * 8) % 2) rect(c, t.x - 3, r.y - 12, 6, 3, UI.WHITE);
+  for (const d of SW.dmgFX){
+    const p = 1 - d.t / 0.7;
+    txtC(c, '-' + d.v, d.x, d.y - 18 * (1 - (1-p)*(1-p)), UI.WHITE);
+  }
+
+  if (SW.phase === 'CMD' && !SUB.open){
+    rect(c, r.x, r.y + r.h - 12, r.w, 12, UI.BLACK);
+    txt(c, 'PASS ' + (SW.pass+1) + ' OF ' + SW.passes + '   HOLD STILL, OR FIX SOMETHING.',
+        r.x + 6, r.y + r.h - 10, UI.DIM);
+  }
+  if (SUB.open) subDraw(c);
+  drawButtons(c);
+}
+function drawSeeker(c, L){
+  const bob = Math.round(Math.sin(performance.now() / 800));
+  const x = 160, y = 86 + bob;
+  L.draw(c, x, y);
+}
+
+
+/* ==================== 11_results.js ==================== */
+/* ---------- the reveal beat, then the results ---------- */
+const RV = { t:0, walk:0, flash:0, stage:0 };
+function revealBegin(){
+  RV.t = 0; RV.walk = -30; RV.flash = 0; RV.stage = 0;
+  G.st = 'REVEAL';
+  Audio_.music('reveal', 84);
+  const L = LOOKERS[ROOMS[G.room].looker];
+  const cat = worstCategory(G.bars);
+  const line = G.score >= 88 ? L.barks.great
+             : G.score >= 74 ? L.barks.near
+             : (L.barks[cat] || L.barks.PAINT);
+  Dlg.queue([{ t: line }], { voice:L.voice, mono:true, colour:UI.DIM, onEnd(){ RV.stage = 1; RV.flash = 1.2; } });
+}
+function revealUpdate(dt){
+  RV.t += dt; RV.walk += 40 * dt;
+  Dlg.update(dt);
+  if (RV.stage === 1){
+    RV.flash -= dt;
+    if (RV.flash <= 0){
+      const L = LOOKERS[ROOMS[G.room].looker];
+      RV.stage = 2;
+      Dlg.queue(L.depart, { voice:L.voice, onEnd(){ resultsBegin(); } });
+    }
+  }
+}
+function revealDraw(c){
+  const sc = getScene(G.room), a = G.spot.anchors[G.pose];
+  c.drawImage(sc.cv, 0, 0);
+  if (blankDirty) bakeBlank();
+  c.drawImage(blankSprite, a[0], a[1]);
+  const m = maskFor(G.shape, G.pose);
+  if (RV.stage >= 1 && Math.floor(RV.flash * 8) % 2)
+    frame(c, a[0]-1, a[1]-1, m.w+2, m.h+2, 1, PAL[2]);
+  // the Looker strolls past
+  const lx = Math.min(VW + 20, RV.walk);
+  Looker.x = lx; Looker.y = 196; Looker.facing = 'right';
+  drawLooker(c);
+  Dlg.draw(c);
+}
+
+/* ---------- results ---------- */
+const RES = { heat:false, t:0, bars:0, rivals:[] };
+function resultsBegin(){
+  G.st = 'RESULTS'; RES.heat = false; RES.t = 0; RES.bars = 0;
+  RES.rivals = rollRivals();
+  G.chapterScores[G.chapter] = G.score;
+  G.grades[G.chapter] = gradeFor(G.score);
+  if (G.score > G.best) G.best = G.score;
+  Audio_.sfx(G.score >= 66 ? 'win' : 'meh');
+}
+function rollRivals(){
+  // three rivals, scored by the same yardstick; SPLOTCH is always found
+  const seedy = (n) => Math.abs(Math.sin((G.chapter+1) * 12.9898 + n * 78.233) * 43758.5453) % 1;
+  const base = 46 + G.chapter * 6;
+  const rows = [
+    { name:'TWOCOAT', s: Math.round(base + seedy(1) * 34) },
+    { name:'HALFTONE', s: Math.round(base + seedy(2) * 30) },
+    { name:'SPLOTCH', s: Math.round(12 + seedy(3) * 14) },
+  ];
+  rows.push({ name:'YOU', s:G.score, you:true });
+  rows.sort((a,b) => b.s - a.s);
+  return rows;
+}
+function resultsUpdate(dt){
+  RES.t += dt; RES.bars = Math.min(1, RES.t / 0.7);
+  if (Dlg.active){ Dlg.update(dt); return; }
+  if (hit('menu')) RES.heat = !RES.heat;
+  if (hit('ok')){
+    const S = SIENNA_VERDICTS;
+    const v = G.score >= 88 ? S.great : G.score >= 66 ? S.ok : G.score >= 40 ? S.poor : S.awful;
+    Dlg.queue([{ t: v[(G.chapter) % v.length] }], { voice:VOICE.sienna, onEnd(){ chapterDone(); } });
+  }
+}
+function resultsDraw(c){
+  rect(c, 0, 0, VW, VH, UI.BLACK);
+  txt(c, 'RESULTS — ' + G.spot.name, 8, 6, UI.DIM);
+  txtC(c, String(G.score), 160, 16, UI.GOLD, 3);
+  txtC(c, gradeFor(G.score), 160, 42, UI.WHITE);
+
+  const bars = [['PAINT', G.bars.paint, 50], ['TEXTURE', G.bars.texture, 12],
+                ['POSE', G.bars.pose, 20], ['SPOT', G.bars.spot, 12], ['NERVE', G.bars.nerve, 6]];
+  const reasons = ['COLOUR AND EDGES', 'ROUGHNESS MATCH', G.bars.wantShape+' '+G.bars.wantPose+' WANTED',
+                   'DO YOU FIT HERE', 'EXPOSURE ' + G.spot.exposure + '/5'];
+  for (let i = 0; i < bars.length; i++){
+    const [n, v, mx] = bars[i], y = 60 + i*15;
+    txt(c, n, 10, y, UI.WHITE);
+    rect(c, 62, y, 92, 8, UI.BLOOD);
+    rect(c, 62, y, Math.round(92 * (v/mx) * RES.bars), 8, UI.GOLD);
+    txt(c, Math.round(v) + '/' + mx, 158, y, UI.DIM);
+    txt(c, reasons[i], 194, y, UI.GHOST);
+  }
+  rect(c, 8, 136, 304, 1, UI.GHOST);
+  // the critique, wrapped so it never runs off the screen
+  const crit = critiqueLine(G.bars);
+  const cw = [];
+  { let line = '';
+    for (const word of crit.split(' ')){
+      if ((line + ' ' + word).trim().length > 50){ cw.push(line); line = word; }
+      else line = (line + ' ' + word).trim();
+    }
+    if (line) cw.push(line); }
+  for (let i = 0; i < Math.min(2, cw.length); i++) txt(c, cw[i], 10, 142 + i*10, UI.CYAN);
+
+  // rivals (left)
+  txt(c, 'THE OTHER BLANKS', 10, 164, UI.DIM);
+  for (let i = 0; i < RES.rivals.length; i++){
+    const r = RES.rivals[i], y = 176 + i*10;
+    txt(c, (i+1) + '. ' + r.name, 10, y, r.you ? UI.GOLD : UI.WHITE);
+    txt(c, String(r.s), 92, y, r.you ? UI.GOLD : UI.DIM);
+    txt(c, r.s < 25 ? 'FOUND IN 4S' : r.s < 50 ? 'FOUND' : r.s < 70 ? 'NEARLY' : 'NOT FOUND',
+        122, y, UI.GHOST);
+  }
+
+  // heat map / your body (right, clear of the bars and the rivals)
+  const m = maskFor(G.shape, G.pose);
+  const s = Math.max(1, Math.min(3, Math.floor(56 / Math.max(m.w, m.h))));
+  const ox = 320 - m.w*s - 12, oy = 160;
+  panel(c, ox-3, oy-3, m.w*s+6, m.h*s+6, 1, UI.GHOST);
+  for (const cell of m.cells){
+    const col = RES.heat ? heatColour(G.bars.cellM[cell.i]) : PAL[G.grid[cell.i]];
+    rect(c, ox+cell.cx*s, oy+cell.cy*s, s, s, col);
+  }
+  txt(c, RES.heat ? '[C] PAINT' : '[C] HEAT', ox-3, oy + m.h*s + 7, UI.DIM);
+  txt(c, 'STYLE ' + G.style + '   TAGS ' + G.tags.size, 10, 218, UI.DIM);
+  if (!Dlg.active) txtC(c, '[Z] CONTINUE', 160, 228, UI.WHITE);
+  Dlg.draw(c);
+}
+
+
+/* ==================== 12_story.js ==================== */
+/* ---------- voices ---------- */
+const VOICE = {
+  plain:  { type:'square',   freq:520, dur:0.045, gain:0.08 },
+  bib:    { type:'square',   freq:680, dur:0.040, gain:0.08 },
+  tackle: { type:'square',   freq:760, dur:0.034, gain:0.075 },
+  fondant:{ type:'triangle', freq:240, dur:0.060, gain:0.11 },
+  grit:   { type:'sawtooth', freq:140, dur:0.055, gain:0.07 },
+  curator:{ type:'sine',     freq:330, dur:0.070, gain:0.09 },
+  sienna: { type:'triangle', freq:420, dur:0.048, gain:0.09 },
+};
+
+/* ---------- the Lookers (original characters) ---------- */
+/* a seeker: head, torso, arms, feet — silhouette first, then features */
+function seekerBody(c, x, y, h, w, col, hat, o){
+  o = o || {};
+  const headW = o.headW || Math.round(w * 0.52), headH = o.headH || Math.round(h * 0.30);
+  const torsoH = h - headH - 6;
+  const bx = x - (w >> 1), by = y - h;
+  const hx = x - (headW >> 1);
+  // feet
+  rect(c, bx + 6, y - 6, 10, 6, UI.BLACK);
+  rect(c, bx + w - 16, y - 6, 10, 6, UI.BLACK);
+  rect(c, bx + 7, y - 5, 8, 4, UI.GHOST);
+  rect(c, bx + w - 15, y - 5, 8, 4, UI.GHOST);
+  // torso
+  rect(c, bx, by + headH, w, torsoH, UI.BLACK);
+  rect(c, bx + 2, by + headH + 2, w - 4, torsoH - 4, col);
+  // arms
+  rect(c, bx - 5, by + headH + 6, 6, torsoH - 16, UI.BLACK);
+  rect(c, bx + w - 1, by + headH + 6, 6, torsoH - 16, UI.BLACK);
+  rect(c, bx - 4, by + headH + 7, 4, torsoH - 18, col);
+  rect(c, bx + w, by + headH + 7, 4, torsoH - 18, col);
+  // head
+  rect(c, hx, by, headW, headH + 2, UI.BLACK);
+  rect(c, hx + 2, by + 2, headW - 4, headH - 2, col);
+  // eyes
+  const ey = by + Math.round(headH * 0.45);
+  rect(c, hx + 5, ey, 4, 4, UI.BLACK);
+  rect(c, hx + headW - 9, ey, 4, 4, UI.BLACK);
+  rect(c, hx + 6, ey + 1, 2, 2, UI.WHITE);
+  rect(c, hx + headW - 8, ey + 1, 2, 2, UI.WHITE);
+  if (o.mouth) rect(c, hx + 7, by + headH - 5, headW - 14, 2, UI.BLACK);
+  if (hat){ rect(c, hx - 4, by - 5, headW + 8, 6, UI.BLACK); rect(c, hx - 2, by - 4, headW + 4, 4, hat); }
+  return { bx, by, w, h, hx, headW, headH };
+}
+const LOOKERS = {
+  BIB: {
+    name:'BIB', voice:VOICE.bib,
+    coneBark:'MORNING! DO NOT MIND ME.',
+    draw(c,x,y){ const b = seekerBody(c,x,y,72,54,UI.DIM,UI.GOLD,{mouth:true});
+      // the clipboard, held out in front
+      rect(c,x+24,y-40,16,20,UI.BLACK); rect(c,x+26,y-38,12,16,PAL[30]);
+      rect(c,x+28,y-35,8,1,UI.BLACK); rect(c,x+28,y-31,8,1,UI.BLACK); rect(c,x+28,y-27,5,1,UI.BLACK);
+      rect(c,x+29,y-41,6,2,UI.GOLD);
+      // the bib
+      rect(c,b.hx+1,b.by+b.headH+2,b.headW-2,9,PAL[31]); },
+    intro:[{t:'MORNING! I AM BIB.'},{t:'I HAVE BEEN GIVEN A CLIPBOARD AND A CORRIDOR.'},
+           {t:'PLEASE DO NOT BE IN IT.'}],
+    barks:{ PAINT:'that brick is a slightly different brick. bricks do that.',
+            TEXTURE:'smooth patch. someone has been sanding. good for them.',
+            POSE:'tall brick. load-bearing, probably.',
+            SPOT:'something is sticking out. the wall is sticking out. fine.',
+            NERVE:'right by the step. bold of the wall.',
+            near:'hm. ...hm. no. nothing. moving on. moving on.',
+            great:'wall. lovely wall. ten out of ten wall.' },
+    capture:[{t:'OH! A SCULPTURE!'},{t:'...IS IT MINE? IT IS TAGGED NOW. SORRY.'}],
+    depart:[{t:'NOTHING IN THIS ALLEY. AS USUAL. AS ALWAYS.'},{t:'GOODBYE, ALLEY.'}],
+  },
+  TACKLE: {
+    name:'TACKLE', voice:VOICE.tackle,
+    coneBark:'IF YOU ARE FLAT, YOU ARE A POSTER.',
+    draw(c,x,y){ seekerBody(c,x,y,66,48,UI.DIM,PAL[10],{headW:22});
+      // a bandolier of pins
+      for(let i=0;i<6;i++){ rect(c,x-20+i*8,y-34,1,7,UI.WHITE); rect(c,x-21+i*8,y-35,3,2,UI.GOLD); } },
+    intro:[{t:'IF YOU ARE FLAT, YOU ARE A POSTER.'},{t:'IF YOU ARE A POSTER, YOU ARE MINE.'},
+           {t:'I HAVE A LOT OF PINS.'}],
+    barks:{ PAINT:'plank. grain going the wrong way, but a plank.',
+            TEXTURE:'sanded. in here. nobody sands in here.',
+            POSE:'someone stacked these badly. i will allow it.',
+            SPOT:'that is a poster i do not remember hanging. i hang everything. so i hung it.',
+            NERVE:'on the rail. right where i look. brave shelf.',
+            near:'...that knot has moved. knots do not move. do they.',
+            great:'good shed. correct shed. nothing to pin.' },
+    capture:[{t:'A NEW POSTER! WHAT DOES IT SAY?'},{t:'...OH. IT SAYS "HELP".'}],
+    depart:[{t:'SHED: HUNG. SHED: CORRECT.'}],
+  },
+  FONDANT: {
+    name:'FONDANT', voice:VOICE.fondant,
+    coneBark:'MMM. SOMETHING IS UNDERCOATED.',
+    draw(c,x,y){ const b = seekerBody(c,x,y,76,64,PAL[29],PAL[26],{headW:34,mouth:true});
+      // apron, and a fork
+      rect(c,x-16,y-32,32,26,PAL[31]); rect(c,x-16,y-32,32,1,PAL[27]);
+      rect(c,x+30,y-46,2,20,UI.GHOST);
+      for(let i=0;i<3;i++) rect(c,x+28+i*2,y-52,1,7,UI.GHOST); },
+    intro:[{t:'I IDENTIFY THINGS BY TASTE.'},{t:'IT IS NOT THE APPROVED METHOD.'},
+           {t:'IT IS, HOWEVER, MINE.'}],
+    barks:{ PAINT:'stripes off by one. the bakery is to blame. bakeries are like that.',
+            TEXTURE:'wallpaper. tastes like wallpaper.',
+            POSE:'a very square cake. i have seen worse cakes.',
+            SPOT:'too sweet. everything in here is too sweet. including the walls.',
+            NERVE:'on the stand. under the glass. confident pastry.',
+            near:'one of these is not sugar. ...no. all sugar. all of it.',
+            great:'nothing but parlour. delicious parlour.' },
+    capture:[{t:'MMM. UNDERCOATED.'},{t:'YOU NEED ANOTHER LAYER, LOVE.'}],
+    depart:[{t:'CLEAN. STICKY, BUT CLEAN.'}],
+  },
+  GRIT: {
+    name:'GRIT', voice:VOICE.grit,
+    coneBark:'ROUGH. GOOD.',
+    draw(c,x,y){ seekerBody(c,x,y,72,70,PAL[18],PAL[16],{headW:30,headH:18});
+      // heavy belt and a lamp
+      rect(c,x-33,y-30,66,5,UI.BLACK); rect(c,x-6,y-31,12,7,PAL[16]);
+      rect(c,x+34,y-50,10,12,UI.BLACK); rect(c,x+36,y-48,6,8,UI.GOLD); },
+    intro:[{t:'ROUGH.'},{t:'ALL OF IT.'},{t:'GOOD.'}],
+    barks:{ PAINT:'wrong dark. there are four darks down here. that is the third one.',
+            TEXTURE:'too smooth. nothing down here is smooth. hm.',
+            POSE:'lumpy where it should be square. the damp does that.',
+            SPOT:'sticking out of the stone. stone does not do that.',
+            NERVE:'in the puddle. in MY puddle.',
+            near:'damp. lumpy. ...correct? correct.',
+            great:'damp. lumpy. correct.' },
+    capture:[{t:'SANDED.'},{t:'SORRY. HABIT.'}],
+    depart:[{t:'STILL ROUGH. STILL GOOD.'}],
+  },
+  CURATOR: {
+    name:'THE CURATOR', voice:VOICE.curator,
+    coneBark:'EVERY BLANK IS ASSIGNED A COLOUR.',
+    draw(c,x,y){ seekerBody(c,x,y,88,46,PAL[31],PAL[28],{headW:20,headH:24});
+      // long white coat, white gloves, a blank label
+      rect(c,x-21,y-52,42,44,PAL[30]); rect(c,x-1,y-52,2,44,PAL[29]);
+      rect(c,x-27,y-40,6,6,PAL[31]); rect(c,x+21,y-40,6,6,PAL[31]);
+      rect(c,x+26,y-64,16,11,UI.BLACK); rect(c,x+28,y-62,12,7,PAL[31]); },
+    intro:[{t:'YOU WERE DUE A COLOUR ON TUESDAY.'},{t:'INSTEAD YOU WENT AND GOT SEVERAL.'},
+           {t:'FROM A GUTTER. FROM A SACK. FROM A PUDDLE.'},
+           {t:'THIS IS THE WHITE GALLERY. THERE IS NOTHING HERE TO STEAL.'}],
+    barks:{ PAINT:'colour. in my white room. colour.',
+            TEXTURE:'a rough patch on a smooth wall. someone has been busy.',
+            POSE:'that is not the shape of anything i hung.',
+            SPOT:'on the plinth. i left the plinth empty on purpose.',
+            NERVE:'in the frame. of course in the frame.',
+            near:'...the wall has a seam. the wall has never had a seam.',
+            great:'wall. only wall. i built this room to be only wall.' },
+    capture:[{t:'THERE YOU ARE.'},{t:'HOLD STILL. THIS WILL ONLY TAKE ONE COAT.'}],
+    depart:[{t:'...NOTHING.'},{t:'NOTHING AT ALL.'}],
+  },
+};
+
+const SIENNA_VERDICTS = {
+  great:['A MASTERPIECE, AND NOBODY WILL EVER SEE IT. THAT IS THE JOB.',
+         'YOU MADE A WALL. A REAL ONE. I AM A LITTLE JEALOUS.',
+         'PERFECT. SPIRITUALLY A COWARD, BUT PERFECT.'],
+  ok:   ['DECENT. YOUR EDGES ARE STILL SHOUTING, THOUGH.',
+         'IT HELD. IT WAS NOT PRETTY, BUT IT HELD.',
+         'FINE WORK IN THE MIDDLE. NOBODY LOOKS AT THE MIDDLE.'],
+  poor: ['YOU PAINTED A BLANK. YOU DID NOT PAINT A WALL.',
+         'BOLD USE OF ONE COLOUR. VERY BOLD. ONE COLOUR.',
+         'I HAVE SEEN WET CEMENT WITH MORE OPINIONS.'],
+  awful:['THAT IS NOT CAMOUFLAGE. THAT IS A SIGNATURE.',
+         'YOU WENT OUT THERE ESSENTIALLY NUDE.',
+         'NEXT TIME, TRY LOOKING AT THE WALL. EVEN ONCE.'],
+};
+
+/* ---------- flavour props ---------- */
+const PROP_TALK = {
+  SIENNA:[{t:'SIENNA: YOU ARE UNDERCOAT. NOT A COLOUR. AN ABSENCE OF ONE.'},
+          {t:'SIENNA: THE TRICK IS NOT MATCHING THE WALL. IT IS MATCHING THE WALL\'S MISTAKES.'},
+          {t:'SIENNA: STEAL WITH THE DROPPER. STEAL A LOT. IT IS THE ONLY FREE THING IN HERE.'}],
+  GALLERY:[{t:'SIX EMPTY FRAMES. ONE FOR EACH TIME SOMETHING IS FOUND.'},
+           {t:'THE PLAQUES ARE ALREADY ENGRAVED. THEY JUST SAY "BLANK".'}],
+  CH1_FLYERS:[{t:'A STACK OF FLYERS. THE TOP ONE SAYS "COLOUR ASSIGNMENT: TUESDAY".'},
+              {t:'IT IS WEDNESDAY.'}],
+  CH1_BINS:[{t:'THREE BINS. ONE SMELLS OF TURPENTINE AND REGRET.'}],
+  CH2_RAIL:[{t:'A RAIL OF TOOLS, EACH ON ITS OWN PAINTED OUTLINE.'},
+            {t:'THERE IS AN OUTLINE WITH NOTHING IN IT. IT IS ROUGHLY YOUR SIZE.'}],
+  CH3_MENU:[{t:'THE BOARD LISTS ELEVEN CAKES AND ONE RULE.'},
+            {t:'THE RULE IS "NOTHING WHITE ON THE PREMISES".'}],
+  CH4_COAL:[{t:'COAL. BLACK, BLACK, BLACK — AND ONE LUMP OF SURPRISING BLUE.'},
+            {t:'YOU TAKE THE BLUE. OBVIOUSLY YOU TAKE THE BLUE.'}],
+};
+function talkProp(key){
+  const p = PROP_TALK[key]; if (!p) return;
+  if (key === 'SIENNA') Dlg.queue(p, { voice:VOICE.sienna });
+  else Dlg.queue(p, { voice:VOICE.plain });
+}
+
+/* ---------- chapter flow ---------- */
+function enterChapterFromHub(){
+  const key = CHAPTERS[G.chapter];
+  if (!key) return;
+  fadeTo(() => {
+    const room = ROOMS[key];
+    G.prep = room.prep; G.maxhp = room.maxhp; G.hp = room.maxhp;
+    G.coneHit = false; G.rags = G.chapter >= 1 ? 1 : 0;
+    enterRoom(key);
+    G.st = 'OVERWORLD';
+    const L = LOOKERS[room.looker];
+    if (!G.seenIntro[key]){ G.seenIntro[key] = true; Dlg.queue(L.intro, { voice:L.voice }); }
+  });
+}
+function chapterDone(){
+  fadeTo(() => {
+    G.chapter++;
+    if (G.chapter >= CHAPTERS.length){ endingBegin(); return; }
+    enterRoom('HUB');
+    G.st = 'OVERWORLD';
+    Dlg.queue([{ t:'SIENNA: ' + ['ONE DOWN.','TWO. THE SHED SUITED YOU.','THREE. YOU ARE GETTING FUSSY. GOOD.',
+                                 'FOUR. THERE IS ONE ROOM LEFT AND IT IS ALL WHITE.'][G.chapter-1] }],
+               { voice:VOICE.sienna });
+  });
+}
+
+/* ---------- endings ---------- */
+const END = { t:0, kind:'', stage:0 };
+function endingBegin(){
+  G.st = 'ENDING'; END.t = 0; END.stage = 0;
+  const avg = G.chapterScores.reduce((a,b) => a+b, 0) / Math.max(1, G.chapterScores.length);
+  END.kind = G.caught === 0 && avg >= 78 ? 'HIDDEN' : avg >= 55 ? 'SEEN' : 'FRAMED';
+  const lines = {
+    HIDDEN:[{t:'THE CURATOR WALKS THE WHITE GALLERY UNTIL MORNING.'},
+            {t:'HE FINDS SEVEN EMPTY FRAMES AND ONE WALL HE CANNOT STOP LOOKING AT.'},
+            {t:'YOU LEAVE AT SIX. YOU TAKE THE PALETTE WITH YOU.'},
+            {t:'* ENDING: HIDDEN.'}],
+    SEEN:[{t:'HE SEES YOU. OF COURSE HE SEES YOU. HE BUILT THE ROOM.'},
+          {t:'BUT HE HAS NOWHERE TO PUT A THING THAT IS ALREADY THIS MANY COLOURS.'},
+          {t:'HE OPENS THE DOOR AND LOOKS POINTEDLY AT THE STREET.'},
+          {t:'* ENDING: SEEN.'}],
+    FRAMED:[{t:'THEY GIVE YOU A FRAME AFTER ALL. IT IS A GOOD FRAME.'},
+            {t:'THE PLAQUE SAYS "UNDERCOAT, ARTIST UNKNOWN, MIXED MEDIA".'},
+            {t:'PEOPLE STOP. PEOPLE LOOK. IT IS NOT THE WORST OUTCOME.'},
+            {t:'* ENDING: FRAMED.'}],
+  }[END.kind];
+  Audio_.music('coda', 60);
+  Dlg.queue(lines, { voice:VOICE.curator, onEnd(){ END.stage = 1; } });
+}
+function endingUpdate(dt){
+  END.t += dt;
+  if (END.stage === 0){ Dlg.update(dt); return; }
+  if (hit('ok')){ G.st = 'TITLE'; titleReset(); }
+}
+function endingDraw(c){
+  rect(c, 0, 0, VW, VH, UI.BLACK);
+  const sc = getScene('CH5');
+  c.drawImage(sc.cv, 0, 0);
+  wash(c, 11);
+  txtC(c, 'WET PAINT', 160, 40, UI.WHITE, 2);
+  txtC(c, 'ENDING: ' + END.kind, 160, 62, UI.GOLD);
+  const avg = Math.round(G.chapterScores.reduce((a,b)=>a+b,0) / Math.max(1,G.chapterScores.length));
+  txtC(c, 'AVERAGE ' + avg + '   BEST ' + G.best + '   FOUND ' + G.caught + ' TIMES', 160, 78, UI.DIM);
+  txtC(c, 'COLOURS STOLEN: ' + G.tags.size, 160, 90, UI.DIM);
+  if (END.stage === 1) txtC(c, '[Z] AGAIN', 160, 214, UI.WHITE);
+  Dlg.draw(c);
+}
+
+
+/* ==================== 13_audio.js ==================== */
+/* ---------- audio: everything synthesised, nothing sampled ---------- */
+const Audio_ = {
+  ctx:null, master:null, muted:false, voices:0, track:null, bpm:96,
+  nextNote:0, step:0, timer:null,
+
+  start(){
+    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.35;
+    const comp = this.ctx.createDynamicsCompressor();
+    comp.threshold.value = -12; comp.knee.value = 6; comp.ratio.value = 8;
+    comp.attack.value = 0.003; comp.release.value = 0.12;
+    this.master.connect(comp); comp.connect(this.ctx.destination);
+    this.timer = setInterval(() => this.scheduler(), 25);
+  },
+  toggleMute(){
+    this.muted = !this.muted;
+    if (this.master) this.master.gain.value = this.muted ? 0 : 0.35;
+  },
+  tone(type, freq, dur, gain, when, slideTo){
+    if (!this.ctx || this.muted) return;
+    if (this.voices > 8) return;
+    const t = when || this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(gain, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.master);
+    o.start(t); o.stop(t + dur + 0.02);
+    this.voices++;
+    o.onended = () => { this.voices--; };
+  },
+  noise(dur, gain, when, f0, f1){
+    if (!this.ctx || this.muted) return;
+    const t = when || this.ctx.currentTime;
+    const n = Math.floor(this.ctx.sampleRate * dur);
+    const b = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random()*2-1) * (1 - i/n);
+    const s = this.ctx.createBufferSource(); s.buffer = b;
+    const bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(f0 || 1200, t);
+    if (f1) bp.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = this.ctx.createGain(); g.gain.value = gain;
+    s.connect(bp); bp.connect(g); g.connect(this.master);
+    s.start(t); s.stop(t + dur);
+  },
+  blip(v){
+    v = v || VOICE.plain;
+    const det = 1 + (Math.random()*0.07 - 0.035);
+    this.tone(v.type, v.freq * det, v.dur, v.gain);
+  },
+  sfx(k){
+    const C = this.ctx; if (!C) return;
+    const t = C.currentTime;
+    switch(k){
+      case 'menu':     this.tone('square', 440, 0.04, 0.06); break;
+      case 'confirm':  this.tone('square', 660, 0.06, 0.08); this.tone('square', 880, 0.06, 0.05, t+0.05); break;
+      case 'back':     this.tone('square', 300, 0.07, 0.06); break;
+      case 'brush':    this.noise(0.03, 0.035, t, 2600); break;
+      case 'fill':     this.noise(0.14, 0.05, t, 500, 2000); break;
+      case 'drop':     this.tone('sine', 900, 0.14, 0.11, t, 280); this.noise(0.04, 0.05, t, 1800); break;
+      case 'drain':    this.tone('sine', 700, 0.30, 0.10, t, 180); this.noise(0.04, 0.04, t+0.02, 900); break;
+      case 'commit':   this.tone('triangle', 220, 0.20, 0.10); this.tone('triangle', 330, 0.20, 0.07, t+0.06); break;
+      case 'encounter':this.tone('square', 180, 0.10, 0.10); this.tone('square', 150, 0.16, 0.10, t+0.10);
+                       this.noise(0.12, 0.05, t, 800, 2400); break;
+      case 'hurt':     this.tone('sawtooth', 200, 0.16, 0.13, t, 90); this.noise(0.09, 0.07, t, 400); break;
+      case 'heal':     this.tone('sine', 520, 0.10, 0.09); this.tone('sine', 780, 0.12, 0.07, t+0.08); break;
+      case 'perfect':  [523,659,784,1047].forEach((f,i) => this.tone('square', f, 0.09, 0.08, t+i*0.05)); break;
+      case 'good':     this.tone('square', 523, 0.08, 0.07); this.tone('square', 659, 0.09, 0.06, t+0.06); break;
+      case 'bad':      this.tone('sawtooth', 150, 0.16, 0.09, t, 80); break;
+      case 'ko':       this.tone('sawtooth', 330, 0.9, 0.13, t, 80);
+                       for (let i = 0; i < 8; i++) this.noise(0.05, 0.05, t + i*0.03, 1600); break;
+      case 'win':      [392,523,659,784].forEach((f,i) => this.tone('triangle', f, 0.16, 0.09, t+i*0.09)); break;
+      case 'meh':      this.tone('triangle', 330, 0.2, 0.08); this.tone('triangle', 262, 0.3, 0.08, t+0.16); break;
+    }
+  },
+  music(name, bpm){ this.track = name; this.bpm = bpm || 96; this.step = 0; this.nextNote = 0; },
+  scheduler(){
+    const C = this.ctx; if (!C || this.muted || !this.track) return;
+    const spb = 60 / this.bpm / 2;                       // eighth notes
+    if (!this.nextNote) this.nextNote = C.currentTime;
+    while (this.nextNote < C.currentTime + 0.1){
+      this.playStep(this.step, this.nextNote);
+      this.step++; this.nextNote += spb;
+    }
+  },
+  playStep(s, t){
+    const A = [220,246.94,261.63,293.66,329.63,349.23,392];    // A natural minor
+    const bar = s % 16;
+    if (this.track === 'sweep'){
+      if (bar % 2 === 0) this.tone('square', A[(s*3) % 7] * 2, 0.07, 0.035, t);
+      if (bar % 8 === 0) this.tone('triangle', A[s % 3] / 2, 0.28, 0.075, t);
+      if (bar % 4 === 2) this.noise(0.03, 0.022, t, 5200);
+    } else if (this.track === 'reveal'){
+      if (bar % 4 === 0) this.tone('triangle', A[(s*2) % 7], 0.30, 0.055, t);
+      if (bar % 8 === 4) this.tone('sine', A[(s) % 7] * 2, 0.24, 0.035, t);
+    } else if (this.track === 'coda'){
+      if (bar % 8 === 0) this.tone('sine', A[(s/8) % 7 | 0], 1.2, 0.05, t);
+    } else if (this.track === 'hub'){
+      if (bar % 6 === 0) this.tone('triangle', A[(s*5) % 7], 0.22, 0.045, t);
+      if (bar % 16 === 0) this.tone('sine', A[0] / 2, 0.8, 0.04, t);
+    }
+  },
+};
+
+
+/* ==================== 14_boot.js ==================== */
+/* ---------- title ---------- */
+const TITLE = { t:0 };
+function titleReset(){
+  TITLE.t = 0;
+  G.chapter = 0; G.chapterScores = []; G.grades = []; G.caught = 0;
+  G.tags = new Set(); G.best = 0; G.style = 0; G.seenIntro = {};
+  G.slots = new Uint8Array([31,31,31,31,31,31,31,31]);
+  G.slotTag = ['','','','','','','',''];
+  setPose('BLOB','STAND');
+  enterRoom('HUB');
+}
+function titleUpdate(dt){
+  TITLE.t += dt;
+  if (hit('ok')){
+    G.st = 'OVERWORLD';
+    Audio_.music('hub', 96);
+    Dlg.queue([{t:'YOU ARE A BLANK. THEY MAKE YOU WHITE AND THEY ASSIGN YOU A COLOUR LATER.'},
+               {t:'YOURS WAS DUE ON TUESDAY. YOU HAVE DECIDED TO CHOOSE YOUR OWN.'},
+               {t:'FIVE ROOMS BETWEEN HERE AND THE DOOR. SOMEONE IS LOOKING IN EACH OF THEM.'},
+               {t:'TALK TO SIENNA. THEN TAKE THE DOOR.'}], { voice:VOICE.plain });
+  }
+}
+function titleDraw(c){
+  rect(c, 0, 0, VW, VH, UI.BLACK);
+  const sc = getScene('CH1');
+  c.drawImage(sc.cv, 0, 60, 320, 120, 0, 60, 320, 120);
+  wash(c, 9);
+  txtC(c, 'WET PAINT', 160, 40, UI.WHITE, 3);
+  txtC(c, 'HIDE BY HAND', 160, 74, UI.GOLD);
+  // a Blank half-painted into the brick
+  const bob = Math.round(Math.sin(TITLE.t * 2));
+  for (let y = 0; y < 20; y++) for (let x = 0; x < 11; x++){
+    if (x === 0 && y === 0) continue;
+    const painted = y > 9;
+    rect(c, 155 + x, 120 + y + bob, 1, 1, painted ? PAL[1 + (x % 2)] : PAL[31]);
+  }
+  if (Math.floor(TITLE.t * 2) % 2) txtC(c, 'PRESS Z', 160, 186, UI.WHITE);
+  txtC(c, 'ARROWS MOVE   Z CONFIRM   X CANCEL   M MUTE', 160, 210, UI.DIM);
+  txtC(c, 'AN ORIGINAL GAME  —  NO ASSETS, NO NETWORK', 160, 224, UI.GHOST);
+}
+
+/* ---------- HOLDIN: the cut to black before the sweep ---------- */
+function holdinUpdate(dt){
+  G.holdT += dt;
+  if (G.holdT >= 2.0){ sweepBegin(); }
+}
+function holdinDraw(c){
+  const sc = getScene(G.room), a = G.spot.anchors[G.pose];
+  c.drawImage(sc.cv, 0, 0);
+  if (blankDirty) bakeBlank();
+  c.drawImage(blankSprite, a[0], a[1]);
+  wash(c, Math.min(14, G.holdT / 2.0 * 18));
+  if (G.holdT > 0.9) txtC(c, GRADEWORD(G.score), 160, 112, UI.WHITE, 2);
+  if (G.holdT > 1.4) txtC(c, 'FOOTSTEPS.', 160, 136, UI.DIM);
+}
+
+/* ---------- ENTRY: 0.9s drop into the encounter ---------- */
+function entryUpdate(dt){
+  G.entryT += dt;
+  if (G.entryT >= 0.9){ G.st = 'PREP'; }
+}
+function entryDraw(c){
+  const p = G.entryT / 0.9;
+  const sc = getScene(G.room);
+  c.drawImage(sc.cv, 0, 0);
+  wash(c, Math.min(16, p * 22));
+  if (p > 0.45){
+    const q = (p - 0.45) / 0.55;
+    const w = Math.round(246 * q), h = Math.round(78 * q);
+    frame(c, 160 - w/2 - 5, 140 - h/2 - 5, w + 10, h + 10, 5, UI.WHITE);
+  }
+}
+
+/* ---------- pause ---------- */
+let paused = false;
+function pauseDraw(c){
+  wash(c, 12);
+  panel(c, 84, 78, 152, 84, 2, UI.WHITE);
+  txtC(c, 'PAUSED', 160, 90, UI.GOLD);
+  txtC(c, 'Z  RESUME', 160, 110, UI.WHITE);
+  txtC(c, 'M  ' + (Audio_.muted ? 'UNMUTE' : 'MUTE'), 160, 124, UI.WHITE);
+  txtC(c, 'X  GIVE UP', 160, 138, UI.DIM);
+}
+
+/* ---------- main loop ---------- */
+let frameCount = 0, last = 0, acc = 0;
+function update(dt){
+  fadeUpdate(dt);
+  if (G.fadeDir) return;
+  if (paused){
+    if (hit('ok') || hit('pause')) paused = false;
+    if (hit('no')){ paused = false; G.st = 'TITLE'; titleReset(); }
+    return;
+  }
+  if (hit('pause') && ['OVERWORLD','PREP','SWEEP'].indexOf(G.st) >= 0 && !Dlg.active && G.st !== 'EDITOR'){
+    paused = true; return;
+  }
+  switch(G.st){
+    case 'TITLE':     titleUpdate(dt); break;
+    case 'OVERWORLD': owUpdate(dt); break;
+    case 'ENTRY':     entryUpdate(dt); break;
+    case 'PREP':      prepUpdate(dt); break;
+    case 'EDITOR':    G.prep -= dt; if (G.prep <= 0){ G.prep = 0; closeEditor(); commitHold(); }
+                      else edUpdate(dt); break;
+    case 'HOLDIN':    holdinUpdate(dt); break;
+    case 'SWEEP':     sweepUpdate(dt); break;
+    case 'TOUCHUP':   touchUpdate(dt); break;
+    case 'REVEAL':    revealUpdate(dt); break;
+    case 'RESULTS':   resultsUpdate(dt); break;
+    case 'ENDING':    endingUpdate(dt); break;
+  }
+  shakeUpdate(dt);
+  for (const k in buffered) if (buffered[k] > 0) buffered[k] -= dt;
+}
+function render(){
+  switch(G.st){
+    case 'TITLE':     titleDraw(ctx); break;
+    case 'OVERWORLD': owDraw(ctx); break;
+    case 'ENTRY':     entryDraw(ctx); break;
+    case 'PREP':      prepDraw(ctx); break;
+    case 'EDITOR':    edDraw(ctx); break;
+    case 'HOLDIN':    holdinDraw(ctx); break;
+    case 'SWEEP':     sweepDraw(ctx); break;
+    case 'TOUCHUP':   touchDraw(ctx); break;
+    case 'REVEAL':    revealDraw(ctx); break;
+    case 'RESULTS':   resultsDraw(ctx); break;
+    case 'ENDING':    endingDraw(ctx); break;
+  }
+  if (paused) pauseDraw(ctx);
+  if (G.fade > 0) wash(ctx, G.fade);
+  vctx.fillStyle = '#000'; vctx.fillRect(0, 0, view.width, view.height);
+  vctx.drawImage(buf, 0, 0, VW, VH, shakeX*SCALE, shakeY*SCALE, VW*SCALE, VH*SCALE);
+}
+function loop(now){
+  requestAnimationFrame(loop);
+  if (!last) last = now;
+  let dt = (now - last) / 1000; last = now;
+  acc += Math.min(dt, 0.25);
+  let steps = 0;
+  while (acc >= STEP && steps < 5){
+    if (hitstop > 0) hitstop -= STEP; else update(STEP);
+    acc -= STEP; steps++; frameCount++;
+  }
+  render();
+}
+
+/* ---------- boot ---------- */
+function boot(){
+  bakeDither();
+  resize();
+  setPose('BLOB','STAND');
+  for (const k in ROOMS) getScene(k);
+  enterRoom('HUB');
+  G.st = 'TITLE';
+  const h = location.hash;
+  if (h.startsWith('#c')){
+    const n = parseInt(h.slice(2), 10);
+    if (n >= 1 && n <= CHAPTERS.length){
+      G.chapter = n - 1; G.st = 'OVERWORLD'; enterChapterFromHub();
+    }
+  }
+  if (h === '#paint'){
+    G.st = 'OVERWORLD'; G.chapter = 0;
+    const room = ROOMS.CH1; G.prep = room.prep; G.maxhp = room.maxhp; G.hp = room.maxhp;
+    enterRoom('CH1'); beginPrep(room.spots[0]); G.st = 'EDITOR'; edOpen();
+  }
+  requestAnimationFrame(loop);
+  if (location.hash === '#smoke') runSmoke();
+}
+
+
+/* ==================== 15_smoke.js ==================== */
+/* ---------- headless self-test: #smoke ---------- */
+function runSmoke(){
+  const out = [];
+  const ok = (n, c) => out.push((c ? 'PASS  ' : 'FAIL  ') + n);
+  const guard = (n, fn) => { try { fn(); ok(n, true); } catch(e){ ok(n + ' -> ' + e.message, false); } };
+
+  // palette
+  for (const [n, c] of paletteAudit()) ok(n, c);
+
+  // font
+  ok('font has 95 glyphs', FONTDATA.blob.length === 95 * 7);
+  ok('atlas bakes', atlas(UI.WHITE).width === 96 && atlas(UI.WHITE).height === 48);
+
+  // masks
+  let maskOk = true, edgeOk = true;
+  for (const sh of ['BLOB','CUBE']) for (const po of ['STAND','CURL','LIE','FLATTEN']){
+    const m = maskFor(sh, po);
+    if (m.count < 100 || m.count > m.w * m.h) maskOk = false;
+    if (m.edges < 20) edgeOk = false;
+  }
+  ok('all 8 masks have sane cell counts', maskOk);
+  ok('all 8 masks have edge cells', edgeOk);
+
+  // rooms bake, spots fit their cover rects
+  let fits = true, walkOk = true, badSpot = '';
+  for (const key of CHAPTERS){
+    const room = ROOMS[key], sc = getScene(key);
+    for (const s of room.spots){
+      const m = maskFor(s.wantShape, s.wantPose);
+      if (m.w > s.coverW || m.h > s.coverH){ fits = false; badSpot = key + '/' + s.id; }
+      for (const p in s.anchors){
+        const a = s.anchors[p], mm = maskFor(s.wantShape, p);
+        if (a[0] < 0 || a[1] < 0 || a[0] + mm.w > VW || a[1] + mm.h > VH){ fits = false; badSpot = key+'/'+s.id+'/'+p; }
+      }
+      if (sc.solidAt(s.walk[0], s.walk[1])){ walkOk = false; badSpot = key + '/' + s.id + ' walk'; }
+    }
+  }
+  ok('every ideal pose fits its cover rect' + (badSpot ? ' (' + badSpot + ')' : ''), fits);
+  ok('every spot is reachable on foot' + (!walkOk ? ' (' + badSpot + ')' : ''), walkOk);
+
+  // scenes are not flat and use only palette indices
+  let flat = '', offPal = false;
+  for (const key of CHAPTERS){
+    const sc = getScene(key);
+    const seen = new Set();
+    for (let i = 0; i < sc.idx.length; i += 7){ seen.add(sc.idx[i]); if (sc.idx[i] > 31) offPal = true; }
+    if (seen.size < 4) flat = key;
+  }
+  ok('no scene is flat' + (flat ? ' (' + flat + ')' : ''), !flat);
+  ok('every scene pixel is inside the 32-colour palette', !offPal);
+
+  // scoring behaves
+  const room = ROOMS.CH1;
+  G.chapter = 0; enterRoom('CH1'); G.prep = 999; G.maxhp = 20; G.hp = 20;
+  beginPrep(room.spots[0]);
+  setPose(room.spots[0].wantShape, room.spots[0].wantPose);
+  const white = computeScore();
+  // perfect: copy the wall exactly
+  const m0 = maskFor(G.shape, G.pose), a0 = G.spot.anchors[G.pose], sc0 = getScene('CH1');
+  for (const cell of m0.cells) G.grid[cell.i] = sc0.at(a0[0]+cell.cx, a0[1]+cell.cy);
+  blankDirty = true;
+  const perfect = computeScore();
+  ok('a pure white body scores badly (' + white.total + ')', white.total < 45);
+  ok('copying the wall exactly scores high (' + perfect.total + ')', perfect.total >= 88);
+  ok('a perfect body beats a blank one', perfect.total > white.total + 30);
+
+  // edge cells really are worth triple
+  const edgeCell = m0.cells.find(c => c.edge), midCell = m0.cells.find(c => !c.edge);
+  const bak = G.grid.slice();
+  G.grid[edgeCell.i] = WHITE_IDX; const dEdge = perfect.raw - computeScore().raw;
+  G.grid = bak.slice();
+  G.grid[midCell.i] = WHITE_IDX; const dMid = perfect.raw - computeScore().raw;
+  G.grid = bak.slice();
+  ok('an edge cell is worth ~3x an interior one (' + dEdge.toFixed(4) + ' vs ' + dMid.toFixed(4) + ')',
+     dMid > 0 && dEdge / dMid > 2.5 && dEdge / dMid < 3.5);
+
+  // wrong pose is punished hard
+  setPose('BLOB', 'LIE');
+  const wrong = computeScore();
+  ok('the wrong pose is a disaster (' + wrong.total + ')', wrong.total < perfect.total - 20);
+  setPose(room.spots[0].wantShape, room.spots[0].wantPose);
+  G.grid = bak.slice(); blankDirty = true;
+
+  // eyedrop + base coat alone must not trivialise it
+  const wallIdx = sc0.at(a0[0] + (m0.w>>1), a0[1] + (m0.h>>1));
+  for (const cell of m0.cells) G.grid[cell.i] = wallIdx;
+  const flatCoat = computeScore();
+  ok('base coat alone caps below 67 (' + flatCoat.total + ' = P' + flatCoat.paint.toFixed(1)
+     + ' T' + flatCoat.texture.toFixed(1) + ' O' + flatCoat.pose + ' S' + flatCoat.spot
+     + ' N' + flatCoat.nerve.toFixed(1) + ' raw' + flatCoat.raw.toFixed(2) + ')', flatCoat.total < 67);
+  G.grid = bak.slice(); blankDirty = true;
+
+  // sweep difficulty really is driven by the score
+  G.score = 95; sweepBegin(); const easy = SW.passes;
+  G.score = 20; sweepBegin(); const hard = SW.passes;
+  ok('bad camo means more passes (' + easy + ' vs ' + hard + ')', hard > easy);
+  G.score = 95; sweepBegin(); passBegin(); const easyMote = SW.moteEvery;
+  G.score = 20; sweepBegin(); passBegin(); const hardMote = SW.moteEvery;
+  ok('bad camo means denser motes', hardMote < easyMote);
+
+  // STEADY window scales with the score
+  G.score = 95; beginSteady(); const wideW = SW.steady.W;
+  G.score = 20; beginSteady(); const thinW = SW.steady.W;
+  ok('a good paint job widens the STEADY window (' + wideW + ' vs ' + thinW + ')', wideW > thinW + 30);
+  ok('even the worst STEADY window is hittable', thinW >= 18 && SW.steady.core >= 11);
+  SW.steady = null;
+
+  // smudge writes back into the painting
+  G.score = 60; G.bars = computeScore(); bakeSpotView();
+  const before = G.grid.filter(v => v !== WHITE_IDX).length;
+  smudge(5);
+  const after = G.grid.filter(v => v !== WHITE_IDX).length;
+  ok('a hit whitens real cells of your painting', after < before);
+
+  // every chapter reaches an end state
+  guard('every chapter room builds and has spots', () => {
+    for (const key of CHAPTERS){
+      const r = ROOMS[key];
+      if (!r.spots.length) throw new Error(key + ' has no spots');
+      if (!LOOKERS[r.looker]) throw new Error(key + ' has no looker');
+      const L = LOOKERS[r.looker];
+      for (const k of ['PAINT','TEXTURE','POSE','SPOT','NERVE','near','great'])
+        if (!L.barks[k]) throw new Error(r.looker + ' missing bark ' + k);
+    }
+  });
+  guard('grades cover the whole 0..100 range', () => {
+    for (let s = 0; s <= 100; s += 5) if (!gradeFor(s)) throw new Error('no grade at ' + s);
+  });
+  guard('all three endings are reachable', () => {
+    for (const [caught, avg, want] of [[0, 90, 'HIDDEN'], [2, 60, 'SEEN'], [5, 30, 'FRAMED']]){
+      G.caught = caught; G.chapterScores = [avg, avg, avg, avg, avg];
+      const k = G.caught === 0 && avg >= 78 ? 'HIDDEN' : avg >= 55 ? 'SEEN' : 'FRAMED';
+      if (k !== want) throw new Error('expected ' + want + ' got ' + k);
+    }
+  });
+
+  // run every screen for 600 steps and assert nothing throws
+  const screens = ['TITLE','OVERWORLD','PREP','EDITOR','HOLDIN','SWEEP','REVEAL','RESULTS','ENDING'];
+  for (const s of screens){
+    guard('600 steps + render on ' + s, () => {
+      G.chapter = 0; enterRoom('CH1');
+      G.prep = 90; G.hp = G.maxhp = 20; G.notice = 10;
+      G.spot = ROOMS.CH1.spots[0]; setPose('CUBE','FLATTEN');
+      G.bars = computeScore(); G.score = G.bars.total; bakeSpotView();
+      if (s === 'SWEEP'){ sweepBegin(); passBegin(); }
+      if (s === 'RESULTS') resultsBegin();
+      if (s === 'REVEAL') revealBegin();
+      if (s === 'EDITOR') edOpen();
+      if (s === 'ENDING') endingBegin();
+      G.st = s;
+      for (let i = 0; i < 600; i++){ update(STEP); render(); }
+    });
+  }
+  guard('the eyedropper screen runs', () => {
+    G.st = 'EDITOR'; edOpen(); ED.dropper = true;
+    for (let i = 0; i < 120; i++){ update(STEP); render(); }
+    ED.dropper = false;
+  });
+  guard('touch-up runs', () => {
+    G.st = 'TOUCHUP'; touchBegin();
+    for (let i = 0; i < 400; i++){ update(STEP); render(); }
+  });
+  guard('being caught resolves back to prep', () => {
+    G.st = 'SWEEP'; sweepBegin(); passBegin(); startKO();
+    for (let i = 0; i < 400; i++){ update(STEP); render(); }
+  });
+
+  // reset to a clean title
+  titleReset(); G.st = 'TITLE';
+
+  const fails = out.filter(l => l.startsWith('FAIL'));
+  console.log('%c' + out.join('\n'), 'font-family:monospace');
+  console.log(fails.length ? fails.length + ' FAILURES' : 'ALL ' + out.length + ' PASSED');
+  const box = document.createElement('div');
+  box.id = 'smokeout';
+  box.style.cssText = 'position:fixed;left:0;top:0;z-index:99;background:#000;color:#0f0;'
+    + 'font:11px monospace;padding:6px;white-space:pre;max-height:100vh;overflow:auto';
+  box.textContent = out.join('\n') + '\n\n' + (fails.length ? fails.length + ' FAILURES' : 'ALL ' + out.length + ' PASSED');
+  document.body.appendChild(box);
+}
+
+
+boot();
+</script>
+</body>
+</html>

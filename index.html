@@ -507,6 +507,7 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
 </div>
 <script>
 const GAMES=[
+  {name:'Wet Paint',           file:'wet-paint.html',              emoji:'🎨',color:['#1a0e08','#2e1a10'],category:'adventure',  tags:['new','hot']},
   {name:'Magic Wand',          file:'magic-wand.html',             emoji:'🪄',color:['#0a0616','#1a0f33'],category:'other',      tags:['new','hot']},
   {name:'Neon Putt',           file:'neon-putt.html',              emoji:'⛳',color:['#04120f','#0a2620'],category:'puzzle',     tags:['new','hot']},
   {name:'Barrier',             file:'barrier.html',                emoji:'🚧',color:['#02140f','#04241b'],category:'action',     tags:['new','hot']},
@@ -548,6 +549,45 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
+
+'wet-paint':(c)=>{
+  // brick wall, and a Blank half-painted into it
+  _F(c,0,0,320,200,'#6E3A2C');
+  const BR=['#6E3A2C','#A85C3E','#3B1F1A'];
+  for(let ry=0;ry<12;ry++){
+    const off=(ry%2)*16;
+    for(let rx=-1;rx<12;rx++){
+      const bx=rx*32+off, by=ry*18;
+      _F(c,bx+1,by+1,30,16,((rx*7+ry*3)%5<2)?BR[0]:BR[1]);
+      _F(c,bx+3+((rx*5+ry)%22),by+4+((rx+ry*3)%10),2,2,BR[2]);
+    }
+    _F(c,0,ry*18,320,1,BR[2]);
+  }
+  // the body: left half painted to match, right half still primer white
+  const BX=118,BY=54,BW=84,BH=104;
+  for(let y=0;y<BH;y++)for(let x=0;x<BW;x++){
+    const wx=BX+x, wy=BY+y;
+    if(x<BW*0.52){
+      const ry=((wy/18)|0), rx=(((wx-(ry%2)*16)/32)|0);
+      c.fillStyle=(((wy%18)===0)?BR[2]:(((rx*7+ry*3)%5<2)?BR[0]:BR[1]));
+    } else c.fillStyle='#FFFFFF';
+    c.fillRect(wx,wy,1,1);
+  }
+  // eyes, so it reads as a creature
+  _F(c,BX+52,BY+22,8,10,'#111'); _F(c,BX+70,BY+22,8,10,'#111');
+  // a dripping brush and three sampled swatches
+  _F(c,26,120,10,54,'#3B1F1A'); _F(c,24,112,14,10,'#838C9E');
+  _F(c,27,168,8,16,'#A85C3E'); _F(c,29,186,3,8,'#A85C3E');
+  ['#A85C3E','#4E7C47','#357C82'].forEach((col,i)=>{
+    _F(c,258,20+i*24,40,18,'#000'); _F(c,260,22+i*24,36,14,col);
+  });
+  // title plate
+  _F(c,0,0,320,22,'rgba(0,0,0,0.72)');
+  c.fillStyle='#F5D648';c.font='bold 15px ui-monospace,monospace';
+  c.fillText('WET PAINT',10,16);
+  c.fillStyle='#B4B4B4';c.font='11px ui-monospace,monospace';
+  c.fillText('HIDE BY HAND',196,16);
+},
 
 'magic-wand':(c)=>{
   _GV(c,0,0,320,200,'#1a0f33','#05030a');
