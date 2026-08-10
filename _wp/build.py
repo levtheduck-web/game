@@ -5,8 +5,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT  = os.path.join(HERE, '..', 'wet-paint.html')
 
 ORDER = ['01_font.js','02_core.js','03_palette.js','04_art.js','05_rooms.js',
-         '06_overworld.js','07_editor.js','08_score.js','09_encounter.js',
-         '10_sweep.js','11_results.js','12_story.js','13_audio.js','14_boot.js',
+         '06_overworld.js','07_editor.js','08_score.js','09_hide.js',
+         '11_results.js','12_story.js','13_audio.js','14_boot.js',
          '15_smoke.js']
 
 head = open(os.path.join(HERE,'00_head.html'),encoding='utf-8').read()

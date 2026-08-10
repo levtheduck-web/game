@@ -1,19 +1,17 @@
 /* ---------- global run state ---------- */
 const G = {
-  st:'TITLE', chapter:0, room:'HUB',
+  st:'TITLE', round:0, night:1, room:'CH1',
   px:160, py:190, facing:'down', animDist:0, animIdle:0, running:false,
   shape:'BLOB', pose:'STAND', spot:null, spotIdx:0,
   grid:null, gridW:0, gridH:0,
   slots:new Uint8Array([31,31,31,31,31,31,31,31]), slot:0,
   slotTag:['','','','','','','',''],
   tags:new Set(), score:0, bars:null, prevSlot:1,
-  hp:20, maxhp:20, notice:0, style:0, streak:0,
-  prep:75, prepPenalty:false, coneHit:false,
-  passIdx:0, passes:2, rags:0, sigUnlocked:false,
-  chapterScores:[], grades:[], caught:0, bolted:false, shifted:false,
+  prep:75, coneHit:false,
+  caught:0, survived:0, history:[],
   tool:{ size:1, mirror:false, dither:false }, ghostMode:1,
   fade:0, fadeDir:0, fadeThen:null,
-  best:0, rivalRows:[], seenIntro:{},
+  best:0, seenIntro:{},
 };
 
 /* ---------- fade helper ---------- */
@@ -180,9 +178,12 @@ function owUpdate(dt){
   if (OW.hintT > 0) OW.hintT -= dt;
 
   if (hit('ok') && best){
-    if (best.kind === 'spot'){ beginPrep(best.p); return; }
+    if (best.kind === 'spot'){
+      if (G.spot === best.p) { readyUp(); }
+      else { G.spot = best.p; G.st = 'EDITOR'; edOpen(); Audio_.sfx('confirm'); }
+      return;
+    }
     const p = best.p;
-    if (p.door){ enterChapterFromHub(); return; }
     if (p.talk) talkProp(p.talk);
   }
 }
@@ -206,7 +207,10 @@ function owDraw(c){
   // spot markers
   for (const s of (room.spots || [])){
     const on = OW.prompt && OW.prompt.kind === 'spot' && OW.prompt.p === s;
-    frame(c, s.coverX-1, s.coverY-1, s.coverW+2, s.coverH+2, 1, on ? UI.GOLD : UI.GHOST);
+    const mine = G.spot === s;
+    frame(c, s.coverX-1, s.coverY-1, s.coverW+2, s.coverH+2, 1,
+          on ? UI.GOLD : mine ? UI.CYAN : UI.GHOST);
+    if (mine) txt(c, 'YOURS', s.coverX, s.coverY - 10, UI.CYAN);
   }
 
   const m = maskFor(G.shape, G.pose);
@@ -214,18 +218,22 @@ function owDraw(c){
   if (room.waypoints) drawLooker(c);
 
   // header
-  rect(c, 0, 0, VW, 10, UI.BLACK);
+  rect(c, 0, 0, VW, 11, UI.BLACK);
   txt(c, room.label, 4, 2, UI.DIM);
   if (!room.hub){
     const t = Math.max(0, Math.ceil(G.prep));
-    txt(c, 'PREP ' + fmtClock(t), 240, 2, UI.WHITE);
+    txt(c, 'PAINT ' + fmtClock(t), 254, 2, t < 11 ? UI.SOUL : UI.WHITE);
+    txt(c, 'R' + (G.round+1) + '/N' + G.night, 96, 2, UI.DIM);
+    if (G.spot) txt(c, 'CAMO ' + computeScore().total, 148, 2, UI.GOLD);
   }
 
   if (OW.hintT > 0){ rect(c, 0, 226, VW, 12, UI.BLACK); txtC(c, OW.hint, 160, 228, UI.GOLD); }
   else if (OW.prompt){
     rect(c, 0, 226, VW, 12, UI.BLACK);
     const p = OW.prompt;
-    const label = p.kind === 'spot' ? ('[Z] HIDE: ' + p.p.name) : ('[Z] ' + p.p.name);
+    const label = p.kind === 'spot'
+      ? (G.spot === p.p ? ('[Z] HIDE HERE  —  ' + p.p.name) : ('[Z] PAINT FOR: ' + p.p.name))
+      : ('[Z] ' + p.p.name);
     txtC(c, label, 160, 228, UI.WHITE);
   }
   Dlg.draw(c);

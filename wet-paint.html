@@ -125,6 +125,7 @@ const KEYMAP = {
   Digit1:'s1', Digit2:'s2', Digit3:'s3', Digit4:'s4',
   Digit5:'s5', Digit6:'s6', Digit7:'s7', Digit8:'s8',
   BracketLeft:'brushdn', BracketRight:'brushup',
+  KeyP:'pose', KeyO:'shape',
   Comma:'shadedn', Period:'shadeup', KeyE:'mirror', KeyR:'sig',
 };
 const held = {}, pressed = {}, buffered = {};
@@ -541,47 +542,6 @@ function mkSpot(o){
 
 const ROOMS = {};
 
-/* ============================ THE HUB ============================ */
-ROOMS.HUB = {
-  name:'UNDERCOAT', label:'THE UNDERCOAT',
-  start:[160,180], hub:true,
-  build(s){
-    s.under('THE UNDERCOAT', () => {
-      s.bricks(0,0,320,152, 28,29,27, 16,10, 3);            // pale plaster wall
-      s.pf(0,148,320,6, 27);
-      s.speck(0,154,320,86, 17,[16,18], 5, 0.30, 'THE FLOOR');
-    });
-    // Sienna's shopfront (left)
-    s.under('SIENNA SHOPFRONT', () => {
-      s.pf(14,54,86,98, 21); s.pf(18,58,78,66, 23);
-      for (let i=0;i<5;i++) s.pf(22+i*15,62,11,58, 20+(i%4));
-      s.pf(14,126,86,26, 22); s.pf(20,132,74,4, 25);
-    });
-    // gallery wall (right) — six empty frames
-    s.under('GALLERY WALL', () => {
-      s.pf(196,44,112,88, 30);
-      for (let i=0;i<6;i++){
-        const fx = 202 + (i%3)*36, fy = 50 + ((i/3)|0)*44;
-        s.pf(fx,fy,30,36,29); s.pf(fx+2,fy+2,26,32,31);
-      }
-    });
-    // the door
-    s.under('THE DOOR', () => {
-      s.pf(136,64,48,88, 4); s.pf(140,68,40,80, 6);
-      s.grain(140,68,40,80, 6, 5, 12, 0.6, 'THE DOOR');
-      s.pf(174,106,4,6, 3);
-    });
-    s.block(14,54,86,98); s.block(196,44,112,88); s.block(136,64,48,88);
-    s.block(0,0,320,150);
-  },
-  props:[
-    { x:14, y:120, w:86, h:34, name:'SIENNA', talk:'SIENNA' },
-    { x:196, y:110, w:112, h:24, name:'GALLERY', talk:'GALLERY' },
-    { x:136, y:126, w:48, h:26, name:'DOOR', door:true },
-  ],
-  spots:[],
-};
-
 /* ============================ CH1 — THE ALLEY ============================ */
 ROOMS.CH1 = {
   name:'UNDERCOAT ALLEY', label:'THE ALLEY', prep:75, target:60, looker:'BIB',
@@ -856,7 +816,6 @@ ROOMS.CH5 = {
   ],
 };
 
-const CHAPTERS = ['CH1','CH2','CH3','CH4','CH5'];
 
 /* bake a room's three buffers once */
 const SCENES = {};
@@ -873,20 +832,18 @@ function getScene(key){
 /* ==================== 06_overworld.js ==================== */
 /* ---------- global run state ---------- */
 const G = {
-  st:'TITLE', chapter:0, room:'HUB',
+  st:'TITLE', round:0, night:1, room:'CH1',
   px:160, py:190, facing:'down', animDist:0, animIdle:0, running:false,
   shape:'BLOB', pose:'STAND', spot:null, spotIdx:0,
   grid:null, gridW:0, gridH:0,
   slots:new Uint8Array([31,31,31,31,31,31,31,31]), slot:0,
   slotTag:['','','','','','','',''],
   tags:new Set(), score:0, bars:null, prevSlot:1,
-  hp:20, maxhp:20, notice:0, style:0, streak:0,
-  prep:75, prepPenalty:false, coneHit:false,
-  passIdx:0, passes:2, rags:0, sigUnlocked:false,
-  chapterScores:[], grades:[], caught:0, bolted:false, shifted:false,
+  prep:75, coneHit:false,
+  caught:0, survived:0, history:[],
   tool:{ size:1, mirror:false, dither:false }, ghostMode:1,
   fade:0, fadeDir:0, fadeThen:null,
-  best:0, rivalRows:[], seenIntro:{},
+  best:0, seenIntro:{},
 };
 
 /* ---------- fade helper ---------- */
@@ -1053,9 +1010,12 @@ function owUpdate(dt){
   if (OW.hintT > 0) OW.hintT -= dt;
 
   if (hit('ok') && best){
-    if (best.kind === 'spot'){ beginPrep(best.p); return; }
+    if (best.kind === 'spot'){
+      if (G.spot === best.p) { readyUp(); }
+      else { G.spot = best.p; G.st = 'EDITOR'; edOpen(); Audio_.sfx('confirm'); }
+      return;
+    }
     const p = best.p;
-    if (p.door){ enterChapterFromHub(); return; }
     if (p.talk) talkProp(p.talk);
   }
 }
@@ -1079,7 +1039,10 @@ function owDraw(c){
   // spot markers
   for (const s of (room.spots || [])){
     const on = OW.prompt && OW.prompt.kind === 'spot' && OW.prompt.p === s;
-    frame(c, s.coverX-1, s.coverY-1, s.coverW+2, s.coverH+2, 1, on ? UI.GOLD : UI.GHOST);
+    const mine = G.spot === s;
+    frame(c, s.coverX-1, s.coverY-1, s.coverW+2, s.coverH+2, 1,
+          on ? UI.GOLD : mine ? UI.CYAN : UI.GHOST);
+    if (mine) txt(c, 'YOURS', s.coverX, s.coverY - 10, UI.CYAN);
   }
 
   const m = maskFor(G.shape, G.pose);
@@ -1087,18 +1050,22 @@ function owDraw(c){
   if (room.waypoints) drawLooker(c);
 
   // header
-  rect(c, 0, 0, VW, 10, UI.BLACK);
+  rect(c, 0, 0, VW, 11, UI.BLACK);
   txt(c, room.label, 4, 2, UI.DIM);
   if (!room.hub){
     const t = Math.max(0, Math.ceil(G.prep));
-    txt(c, 'PREP ' + fmtClock(t), 240, 2, UI.WHITE);
+    txt(c, 'PAINT ' + fmtClock(t), 254, 2, t < 11 ? UI.SOUL : UI.WHITE);
+    txt(c, 'R' + (G.round+1) + '/N' + G.night, 96, 2, UI.DIM);
+    if (G.spot) txt(c, 'CAMO ' + computeScore().total, 148, 2, UI.GOLD);
   }
 
   if (OW.hintT > 0){ rect(c, 0, 226, VW, 12, UI.BLACK); txtC(c, OW.hint, 160, 228, UI.GOLD); }
   else if (OW.prompt){
     rect(c, 0, 226, VW, 12, UI.BLACK);
     const p = OW.prompt;
-    const label = p.kind === 'spot' ? ('[Z] HIDE: ' + p.p.name) : ('[Z] ' + p.p.name);
+    const label = p.kind === 'spot'
+      ? (G.spot === p.p ? ('[Z] HIDE HERE  —  ' + p.p.name) : ('[Z] PAINT FOR: ' + p.p.name))
+      : ('[Z] ' + p.p.name);
     txtC(c, label, 160, 228, UI.WHITE);
   }
   Dlg.draw(c);
@@ -1540,772 +1507,365 @@ function worstWindow(){
 }
 
 
-/* ==================== 09_encounter.js ==================== */
-/* ---------- the encounter screen ---------- */
-const ARENA_STATES = {
-  MENU:[246,78], WIDE:[246,78], SQUARE:[94,94], TALL:[70,94], PINCH:[50,50]
+/* ==================== 09_hide.js ==================== */
+/* ---------- THE HIDE: the seeker walks the room and checks the hiding places ---------- */
+const HIDE = {
+  t:0, len:75, susp:0, breath:100, found:false, over:false, overT:0,
+  sk:{ x:0, y:0, fx:0, fy:1, mode:'WALK', target:null, pauseT:0, order:[], oi:0, pass:1 },
+  rivals:[], msgs:[], stare:0, relocT:0, doubleT:0, lastInspect:null, canMove:false,
 };
-const AR = {
-  cx:160, cy:140, iw:246, ih:78, tw:246, th:78,
-  soulX:160, soulY:140, iT:0, spawnFreeze:0,
-};
-function arenaSet(state, instant){
-  const [w, h] = ARENA_STATES[state];
-  AR.tw = w; AR.th = h;
-  if (instant){ AR.iw = w; AR.ih = h; }
-  AR.state = state;
-}
-function arenaStep(dt){
-  const rate = 180 * dt;
-  if (AR.iw !== AR.tw){ const d = Math.sign(AR.tw - AR.iw); AR.iw = Math.abs(AR.tw-AR.iw) <= rate ? AR.tw : AR.iw + d*rate; }
-  if (AR.ih !== AR.th){ const d = Math.sign(AR.th - AR.ih); AR.ih = Math.abs(AR.th-AR.ih) <= rate ? AR.th : AR.ih + d*rate; }
-  AR.iw = Math.max(40, Math.min(270, AR.iw)); AR.ih = Math.max(40, Math.min(94, AR.ih));
-  clampSoul();
-}
-function inner(){
-  const w = Math.round(AR.iw), h = Math.round(AR.ih);
-  return { x: Math.round(AR.cx - w/2), y: Math.round(AR.cy - h/2), w, h };
-}
-function clampSoul(){
-  const r = inner();
-  let lo = r.x + 3, hi = r.x + r.w - 3;
-  if (G.pose === 'FLATTEN'){                       // flattening halves your range
-    const q = r.w / 4; lo = r.x + q + 3; hi = r.x + r.w - q - 3;
+
+function hideBegin(){
+  const room = ROOMS[G.room];
+  const b = computeScore(); G.bars = b; G.score = b.total;
+  HIDE.t = 0; HIDE.len = room.hideLen || 75;
+  HIDE.susp = 0; HIDE.breath = 100; HIDE.found = false; HIDE.over = false; HIDE.overT = 0;
+  HIDE.msgs = []; HIDE.stare = 0; HIDE.relocT = 0; HIDE.doubleT = 0; HIDE.lastInspect = null;
+
+  // the other Blanks hide too, and are scored by the same yardstick
+  const others = room.spots.filter(s => s !== G.spot);
+  HIDE.rivals = RIVAL_NAMES.map((n, i) => ({
+    name: n,
+    score: n === 'SPLOTCH' ? 14 + ((G.round * 7 + i * 13) % 12)
+                           : 44 + ((G.round * 11 + i * 29) % 40),
+    spot: others[(i * 2 + G.round) % others.length],
+    found: false,
+  }));
+
+  // the seeker checks every spot, in a shuffled order
+  const order = room.spots.map((s, i) => i);
+  for (let i = order.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = order[i]; order[i] = order[j]; order[j] = t;
   }
-  AR.soulX = Math.max(lo, Math.min(hi, AR.soulX));
-  AR.soulY = Math.max(r.y + 3, Math.min(r.y + r.h - 3, AR.soulY));
+  const sk = HIDE.sk;
+  sk.order = order; sk.oi = 0; sk.pass = 1; sk.mode = 'WALK'; sk.pauseT = 0;
+  sk.x = room.start[0]; sk.y = room.start[1] + 8;
+  sk.target = room.spots[order[0]];
+  G.st = 'HIDE';
+  Audio_.music('hunt', 92 + (100 - G.score) * 0.35);
+  pushMsg(LOOKERS[room.looker].name + ' IS LOOKING.');
 }
-function soulMove(dt){
-  const [ax, ay] = axis();
-  const sp = (down('no') ? 55 : 110) * dt;
-  const px = AR.soulX, py = AR.soulY;
-  AR.soulX += ax * sp; AR.soulY += ay * sp;
-  clampSoul();
-  return Math.hypot(AR.soulX - px, AR.soulY - py);
+function pushMsg(s){ HIDE.msgs.unshift({ s, t: 3.2 }); if (HIDE.msgs.length > 3) HIDE.msgs.pop(); }
+
+/* is the seeker's cone on a point? */
+function skSees(x, y){
+  const sk = HIDE.sk;
+  const dx = x - sk.x, dy = y - sk.y, d = Math.hypot(dx, dy);
+  if (d > 84 || d < 1) return 0;
+  const dot = (dx/d) * sk.fx + (dy/d) * sk.fy;
+  if (dot < 0.80) return 0;
+  return 1 - d / 84;                                   // 0..1, closer = stronger
 }
 
-/* ---------- the 3x spot composite: the arena floor IS your paint job ---------- */
-let spotView = null, spotViewT = 0;
-function bakeSpotView(){
-  const m = maskFor(G.shape, G.pose), a = G.spot.anchors[G.pose], sc = getScene(G.room);
-  const pad = 46;
-  const sx = Math.max(0, a[0] - pad), sy = Math.max(0, a[1] - pad);
-  const sw = Math.min(VW - sx, m.w + pad*2), sh = Math.min(VH - sy, m.h + pad*2);
-  const cv = document.createElement('canvas');
-  cv.width = sw * 3; cv.height = sh * 3;
-  const c = cv.getContext('2d', { alpha:false }); nosmooth(c);
-  c.drawImage(sc.cv, sx, sy, sw, sh, 0, 0, sw*3, sh*3);
-  if (blankDirty) bakeBlank();
-  c.drawImage(blankSprite, 0, 0, m.w, m.h,
-              (a[0]-sx)*3, (a[1]-sy)*3, m.w*3, m.h*3);
-  spotView = { cv, sx, sy, bodyX:(a[0]-sx)*3, bodyY:(a[1]-sy)*3, bw:m.w*3, bh:m.h*3 };
-}
-function drawSpotView(c, r){
-  if (!spotView) bakeSpotView();
-  const bcx = spotView.bodyX + spotView.bw/2, bcy = spotView.bodyY + spotView.bh/2;
-  c.save(); c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
-  rect(c, r.x, r.y, r.w, r.h, UI.BLACK);
-  c.drawImage(spotView.cv, Math.round(r.x + r.w/2 - bcx), Math.round(r.y + r.h/2 - bcy));
-  c.restore();
-}
-/* map the soul's arena position back onto a body cell (for smudging) */
-function soulToCell(){
-  if (!spotView) bakeSpotView();
-  const r = inner();
-  const bcx = spotView.bodyX + spotView.bw/2, bcy = spotView.bodyY + spotView.bh/2;
-  const ox = Math.round(r.x + r.w/2 - bcx), oy = Math.round(r.y + r.h/2 - bcy);
-  const vx = AR.soulX - ox, vy = AR.soulY - oy;
-  return { cx: Math.floor((vx - spotView.bodyX) / 3), cy: Math.floor((vy - spotView.bodyY) / 3) };
-}
-
-/* ---------- buttons ---------- */
-const BTNS = ['PAINT','POSE','SPOT','HOLD'];
-const BTN_X = [15, 89, 163, 237];
-let btnSel = 3;
-function drawButtons(c, enabled){
-  for (let i = 0; i < 4; i++){
-    const x = BTN_X[i], y = 208, sel = i === btnSel;
-    const on = !enabled || enabled[i];
-    const col = !on ? UI.GHOST : sel ? UI.GOLD : UI.WHITE;
-    frame(c, x, y, 68, 28, 2, col);
-    txt(c, BTNS[i], x + 22, y + 11, col);
-    if (sel) drawEmber(c, x + 12, y + 14, UI.SOUL);
+function hideUpdate(dt){
+  if (HIDE.over){
+    HIDE.overT += dt;
+    if (Dlg.active){ Dlg.update(dt); return; }
+    if (HIDE.overT > 0.6 && hit('ok')) resultsBegin();
+    return;
   }
-}
-function buttonNav(enabled){
-  if (hit('left')){
-    for (let i = btnSel-1; i >= 0; i--) if (!enabled || enabled[i]){ btnSel = i; Audio_.sfx('menu'); break; }
-  }
-  if (hit('right')){
-    for (let i = btnSel+1; i < 4; i++) if (!enabled || enabled[i]){ btnSel = i; Audio_.sfx('menu'); break; }
-  }
-}
-
-/* ---------- generic submenu inside the arena ---------- */
-const SUB = { open:false, items:[], sel:0, title:'', onPick:null };
-function subOpen(title, items, onPick){
-  SUB.open = true; SUB.items = items; SUB.sel = 0; SUB.title = title; SUB.onPick = onPick;
-}
-function subUpdate(){
-  if (!SUB.open) return false;
-  const n = SUB.items.length;
-  if (hit('down')){ SUB.sel = (SUB.sel + 1) % n; Audio_.sfx('menu'); }
-  if (hit('up')){ SUB.sel = (SUB.sel - 1 + n) % n; Audio_.sfx('menu'); }
-  if (hit('right') && n > 3){ SUB.sel = Math.min(n-1, SUB.sel + Math.ceil(n/2)); Audio_.sfx('menu'); }
-  if (hit('left')  && n > 3){ SUB.sel = Math.max(0, SUB.sel - Math.ceil(n/2)); Audio_.sfx('menu'); }
-  if (hit('no')){ SUB.open = false; Audio_.sfx('back'); return true; }
-  if (hit('ok')){
-    const it = SUB.items[SUB.sel];
-    if (it.disabled){ Audio_.sfx('bad'); return true; }
-    SUB.open = false; Audio_.sfx('confirm');
-    if (SUB.onPick) SUB.onPick(it, SUB.sel);
-  }
-  return true;
-}
-function subDraw(c){
-  if (!SUB.open) return;
-  const r = inner();
-  rect(c, r.x, r.y, r.w, r.h, UI.BLACK);
-  txt(c, SUB.title, r.x + 10, r.y + 4, UI.DIM);
-  const half = Math.ceil(SUB.items.length / 2);
-  for (let i = 0; i < SUB.items.length; i++){
-    const col = i < half ? 0 : 1;
-    const row = i % half;
-    const x = r.x + 26 + col * (r.w/2 - 6), y = r.y + 16 + row * 14;
-    const it = SUB.items[i];
-    txt(c, it.label, x, y, it.disabled ? UI.GHOST : (i === SUB.sel ? UI.GOLD : UI.WHITE));
-    if (i === SUB.sel) drawEmber(c, x - 10, y + 3, UI.SOUL);
-  }
-}
-
-/* ---------- PREP ---------- */
-function beginPrep(spot){
-  G.spot = spot;
-  G.spotIdx = ROOMS[G.room].spots.indexOf(spot);
-  setPose(spot.wantShape === 'CUBE' ? 'CUBE' : 'BLOB', 'STAND');
-  whiteReset();
-  G.notice = 0; G.style = 0; G.streak = 0; G.bolted = false; G.shifted = false;
-  G.hp = G.maxhp;
-  btnSel = 3; arenaSet('MENU', true);
-  AR.soulX = 160; AR.soulY = 140;
-  spotView = null;
-  G.st = 'ENTRY'; G.entryT = 0;
-  if (!G.coneHit) { G.prep += 10; OW.hint = '+10s  UNSEEN'; OW.hintT = 2; }
-  Audio_.sfx('encounter');
-}
-function prepUpdate(dt){
   if (Dlg.active){ Dlg.update(dt); return; }
-  if (SUB.open){ subUpdate(); return; }
-  arenaStep(dt);
-  G.prep -= dt;
-  if (G.prep <= 0){ G.prep = 0; commitHold(); return; }
-  buttonNav();
-  if (hit('ok')){
-    Audio_.sfx('confirm');
-    if (btnSel === 0){ G.st = 'EDITOR'; edOpen(); }
-    else if (btnSel === 1) openPoseMenu();
-    else if (btnSel === 2) openSpotMenu();
-    else commitHold();
+
+  HIDE.t += dt;
+  const room = ROOMS[G.room], sk = HIDE.sk;
+  const myAnchor = G.spot.anchors[G.pose];
+  const myX = myAnchor[0] + G.gridW/2, myY = myAnchor[1] + G.gridH/2;
+
+  // ---- breath ----
+  const holding = down('no') && HIDE.breath > 0;
+  if (holding){ HIDE.breath = Math.max(0, HIDE.breath - 34*dt); }
+  else HIDE.breath = Math.min(100, HIDE.breath + 14*dt);
+
+  // ---- relocate: only when it is not looking anywhere near you ----
+  const seen = skSees(myX, myY);
+  const inspectingMe = sk.mode === 'INSPECT' && sk.target === G.spot;
+  // you may only slip away when it is far off AND not stood there studying your spot
+  const canMove = !seen && !inspectingMe && Math.hypot(sk.x - myX, sk.y - myY) > 92;
+  HIDE.canMove = canMove;
+  if (HIDE.relocT > 0) HIDE.relocT -= dt;
+  if (canMove && HIDE.relocT <= 0 && hit('ok')){
+    const list = room.spots;
+    let i = list.indexOf(G.spot);
+    for (let k = 1; k <= list.length; k++){
+      const cand = list[(i + k) % list.length];
+      if (HIDE.rivals.some(r => !r.found && r.spot === cand)) continue;
+      G.spot = cand; break;
+    }
+    const b = computeScore(); G.bars = b; G.score = b.total;
+    HIDE.relocT = 1.2; HIDE.susp = Math.min(100, HIDE.susp + 8);
+    pushMsg('YOU MOVED TO ' + G.spot.name + '.');
+    Audio_.sfx('brush');
   }
-}
-function openPoseMenu(){
-  const items = [];
-  for (const sh of ['BLOB','CUBE']) for (const po of ['STAND','CURL','LIE','FLATTEN'])
-    items.push({ label: sh.slice(0,4) + ' ' + po, sh, po });
-  subOpen('SHAPE + POSE', items, it => {
-    setPose(it.sh, it.po); spotView = null;
-  });
-}
-function openSpotMenu(){
-  const items = ROOMS[G.room].spots.map(s => ({ label: s.name.slice(0,22), s }));
-  subOpen('MOVE TO', items, it => {
-    G.spot = it.s; G.spotIdx = ROOMS[G.room].spots.indexOf(it.s); spotView = null;
-  });
-}
-function commitHold(){
-  const b = computeScore();
-  G.bars = b; G.score = b.total;
-  bakeSpotView();
-  G.st = 'HOLDIN'; G.holdT = 0;
-  Audio_.sfx('commit');
+
+  // ---- seeker ----
+  if (sk.mode === 'WALK'){
+    const t = sk.target;
+    const tx = t.walk[0], ty = t.walk[1];
+    const dx = tx - sk.x, dy = ty - sk.y, d = Math.hypot(dx, dy);
+    if (d < 2){
+      sk.mode = 'INSPECT'; sk.pauseT = 0;
+      // face the spot it came to check
+      const cdx = (t.coverX + t.coverW/2) - sk.x, cdy = (t.coverY + t.coverH/2) - sk.y;
+      const cd = Math.hypot(cdx, cdy) || 1; sk.fx = cdx/cd; sk.fy = cdy/cd;
+      HIDE.lastInspect = t;
+    } else {
+      const sp = 46 * dt;
+      sk.x += dx/d * sp; sk.y += dy/d * sp;
+      sk.fx = dx/d; sk.fy = dy/d;
+    }
+  } else if (sk.mode === 'INSPECT'){
+    sk.pauseT += dt;
+    const t = sk.target;
+    // rivals hidden here get resolved
+    for (const r of HIDE.rivals){
+      if (r.found || r.spot !== t) continue;
+      if (sk.pauseT > 1.1){
+        const bar = 34 + HIDE.t * 0.55 + (sk.pass - 1) * 18;
+        if (r.score < bar){
+          r.found = true;
+          pushMsg(r.name + ' WAS FOUND.');
+          Audio_.sfx('bad');
+        }
+      }
+    }
+    // you
+    if (t === G.spot){
+      HIDE.stare = 1;
+      // a great paint job is looked straight at and survives it; a bad one does not
+      const miss = Math.max(0, 1 - G.score/100);
+      const base = 54 * Math.pow(miss, 1.6) + (sk.pass - 1) * 3;
+      let rate = base;
+      if (holding) rate *= 0.42;
+      HIDE.susp += rate * dt;
+      if (down('left') || down('right') || down('up') || down('down')){
+        HIDE.susp += 30 * dt;                          // flinching is fatal
+      }
+    }
+    if (sk.pauseT > 2.2){
+      sk.mode = 'WALK'; sk.oi++;
+      if (sk.oi >= sk.order.length){ sk.oi = 0; sk.pass++; }
+      sk.target = room.spots[sk.order[sk.oi]];
+      // a near miss makes it come back
+      if (t === G.spot && HIDE.susp > 55 && HIDE.doubleT === 0){
+        HIDE.doubleT = 1; sk.target = t; sk.oi--;
+        pushMsg('...IT IS COMING BACK.');
+      }
+    }
+  }
+
+  // passive attention while it merely walks past
+  if (sk.mode === 'WALK' && seen > 0){
+    let rate = 20 * Math.pow(Math.max(0, 1 - G.score/100), 1.6) * seen;
+    if (holding) rate *= 0.42;
+    HIDE.susp += rate * dt;
+    HIDE.stare = Math.max(HIDE.stare, seen);
+  } else if (sk.mode !== 'INSPECT' || sk.target !== G.spot){
+    HIDE.susp -= 4 * dt;
+    HIDE.stare = Math.max(0, HIDE.stare - dt * 2);
+  }
+  HIDE.susp = Math.max(0, HIDE.susp);
+
+  for (const m of HIDE.msgs) m.t -= dt;
+  HIDE.msgs = HIDE.msgs.filter(m => m.t > 0);
+
+  if (HIDE.susp >= 100) return hideEnd(true);
+  if (HIDE.t >= HIDE.len) return hideEnd(false);
 }
 
-function closeEditor(){ G.st = 'PREP'; spotView = null; Audio_.sfx('back'); }
-
-/* ---------- shared encounter chrome ---------- */
-function drawChrome(c, seekerName, showNotice){
-  rect(c, 0, 0, VW, VH, UI.BLACK);
-  txt(c, seekerName, 8, 6, UI.DIM);
-  if (showNotice){
-    txt(c, 'NOTICE ' + Math.round(G.notice), 8, 66, UI.WHITE);
-    rect(c, 8, 76, 88, 6, UI.BLOOD);
-    const w = Math.round(88 * G.notice / 100);
-    const flash = G.notice >= 85 && (frameCount % 4 < 2);
-    rect(c, 8, 76, w, 6, flash ? UI.WHITE : UI.GOLD);
+function hideEnd(found){
+  HIDE.found = found; HIDE.over = true; HIDE.overT = 0;
+  G.st = 'HIDE';
+  Audio_.music(null);
+  const L = LOOKERS[ROOMS[G.room].looker];
+  if (found){
+    G.caught++;
+    Audio_.sfx('ko');
+    Dlg.queue(L.capture, { voice:L.voice });
   } else {
-    txt(c, 'PREP ' + fmtClock(Math.max(0, Math.ceil(G.prep))), 8, 66, UI.WHITE);
+    G.survived++;
+    Audio_.sfx('win');
+    const cat = worstCategory(G.bars);
+    const line = G.score >= 88 ? L.barks.great : G.score >= 74 ? L.barks.near
+               : (L.barks[cat] || L.barks.PAINT);
+    Dlg.queue([{ t: line }, ...L.depart], { voice:L.voice, mono:false });
   }
-  txt(c, 'STYLE ' + G.style, 16, 196, UI.DIM);
-  txt(c, 'BLANK', 96, 196, UI.WHITE);
-  txt(c, 'HP', 152, 196, UI.WHITE);
-  rect(c, 170, 196, 96, 9, UI.BLOOD);
-  rect(c, 170, 196, Math.round(96 * Math.max(0,G.hp) / G.maxhp), 9, UI.GOLD);
-  txt(c, Math.max(0,Math.round(G.hp)) + '/' + G.maxhp, 272, 196, UI.WHITE);
-}
-function drawArenaFrame(c, withComposite){
-  const r = inner();
-  if (withComposite) drawSpotView(c, r); else rect(c, r.x, r.y, r.w, r.h, UI.BLACK);
-  frame(c, r.x - 5, r.y - 5, r.w + 10, r.h + 10, 5, UI.WHITE);
-}
-function drawSoul(c, hidden){
-  if (hidden) return;
-  if (AR.iT > 0 && Math.floor(AR.iT * 60 / 4) % 2) return;   // 4 on / 4 off
-  drawEmber(c, AR.soulX, AR.soulY, UI.SOUL);
 }
 
-function prepDraw(c){
-  drawChrome(c, LOOKERS[ROOMS[G.room].looker].name + '  —  PREPARING', false);
-  drawArenaFrame(c, true);
-  if (SUB.open) subDraw(c);
-  else {
-    const r = inner();
-    rect(c, r.x, r.y + r.h - 12, r.w, 12, UI.BLACK);
-    txt(c, G.spot.name + '   ' + G.shape + ' ' + G.pose, r.x + 6, r.y + r.h - 10, UI.DIM);
+/* ---------- drawing ---------- */
+function hideDraw(c){
+  const room = ROOMS[G.room], sc = getScene(G.room), sk = HIDE.sk;
+  c.drawImage(sc.cv, 0, 0);
+
+  // every hidden Blank is actually in the room
+  for (const r of HIDE.rivals){
+    if (r.found) continue;
+    drawRival(c, r);
   }
-  drawButtons(c);
+  if (blankDirty) bakeBlank();
+  const a = G.spot.anchors[G.pose];
+  c.drawImage(blankSprite, a[0], a[1]);
+
+  drawSkCone(c);
+  drawSeekerWorld(c, sk.x, sk.y, LOOKERS[room.looker]);
+
+  // found rivals get a marker where they were
+  for (const r of HIDE.rivals){
+    if (!r.found) continue;
+    const ra = r.spot.anchors[r.spot.wantPose];
+    txt(c, 'X', ra[0] + 4, ra[1] + 4, UI.SOUL);
+  }
+
+  // ---- HUD ----
+  rect(c, 0, 0, VW, 22, UI.BLACK);
+  txt(c, 'SUSPICION', 4, 2, UI.WHITE);
+  rect(c, 4, 12, 108, 7, UI.BLOOD);
+  const sw = Math.round(108 * Math.min(100, HIDE.susp) / 100);
+  const hot = HIDE.susp >= 80 && (frameCount % 6 < 3);
+  rect(c, 4, 12, sw, 7, hot ? UI.WHITE : (HIDE.susp > 55 ? UI.SOUL : UI.GOLD));
+
+  txt(c, 'BREATH', 124, 2, HIDE.breath > 25 ? UI.DIM : UI.SOUL);
+  rect(c, 124, 12, 64, 7, UI.BLOOD);
+  rect(c, 124, 12, Math.round(64 * HIDE.breath / 100), 7, UI.CYAN);
+
+  const left = Math.max(0, Math.ceil(HIDE.len - HIDE.t));
+  txt(c, 'TIME ' + fmtClock(left), 202, 2, UI.WHITE);
+  const alive = HIDE.rivals.filter(r => !r.found).length + 1;
+  txt(c, 'HIDING ' + alive + '/' + (HIDE.rivals.length + 1), 202, 12, UI.DIM);
+  txt(c, 'CAMO ' + G.score, 268, 2, UI.GOLD);
+
+  // messages
+  for (let i = 0; i < HIDE.msgs.length; i++){
+    const s2 = HIDE.msgs[i].s, y = 25 + i*11;
+    rect(c, 2, y - 1, txtW(s2) + 4, 10, UI.BLACK);
+    txt(c, s2, 4, y, i === 0 ? UI.WHITE : UI.GHOST);
+  }
+
+  // the tense bit
+  if (HIDE.stare > 0.05 && !HIDE.over){
+    const y = 200;
+    rect(c, 0, y, VW, 12, UI.BLACK);
+    txtC(c, HIDE.sk.mode === 'INSPECT' && HIDE.sk.target === G.spot
+            ? 'IT IS LOOKING RIGHT AT YOU. HOLD STILL.'
+            : 'IT IS LOOKING THIS WAY.', 160, y + 2, UI.SOUL);
+    if (frameCount % 30 < 15) frame(c, 0, 0, VW, VH, 1, UI.SOUL);
+  }
+
+  rect(c, 0, 226, VW, 14, UI.BLACK);
+  if (HIDE.over){
+    txtC(c, HIDE.found ? 'FOUND.' : 'NOT FOUND.', 160, 228, HIDE.found ? UI.SOUL : UI.GOLD);
+  } else {
+    txtC(c, 'X HOLD BREATH' + (HIDE.canMove ? '    Z MOVE SPOTS' : '    DO NOT MOVE'),
+         160, 228, UI.DIM);
+  }
   Dlg.draw(c);
 }
-
-
-/* ==================== 10_sweep.js ==================== */
-/* ---------- the sweep: your camo score IS the difficulty dial ---------- */
-const SW = {
-  pass:0, passes:2, t:0, len:0, active:0, phase:'CMD',
-  motes:[], beams:[], telegraph:[], moteAcc:0, beamAcc:0,
-  moteEvery:1, beamCount:0, grey:false, stillT:0, nextCut:0,
-  steady:null, dropletFX:[], dmgFX:[], ko:0, koT:0, doubleT:0, worst:null,
-};
-
-function sweepBegin(){
-  const s = G.score;
-  const CERT = Math.max(5, Math.min(95, 100 - s));
-  SW.passes = 2 + Math.floor(CERT / 22);                 // 2..6
-  SW.pass = 0; SW.phase = 'CMD';
-  SW.motes = []; SW.beams = []; SW.telegraph = []; SW.dropletFX = []; SW.dmgFX = [];
-  SW.grey = s >= 70;
-  G.notice = Math.max(0, Math.min(40, (CERT - 45) * 0.6));
-  SW.ko = 0; SW.doubleT = 0;
-  AR.iT = 0;
-  arenaSet('MENU', true);
-  btnSel = 3;
-  G.st = 'SWEEP';
-  Audio_.music('sweep', 96 + (100 - s) * 0.6);
-}
-const PASS_LEN = [8.0, 8.0, 9.5, 9.5, 11.0, 11.0];
-const PASS_STATE = ['WIDE','WIDE','SQUARE','SQUARE','TALL','PINCH'];
-
-function passBegin(){
-  const s = G.score, CERT = Math.max(5, Math.min(95, 100 - s));
-  const len = PASS_LEN[Math.min(5, SW.pass)];
-  const threatTotal = Math.max(8, Math.min(40, 8 + 32 * (1 - s/100)));
-  let sum = 0; for (let i = 0; i < SW.passes; i++) sum += PASS_LEN[Math.min(5,i)];
-  SW.len = len;
-  SW.active = Math.min(len - 0.5, threatTotal * len / sum);
-  SW.t = 0; SW.moteAcc = 0; SW.beamAcc = 0;
-  SW.moteEvery = Math.max(0.22, 1.45 - CERT / 90) * (SW.perfectBonus ? 1.33 : 1);
-  SW.perfectBonus = false;
-  SW.beamCount = Math.round(1 + CERT / 28);
-  SW.speed = 0.70 + CERT / 120;
-  arenaSet(PASS_STATE[Math.min(5, SW.pass)]);
-  SW.phase = 'WAVE';
-  SW.telegraph.push({ t:0.45, x:inner().x + inner().w/2, side:'top' });
-}
-
-/* ---------- attacks ---------- */
-function spawnMote(heavy){
-  const r = inner();
-  const side = Math.floor(Math.random() * 4);
-  let x, y, vx, vy;
-  const sp = (heavy ? 34 : 52) * SW.speed;
-  if (side === 0){ x = r.x + Math.random()*r.w; y = r.y - 4; }
-  else if (side === 1){ x = r.x + r.w + 4; y = r.y + Math.random()*r.h; }
-  else if (side === 2){ x = r.x + Math.random()*r.w; y = r.y + r.h + 4; }
-  else { x = r.x - 4; y = r.y + Math.random()*r.h; }
-  // never spawn within 14px of the soul
-  if (Math.hypot(x - AR.soulX, y - AR.soulY) < 14) return;
-  const tx = r.x + 8 + Math.random() * (r.w - 16), ty = r.y + 8 + Math.random() * (r.h - 16);
-  const d = Math.hypot(tx - x, ty - y) || 1;
-  vx = (tx - x) / d * sp; vy = (ty - y) / d * sp;
-  SW.motes.push({ x, y, vx, vy, heavy, r: heavy ? 4 : 3, life: 6 });
-}
-function spawnBeam(){
-  const r = inner();
-  const vertical = Math.random() < 0.5;
-  SW.beams.push({ vertical, p: vertical ? r.x + 10 : r.y + 8,
-                  v: (vertical ? 26 : 18) * SW.speed * (Math.random() < 0.5 ? 1 : -1),
-                  life: 5.5, w: 3 });
-}
-
-function sweepUpdate(dt){
-  if (SW.ko > 0) return koUpdate(dt);
-  if (Dlg.active){ Dlg.update(dt); return; }
-  arenaStep(dt);
-
-  if (SW.phase === 'CMD'){ cmdUpdate(dt); return; }
-  if (SW.phase === 'STEADY'){ steadyUpdate(dt); return; }
-  if (SW.phase === 'DOUBLE'){ doubleUpdate(dt); return; }
-
-  // ---- WAVE ----
-  SW.t += dt;
-  if (AR.iT > 0) AR.iT -= dt;
-  if (AR.spawnFreeze > 0) AR.spawnFreeze -= dt;
-
-  const moved = soulMove(dt);
-  G.notice += moved * (down('no') ? 0.018 : 0.036);
-  if (moved < 0.01){ SW.stillT += dt; if (SW.stillT >= 1) G.notice -= 3 * dt; }
-  else SW.stillT = 0;
-
-  const threatOn = SW.t < SW.active;
-  if (threatOn && AR.spawnFreeze <= 0){
-    SW.moteAcc += dt;
-    while (SW.moteAcc >= SW.moteEvery){
-      SW.moteAcc -= SW.moteEvery;
-      spawnMote(Math.random() < 0.18 && G.score < 60);
-    }
-    SW.beamAcc += dt;
-    if (SW.beams.length < SW.beamCount && SW.beamAcc > 1.6){ SW.beamAcc = 0; spawnBeam(); }
-  }
-
-  const r = inner();
-  for (const m of SW.motes){
-    m.x += m.vx * dt; m.y += m.vy * dt; m.life -= dt;
-    if (m.x < r.x - 6 || m.x > r.x + r.w + 6) m.vx *= -1;
-    if (m.y < r.y - 6 || m.y > r.y + r.h + 6) m.vy *= -1;
-    if (AR.iT <= 0 && Math.abs(m.x - AR.soulX) < m.r + 2 && Math.abs(m.y - AR.soulY) < m.r + 2)
-      takeHit(m.heavy ? 4 : 3, m.heavy);
-  }
-  SW.motes = SW.motes.filter(m => m.life > 0);
-
-  for (const b of SW.beams){
-    b.p += b.v * dt; b.life -= dt;
-    const lim = b.vertical ? [r.x + 4, r.x + r.w - 4] : [r.y + 4, r.y + r.h - 4];
-    if (b.p < lim[0] || b.p > lim[1]) b.v *= -1;
-    // a beam over a badly-matched region raises notice
-    const cell = soulToCell();
-    const m = maskFor(G.shape, G.pose);
-    if (G.bars && cell.cx >= 0 && cell.cy >= 0 && cell.cx < m.w && cell.cy < m.h){
-      const mv = G.bars.cellM[cell.cy*m.w + cell.cx];
-      const onBeam = b.vertical ? Math.abs(AR.soulX - b.p) < 6 : Math.abs(AR.soulY - b.p) < 6;
-      if (onBeam && mv >= 0 && mv < 0.5){ G.notice += 8 * dt; G.style += Math.round(60 * dt); }
+function drawSkCone(c){
+  const sk = HIDE.sk;
+  // brighter while it has actually stopped to look at something
+  const staring = sk.mode === 'INSPECT';
+  const col = staring ? UI.WHITE : UI.GHOST;
+  const gap = staring ? 3 : 4;
+  for (let r = 10; r < 84; r += 2){
+    const halfw = Math.round(r * 0.62);
+    for (let s = -halfw; s <= halfw; s += 2){
+      const px = Math.round(sk.x + sk.fx*r - sk.fy*s);
+      const py = Math.round(sk.y + sk.fy*r + sk.fx*s);
+      if (px < 0 || py < 0 || px >= VW || py >= VH) continue;
+      if ((px + py) % gap === 0) rect(c, px, py, 1, 1, col);
     }
   }
-  SW.beams = SW.beams.filter(b => b.life > 0);
-
-  for (const t of SW.telegraph) t.t -= dt;
-  SW.telegraph = SW.telegraph.filter(t => t.t > 0);
-  for (const d of SW.dropletFX){ d.y += 40*dt; d.t -= dt; }
-  SW.dropletFX = SW.dropletFX.filter(d => d.t > 0);
-  for (const d of SW.dmgFX) d.t -= dt;
-  SW.dmgFX = SW.dmgFX.filter(d => d.t > 0);
-
-  G.notice = Math.max(0, Math.min(100, G.notice));
-  if (G.notice >= 100 || G.hp <= 0) return startKO();
-
-  if (SW.t >= SW.len){
-    SW.motes = []; SW.beams = [];
-    SW.pass++;
-    if (SW.pass >= SW.passes){
-      if (G.score < 78){ beginDoubleTake(); }
-      else { G.st = 'REVEAL'; revealBegin(); }
-      return;
-    }
-    SW.phase = 'CMD'; arenaSet('MENU'); btnSel = 3;
+}
+function drawSeekerWorld(c, x, y, L){
+  x = Math.round(x); y = Math.round(y);
+  const bob = HIDE.sk.mode === 'WALK' ? (Math.floor(HIDE.t * 6) % 2) : 0;
+  const col = L.worldCol || UI.DIM;
+  rect(c, x-8, y-26+bob, 16, 26, UI.BLACK);
+  rect(c, x-7, y-25+bob, 14, 24, col);
+  rect(c, x-5, y-21+bob, 10, 6, UI.BLACK);
+  rect(c, x-4, y-20+bob, 3, 3, UI.WHITE);
+  rect(c, x+2, y-20+bob, 3, 3, UI.WHITE);
+  rect(c, x-9, y-28+bob, 18, 4, UI.BLACK);
+  rect(c, x-7, y-27+bob, 14, 2, L.hatCol || UI.GOLD);
+  rect(c, x-6, y-2, 5, 3, UI.BLACK); rect(c, x+2, y-2, 5, 3, UI.BLACK);
+}
+function drawRival(c, r){
+  const m = maskFor(r.spot.wantShape, r.spot.wantPose);
+  const a = r.spot.anchors[r.spot.wantPose];
+  const sc = getScene(G.room);
+  // rivals are painted about as well as they scored
+  for (const cell of m.cells){
+    const wall = sc.at(a[0]+cell.cx, a[1]+cell.cy);
+    const good = ((cell.cx * 7 + cell.cy * 13 + r.score) % 100) < r.score;
+    rect(c, a[0]+cell.cx, a[1]+cell.cy, 1, 1, good ? PAL[wall] : PAL[WHITE_IDX]);
   }
 }
-
-function takeHit(dmg, heavy){
-  G.hp -= dmg; AR.iT = 1.10; AR.spawnFreeze = 0.35;
-  G.notice += heavy ? 14 : 10;
-  freeze(0.10); shake(3);
-  SW.dmgFX.push({ t:0.7, v:dmg, x:AR.soulX, y:AR.soulY });
-  Audio_.sfx('hurt');
-  smudge(heavy ? 8 : 5);
-}
-/* SMUDGE — damage lands on the painting, where your soul was standing */
-function smudge(n){
-  const m = maskFor(G.shape, G.pose);
-  const cell = soulToCell();
-  let cx = cell.cx, cy = cell.cy;
-  if (!m.liveAt(cx, cy)){                            // snap to the nearest live cell
-    let bd = 1e9;
-    for (const c of m.cells){ const d = Math.hypot(c.cx-cx, c.cy-cy); if (d < bd){ bd = d; cx = c.cx; cy = c.cy; } }
-  }
-  const hitCells = [];
-  const q = [[cx,cy]], seen = new Set();
-  while (q.length && hitCells.length < n){
-    const [x,y] = q.shift(); const k = y*m.w+x;
-    if (seen.has(k) || !m.liveAt(x,y)) continue;
-    seen.add(k);
-    if (G.grid[k] !== WHITE_IDX) hitCells.push(k);
-    q.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
-  }
-  for (const k of hitCells){
-    G.grid[k] = WHITE_IDX;
-    SW.dropletFX.push({ x: AR.soulX + (Math.random()*8-4), y: AR.soulY, t:0.6 });
-  }
-  blankDirty = true;
-  const b = computeScore(); G.bars = b; G.score = b.total;
-  spotViewT = 0; bakeSpotView();
-}
-
-/* ---------- command phase between passes ---------- */
-function cmdUpdate(dt){
-  if (SUB.open){ subUpdate(); return; }
-  buttonNav();
-  if (!hit('ok')) return;
-  Audio_.sfx('confirm');
-  if (btnSel === 3){ beginSteady(); return; }
-  if (btnSel === 0){
-    subOpen('PAINT', [
-      { label:'TOUCH UP  +12 NOTICE', k:'touch' },
-      { label:'RAG  +9 HP  (' + G.rags + ')', k:'rag', disabled: G.rags <= 0 },
-    ], it => {
-      if (it.k === 'touch'){ G.notice += 12; G.st = 'TOUCHUP'; touchBegin(); }
-      else { G.rags--; G.hp = Math.min(G.maxhp, G.hp + 9); G.notice += 6; smudge(6); Audio_.sfx('heal'); }
-    });
-  } else if (btnSel === 1){
-    subOpen('POSE', [{ label: G.shifted ? 'SHIFT  (SPENT)' : 'SHIFT  +22 NOTICE', k:'shift', disabled:G.shifted }],
-      () => { G.shifted = true; G.notice += 22; openPoseMenuSweep(); });
-  } else {
-    const scramble = G.notice > 80;
-    subOpen('SPOT', [{ label: scramble ? 'SCRAMBLE  END ROUND' : 'BOLT  +30 NOTICE',
-                       k:'bolt', disabled: ROOMS[G.room].finale }], () => {
-      if (scramble){ G.score = Math.max(20, G.score - 25); G.st = 'REVEAL'; revealBegin(); }
-      else { G.notice += 30; openSpotMenuSweep(); }
-    });
-  }
-}
-function openPoseMenuSweep(){
-  const items = [];
-  for (const sh of ['BLOB','CUBE']) for (const po of ['STAND','CURL','LIE','FLATTEN'])
-    items.push({ label: sh.slice(0,4) + ' ' + po, sh, po });
-  subOpen('SHIFT TO', items, it => {
-    setPose(it.sh, it.po);
-    const b = computeScore(); G.bars = b; G.score = b.total; bakeSpotView();
-  });
-}
-function openSpotMenuSweep(){
-  const items = ROOMS[G.room].spots.map(s => ({ label:s.name.slice(0,22), s }));
-  subOpen('BOLT TO', items, it => {
-    G.spot = it.s; const b = computeScore(); G.bars = b; G.score = b.total; bakeSpotView();
-  });
-}
-
-/* ---------- TOUCH UP: a tiny live-timer editor inside the arena ---------- */
-const TU = { t:0, cells:0, cx:0, cy:0 };
-function touchBegin(){ TU.t = 6.0; TU.cells = 0; const m = maskFor(G.shape,G.pose); TU.cx = m.w>>1; TU.cy = m.h>>1; }
-function touchUpdate(dt){
-  TU.t -= dt;
-  const m = maskFor(G.shape, G.pose);
-  const maxc = G.chapter >= 3 ? 12 : 8;
-  for (const [k,dx,dy] of [['left',-1,0],['right',1,0],['up',0,-1],['down',0,1]])
-    if (hit(k)){ TU.cx = Math.max(0, Math.min(m.w-1, TU.cx+dx)); TU.cy = Math.max(0, Math.min(m.h-1, TU.cy+dy)); }
-  for (let i = 0; i < 8; i++) if (hit('s'+(i+1))) G.slot = i;
-  if (hit('ok') && TU.cells < maxc && m.liveAt(TU.cx, TU.cy)){
-    G.grid[TU.cy*m.w + TU.cx] = G.slots[G.slot]; TU.cells++;
-    blankDirty = true; Audio_.sfx('brush');
-  }
-  if (TU.t <= 0 || hit('pause') || hit('no') || TU.cells >= maxc){
-    const b = computeScore(); G.bars = b; G.score = b.total; bakeSpotView();
-    SW.grey = G.score >= 70;
-    G.st = 'SWEEP'; SW.phase = 'CMD';
-  }
-}
-function touchDraw(c){
-  drawChrome(c, 'TOUCHING UP', true);
-  const r = inner();
-  drawArenaFrame(c, false);
-  const m = maskFor(G.shape, G.pose);
-  const s = 3, ox = r.x + (r.w - m.w*s)/2, oy = r.y + (r.h - m.h*s)/2;
-  for (const cell of m.cells) rect(c, ox+cell.cx*s, oy+cell.cy*s, s, s, PAL[G.grid[cell.i]]);
-  frame(c, ox+TU.cx*s-1, oy+TU.cy*s-1, s+2, s+2, 1, UI.WHITE);
-  txt(c, 'CELLS ' + TU.cells + '/' + (G.chapter>=3?12:8) + '   ' + TU.t.toFixed(1) + 'S', r.x+6, r.y-16, UI.GOLD);
-  drawButtons(c);
-}
-
-/* ---------- STEADY: your paint job is the size of the window ---------- */
-function beginSteady(){
-  const r = inner();
-  const W = Math.round(18 + 62 * G.score / 100);
-  const core = Math.max(11, Math.round(0.30 * W));
-  const trackX = r.x + 13, trackW = 220;
-  SW.steady = { x:trackX, w:trackW, W, core,
-                zone: trackX + 24 + Math.random() * Math.max(1, trackW - W - 32),
-                mx: trackX, done:false, result:'', t:0 };
-  SW.phase = 'STEADY';
-  arenaSet('MENU');
-}
-function steadyUpdate(dt){
-  const s = SW.steady;
-  if (s.done){
-    s.t += dt;
-    if (s.t > 0.9){
-      SW.steady = null;
-      if (SW.pass === 0 && !SW.started){ SW.started = true; }
-      passBegin();
-    }
-    return;
-  }
-  s.mx += 220 * dt;
-  if (hit('ok')){
-    const centre = s.zone + s.W/2;
-    const d = Math.abs(s.mx - centre);
-    if (d <= s.core/2){
-      s.result = 'STILL AS PAINT';
-      G.notice -= 20 + 18 * G.score/100;
-      G.streak = Math.min(5, G.streak + 1);
-      G.style += 120 * G.streak;
-      SW.perfectBonus = true;
-      Audio_.sfx('perfect');
-    } else if (s.mx >= s.zone && s.mx <= s.zone + s.W){
-      s.result = 'STEADY';
-      G.notice -= 10 + 12 * G.score/100;
-      Audio_.sfx('good');
-    } else {
-      s.result = 'SLIP'; G.notice += 6; G.streak = 0; Audio_.sfx('bad');
-    }
-    G.notice = Math.max(0, Math.min(100, G.notice));
-    s.done = true; s.t = 0;
-    return;
-  }
-  if (s.mx > s.x + s.w){ s.result = 'SLIP'; G.notice += 6; G.streak = 0; s.done = true; s.t = 0; Audio_.sfx('bad'); }
-}
-function steadyDraw(c){
-  const s = SW.steady, r = inner();
-  frame(c, s.zone, r.y + 10, s.W, r.h - 20, 2, UI.GOLD);
-  rect(c, s.zone + s.W/2, r.y + 10, 1, r.h - 20, UI.GOLD);
-  rect(c, Math.round(s.mx), r.y + 10, 4, r.h - 20, UI.WHITE);
-  if (s.done) txtC(c, s.result, 160, r.y + r.h/2 - 4, s.result === 'SLIP' ? UI.SOUL : UI.GOLD);
-  else txtC(c, 'HOLD STILL — PRESS Z IN THE GOLD', 160, r.y - 16, UI.DIM);
-}
-
-/* ---------- the double-take ---------- */
-function beginDoubleTake(){
-  SW.phase = 'DOUBLE'; SW.doubleT = 0; SW.worst = worstWindow();
-  arenaSet('PINCH');
-  Audio_.sfx('encounter');
-}
-function doubleUpdate(dt){
-  SW.doubleT += dt;
-  const moved = soulMove(dt);
-  G.notice += moved * 0.036;
-  if (moved < 0.01) G.notice -= 3 * dt;
-  const m = maskFor(G.shape, G.pose);
-  const prog = Math.min(1, SW.doubleT / 3.0);
-  const col = Math.floor(prog * 5), cellIdx = (SW.worst.y + 2) * m.w + (SW.worst.x + col);
-  const mv = G.bars ? G.bars.cellM[cellIdx] : 1;
-  if (mv >= 0 && mv < 0.5) G.notice += 8 * dt;
-  G.notice = Math.max(0, Math.min(100, G.notice));
-  if (G.notice >= 100) return startKO();
-  if (SW.doubleT >= 3.4){ G.st = 'REVEAL'; revealBegin(); }
-}
-
-/* ---------- caught ---------- */
-function startKO(){
-  SW.ko = 1; SW.koT = 0; SW.motes = []; SW.beams = [];
-  SW.shards = [];
-  for (let i = 0; i < 8; i++)
-    SW.shards.push({ x:AR.soulX, y:AR.soulY, vx:(Math.random()*130-65), vy:-(60+Math.random()*85) });
-  freeze(0.15); Audio_.sfx('ko'); Audio_.music(null);
-}
-function koUpdate(dt){
-  SW.koT += dt;
-  for (const s of SW.shards){ s.x += s.vx*dt; s.y += s.vy*dt; s.vy += 330*dt; }
-  if (SW.koT > 2.2 && !Dlg.active && SW.ko === 1){
-    SW.ko = 2;
-    const L = LOOKERS[ROOMS[G.room].looker];
-    G.caught++;
-    Dlg.queue(L.capture, { voice:L.voice, onEnd(){
-      G.hp = G.maxhp; G.notice = 0; G.prep = ROOMS[G.room].prep;
-      G.st = 'PREP'; btnSel = 3; arenaSet('MENU', true); SW.ko = 0;
-      spotView = null; bakeSpotView();
-    }});
-  }
-  if (SW.ko === 2) Dlg.update(dt);
-}
-
-/* ---------- sweep rendering ---------- */
-function sweepDraw(c){
-  const L = LOOKERS[ROOMS[G.room].looker];
-  drawChrome(c, L.name, true);
-  drawSeeker(c, L);
-  const r = inner();
-
-  if (SW.ko){
-    drawArenaFrame(c, false);
-    for (const s of SW.shards) rect(c, s.x, s.y, 2, 2, UI.SOUL);
-    if (SW.koT > 1.1) wash(c, Math.min(16, (SW.koT - 1.1) / 0.5 * 16));
-    if (SW.koT > 2.2){ Dlg.draw(c); }
-    return;
-  }
-
-  drawArenaFrame(c, true);
-  c.save(); c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
-  const bcol = SW.grey ? UI.DIM : UI.WHITE;
-  for (const m of SW.motes){
-    rect(c, m.x - m.r - 1, m.y - m.r - 1, m.r*2 + 2, m.r*2 + 2, UI.BLACK);
-    rect(c, m.x - m.r + 1, m.y - m.r + 1, m.r*2 - 2, m.r*2 - 2, m.heavy ? UI.CYAN : bcol);
-  }
-  for (const b of SW.beams){
-    if (b.vertical){ rect(c, b.p-1, r.y, b.w+2, r.h, UI.BLACK); rect(c, b.p, r.y, b.w, r.h, bcol); }
-    else { rect(c, r.x, b.p-1, r.w, b.w+2, UI.BLACK); rect(c, r.x, b.p, r.w, b.w, bcol); }
-  }
-  for (const d of SW.dropletFX) rect(c, d.x, d.y, 1, 3, UI.WHITE);
-  if (SW.phase === 'STEADY' && SW.steady) steadyDraw(c);
-  if (SW.phase === 'DOUBLE'){
-    const prog = Math.min(1, SW.doubleT / 3.0);
-    rect(c, r.x + prog * r.w, r.y, 2, r.h, UI.CYAN);
-  }
-  drawSoul(c);
-  c.restore();
-
-  for (const t of SW.telegraph)
-    if (Math.floor(t.t * 8) % 2) rect(c, t.x - 3, r.y - 12, 6, 3, UI.WHITE);
-  for (const d of SW.dmgFX){
-    const p = 1 - d.t / 0.7;
-    txtC(c, '-' + d.v, d.x, d.y - 18 * (1 - (1-p)*(1-p)), UI.WHITE);
-  }
-
-  if (SW.phase === 'CMD' && !SUB.open){
-    rect(c, r.x, r.y + r.h - 12, r.w, 12, UI.BLACK);
-    txt(c, 'PASS ' + (SW.pass+1) + ' OF ' + SW.passes + '   HOLD STILL, OR FIX SOMETHING.',
-        r.x + 6, r.y + r.h - 10, UI.DIM);
-  }
-  if (SUB.open) subDraw(c);
-  drawButtons(c);
-}
-function drawSeeker(c, L){
-  const bob = Math.round(Math.sin(performance.now() / 800));
-  const x = 160, y = 86 + bob;
-  L.draw(c, x, y);
-}
+const RIVAL_NAMES = ['TWOCOAT','HALFTONE','SPLOTCH'];
 
 
 /* ==================== 11_results.js ==================== */
-/* ---------- the reveal beat, then the results ---------- */
-const RV = { t:0, walk:0, flash:0, stage:0 };
-function revealBegin(){
-  RV.t = 0; RV.walk = -30; RV.flash = 0; RV.stage = 0;
-  G.st = 'REVEAL';
-  Audio_.music('reveal', 84);
-  const L = LOOKERS[ROOMS[G.room].looker];
-  const cat = worstCategory(G.bars);
-  const line = G.score >= 88 ? L.barks.great
-             : G.score >= 74 ? L.barks.near
-             : (L.barks[cat] || L.barks.PAINT);
-  Dlg.queue([{ t: line }], { voice:L.voice, mono:true, colour:UI.DIM, onEnd(){ RV.stage = 1; RV.flash = 1.2; } });
-}
-function revealUpdate(dt){
-  RV.t += dt; RV.walk += 40 * dt;
-  Dlg.update(dt);
-  if (RV.stage === 1){
-    RV.flash -= dt;
-    if (RV.flash <= 0){
-      const L = LOOKERS[ROOMS[G.room].looker];
-      RV.stage = 2;
-      Dlg.queue(L.depart, { voice:L.voice, onEnd(){ resultsBegin(); } });
-    }
-  }
-}
-function revealDraw(c){
-  const sc = getScene(G.room), a = G.spot.anchors[G.pose];
-  c.drawImage(sc.cv, 0, 0);
-  if (blankDirty) bakeBlank();
-  c.drawImage(blankSprite, a[0], a[1]);
-  const m = maskFor(G.shape, G.pose);
-  if (RV.stage >= 1 && Math.floor(RV.flash * 8) % 2)
-    frame(c, a[0]-1, a[1]-1, m.w+2, m.h+2, 1, PAL[2]);
-  // the Looker strolls past
-  const lx = Math.min(VW + 20, RV.walk);
-  Looker.x = lx; Looker.y = 196; Looker.facing = 'right';
-  drawLooker(c);
-  Dlg.draw(c);
-}
-
-/* ---------- results ---------- */
-const RES = { heat:false, t:0, bars:0, rivals:[] };
+/* ---------- round result ---------- */
+const RES = { heat:false, t:0, bars:0, verdict:'' };
 function resultsBegin(){
-  G.st = 'RESULTS'; RES.heat = false; RES.t = 0; RES.bars = 0;
-  RES.rivals = rollRivals();
-  G.chapterScores[G.chapter] = G.score;
-  G.grades[G.chapter] = gradeFor(G.score);
+  G.st = 'RESULT'; RES.heat = false; RES.t = 0; RES.bars = 0;
   if (G.score > G.best) G.best = G.score;
-  Audio_.sfx(G.score >= 66 ? 'win' : 'meh');
-}
-function rollRivals(){
-  // three rivals, scored by the same yardstick; SPLOTCH is always found
-  const seedy = (n) => Math.abs(Math.sin((G.chapter+1) * 12.9898 + n * 78.233) * 43758.5453) % 1;
-  const base = 46 + G.chapter * 6;
-  const rows = [
-    { name:'TWOCOAT', s: Math.round(base + seedy(1) * 34) },
-    { name:'HALFTONE', s: Math.round(base + seedy(2) * 30) },
-    { name:'SPLOTCH', s: Math.round(12 + seedy(3) * 14) },
-  ];
-  rows.push({ name:'YOU', s:G.score, you:true });
-  rows.sort((a,b) => b.s - a.s);
-  return rows;
+  G.history.push({ map: ROOMS[G.room].label, score: G.score, found: HIDE.found });
+  const S = SIENNA_VERDICTS;
+  const v = G.score >= 88 ? S.great : G.score >= 66 ? S.ok : G.score >= 40 ? S.poor : S.awful;
+  RES.verdict = v[G.round % v.length];
+  Audio_.sfx(HIDE.found ? 'meh' : 'win');
 }
 function resultsUpdate(dt){
   RES.t += dt; RES.bars = Math.min(1, RES.t / 0.7);
   if (Dlg.active){ Dlg.update(dt); return; }
   if (hit('menu')) RES.heat = !RES.heat;
-  if (hit('ok')){
-    const S = SIENNA_VERDICTS;
-    const v = G.score >= 88 ? S.great : G.score >= 66 ? S.ok : G.score >= 40 ? S.poor : S.awful;
-    Dlg.queue([{ t: v[(G.chapter) % v.length] }], { voice:VOICE.sienna, onEnd(){ chapterDone(); } });
-  }
+  if (hit('ok') && RES.t > 0.4) nextRound();
 }
 function resultsDraw(c){
   rect(c, 0, 0, VW, VH, UI.BLACK);
-  txt(c, 'RESULTS — ' + G.spot.name, 8, 6, UI.DIM);
-  txtC(c, String(G.score), 160, 16, UI.GOLD, 3);
-  txtC(c, gradeFor(G.score), 160, 42, UI.WHITE);
+  const found = HIDE.found;
+  txt(c, 'ROUND ' + (G.round+1) + '  —  ' + ROOMS[G.room].label, 8, 6, UI.DIM);
+  txtC(c, found ? 'FOUND' : 'NOT FOUND', 160, 16, found ? UI.SOUL : UI.GOLD, 2);
+  txtC(c, G.spot.name, 160, 34, UI.DIM);
+  txtC(c, 'CAMO ' + G.score + '   ' + gradeFor(G.score), 160, 46, UI.WHITE);
 
   const bars = [['PAINT', G.bars.paint, 50], ['TEXTURE', G.bars.texture, 12],
                 ['POSE', G.bars.pose, 20], ['SPOT', G.bars.spot, 12], ['NERVE', G.bars.nerve, 6]];
-  const reasons = ['COLOUR AND EDGES', 'ROUGHNESS MATCH', G.bars.wantShape+' '+G.bars.wantPose+' WANTED',
+  const reasons = ['COLOUR AND EDGES', 'ROUGHNESS MATCH',
+                   G.bars.wantShape + ' ' + G.bars.wantPose + ' WANTED',
                    'DO YOU FIT HERE', 'EXPOSURE ' + G.spot.exposure + '/5'];
   for (let i = 0; i < bars.length; i++){
-    const [n, v, mx] = bars[i], y = 60 + i*15;
+    const [n, v, mx] = bars[i], y = 62 + i*14;
     txt(c, n, 10, y, UI.WHITE);
     rect(c, 62, y, 92, 8, UI.BLOOD);
     rect(c, 62, y, Math.round(92 * (v/mx) * RES.bars), 8, UI.GOLD);
     txt(c, Math.round(v) + '/' + mx, 158, y, UI.DIM);
     txt(c, reasons[i], 194, y, UI.GHOST);
   }
-  rect(c, 8, 136, 304, 1, UI.GHOST);
-  // the critique, wrapped so it never runs off the screen
-  const crit = critiqueLine(G.bars);
-  const cw = [];
+  rect(c, 8, 134, 304, 1, UI.GHOST);
+
+  const crit = critiqueLine(G.bars), cw = [];
   { let line = '';
-    for (const word of crit.split(' ')){
-      if ((line + ' ' + word).trim().length > 50){ cw.push(line); line = word; }
-      else line = (line + ' ' + word).trim();
+    for (const w of crit.split(' ')){
+      if ((line + ' ' + w).trim().length > 50){ cw.push(line); line = w; }
+      else line = (line + ' ' + w).trim();
     }
     if (line) cw.push(line); }
-  for (let i = 0; i < Math.min(2, cw.length); i++) txt(c, cw[i], 10, 142 + i*10, UI.CYAN);
+  for (let i = 0; i < Math.min(2, cw.length); i++) txt(c, cw[i], 10, 140 + i*10, UI.CYAN);
 
-  // rivals (left)
+  // the other Blanks
   txt(c, 'THE OTHER BLANKS', 10, 164, UI.DIM);
-  for (let i = 0; i < RES.rivals.length; i++){
-    const r = RES.rivals[i], y = 176 + i*10;
+  const rows = HIDE.rivals.map(r => ({ name:r.name, s:r.score, found:r.found }));
+  rows.push({ name:'YOU', s:G.score, found:HIDE.found, you:true });
+  rows.sort((a,b) => b.s - a.s);
+  for (let i = 0; i < rows.length; i++){
+    const r = rows[i], y = 176 + i*10;
     txt(c, (i+1) + '. ' + r.name, 10, y, r.you ? UI.GOLD : UI.WHITE);
     txt(c, String(r.s), 92, y, r.you ? UI.GOLD : UI.DIM);
-    txt(c, r.s < 25 ? 'FOUND IN 4S' : r.s < 50 ? 'FOUND' : r.s < 70 ? 'NEARLY' : 'NOT FOUND',
-        122, y, UI.GHOST);
+    txt(c, r.found ? 'FOUND' : 'SURVIVED', 122, y, r.found ? UI.SOUL : UI.GHOST);
   }
 
-  // heat map / your body (right, clear of the bars and the rivals)
+  // your body / heat map
   const m = maskFor(G.shape, G.pose);
   const s = Math.max(1, Math.min(3, Math.floor(56 / Math.max(m.w, m.h))));
   const ox = 320 - m.w*s - 12, oy = 160;
@@ -2315,8 +1875,10 @@ function resultsDraw(c){
     rect(c, ox+cell.cx*s, oy+cell.cy*s, s, s, col);
   }
   txt(c, RES.heat ? '[C] PAINT' : '[C] HEAT', ox-3, oy + m.h*s + 7, UI.DIM);
-  txt(c, 'STYLE ' + G.style + '   TAGS ' + G.tags.size, 10, 218, UI.DIM);
-  if (!Dlg.active) txtC(c, '[Z] CONTINUE', 160, 228, UI.WHITE);
+
+  txt(c, 'SURVIVED ' + G.survived + '   FOUND ' + G.caught + '   BEST ' + G.best
+       + '   TAGS ' + G.tags.size, 10, 218, UI.DIM);
+  if (!Dlg.active) txtC(c, '[Z] NEXT ROUND', 160, 228, UI.WHITE);
   Dlg.draw(c);
 }
 
@@ -2369,6 +1931,7 @@ function seekerBody(c, x, y, h, w, col, hat, o){
 }
 const LOOKERS = {
   BIB: {
+    worldCol:UI.DIM, hatCol:UI.GOLD,
     name:'BIB', voice:VOICE.bib,
     coneBark:'MORNING! DO NOT MIND ME.',
     draw(c,x,y){ const b = seekerBody(c,x,y,72,54,UI.DIM,UI.GOLD,{mouth:true});
@@ -2391,6 +1954,7 @@ const LOOKERS = {
     depart:[{t:'NOTHING IN THIS ALLEY. AS USUAL. AS ALWAYS.'},{t:'GOODBYE, ALLEY.'}],
   },
   TACKLE: {
+    worldCol:UI.DIM, hatCol:PAL[10],
     name:'TACKLE', voice:VOICE.tackle,
     coneBark:'IF YOU ARE FLAT, YOU ARE A POSTER.',
     draw(c,x,y){ seekerBody(c,x,y,66,48,UI.DIM,PAL[10],{headW:22});
@@ -2409,6 +1973,7 @@ const LOOKERS = {
     depart:[{t:'SHED: HUNG. SHED: CORRECT.'}],
   },
   FONDANT: {
+    worldCol:PAL[29], hatCol:PAL[26],
     name:'FONDANT', voice:VOICE.fondant,
     coneBark:'MMM. SOMETHING IS UNDERCOATED.',
     draw(c,x,y){ const b = seekerBody(c,x,y,76,64,PAL[29],PAL[26],{headW:34,mouth:true});
@@ -2429,6 +1994,7 @@ const LOOKERS = {
     depart:[{t:'CLEAN. STICKY, BUT CLEAN.'}],
   },
   GRIT: {
+    worldCol:PAL[18], hatCol:PAL[16],
     name:'GRIT', voice:VOICE.grit,
     coneBark:'ROUGH. GOOD.',
     draw(c,x,y){ seekerBody(c,x,y,72,70,PAL[18],PAL[16],{headW:30,headH:18});
@@ -2447,6 +2013,7 @@ const LOOKERS = {
     depart:[{t:'STILL ROUGH. STILL GOOD.'}],
   },
   CURATOR: {
+    worldCol:PAL[31], hatCol:PAL[28],
     name:'THE CURATOR', voice:VOICE.curator,
     coneBark:'EVERY BLANK IS ASSIGNED A COLOUR.',
     draw(c,x,y){ seekerBody(c,x,y,88,46,PAL[31],PAL[28],{headW:20,headH:24});
@@ -2486,11 +2053,6 @@ const SIENNA_VERDICTS = {
 
 /* ---------- flavour props ---------- */
 const PROP_TALK = {
-  SIENNA:[{t:'SIENNA: YOU ARE UNDERCOAT. NOT A COLOUR. AN ABSENCE OF ONE.'},
-          {t:'SIENNA: THE TRICK IS NOT MATCHING THE WALL. IT IS MATCHING THE WALL\'S MISTAKES.'},
-          {t:'SIENNA: STEAL WITH THE DROPPER. STEAL A LOT. IT IS THE ONLY FREE THING IN HERE.'}],
-  GALLERY:[{t:'SIX EMPTY FRAMES. ONE FOR EACH TIME SOMETHING IS FOUND.'},
-           {t:'THE PLAQUES ARE ALREADY ENGRAVED. THEY JUST SAY "BLANK".'}],
   CH1_FLYERS:[{t:'A STACK OF FLYERS. THE TOP ONE SAYS "COLOUR ASSIGNMENT: TUESDAY".'},
               {t:'IT IS WEDNESDAY.'}],
   CH1_BINS:[{t:'THREE BINS. ONE SMELLS OF TURPENTINE AND REGRET.'}],
@@ -2503,76 +2065,35 @@ const PROP_TALK = {
 };
 function talkProp(key){
   const p = PROP_TALK[key]; if (!p) return;
-  if (key === 'SIENNA') Dlg.queue(p, { voice:VOICE.sienna });
-  else Dlg.queue(p, { voice:VOICE.plain });
+  Dlg.queue(p, { voice:VOICE.plain });
 }
 
-/* ---------- chapter flow ---------- */
-function enterChapterFromHub(){
-  const key = CHAPTERS[G.chapter];
-  if (!key) return;
-  fadeTo(() => {
-    const room = ROOMS[key];
-    G.prep = room.prep; G.maxhp = room.maxhp; G.hp = room.maxhp;
-    G.coneHit = false; G.rags = G.chapter >= 1 ? 1 : 0;
-    enterRoom(key);
-    G.st = 'OVERWORLD';
-    const L = LOOKERS[room.looker];
-    if (!G.seenIntro[key]){ G.seenIntro[key] = true; Dlg.queue(L.intro, { voice:L.voice }); }
-  });
-}
-function chapterDone(){
-  fadeTo(() => {
-    G.chapter++;
-    if (G.chapter >= CHAPTERS.length){ endingBegin(); return; }
-    enterRoom('HUB');
-    G.st = 'OVERWORLD';
-    Dlg.queue([{ t:'SIENNA: ' + ['ONE DOWN.','TWO. THE SHED SUITED YOU.','THREE. YOU ARE GETTING FUSSY. GOOD.',
-                                 'FOUR. THERE IS ONE ROOM LEFT AND IT IS ALL WHITE.'][G.chapter-1] }],
-               { voice:VOICE.sienna });
-  });
-}
+/* ---------- the round loop ---------- */
+const MAPS = ['CH1','CH2','CH3','CH4','CH5'];
 
-/* ---------- endings ---------- */
-const END = { t:0, kind:'', stage:0 };
-function endingBegin(){
-  G.st = 'ENDING'; END.t = 0; END.stage = 0;
-  const avg = G.chapterScores.reduce((a,b) => a+b, 0) / Math.max(1, G.chapterScores.length);
-  END.kind = G.caught === 0 && avg >= 78 ? 'HIDDEN' : avg >= 55 ? 'SEEN' : 'FRAMED';
-  const lines = {
-    HIDDEN:[{t:'THE CURATOR WALKS THE WHITE GALLERY UNTIL MORNING.'},
-            {t:'HE FINDS SEVEN EMPTY FRAMES AND ONE WALL HE CANNOT STOP LOOKING AT.'},
-            {t:'YOU LEAVE AT SIX. YOU TAKE THE PALETTE WITH YOU.'},
-            {t:'* ENDING: HIDDEN.'}],
-    SEEN:[{t:'HE SEES YOU. OF COURSE HE SEES YOU. HE BUILT THE ROOM.'},
-          {t:'BUT HE HAS NOWHERE TO PUT A THING THAT IS ALREADY THIS MANY COLOURS.'},
-          {t:'HE OPENS THE DOOR AND LOOKS POINTEDLY AT THE STREET.'},
-          {t:'* ENDING: SEEN.'}],
-    FRAMED:[{t:'THEY GIVE YOU A FRAME AFTER ALL. IT IS A GOOD FRAME.'},
-            {t:'THE PLAQUE SAYS "UNDERCOAT, ARTIST UNKNOWN, MIXED MEDIA".'},
-            {t:'PEOPLE STOP. PEOPLE LOOK. IT IS NOT THE WORST OUTCOME.'},
-            {t:'* ENDING: FRAMED.'}],
-  }[END.kind];
-  Audio_.music('coda', 60);
-  Dlg.queue(lines, { voice:VOICE.curator, onEnd(){ END.stage = 1; } });
+function newRound(){
+  const key = MAPS[G.round % MAPS.length];
+  G.night = 1 + Math.floor(G.round / MAPS.length);
+  const room = ROOMS[key];
+  G.prep = Math.max(30, room.prep - (G.night - 1) * 10);
+  G.coneHit = false;
+  G.spot = null;
+  enterRoom(key);
+  setPose('BLOB', 'STAND');
+  whiteReset();                       // the ritual: you always start pure white
+  G.st = 'PAINT';
+  Audio_.music('hub', 96);
+  const L = LOOKERS[room.looker];
+  if (!G.seenIntro[key]){ G.seenIntro[key] = true; Dlg.queue(L.intro, { voice:L.voice }); }
+  else Dlg.queue([{ t: 'ROUND ' + (G.round+1) + '. ' + L.name + ' IS SEEKING. PAINT YOURSELF.' }],
+                 { voice:VOICE.plain });
 }
-function endingUpdate(dt){
-  END.t += dt;
-  if (END.stage === 0){ Dlg.update(dt); return; }
-  if (hit('ok')){ G.st = 'TITLE'; titleReset(); }
+function readyUp(){
+  if (!G.spot) return;
+  fadeTo(() => { hideBegin(); });
 }
-function endingDraw(c){
-  rect(c, 0, 0, VW, VH, UI.BLACK);
-  const sc = getScene('CH5');
-  c.drawImage(sc.cv, 0, 0);
-  wash(c, 11);
-  txtC(c, 'WET PAINT', 160, 40, UI.WHITE, 2);
-  txtC(c, 'ENDING: ' + END.kind, 160, 62, UI.GOLD);
-  const avg = Math.round(G.chapterScores.reduce((a,b)=>a+b,0) / Math.max(1,G.chapterScores.length));
-  txtC(c, 'AVERAGE ' + avg + '   BEST ' + G.best + '   FOUND ' + G.caught + ' TIMES', 160, 78, UI.DIM);
-  txtC(c, 'COLOURS STOLEN: ' + G.tags.size, 160, 90, UI.DIM);
-  if (END.stage === 1) txtC(c, '[Z] AGAIN', 160, 214, UI.WHITE);
-  Dlg.draw(c);
+function nextRound(){
+  fadeTo(() => { G.round++; newRound(); });
 }
 
 
@@ -2694,73 +2215,42 @@ const Audio_ = {
 const TITLE = { t:0 };
 function titleReset(){
   TITLE.t = 0;
-  G.chapter = 0; G.chapterScores = []; G.grades = []; G.caught = 0;
-  G.tags = new Set(); G.best = 0; G.style = 0; G.seenIntro = {};
+  G.round = 0; G.night = 1; G.caught = 0; G.survived = 0; G.history = [];
+  G.tags = new Set(); G.best = 0; G.seenIntro = {};
   G.slots = new Uint8Array([31,31,31,31,31,31,31,31]);
   G.slotTag = ['','','','','','','',''];
+  G.spot = null;
   setPose('BLOB','STAND');
-  enterRoom('HUB');
+  enterRoom('CH1');
 }
 function titleUpdate(dt){
   TITLE.t += dt;
   if (hit('ok')){
-    G.st = 'OVERWORLD';
-    Audio_.music('hub', 96);
-    Dlg.queue([{t:'YOU ARE A BLANK. THEY MAKE YOU WHITE AND THEY ASSIGN YOU A COLOUR LATER.'},
-               {t:'YOURS WAS DUE ON TUESDAY. YOU HAVE DECIDED TO CHOOSE YOUR OWN.'},
-               {t:'FIVE ROOMS BETWEEN HERE AND THE DOOR. SOMEONE IS LOOKING IN EACH OF THEM.'},
-               {t:'TALK TO SIENNA. THEN TAKE THE DOOR.'}], { voice:VOICE.plain });
+    Dlg.queue([{t:'YOU ARE A BLANK. PURE WHITE, STRAIGHT OUT OF THE TIN.'},
+               {t:'THE RULES ARE SIMPLE. PAINT YOURSELF TO MATCH SOMETHING.'},
+               {t:'THEN GET INTO IT AND DO NOT MOVE WHILE THEY LOOK.'}],
+              { voice:VOICE.plain, onEnd(){ newRound(); } });
+    G.st = 'PAINT';
   }
 }
 function titleDraw(c){
   rect(c, 0, 0, VW, VH, UI.BLACK);
   const sc = getScene('CH1');
-  c.drawImage(sc.cv, 0, 60, 320, 120, 0, 60, 320, 120);
+  c.drawImage(sc.cv, 0, 56, 320, 128, 0, 56, 320, 128);
   wash(c, 9);
-  txtC(c, 'WET PAINT', 160, 40, UI.WHITE, 3);
-  txtC(c, 'HIDE BY HAND', 160, 74, UI.GOLD);
+  txtC(c, 'WET PAINT', 160, 34, UI.WHITE, 3);
+  txtC(c, 'PAINT YOURSELF. HOLD STILL.', 160, 68, UI.GOLD);
   // a Blank half-painted into the brick
   const bob = Math.round(Math.sin(TITLE.t * 2));
   for (let y = 0; y < 20; y++) for (let x = 0; x < 11; x++){
     if (x === 0 && y === 0) continue;
     const painted = y > 9;
-    rect(c, 155 + x, 120 + y + bob, 1, 1, painted ? PAL[1 + (x % 2)] : PAL[31]);
+    rect(c, 155 + x, 118 + y + bob, 1, 1, painted ? PAL[1 + (x % 2)] : PAL[31]);
   }
-  if (Math.floor(TITLE.t * 2) % 2) txtC(c, 'PRESS Z', 160, 186, UI.WHITE);
-  txtC(c, 'ARROWS MOVE   Z CONFIRM   X CANCEL   M MUTE', 160, 210, UI.DIM);
-  txtC(c, 'AN ORIGINAL GAME  —  NO ASSETS, NO NETWORK', 160, 224, UI.GHOST);
-}
-
-/* ---------- HOLDIN: the cut to black before the sweep ---------- */
-function holdinUpdate(dt){
-  G.holdT += dt;
-  if (G.holdT >= 2.0){ sweepBegin(); }
-}
-function holdinDraw(c){
-  const sc = getScene(G.room), a = G.spot.anchors[G.pose];
-  c.drawImage(sc.cv, 0, 0);
-  if (blankDirty) bakeBlank();
-  c.drawImage(blankSprite, a[0], a[1]);
-  wash(c, Math.min(14, G.holdT / 2.0 * 18));
-  if (G.holdT > 0.9) txtC(c, GRADEWORD(G.score), 160, 112, UI.WHITE, 2);
-  if (G.holdT > 1.4) txtC(c, 'FOOTSTEPS.', 160, 136, UI.DIM);
-}
-
-/* ---------- ENTRY: 0.9s drop into the encounter ---------- */
-function entryUpdate(dt){
-  G.entryT += dt;
-  if (G.entryT >= 0.9){ G.st = 'PREP'; }
-}
-function entryDraw(c){
-  const p = G.entryT / 0.9;
-  const sc = getScene(G.room);
-  c.drawImage(sc.cv, 0, 0);
-  wash(c, Math.min(16, p * 22));
-  if (p > 0.45){
-    const q = (p - 0.45) / 0.55;
-    const w = Math.round(246 * q), h = Math.round(78 * q);
-    frame(c, 160 - w/2 - 5, 140 - h/2 - 5, w + 10, h + 10, 5, UI.WHITE);
-  }
+  if (Math.floor(TITLE.t * 2) % 2) txtC(c, 'PRESS Z', 160, 182, UI.WHITE);
+  txtC(c, 'ARROWS MOVE   Z CONFIRM   X CANCEL / HOLD BREATH', 160, 208, UI.DIM);
+  txtC(c, 'AN ORIGINAL GAME  —  NO ASSETS, NO NETWORK', 160, 222, UI.GHOST);
+  Dlg.draw(c);
 }
 
 /* ---------- pause ---------- */
@@ -2771,7 +2261,7 @@ function pauseDraw(c){
   txtC(c, 'PAUSED', 160, 90, UI.GOLD);
   txtC(c, 'Z  RESUME', 160, 110, UI.WHITE);
   txtC(c, 'M  ' + (Audio_.muted ? 'UNMUTE' : 'MUTE'), 160, 124, UI.WHITE);
-  txtC(c, 'X  GIVE UP', 160, 138, UI.DIM);
+  txtC(c, 'X  QUIT TO TITLE', 160, 138, UI.DIM);
 }
 
 /* ---------- main loop ---------- */
@@ -2784,39 +2274,37 @@ function update(dt){
     if (hit('no')){ paused = false; G.st = 'TITLE'; titleReset(); }
     return;
   }
-  if (hit('pause') && ['OVERWORLD','PREP','SWEEP'].indexOf(G.st) >= 0 && !Dlg.active && G.st !== 'EDITOR'){
-    paused = true; return;
-  }
+  if (hit('pause') && (G.st === 'PAINT' || G.st === 'HIDE') && !Dlg.active){ paused = true; return; }
+
   switch(G.st){
-    case 'TITLE':     titleUpdate(dt); break;
-    case 'OVERWORLD': owUpdate(dt); break;
-    case 'ENTRY':     entryUpdate(dt); break;
-    case 'PREP':      prepUpdate(dt); break;
-    case 'EDITOR':    G.prep -= dt; if (G.prep <= 0){ G.prep = 0; closeEditor(); commitHold(); }
-                      else edUpdate(dt); break;
-    case 'HOLDIN':    holdinUpdate(dt); break;
-    case 'SWEEP':     sweepUpdate(dt); break;
-    case 'TOUCHUP':   touchUpdate(dt); break;
-    case 'REVEAL':    revealUpdate(dt); break;
-    case 'RESULTS':   resultsUpdate(dt); break;
-    case 'ENDING':    endingUpdate(dt); break;
+    case 'TITLE':  titleUpdate(dt); break;
+    case 'PAINT':
+      if (!Dlg.active && G.spot !== null) { /* timer only runs once you can act */ }
+      if (!Dlg.active){
+        G.prep -= dt;
+        if (G.prep <= 0){ G.prep = 0; if (G.spot) { readyUp(); break; }
+                          else { G.spot = ROOMS[G.room].spots[0]; readyUp(); break; } }
+      }
+      owUpdate(dt); break;
+    case 'EDITOR':
+      if (!Dlg.active){
+        G.prep -= dt;
+        if (G.prep <= 0){ G.prep = 0; closeEditor(); readyUp(); break; }
+      }
+      edUpdate(dt); break;
+    case 'HIDE':   hideUpdate(dt); break;
+    case 'RESULT': resultsUpdate(dt); break;
   }
   shakeUpdate(dt);
   for (const k in buffered) if (buffered[k] > 0) buffered[k] -= dt;
 }
 function render(){
   switch(G.st){
-    case 'TITLE':     titleDraw(ctx); break;
-    case 'OVERWORLD': owDraw(ctx); break;
-    case 'ENTRY':     entryDraw(ctx); break;
-    case 'PREP':      prepDraw(ctx); break;
-    case 'EDITOR':    edDraw(ctx); break;
-    case 'HOLDIN':    holdinDraw(ctx); break;
-    case 'SWEEP':     sweepDraw(ctx); break;
-    case 'TOUCHUP':   touchDraw(ctx); break;
-    case 'REVEAL':    revealDraw(ctx); break;
-    case 'RESULTS':   resultsDraw(ctx); break;
-    case 'ENDING':    endingDraw(ctx); break;
+    case 'TITLE':  titleDraw(ctx); break;
+    case 'PAINT':  owDraw(ctx); break;
+    case 'EDITOR': edDraw(ctx); break;
+    case 'HIDE':   hideDraw(ctx); break;
+    case 'RESULT': resultsDraw(ctx); break;
   }
   if (paused) pauseDraw(ctx);
   if (G.fade > 0) wash(ctx, G.fade);
@@ -2841,20 +2329,18 @@ function boot(){
   bakeDither();
   resize();
   setPose('BLOB','STAND');
-  for (const k in ROOMS) getScene(k);
-  enterRoom('HUB');
+  for (const k of MAPS) getScene(k);
+  enterRoom('CH1');
   G.st = 'TITLE';
   const h = location.hash;
-  if (h.startsWith('#c')){
-    const n = parseInt(h.slice(2), 10);
-    if (n >= 1 && n <= CHAPTERS.length){
-      G.chapter = n - 1; G.st = 'OVERWORLD'; enterChapterFromHub();
-    }
+  const m = h.match(/^#m(\d)$/);
+  if (m){
+    const n = parseInt(m[1], 10);
+    if (n >= 1 && n <= MAPS.length){ G.round = n - 1; newRound(); }
   }
   if (h === '#paint'){
-    G.st = 'OVERWORLD'; G.chapter = 0;
-    const room = ROOMS.CH1; G.prep = room.prep; G.maxhp = room.maxhp; G.hp = room.maxhp;
-    enterRoom('CH1'); beginPrep(room.spots[0]); G.st = 'EDITOR'; edOpen();
+    G.round = 0; newRound();
+    G.spot = ROOMS.CH1.spots[0]; G.st = 'EDITOR'; edOpen();
   }
   requestAnimationFrame(loop);
   if (location.hash === '#smoke') runSmoke();
@@ -2868,14 +2354,10 @@ function runSmoke(){
   const ok = (n, c) => out.push((c ? 'PASS  ' : 'FAIL  ') + n);
   const guard = (n, fn) => { try { fn(); ok(n, true); } catch(e){ ok(n + ' -> ' + e.message, false); } };
 
-  // palette
   for (const [n, c] of paletteAudit()) ok(n, c);
-
-  // font
   ok('font has 95 glyphs', FONTDATA.blob.length === 95 * 7);
   ok('atlas bakes', atlas(UI.WHITE).width === 96 && atlas(UI.WHITE).height === 48);
 
-  // masks
   let maskOk = true, edgeOk = true;
   for (const sh of ['BLOB','CUBE']) for (const po of ['STAND','CURL','LIE','FLATTEN']){
     const m = maskFor(sh, po);
@@ -2885,50 +2367,47 @@ function runSmoke(){
   ok('all 8 masks have sane cell counts', maskOk);
   ok('all 8 masks have edge cells', edgeOk);
 
-  // rooms bake, spots fit their cover rects
-  let fits = true, walkOk = true, badSpot = '';
-  for (const key of CHAPTERS){
+  // maps
+  let fits = true, walkOk = true, bad = '';
+  for (const key of MAPS){
     const room = ROOMS[key], sc = getScene(key);
     for (const s of room.spots){
       const m = maskFor(s.wantShape, s.wantPose);
-      if (m.w > s.coverW || m.h > s.coverH){ fits = false; badSpot = key + '/' + s.id; }
+      if (m.w > s.coverW || m.h > s.coverH){ fits = false; bad = key + '/' + s.id; }
       for (const p in s.anchors){
         const a = s.anchors[p], mm = maskFor(s.wantShape, p);
-        if (a[0] < 0 || a[1] < 0 || a[0] + mm.w > VW || a[1] + mm.h > VH){ fits = false; badSpot = key+'/'+s.id+'/'+p; }
+        if (a[0] < 0 || a[1] < 0 || a[0]+mm.w > VW || a[1]+mm.h > VH){ fits = false; bad = key+'/'+s.id+'/'+p; }
       }
-      if (sc.solidAt(s.walk[0], s.walk[1])){ walkOk = false; badSpot = key + '/' + s.id + ' walk'; }
+      if (sc.solidAt(s.walk[0], s.walk[1])){ walkOk = false; bad = key+'/'+s.id+' walk'; }
     }
+    if (room.spots.length < 4){ fits = false; bad = key + ' too few spots'; }
   }
-  ok('every ideal pose fits its cover rect' + (badSpot ? ' (' + badSpot + ')' : ''), fits);
-  ok('every spot is reachable on foot' + (!walkOk ? ' (' + badSpot + ')' : ''), walkOk);
+  ok('every ideal pose fits its cover rect' + (bad ? ' (' + bad + ')' : ''), fits);
+  ok('every spot is reachable on foot' + (!walkOk ? ' (' + bad + ')' : ''), walkOk);
+  ok('5 maps', MAPS.length === 5);
 
-  // scenes are not flat and use only palette indices
   let flat = '', offPal = false;
-  for (const key of CHAPTERS){
-    const sc = getScene(key);
-    const seen = new Set();
+  for (const key of MAPS){
+    const sc = getScene(key), seen = new Set();
     for (let i = 0; i < sc.idx.length; i += 7){ seen.add(sc.idx[i]); if (sc.idx[i] > 31) offPal = true; }
     if (seen.size < 4) flat = key;
   }
-  ok('no scene is flat' + (flat ? ' (' + flat + ')' : ''), !flat);
+  ok('no map is flat' + (flat ? ' (' + flat + ')' : ''), !flat);
   ok('every scene pixel is inside the 32-colour palette', !offPal);
 
-  // scoring behaves
+  // ---- scoring ----
+  G.round = 0; newRound(); Dlg.active = false;
   const room = ROOMS.CH1;
-  G.chapter = 0; enterRoom('CH1'); G.prep = 999; G.maxhp = 20; G.hp = 20;
-  beginPrep(room.spots[0]);
-  setPose(room.spots[0].wantShape, room.spots[0].wantPose);
+  G.spot = room.spots[0];
+  setPose(G.spot.wantShape, G.spot.wantPose);
   const white = computeScore();
-  // perfect: copy the wall exactly
   const m0 = maskFor(G.shape, G.pose), a0 = G.spot.anchors[G.pose], sc0 = getScene('CH1');
   for (const cell of m0.cells) G.grid[cell.i] = sc0.at(a0[0]+cell.cx, a0[1]+cell.cy);
   blankDirty = true;
   const perfect = computeScore();
   ok('a pure white body scores badly (' + white.total + ')', white.total < 45);
   ok('copying the wall exactly scores high (' + perfect.total + ')', perfect.total >= 88);
-  ok('a perfect body beats a blank one', perfect.total > white.total + 30);
 
-  // edge cells really are worth triple
   const edgeCell = m0.cells.find(c => c.edge), midCell = m0.cells.find(c => !c.edge);
   const bak = G.grid.slice();
   G.grid[edgeCell.i] = WHITE_IDX; const dEdge = perfect.raw - computeScore().raw;
@@ -2936,105 +2415,136 @@ function runSmoke(){
   G.grid[midCell.i] = WHITE_IDX; const dMid = perfect.raw - computeScore().raw;
   G.grid = bak.slice();
   ok('an edge cell is worth ~3x an interior one (' + dEdge.toFixed(4) + ' vs ' + dMid.toFixed(4) + ')',
-     dMid > 0 && dEdge / dMid > 2.5 && dEdge / dMid < 3.5);
+     dMid > 0 && dEdge/dMid > 2.5 && dEdge/dMid < 3.5);
 
-  // wrong pose is punished hard
-  setPose('BLOB', 'LIE');
+  setPose('BLOB','LIE');
   const wrong = computeScore();
   ok('the wrong pose is a disaster (' + wrong.total + ')', wrong.total < perfect.total - 20);
   setPose(room.spots[0].wantShape, room.spots[0].wantPose);
   G.grid = bak.slice(); blankDirty = true;
 
-  // eyedrop + base coat alone must not trivialise it
   const wallIdx = sc0.at(a0[0] + (m0.w>>1), a0[1] + (m0.h>>1));
   for (const cell of m0.cells) G.grid[cell.i] = wallIdx;
   const flatCoat = computeScore();
-  ok('base coat alone caps below 67 (' + flatCoat.total + ' = P' + flatCoat.paint.toFixed(1)
-     + ' T' + flatCoat.texture.toFixed(1) + ' O' + flatCoat.pose + ' S' + flatCoat.spot
-     + ' N' + flatCoat.nerve.toFixed(1) + ' raw' + flatCoat.raw.toFixed(2) + ')', flatCoat.total < 67);
+  ok('base coat alone caps below 67 (' + flatCoat.total + ')', flatCoat.total < 67);
   G.grid = bak.slice(); blankDirty = true;
 
-  // sweep difficulty really is driven by the score
-  G.score = 95; sweepBegin(); const easy = SW.passes;
-  G.score = 20; sweepBegin(); const hard = SW.passes;
-  ok('bad camo means more passes (' + easy + ' vs ' + hard + ')', hard > easy);
-  G.score = 95; sweepBegin(); passBegin(); const easyMote = SW.moteEvery;
-  G.score = 20; sweepBegin(); passBegin(); const hardMote = SW.moteEvery;
-  ok('bad camo means denser motes', hardMote < easyMote);
+  // ---- the hide phase is where camo pays off ----
+  const runHide = (grid, holdBreath) => {
+    G.grid = grid.slice(); blankDirty = true;
+    G.spot = room.spots[0]; setPose(room.spots[0].wantShape, room.spots[0].wantPose);
+    hideBegin(); Dlg.active = false;
+    held.no = !!holdBreath;
+    let steps = 0;
+    while (!HIDE.over && steps < 60 * 200){ hideUpdate(STEP); steps++; }
+    held.no = false;
+    return { found: HIDE.found, secs: steps/60, score: G.score };
+  };
+  const whiteGrid = new Uint8Array(m0.w*m0.h).fill(WHITE_IDX);
+  const rBad = runHide(whiteGrid, false);
+  const rGood = runHide(bak, false);
+  ok('a pure white body gets found (camo ' + rBad.score + ')', rBad.found);
+  ok('a wall-perfect body survives the round (camo ' + rGood.score + ')', !rGood.found);
+  ok('the round always ends', rBad.secs < 200 && rGood.secs < 200);
 
-  // STEADY window scales with the score
-  G.score = 95; beginSteady(); const wideW = SW.steady.W;
-  G.score = 20; beginSteady(); const thinW = SW.steady.W;
-  ok('a good paint job widens the STEADY window (' + wideW + ' vs ' + thinW + ')', wideW > thinW + 30);
-  ok('even the worst STEADY window is hittable', thinW >= 18 && SW.steady.core >= 11);
-  SW.steady = null;
+  const rBadBreath = runHide(whiteGrid, true);
+  ok('holding your breath buys real time (' + rBad.secs.toFixed(1) + 's vs ' + rBadBreath.secs.toFixed(1) + 's)',
+     rBadBreath.secs > rBad.secs + 1);
 
-  // smudge writes back into the painting
-  G.score = 60; G.bars = computeScore(); bakeSpotView();
-  const before = G.grid.filter(v => v !== WHITE_IDX).length;
-  smudge(5);
-  const after = G.grid.filter(v => v !== WHITE_IDX).length;
-  ok('a hit whitens real cells of your painting', after < before);
+  // the seeker really does patrol and check spots (needs a body that survives long enough)
+  G.grid = bak.slice(); blankDirty = true;
+  hideBegin(); Dlg.active = false;
+  const startX = HIDE.sk.x, startY = HIDE.sk.y;
+  const visited = new Set();
+  for (let i = 0; i < 60*60; i++){
+    hideUpdate(STEP);
+    if (HIDE.sk.mode === 'INSPECT') visited.add(HIDE.sk.target.id);
+    if (HIDE.over) break;
+  }
+  ok('the seeker walks (moved from its start)', Math.hypot(HIDE.sk.x-startX, HIDE.sk.y-startY) > 20);
+  ok('the seeker inspects several hiding places (' + visited.size + ')', visited.size >= 3);
 
-  // every chapter reaches an end state
-  guard('every chapter room builds and has spots', () => {
-    for (const key of CHAPTERS){
+  // rivals hide, and the worst of them gets found
+  G.grid = bak.slice(); blankDirty = true;
+  hideBegin(); Dlg.active = false;
+  ok('three other Blanks hide too', HIDE.rivals.length === 3);
+  ok('rivals occupy real spots', HIDE.rivals.every(r => r.spot && r.spot !== G.spot));
+  for (let i = 0; i < 60*200 && !HIDE.over; i++) hideUpdate(STEP);
+  ok('the worst-painted rival gets found', HIDE.rivals.find(r => r.name === 'SPLOTCH').found);
+
+  // relocating while unobserved
+  hideBegin(); Dlg.active = false;
+  HIDE.sk.x = 10; HIDE.sk.y = 232; HIDE.sk.mode = 'WALK'; HIDE.sk.fx = -1; HIDE.sk.fy = 0;
+  const before = G.spot;
+  buffered.ok = BUFFER; hideUpdate(STEP);
+  ok('you can move spots while it is not looking', G.spot !== before);
+  // ...and cannot slip away while it is stood there studying your spot
+  hideBegin(); Dlg.active = false;
+  HIDE.sk.mode = 'INSPECT'; HIDE.sk.target = G.spot;
+  HIDE.sk.x = G.spot.walk[0]; HIDE.sk.y = G.spot.walk[1];
+  const pinned = G.spot;
+  buffered.ok = BUFFER; hideUpdate(STEP);
+  ok('you cannot slip away mid-inspection', G.spot === pinned);
+
+  guard('every map has a seeker with a full bark set', () => {
+    for (const key of MAPS){
       const r = ROOMS[key];
-      if (!r.spots.length) throw new Error(key + ' has no spots');
-      if (!LOOKERS[r.looker]) throw new Error(key + ' has no looker');
+      if (!LOOKERS[r.looker]) throw new Error(key + ' has no seeker');
       const L = LOOKERS[r.looker];
       for (const k of ['PAINT','TEXTURE','POSE','SPOT','NERVE','near','great'])
         if (!L.barks[k]) throw new Error(r.looker + ' missing bark ' + k);
+      if (!L.intro || !L.capture || !L.depart) throw new Error(r.looker + ' missing lines');
     }
   });
   guard('grades cover the whole 0..100 range', () => {
     for (let s = 0; s <= 100; s += 5) if (!gradeFor(s)) throw new Error('no grade at ' + s);
   });
-  guard('all three endings are reachable', () => {
-    for (const [caught, avg, want] of [[0, 90, 'HIDDEN'], [2, 60, 'SEEN'], [5, 30, 'FRAMED']]){
-      G.caught = caught; G.chapterScores = [avg, avg, avg, avg, avg];
-      const k = G.caught === 0 && avg >= 78 ? 'HIDDEN' : avg >= 55 ? 'SEEN' : 'FRAMED';
-      if (k !== want) throw new Error('expected ' + want + ' got ' + k);
+  guard('rounds cycle through every map and roll into night 2', () => {
+    titleReset();
+    for (let i = 0; i < MAPS.length; i++){
+      G.round = i; newRound();
+      if (G.room !== MAPS[i]) throw new Error('round ' + i + ' -> ' + G.room);
     }
+    G.round = MAPS.length; newRound();
+    if (G.room !== MAPS[0] || G.night !== 2) throw new Error('did not wrap into night 2');
   });
 
-  // run every screen for 600 steps and assert nothing throws
-  const screens = ['TITLE','OVERWORLD','PREP','EDITOR','HOLDIN','SWEEP','REVEAL','RESULTS','ENDING'];
+  // run every screen
+  const screens = ['TITLE','PAINT','EDITOR','HIDE','RESULT'];
   for (const s of screens){
     guard('600 steps + render on ' + s, () => {
-      G.chapter = 0; enterRoom('CH1');
-      G.prep = 90; G.hp = G.maxhp = 20; G.notice = 10;
+      G.round = 0; newRound(); Dlg.active = false;
       G.spot = ROOMS.CH1.spots[0]; setPose('CUBE','FLATTEN');
-      G.bars = computeScore(); G.score = G.bars.total; bakeSpotView();
-      if (s === 'SWEEP'){ sweepBegin(); passBegin(); }
-      if (s === 'RESULTS') resultsBegin();
-      if (s === 'REVEAL') revealBegin();
+      G.grid = bak.slice(); blankDirty = true;
+      G.bars = computeScore(); G.score = G.bars.total;
       if (s === 'EDITOR') edOpen();
-      if (s === 'ENDING') endingBegin();
+      if (s === 'HIDE'){ hideBegin(); Dlg.active = false; }
+      if (s === 'RESULT'){ hideBegin(); Dlg.active = false; hideEnd(false); Dlg.active = false; resultsBegin(); }
       G.st = s;
       for (let i = 0; i < 600; i++){ update(STEP); render(); }
     });
   }
   guard('the eyedropper screen runs', () => {
+    G.round = 0; newRound(); Dlg.active = false;
+    G.spot = ROOMS.CH1.spots[0];
     G.st = 'EDITOR'; edOpen(); ED.dropper = true;
     for (let i = 0; i < 120; i++){ update(STEP); render(); }
     ED.dropper = false;
   });
-  guard('touch-up runs', () => {
-    G.st = 'TOUCHUP'; touchBegin();
-    for (let i = 0; i < 400; i++){ update(STEP); render(); }
-  });
-  guard('being caught resolves back to prep', () => {
-    G.st = 'SWEEP'; sweepBegin(); passBegin(); startKO();
-    for (let i = 0; i < 400; i++){ update(STEP); render(); }
+  guard('being found resolves to the result screen', () => {
+    G.round = 0; newRound(); Dlg.active = false;
+    G.spot = ROOMS.CH1.spots[0]; setPose('CUBE','FLATTEN');
+    G.grid = new Uint8Array(G.grid.length).fill(WHITE_IDX); blankDirty = true;
+    hideBegin(); Dlg.active = false;
+    for (let i = 0; i < 60*200 && !HIDE.over; i++) hideUpdate(STEP);
+    if (!HIDE.found) throw new Error('a white body was not found');
+    Dlg.active = false; resultsBegin();
+    for (let i = 0; i < 200; i++){ update(STEP); render(); }
   });
 
-  // reset to a clean title
   titleReset(); G.st = 'TITLE';
-
   const fails = out.filter(l => l.startsWith('FAIL'));
   console.log('%c' + out.join('\n'), 'font-family:monospace');
-  console.log(fails.length ? fails.length + ' FAILURES' : 'ALL ' + out.length + ' PASSED');
   const box = document.createElement('div');
   box.id = 'smokeout';
   box.style.cssText = 'position:fixed;left:0;top:0;z-index:99;background:#000;color:#0f0;'

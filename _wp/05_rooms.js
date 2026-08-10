@@ -18,47 +18,6 @@ function mkSpot(o){
 
 const ROOMS = {};
 
-/* ============================ THE HUB ============================ */
-ROOMS.HUB = {
-  name:'UNDERCOAT', label:'THE UNDERCOAT',
-  start:[160,180], hub:true,
-  build(s){
-    s.under('THE UNDERCOAT', () => {
-      s.bricks(0,0,320,152, 28,29,27, 16,10, 3);            // pale plaster wall
-      s.pf(0,148,320,6, 27);
-      s.speck(0,154,320,86, 17,[16,18], 5, 0.30, 'THE FLOOR');
-    });
-    // Sienna's shopfront (left)
-    s.under('SIENNA SHOPFRONT', () => {
-      s.pf(14,54,86,98, 21); s.pf(18,58,78,66, 23);
-      for (let i=0;i<5;i++) s.pf(22+i*15,62,11,58, 20+(i%4));
-      s.pf(14,126,86,26, 22); s.pf(20,132,74,4, 25);
-    });
-    // gallery wall (right) — six empty frames
-    s.under('GALLERY WALL', () => {
-      s.pf(196,44,112,88, 30);
-      for (let i=0;i<6;i++){
-        const fx = 202 + (i%3)*36, fy = 50 + ((i/3)|0)*44;
-        s.pf(fx,fy,30,36,29); s.pf(fx+2,fy+2,26,32,31);
-      }
-    });
-    // the door
-    s.under('THE DOOR', () => {
-      s.pf(136,64,48,88, 4); s.pf(140,68,40,80, 6);
-      s.grain(140,68,40,80, 6, 5, 12, 0.6, 'THE DOOR');
-      s.pf(174,106,4,6, 3);
-    });
-    s.block(14,54,86,98); s.block(196,44,112,88); s.block(136,64,48,88);
-    s.block(0,0,320,150);
-  },
-  props:[
-    { x:14, y:120, w:86, h:34, name:'SIENNA', talk:'SIENNA' },
-    { x:196, y:110, w:112, h:24, name:'GALLERY', talk:'GALLERY' },
-    { x:136, y:126, w:48, h:26, name:'DOOR', door:true },
-  ],
-  spots:[],
-};
-
 /* ============================ CH1 — THE ALLEY ============================ */
 ROOMS.CH1 = {
   name:'UNDERCOAT ALLEY', label:'THE ALLEY', prep:75, target:60, looker:'BIB',
@@ -333,7 +292,6 @@ ROOMS.CH5 = {
   ],
 };
 
-const CHAPTERS = ['CH1','CH2','CH3','CH4','CH5'];
 
 /* bake a room's three buffers once */
 const SCENES = {};

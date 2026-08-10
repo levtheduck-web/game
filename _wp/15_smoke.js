@@ -4,14 +4,10 @@ function runSmoke(){
   const ok = (n, c) => out.push((c ? 'PASS  ' : 'FAIL  ') + n);
   const guard = (n, fn) => { try { fn(); ok(n, true); } catch(e){ ok(n + ' -> ' + e.message, false); } };
 
-  // palette
   for (const [n, c] of paletteAudit()) ok(n, c);
-
-  // font
   ok('font has 95 glyphs', FONTDATA.blob.length === 95 * 7);
   ok('atlas bakes', atlas(UI.WHITE).width === 96 && atlas(UI.WHITE).height === 48);
 
-  // masks
   let maskOk = true, edgeOk = true;
   for (const sh of ['BLOB','CUBE']) for (const po of ['STAND','CURL','LIE','FLATTEN']){
     const m = maskFor(sh, po);
@@ -21,50 +17,47 @@ function runSmoke(){
   ok('all 8 masks have sane cell counts', maskOk);
   ok('all 8 masks have edge cells', edgeOk);
 
-  // rooms bake, spots fit their cover rects
-  let fits = true, walkOk = true, badSpot = '';
-  for (const key of CHAPTERS){
+  // maps
+  let fits = true, walkOk = true, bad = '';
+  for (const key of MAPS){
     const room = ROOMS[key], sc = getScene(key);
     for (const s of room.spots){
       const m = maskFor(s.wantShape, s.wantPose);
-      if (m.w > s.coverW || m.h > s.coverH){ fits = false; badSpot = key + '/' + s.id; }
+      if (m.w > s.coverW || m.h > s.coverH){ fits = false; bad = key + '/' + s.id; }
       for (const p in s.anchors){
         const a = s.anchors[p], mm = maskFor(s.wantShape, p);
-        if (a[0] < 0 || a[1] < 0 || a[0] + mm.w > VW || a[1] + mm.h > VH){ fits = false; badSpot = key+'/'+s.id+'/'+p; }
+        if (a[0] < 0 || a[1] < 0 || a[0]+mm.w > VW || a[1]+mm.h > VH){ fits = false; bad = key+'/'+s.id+'/'+p; }
       }
-      if (sc.solidAt(s.walk[0], s.walk[1])){ walkOk = false; badSpot = key + '/' + s.id + ' walk'; }
+      if (sc.solidAt(s.walk[0], s.walk[1])){ walkOk = false; bad = key+'/'+s.id+' walk'; }
     }
+    if (room.spots.length < 4){ fits = false; bad = key + ' too few spots'; }
   }
-  ok('every ideal pose fits its cover rect' + (badSpot ? ' (' + badSpot + ')' : ''), fits);
-  ok('every spot is reachable on foot' + (!walkOk ? ' (' + badSpot + ')' : ''), walkOk);
+  ok('every ideal pose fits its cover rect' + (bad ? ' (' + bad + ')' : ''), fits);
+  ok('every spot is reachable on foot' + (!walkOk ? ' (' + bad + ')' : ''), walkOk);
+  ok('5 maps', MAPS.length === 5);
 
-  // scenes are not flat and use only palette indices
   let flat = '', offPal = false;
-  for (const key of CHAPTERS){
-    const sc = getScene(key);
-    const seen = new Set();
+  for (const key of MAPS){
+    const sc = getScene(key), seen = new Set();
     for (let i = 0; i < sc.idx.length; i += 7){ seen.add(sc.idx[i]); if (sc.idx[i] > 31) offPal = true; }
     if (seen.size < 4) flat = key;
   }
-  ok('no scene is flat' + (flat ? ' (' + flat + ')' : ''), !flat);
+  ok('no map is flat' + (flat ? ' (' + flat + ')' : ''), !flat);
   ok('every scene pixel is inside the 32-colour palette', !offPal);
 
-  // scoring behaves
+  // ---- scoring ----
+  G.round = 0; newRound(); Dlg.active = false;
   const room = ROOMS.CH1;
-  G.chapter = 0; enterRoom('CH1'); G.prep = 999; G.maxhp = 20; G.hp = 20;
-  beginPrep(room.spots[0]);
-  setPose(room.spots[0].wantShape, room.spots[0].wantPose);
+  G.spot = room.spots[0];
+  setPose(G.spot.wantShape, G.spot.wantPose);
   const white = computeScore();
-  // perfect: copy the wall exactly
   const m0 = maskFor(G.shape, G.pose), a0 = G.spot.anchors[G.pose], sc0 = getScene('CH1');
   for (const cell of m0.cells) G.grid[cell.i] = sc0.at(a0[0]+cell.cx, a0[1]+cell.cy);
   blankDirty = true;
   const perfect = computeScore();
   ok('a pure white body scores badly (' + white.total + ')', white.total < 45);
   ok('copying the wall exactly scores high (' + perfect.total + ')', perfect.total >= 88);
-  ok('a perfect body beats a blank one', perfect.total > white.total + 30);
 
-  // edge cells really are worth triple
   const edgeCell = m0.cells.find(c => c.edge), midCell = m0.cells.find(c => !c.edge);
   const bak = G.grid.slice();
   G.grid[edgeCell.i] = WHITE_IDX; const dEdge = perfect.raw - computeScore().raw;
@@ -72,105 +65,136 @@ function runSmoke(){
   G.grid[midCell.i] = WHITE_IDX; const dMid = perfect.raw - computeScore().raw;
   G.grid = bak.slice();
   ok('an edge cell is worth ~3x an interior one (' + dEdge.toFixed(4) + ' vs ' + dMid.toFixed(4) + ')',
-     dMid > 0 && dEdge / dMid > 2.5 && dEdge / dMid < 3.5);
+     dMid > 0 && dEdge/dMid > 2.5 && dEdge/dMid < 3.5);
 
-  // wrong pose is punished hard
-  setPose('BLOB', 'LIE');
+  setPose('BLOB','LIE');
   const wrong = computeScore();
   ok('the wrong pose is a disaster (' + wrong.total + ')', wrong.total < perfect.total - 20);
   setPose(room.spots[0].wantShape, room.spots[0].wantPose);
   G.grid = bak.slice(); blankDirty = true;
 
-  // eyedrop + base coat alone must not trivialise it
   const wallIdx = sc0.at(a0[0] + (m0.w>>1), a0[1] + (m0.h>>1));
   for (const cell of m0.cells) G.grid[cell.i] = wallIdx;
   const flatCoat = computeScore();
-  ok('base coat alone caps below 67 (' + flatCoat.total + ' = P' + flatCoat.paint.toFixed(1)
-     + ' T' + flatCoat.texture.toFixed(1) + ' O' + flatCoat.pose + ' S' + flatCoat.spot
-     + ' N' + flatCoat.nerve.toFixed(1) + ' raw' + flatCoat.raw.toFixed(2) + ')', flatCoat.total < 67);
+  ok('base coat alone caps below 67 (' + flatCoat.total + ')', flatCoat.total < 67);
   G.grid = bak.slice(); blankDirty = true;
 
-  // sweep difficulty really is driven by the score
-  G.score = 95; sweepBegin(); const easy = SW.passes;
-  G.score = 20; sweepBegin(); const hard = SW.passes;
-  ok('bad camo means more passes (' + easy + ' vs ' + hard + ')', hard > easy);
-  G.score = 95; sweepBegin(); passBegin(); const easyMote = SW.moteEvery;
-  G.score = 20; sweepBegin(); passBegin(); const hardMote = SW.moteEvery;
-  ok('bad camo means denser motes', hardMote < easyMote);
+  // ---- the hide phase is where camo pays off ----
+  const runHide = (grid, holdBreath) => {
+    G.grid = grid.slice(); blankDirty = true;
+    G.spot = room.spots[0]; setPose(room.spots[0].wantShape, room.spots[0].wantPose);
+    hideBegin(); Dlg.active = false;
+    held.no = !!holdBreath;
+    let steps = 0;
+    while (!HIDE.over && steps < 60 * 200){ hideUpdate(STEP); steps++; }
+    held.no = false;
+    return { found: HIDE.found, secs: steps/60, score: G.score };
+  };
+  const whiteGrid = new Uint8Array(m0.w*m0.h).fill(WHITE_IDX);
+  const rBad = runHide(whiteGrid, false);
+  const rGood = runHide(bak, false);
+  ok('a pure white body gets found (camo ' + rBad.score + ')', rBad.found);
+  ok('a wall-perfect body survives the round (camo ' + rGood.score + ')', !rGood.found);
+  ok('the round always ends', rBad.secs < 200 && rGood.secs < 200);
 
-  // STEADY window scales with the score
-  G.score = 95; beginSteady(); const wideW = SW.steady.W;
-  G.score = 20; beginSteady(); const thinW = SW.steady.W;
-  ok('a good paint job widens the STEADY window (' + wideW + ' vs ' + thinW + ')', wideW > thinW + 30);
-  ok('even the worst STEADY window is hittable', thinW >= 18 && SW.steady.core >= 11);
-  SW.steady = null;
+  const rBadBreath = runHide(whiteGrid, true);
+  ok('holding your breath buys real time (' + rBad.secs.toFixed(1) + 's vs ' + rBadBreath.secs.toFixed(1) + 's)',
+     rBadBreath.secs > rBad.secs + 1);
 
-  // smudge writes back into the painting
-  G.score = 60; G.bars = computeScore(); bakeSpotView();
-  const before = G.grid.filter(v => v !== WHITE_IDX).length;
-  smudge(5);
-  const after = G.grid.filter(v => v !== WHITE_IDX).length;
-  ok('a hit whitens real cells of your painting', after < before);
+  // the seeker really does patrol and check spots (needs a body that survives long enough)
+  G.grid = bak.slice(); blankDirty = true;
+  hideBegin(); Dlg.active = false;
+  const startX = HIDE.sk.x, startY = HIDE.sk.y;
+  const visited = new Set();
+  for (let i = 0; i < 60*60; i++){
+    hideUpdate(STEP);
+    if (HIDE.sk.mode === 'INSPECT') visited.add(HIDE.sk.target.id);
+    if (HIDE.over) break;
+  }
+  ok('the seeker walks (moved from its start)', Math.hypot(HIDE.sk.x-startX, HIDE.sk.y-startY) > 20);
+  ok('the seeker inspects several hiding places (' + visited.size + ')', visited.size >= 3);
 
-  // every chapter reaches an end state
-  guard('every chapter room builds and has spots', () => {
-    for (const key of CHAPTERS){
+  // rivals hide, and the worst of them gets found
+  G.grid = bak.slice(); blankDirty = true;
+  hideBegin(); Dlg.active = false;
+  ok('three other Blanks hide too', HIDE.rivals.length === 3);
+  ok('rivals occupy real spots', HIDE.rivals.every(r => r.spot && r.spot !== G.spot));
+  for (let i = 0; i < 60*200 && !HIDE.over; i++) hideUpdate(STEP);
+  ok('the worst-painted rival gets found', HIDE.rivals.find(r => r.name === 'SPLOTCH').found);
+
+  // relocating while unobserved
+  hideBegin(); Dlg.active = false;
+  HIDE.sk.x = 10; HIDE.sk.y = 232; HIDE.sk.mode = 'WALK'; HIDE.sk.fx = -1; HIDE.sk.fy = 0;
+  const before = G.spot;
+  buffered.ok = BUFFER; hideUpdate(STEP);
+  ok('you can move spots while it is not looking', G.spot !== before);
+  // ...and cannot slip away while it is stood there studying your spot
+  hideBegin(); Dlg.active = false;
+  HIDE.sk.mode = 'INSPECT'; HIDE.sk.target = G.spot;
+  HIDE.sk.x = G.spot.walk[0]; HIDE.sk.y = G.spot.walk[1];
+  const pinned = G.spot;
+  buffered.ok = BUFFER; hideUpdate(STEP);
+  ok('you cannot slip away mid-inspection', G.spot === pinned);
+
+  guard('every map has a seeker with a full bark set', () => {
+    for (const key of MAPS){
       const r = ROOMS[key];
-      if (!r.spots.length) throw new Error(key + ' has no spots');
-      if (!LOOKERS[r.looker]) throw new Error(key + ' has no looker');
+      if (!LOOKERS[r.looker]) throw new Error(key + ' has no seeker');
       const L = LOOKERS[r.looker];
       for (const k of ['PAINT','TEXTURE','POSE','SPOT','NERVE','near','great'])
         if (!L.barks[k]) throw new Error(r.looker + ' missing bark ' + k);
+      if (!L.intro || !L.capture || !L.depart) throw new Error(r.looker + ' missing lines');
     }
   });
   guard('grades cover the whole 0..100 range', () => {
     for (let s = 0; s <= 100; s += 5) if (!gradeFor(s)) throw new Error('no grade at ' + s);
   });
-  guard('all three endings are reachable', () => {
-    for (const [caught, avg, want] of [[0, 90, 'HIDDEN'], [2, 60, 'SEEN'], [5, 30, 'FRAMED']]){
-      G.caught = caught; G.chapterScores = [avg, avg, avg, avg, avg];
-      const k = G.caught === 0 && avg >= 78 ? 'HIDDEN' : avg >= 55 ? 'SEEN' : 'FRAMED';
-      if (k !== want) throw new Error('expected ' + want + ' got ' + k);
+  guard('rounds cycle through every map and roll into night 2', () => {
+    titleReset();
+    for (let i = 0; i < MAPS.length; i++){
+      G.round = i; newRound();
+      if (G.room !== MAPS[i]) throw new Error('round ' + i + ' -> ' + G.room);
     }
+    G.round = MAPS.length; newRound();
+    if (G.room !== MAPS[0] || G.night !== 2) throw new Error('did not wrap into night 2');
   });
 
-  // run every screen for 600 steps and assert nothing throws
-  const screens = ['TITLE','OVERWORLD','PREP','EDITOR','HOLDIN','SWEEP','REVEAL','RESULTS','ENDING'];
+  // run every screen
+  const screens = ['TITLE','PAINT','EDITOR','HIDE','RESULT'];
   for (const s of screens){
     guard('600 steps + render on ' + s, () => {
-      G.chapter = 0; enterRoom('CH1');
-      G.prep = 90; G.hp = G.maxhp = 20; G.notice = 10;
+      G.round = 0; newRound(); Dlg.active = false;
       G.spot = ROOMS.CH1.spots[0]; setPose('CUBE','FLATTEN');
-      G.bars = computeScore(); G.score = G.bars.total; bakeSpotView();
-      if (s === 'SWEEP'){ sweepBegin(); passBegin(); }
-      if (s === 'RESULTS') resultsBegin();
-      if (s === 'REVEAL') revealBegin();
+      G.grid = bak.slice(); blankDirty = true;
+      G.bars = computeScore(); G.score = G.bars.total;
       if (s === 'EDITOR') edOpen();
-      if (s === 'ENDING') endingBegin();
+      if (s === 'HIDE'){ hideBegin(); Dlg.active = false; }
+      if (s === 'RESULT'){ hideBegin(); Dlg.active = false; hideEnd(false); Dlg.active = false; resultsBegin(); }
       G.st = s;
       for (let i = 0; i < 600; i++){ update(STEP); render(); }
     });
   }
   guard('the eyedropper screen runs', () => {
+    G.round = 0; newRound(); Dlg.active = false;
+    G.spot = ROOMS.CH1.spots[0];
     G.st = 'EDITOR'; edOpen(); ED.dropper = true;
     for (let i = 0; i < 120; i++){ update(STEP); render(); }
     ED.dropper = false;
   });
-  guard('touch-up runs', () => {
-    G.st = 'TOUCHUP'; touchBegin();
-    for (let i = 0; i < 400; i++){ update(STEP); render(); }
-  });
-  guard('being caught resolves back to prep', () => {
-    G.st = 'SWEEP'; sweepBegin(); passBegin(); startKO();
-    for (let i = 0; i < 400; i++){ update(STEP); render(); }
+  guard('being found resolves to the result screen', () => {
+    G.round = 0; newRound(); Dlg.active = false;
+    G.spot = ROOMS.CH1.spots[0]; setPose('CUBE','FLATTEN');
+    G.grid = new Uint8Array(G.grid.length).fill(WHITE_IDX); blankDirty = true;
+    hideBegin(); Dlg.active = false;
+    for (let i = 0; i < 60*200 && !HIDE.over; i++) hideUpdate(STEP);
+    if (!HIDE.found) throw new Error('a white body was not found');
+    Dlg.active = false; resultsBegin();
+    for (let i = 0; i < 200; i++){ update(STEP); render(); }
   });
 
-  // reset to a clean title
   titleReset(); G.st = 'TITLE';
-
   const fails = out.filter(l => l.startsWith('FAIL'));
   console.log('%c' + out.join('\n'), 'font-family:monospace');
-  console.log(fails.length ? fails.length + ' FAILURES' : 'ALL ' + out.length + ' PASSED');
   const box = document.createElement('div');
   box.id = 'smokeout';
   box.style.cssText = 'position:fixed;left:0;top:0;z-index:99;background:#000;color:#0f0;'

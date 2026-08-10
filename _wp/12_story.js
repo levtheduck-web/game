@@ -45,6 +45,7 @@ function seekerBody(c, x, y, h, w, col, hat, o){
 }
 const LOOKERS = {
   BIB: {
+    worldCol:UI.DIM, hatCol:UI.GOLD,
     name:'BIB', voice:VOICE.bib,
     coneBark:'MORNING! DO NOT MIND ME.',
     draw(c,x,y){ const b = seekerBody(c,x,y,72,54,UI.DIM,UI.GOLD,{mouth:true});
@@ -67,6 +68,7 @@ const LOOKERS = {
     depart:[{t:'NOTHING IN THIS ALLEY. AS USUAL. AS ALWAYS.'},{t:'GOODBYE, ALLEY.'}],
   },
   TACKLE: {
+    worldCol:UI.DIM, hatCol:PAL[10],
     name:'TACKLE', voice:VOICE.tackle,
     coneBark:'IF YOU ARE FLAT, YOU ARE A POSTER.',
     draw(c,x,y){ seekerBody(c,x,y,66,48,UI.DIM,PAL[10],{headW:22});
@@ -85,6 +87,7 @@ const LOOKERS = {
     depart:[{t:'SHED: HUNG. SHED: CORRECT.'}],
   },
   FONDANT: {
+    worldCol:PAL[29], hatCol:PAL[26],
     name:'FONDANT', voice:VOICE.fondant,
     coneBark:'MMM. SOMETHING IS UNDERCOATED.',
     draw(c,x,y){ const b = seekerBody(c,x,y,76,64,PAL[29],PAL[26],{headW:34,mouth:true});
@@ -105,6 +108,7 @@ const LOOKERS = {
     depart:[{t:'CLEAN. STICKY, BUT CLEAN.'}],
   },
   GRIT: {
+    worldCol:PAL[18], hatCol:PAL[16],
     name:'GRIT', voice:VOICE.grit,
     coneBark:'ROUGH. GOOD.',
     draw(c,x,y){ seekerBody(c,x,y,72,70,PAL[18],PAL[16],{headW:30,headH:18});
@@ -123,6 +127,7 @@ const LOOKERS = {
     depart:[{t:'STILL ROUGH. STILL GOOD.'}],
   },
   CURATOR: {
+    worldCol:PAL[31], hatCol:PAL[28],
     name:'THE CURATOR', voice:VOICE.curator,
     coneBark:'EVERY BLANK IS ASSIGNED A COLOUR.',
     draw(c,x,y){ seekerBody(c,x,y,88,46,PAL[31],PAL[28],{headW:20,headH:24});
@@ -162,11 +167,6 @@ const SIENNA_VERDICTS = {
 
 /* ---------- flavour props ---------- */
 const PROP_TALK = {
-  SIENNA:[{t:'SIENNA: YOU ARE UNDERCOAT. NOT A COLOUR. AN ABSENCE OF ONE.'},
-          {t:'SIENNA: THE TRICK IS NOT MATCHING THE WALL. IT IS MATCHING THE WALL\'S MISTAKES.'},
-          {t:'SIENNA: STEAL WITH THE DROPPER. STEAL A LOT. IT IS THE ONLY FREE THING IN HERE.'}],
-  GALLERY:[{t:'SIX EMPTY FRAMES. ONE FOR EACH TIME SOMETHING IS FOUND.'},
-           {t:'THE PLAQUES ARE ALREADY ENGRAVED. THEY JUST SAY "BLANK".'}],
   CH1_FLYERS:[{t:'A STACK OF FLYERS. THE TOP ONE SAYS "COLOUR ASSIGNMENT: TUESDAY".'},
               {t:'IT IS WEDNESDAY.'}],
   CH1_BINS:[{t:'THREE BINS. ONE SMELLS OF TURPENTINE AND REGRET.'}],
@@ -179,74 +179,33 @@ const PROP_TALK = {
 };
 function talkProp(key){
   const p = PROP_TALK[key]; if (!p) return;
-  if (key === 'SIENNA') Dlg.queue(p, { voice:VOICE.sienna });
-  else Dlg.queue(p, { voice:VOICE.plain });
+  Dlg.queue(p, { voice:VOICE.plain });
 }
 
-/* ---------- chapter flow ---------- */
-function enterChapterFromHub(){
-  const key = CHAPTERS[G.chapter];
-  if (!key) return;
-  fadeTo(() => {
-    const room = ROOMS[key];
-    G.prep = room.prep; G.maxhp = room.maxhp; G.hp = room.maxhp;
-    G.coneHit = false; G.rags = G.chapter >= 1 ? 1 : 0;
-    enterRoom(key);
-    G.st = 'OVERWORLD';
-    const L = LOOKERS[room.looker];
-    if (!G.seenIntro[key]){ G.seenIntro[key] = true; Dlg.queue(L.intro, { voice:L.voice }); }
-  });
-}
-function chapterDone(){
-  fadeTo(() => {
-    G.chapter++;
-    if (G.chapter >= CHAPTERS.length){ endingBegin(); return; }
-    enterRoom('HUB');
-    G.st = 'OVERWORLD';
-    Dlg.queue([{ t:'SIENNA: ' + ['ONE DOWN.','TWO. THE SHED SUITED YOU.','THREE. YOU ARE GETTING FUSSY. GOOD.',
-                                 'FOUR. THERE IS ONE ROOM LEFT AND IT IS ALL WHITE.'][G.chapter-1] }],
-               { voice:VOICE.sienna });
-  });
-}
+/* ---------- the round loop ---------- */
+const MAPS = ['CH1','CH2','CH3','CH4','CH5'];
 
-/* ---------- endings ---------- */
-const END = { t:0, kind:'', stage:0 };
-function endingBegin(){
-  G.st = 'ENDING'; END.t = 0; END.stage = 0;
-  const avg = G.chapterScores.reduce((a,b) => a+b, 0) / Math.max(1, G.chapterScores.length);
-  END.kind = G.caught === 0 && avg >= 78 ? 'HIDDEN' : avg >= 55 ? 'SEEN' : 'FRAMED';
-  const lines = {
-    HIDDEN:[{t:'THE CURATOR WALKS THE WHITE GALLERY UNTIL MORNING.'},
-            {t:'HE FINDS SEVEN EMPTY FRAMES AND ONE WALL HE CANNOT STOP LOOKING AT.'},
-            {t:'YOU LEAVE AT SIX. YOU TAKE THE PALETTE WITH YOU.'},
-            {t:'* ENDING: HIDDEN.'}],
-    SEEN:[{t:'HE SEES YOU. OF COURSE HE SEES YOU. HE BUILT THE ROOM.'},
-          {t:'BUT HE HAS NOWHERE TO PUT A THING THAT IS ALREADY THIS MANY COLOURS.'},
-          {t:'HE OPENS THE DOOR AND LOOKS POINTEDLY AT THE STREET.'},
-          {t:'* ENDING: SEEN.'}],
-    FRAMED:[{t:'THEY GIVE YOU A FRAME AFTER ALL. IT IS A GOOD FRAME.'},
-            {t:'THE PLAQUE SAYS "UNDERCOAT, ARTIST UNKNOWN, MIXED MEDIA".'},
-            {t:'PEOPLE STOP. PEOPLE LOOK. IT IS NOT THE WORST OUTCOME.'},
-            {t:'* ENDING: FRAMED.'}],
-  }[END.kind];
-  Audio_.music('coda', 60);
-  Dlg.queue(lines, { voice:VOICE.curator, onEnd(){ END.stage = 1; } });
+function newRound(){
+  const key = MAPS[G.round % MAPS.length];
+  G.night = 1 + Math.floor(G.round / MAPS.length);
+  const room = ROOMS[key];
+  G.prep = Math.max(30, room.prep - (G.night - 1) * 10);
+  G.coneHit = false;
+  G.spot = null;
+  enterRoom(key);
+  setPose('BLOB', 'STAND');
+  whiteReset();                       // the ritual: you always start pure white
+  G.st = 'PAINT';
+  Audio_.music('hub', 96);
+  const L = LOOKERS[room.looker];
+  if (!G.seenIntro[key]){ G.seenIntro[key] = true; Dlg.queue(L.intro, { voice:L.voice }); }
+  else Dlg.queue([{ t: 'ROUND ' + (G.round+1) + '. ' + L.name + ' IS SEEKING. PAINT YOURSELF.' }],
+                 { voice:VOICE.plain });
 }
-function endingUpdate(dt){
-  END.t += dt;
-  if (END.stage === 0){ Dlg.update(dt); return; }
-  if (hit('ok')){ G.st = 'TITLE'; titleReset(); }
+function readyUp(){
+  if (!G.spot) return;
+  fadeTo(() => { hideBegin(); });
 }
-function endingDraw(c){
-  rect(c, 0, 0, VW, VH, UI.BLACK);
-  const sc = getScene('CH5');
-  c.drawImage(sc.cv, 0, 0);
-  wash(c, 11);
-  txtC(c, 'WET PAINT', 160, 40, UI.WHITE, 2);
-  txtC(c, 'ENDING: ' + END.kind, 160, 62, UI.GOLD);
-  const avg = Math.round(G.chapterScores.reduce((a,b)=>a+b,0) / Math.max(1,G.chapterScores.length));
-  txtC(c, 'AVERAGE ' + avg + '   BEST ' + G.best + '   FOUND ' + G.caught + ' TIMES', 160, 78, UI.DIM);
-  txtC(c, 'COLOURS STOLEN: ' + G.tags.size, 160, 90, UI.DIM);
-  if (END.stage === 1) txtC(c, '[Z] AGAIN', 160, 214, UI.WHITE);
-  Dlg.draw(c);
+function nextRound(){
+  fadeTo(() => { G.round++; newRound(); });
 }

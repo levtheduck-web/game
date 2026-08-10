@@ -33,6 +33,7 @@ const KEYMAP = {
   Digit1:'s1', Digit2:'s2', Digit3:'s3', Digit4:'s4',
   Digit5:'s5', Digit6:'s6', Digit7:'s7', Digit8:'s8',
   BracketLeft:'brushdn', BracketRight:'brushup',
+  KeyP:'pose', KeyO:'shape',
   Comma:'shadedn', Period:'shadeup', KeyE:'mirror', KeyR:'sig',
 };
 const held = {}, pressed = {}, buffered = {};
