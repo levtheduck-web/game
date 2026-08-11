@@ -53,6 +53,8 @@ function makeCode(len) {
   for (const b of rnd) s += CODE_ALPHABET[b % CODE_ALPHABET.length];
   return s;
 }
+// An avatar chosen from the hub's icon grid, stored in `picture` as "icon:<id>".
+function isIcon(p) { return /^icon:[a-z0-9-]{1,24}$/.test(String(p || "")); }
 // Public view of another user — never leaks email.
 function pub(u) {
   return u ? { sub: u.sub, name: u.name, picture: u.picture } : null;
@@ -198,6 +200,18 @@ export class Hub extends DurableObject {
     };
   }
 
+  // Pick-your-icon avatar. Accepts either an "icon:<id>" token or a Google photo URL
+  // (the client's way of switching back), and nothing else — `picture` is echoed into
+  // other players' friend lists, so it must never carry an arbitrary remote URL.
+  async setAvatar(token, picture) {
+    const me = await this.verifySession(token);
+    const p = String(picture || "");
+    const ok = p === "" || isIcon(p) || /^https:\/\/[a-z0-9-]+\.googleusercontent\.com\/[^\s"'<>]*$/i.test(p);
+    if (!ok || p.length > 300) throw new HttpError(400, "bad avatar");
+    this.sql.exec("UPDATE users SET picture = ? WHERE sub = ?", p, me);
+    return { ok: true, picture: p };
+  }
+
   // ── endpoints ──
   async login(idToken) {
     const r = await fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(idToken || ""));
@@ -207,13 +221,16 @@ export class Hub extends DurableObject {
     if (!info.sub) throw new HttpError(401, "no subject");
     const now = Date.now();
     const existing = this.userOf(info.sub);
+    // A chosen arcade icon outranks the Google photo — otherwise every sign-in would
+    // quietly reset the player's avatar back to their Google account picture.
+    const picture = isIcon(existing && existing.picture) ? existing.picture : (info.picture || "");
     this.sql.exec(
       `INSERT INTO users (sub, email, name, picture, created, last_seen)
        VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(sub) DO UPDATE SET email=excluded.email, name=excluded.name,
          picture=excluded.picture, last_seen=excluded.last_seen`,
       info.sub, info.email || "", info.name || info.email || "Player",
-      info.picture || "", now, now);
+      picture, now, now);
     if (!existing) this.sql.exec("UPDATE users SET created = ? WHERE sub = ?", now, info.sub);
     this.ensureCode(info.sub);
     const session = await this.makeSession(info.sub);
@@ -492,6 +509,7 @@ export default {
 
       if (request.method === "POST") {
         const body = await request.json().catch(() => ({}));
+        if (path === "/api/avatar")   return json(await stub.setAvatar(auth, body.picture), 200, origin);
         if (path === "/api/add-by-code") return json(await stub.addByCode(auth, body.code), 200, origin);
         if (path === "/api/accept")   return json(await stub.accept(auth, body.sub), 200, origin);
         if (path === "/api/decline")  return json(await stub.decline(auth, body.sub), 200, origin);

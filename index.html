@@ -218,7 +218,7 @@ body::before {
   display:none; align-items:center; gap:10px;
 }
 .sidebar-user.show { display:flex; }
-.sidebar-user img, .sidebar-user .avatar-fallback {
+.sidebar-user img, .sidebar-user .avatar-fallback, .sidebar-user .gb-ic {
   width:36px; height:36px; border:1px solid var(--cyan); box-shadow:0 0 10px var(--glow-c);
   object-fit:cover; flex-shrink:0;
   clip-path:polygon(7px 0%,100% 0%,calc(100% - 7px) 100%,0% 100%);
@@ -324,6 +324,43 @@ body::before {
 .friend-btn.play:disabled { background:transparent; border:1px solid var(--muted); color:var(--muted); cursor:not-allowed; }
 .profile-section-title span { color:var(--muted); }
 body.locked .main { filter:blur(6px); pointer-events:none; }
+
+/* ── PICK-YOUR-ICON AVATARS ──
+   One .gb-ic renderer serves every avatar slot (sidebar, profile head, friend rows,
+   picker tiles). It always fills its container, so each slot's own CSS sets the size. */
+.gb-ic {
+  width:100%; height:100%; display:flex; align-items:center; justify-content:center;
+  line-height:1; overflow:hidden; user-select:none;
+}
+.gb-ic svg { width:100%; height:100%; display:block; }
+.profile-avatar .gb-ic { font-size:46px; }
+.friend-av .gb-ic { font-size:17px; }
+.friend-av { overflow:hidden; padding:0; }
+.friend-av img { width:100%; height:100%; object-fit:cover; }
+.icon-grid {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(50px,1fr)); gap:8px;
+  padding:0 26px 6px; max-height:250px; overflow-y:auto;
+}
+.icon-grid::-webkit-scrollbar { width:8px; }
+.icon-grid::-webkit-scrollbar-track { background:rgba(255,255,255,0.04); }
+.icon-grid::-webkit-scrollbar-thumb { background:rgba(0,245,255,0.28); }
+.icon-grid::-webkit-scrollbar-thumb:hover { background:rgba(0,245,255,0.5); }
+.icon-cat { grid-column:1/-1; font-size:10px; letter-spacing:2px; font-weight:800; color:var(--muted);
+  text-transform:uppercase; padding:8px 0 0; }
+.icon-cat:first-child { padding-top:0; }
+.icon-pick {
+  position:relative; aspect-ratio:1; padding:0; cursor:pointer; background:var(--bg3);
+  border:1px solid rgba(0,245,255,0.14); font-size:24px; transition:transform .12s,box-shadow .15s,border-color .15s;
+  clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);
+}
+.icon-pick img { width:100%; height:100%; object-fit:cover; }
+.icon-pick:hover { transform:translateY(-2px); border-color:var(--cyan); box-shadow:0 0 14px var(--glow-c); }
+.icon-pick.sel { border-color:var(--pink); box-shadow:0 0 16px var(--glow-p); }
+.icon-pick.sel::after {
+  content:'✓'; position:absolute; right:3px; bottom:1px; font-size:11px; font-weight:900;
+  color:var(--pink); text-shadow:0 0 6px var(--glow-p);
+}
+.icon-hint { padding:0 26px 6px; font-size:11px; color:var(--muted); }
 
 /* ── presence + game invites ── */
 .dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; vertical-align:middle;
@@ -436,6 +473,9 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
       <div class="stat-tile"><div class="stat-num" id="stat-played">0</div><div class="stat-label">Games Played</div></div>
       <div class="stat-tile"><div class="stat-num" id="stat-since">—</div><div class="stat-label">Member Since</div></div>
     </div>
+    <div class="profile-section-title">// YOUR ICON <span id="icon-name"></span></div>
+    <div class="icon-hint">Pick who you are. Your friends see it too.</div>
+    <div class="icon-grid" id="icon-grid"></div>
     <div class="profile-section-title">// YOUR FRIEND CODE</div>
     <div style="display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid rgba(0,245,255,.3);border-radius:10px;padding:10px 14px;margin-bottom:8px;">
       <span id="my-code" style="font-family:'Press Start 2P',monospace;font-size:16px;letter-spacing:.12em;color:var(--cyan);flex:1;">------</span>
@@ -1151,7 +1191,12 @@ async function api(path, opts){
 function handleCredential(response){
   const data = decodeJwt(response.credential);
   if(!data){ alert('Sign-in failed — could not read Google response.'); return; }
-  const user = { sub:data.sub, name:data.name||data.email, email:data.email, picture:data.picture||'' };
+  // Remember the real Google photo separately, so "use my photo" stays available after
+  // you've picked an icon — and so signing in again doesn't silently undo your choice.
+  if(data.picture) localStorage.setItem('glitchbox_gphoto', data.picture);
+  let prev = null; try { prev = JSON.parse(localStorage.getItem('glitchbox_user')||'null'); } catch(e){}
+  const keptIcon = (prev && prev.sub === data.sub && iconOf(prev.picture)) ? prev.picture : '';
+  const user = { sub:data.sub, name:data.name||data.email, email:data.email, picture:keptIcon || data.picture || '' };
   localStorage.setItem('glitchbox_user', JSON.stringify(user));
   applyUser(user);
   backendLogin(response.credential);
@@ -1171,9 +1216,7 @@ function applyUser(user){
   currentUser = user;
   document.getElementById('auth-overlay').classList.add('hidden');
   document.body.classList.remove('locked');
-  const av = document.getElementById('user-avatar');
-  if(user.picture){ av.innerHTML = '<img src="'+esc(user.picture)+'" alt="" referrerpolicy="no-referrer">'; }
-  else { av.innerHTML = '<span class="avatar-fallback">'+esc((user.name||'?').charAt(0).toUpperCase())+'</span>'; }
+  paintSidebarAvatar();
   document.getElementById('user-name').textContent = user.name;
   document.getElementById('sidebar-user').classList.add('show');
   const ga = document.getElementById('guest-auth'); if(ga) ga.style.display = 'none';
@@ -1185,6 +1228,14 @@ async function refreshState(){
   if(!getSession()) return;
   try {
     lastState = await api('/api/me');
+    // The server is the source of truth for your icon, so a pick made on your phone
+    // shows up here too.
+    const srv = lastState.profile && lastState.profile.picture;
+    if(currentUser && srv && srv !== currentUser.picture && iconOf(srv)){
+      currentUser.picture = srv;
+      try { localStorage.setItem('glitchbox_user', JSON.stringify(currentUser)); } catch(e2){}
+      paintSidebarAvatar();
+    }
     renderAll();
   } catch(e){
     if(e.status === 401){
@@ -1219,7 +1270,133 @@ function renderAll(){
   }
 }
 
-function avInitial(u){ return '<div class="friend-av">'+esc((u.name||'?').charAt(0).toUpperCase())+'</div>'; }
+// ══════════════════ PROFILE ICONS ══════════════════
+// An avatar is either a Google photo (an https URL) or one of these, stored as
+// "icon:<id>" in the very same `picture` field. That means friend rows, invites and
+// every other slot that already reads `picture` render your icon with no extra plumbing.
+const ICON_BG = [
+  'linear-gradient(135deg,#2a0040,#57007a)', 'linear-gradient(135deg,#001f2e,#00506b)',
+  'linear-gradient(135deg,#2b0016,#6d0035)', 'linear-gradient(135deg,#04231a,#046b45)',
+  'linear-gradient(135deg,#2a1a00,#7a4a00)', 'linear-gradient(135deg,#12002b,#3b1a6b)',
+  'linear-gradient(135deg,#001a24,#0a4a55)', 'linear-gradient(135deg,#210021,#5b0f5b)',
+];
+const ICON_SETS = [
+  { cat:'Memes', icons:[
+    { id:'troll', name:'Trollface', svg:'<svg viewBox="0 0 64 64"><ellipse cx="32" cy="29" rx="23" ry="25" fill="#f4f4f4" stroke="#111" stroke-width="2.5"/><path d="M13 21c4-5 12-5 16-1M35 20c4-4 12-4 16 1" stroke="#111" stroke-width="2.5" stroke-linecap="round" fill="none"/><circle cx="23" cy="27" r="2.8" fill="#111"/><circle cx="41" cy="27" r="2.8" fill="#111"/><path d="M11 36c6 15 36 15 42 0z" fill="#fff" stroke="#111" stroke-width="2.5" stroke-linejoin="round"/><path d="M11 36h42M21 37v6M32 38v7M43 37v6" stroke="#111" stroke-width="1.8"/></svg>' },
+    { id:'doge', name:'Doge', svg:'<svg viewBox="0 0 64 64"><path d="M14 12l7 14-12 2z" fill="#c99b57"/><path d="M50 12l-7 14 12 2z" fill="#c99b57"/><ellipse cx="32" cy="34" rx="21" ry="20" fill="#e0b878"/><ellipse cx="32" cy="41" rx="12" ry="10" fill="#f6ead2"/><path d="M22 30h8M34 30h8" stroke="#3a2a14" stroke-width="3" stroke-linecap="round"/><ellipse cx="32" cy="38" rx="3.4" ry="2.6" fill="#3a2a14"/><path d="M32 41v3M32 44c-2 2-5 1-6-1M32 44c2 2 5 1 6-1" stroke="#3a2a14" stroke-width="2" fill="none" stroke-linecap="round"/></svg>' },
+    { id:'fine', name:'This Is Fine', svg:'<svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#6d1800"/><path d="M0 64c4-12 8-6 10-16 3 10 6 4 8 14 2-14 6-8 8-18 3 12 7 6 9 18 2-12 6-8 8-16 3 10 6 6 9 18z" fill="#ff8a1e"/><path d="M2 64c3-8 6-4 8-11 2 7 5 3 6 11 2-10 5-6 7-13 2 9 5 4 6 13 2-9 5-6 7-12 2 8 5 5 7 12z" fill="#ffd23f"/><ellipse cx="32" cy="30" rx="14" ry="13" fill="#c68642"/><path d="M19 21l-4 8 7 1zM45 21l4 8-7 1z" fill="#a86a2c"/><path d="M25 28h4M35 28h4" stroke="#2b1a0c" stroke-width="2.6" stroke-linecap="round"/><ellipse cx="32" cy="36" rx="3" ry="2.2" fill="#2b1a0c"/><path d="M18 17h28l-3-5H21z" fill="#2b6cb0"/></svg>' },
+    { id:'stonks', name:'Stonks', svg:'<svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#06200f"/><path d="M6 56h52" stroke="#0b5" stroke-width="2" opacity=".5"/><path d="M6 50l12-10 8 6 10-14 8 6 11-19" stroke="#00ff88" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M43 10h16v16z" fill="#00ff88"/></svg>' },
+    { id:'sus', name:'Sus', svg:'<svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#12002b"/><path d="M45 22c5 0 8 4 8 9v7c0 5-3 7-8 7z" fill="#8b0f2e"/><path d="M20 22c0-8 6-13 13-13s13 5 13 13v22c0 3-2 5-5 5h-4v-8h-8v8h-4c-3 0-5-2-5-5z" fill="#e0243f"/><path d="M31 16h9c5 0 8 3 8 7s-3 6-8 6h-9c-3 0-5-2-5-6s2-7 5-7z" fill="#9fe8ff"/><path d="M33 17h6c3 0 4 2 4 4H31z" fill="#e8fbff" opacity=".85"/></svg>' },
+    { id:'rage', name:'Rage', svg:'<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="#fff" stroke="#111" stroke-width="2.5"/><path d="M14 18l14 9M50 18l-14 9" stroke="#111" stroke-width="3.5" stroke-linecap="round"/><circle cx="22" cy="31" r="3" fill="#111"/><circle cx="42" cy="31" r="3" fill="#111"/><path d="M18 42c6-6 22-6 28 0-4 9-24 9-28 0z" fill="#111"/><path d="M22 43h20" stroke="#fff" stroke-width="2"/></svg>' },
+    { id:'npc', name:'NPC', svg:'<svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#2b2f36"/><ellipse cx="32" cy="33" rx="16" ry="19" fill="#c9c0b4"/><circle cx="25" cy="30" r="2.4" fill="#33302c"/><circle cx="39" cy="30" r="2.4" fill="#33302c"/><path d="M24 43h16" stroke="#33302c" stroke-width="2.4" stroke-linecap="round"/></svg>' },
+    { id:'deal', name:'Deal With It', svg:'<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="25" fill="#ffd93b"/><rect x="8" y="26" width="48" height="4" fill="#111"/><rect x="12" y="26" width="16" height="10" fill="#111"/><rect x="36" y="26" width="16" height="10" fill="#111"/><path d="M22 44c5 5 15 5 20 0" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/></svg>' },
+    { id:'chad', name:'Chad', svg:'<svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#14161c"/><path d="M17 16c0-4 6-7 15-7s15 3 15 7v12c0 9-6 16-15 22-9-6-15-13-15-22z" fill="#d8cfc4"/><path d="M17 25c5 2 25 2 30 0v5c0 8-6 15-15 20-9-5-15-12-15-20z" fill="#c6bcae"/><rect x="21" y="22" width="8" height="3" fill="#2a2620"/><rect x="35" y="22" width="8" height="3" fill="#2a2620"/><path d="M26 40h12" stroke="#2a2620" stroke-width="2.5" stroke-linecap="round"/></svg>' },
+    { id:'crt', name:'Glitched', svg:'<svg viewBox="0 0 64 64"><rect width="64" height="64" fill="#05060d"/><circle cx="29" cy="32" r="17" fill="none" stroke="#ff0080" stroke-width="3"/><circle cx="35" cy="32" r="17" fill="none" stroke="#00f5ff" stroke-width="3"/><rect x="17" y="26" width="8" height="4" fill="#00f5ff"/><rect x="39" y="26" width="8" height="4" fill="#ff0080"/><path d="M23 42h18" stroke="#fff" stroke-width="3"/><rect y="19" width="64" height="3" fill="#fff" opacity=".22"/><rect y="45" width="64" height="2" fill="#fff" opacity=".18"/></svg>' },
+  ]},
+  { cat:'Cursed', icons:[
+    { id:'skull', name:'Skull', e:'💀' }, { id:'bones', name:'Bones', e:'☠️' },
+    { id:'clown', name:'Clown', e:'🤡' }, { id:'eye', name:'Eye', e:'👁️' },
+    { id:'melt', name:'Melting', e:'🫠' }, { id:'freeze', name:'Frozen', e:'🥶' },
+    { id:'brain', name:'Brain', e:'🧠' }, { id:'pumpkin', name:'Pumpkin', e:'🎃' },
+    { id:'ghost', name:'Ghost', e:'👻' }, { id:'nazar', name:'Evil Eye', e:'🧿' },
+    { id:'nuke', name:'Radioactive', e:'☢️' }, { id:'grave', name:'Grave', e:'🪦' },
+  ]},
+  { cat:'Creatures', icons:[
+    { id:'frog', name:'Frog', e:'🐸' }, { id:'duck', name:'Duck', e:'🦆' },
+    { id:'goat', name:'GOAT', e:'🐐' }, { id:'rex', name:'T-Rex', e:'🦖' },
+    { id:'octo', name:'Octopus', e:'🐙' }, { id:'shark', name:'Shark', e:'🦈' },
+    { id:'snail', name:'Snail', e:'🐌' }, { id:'chicken', name:'Chicken', e:'🐔' },
+    { id:'gorilla', name:'Gorilla', e:'🦍' }, { id:'wolf', name:'Wolf', e:'🐺' },
+    { id:'blackcat', name:'Black Cat', e:'🐈‍⬛' }, { id:'unicorn', name:'Unicorn', e:'🦄' },
+  ]},
+  { cat:'Chaos', icons:[
+    { id:'fire', name:'Fire', e:'🔥' }, { id:'bolt', name:'Lightning', e:'⚡' },
+    { id:'rainbow', name:'Rainbow', e:'🌈' }, { id:'boom', name:'Explosion', e:'💥' },
+    { id:'pizza', name:'Pizza', e:'🍕' }, { id:'shroom', name:'Mushroom', e:'🍄' },
+    { id:'bread', name:'Bread', e:'🍞' }, { id:'ice', name:'Ice', e:'🧊' },
+    { id:'dice', name:'Dice', e:'🎲' }, { id:'joker', name:'Joker', e:'🃏' },
+    { id:'gem', name:'Gem', e:'💎' }, { id:'crown', name:'Crown', e:'👑' },
+  ]},
+  { cat:'Tech & Cool', icons:[
+    { id:'shades', name:'Cool', e:'😎' }, { id:'moai', name:'Moai', e:'🗿' },
+    { id:'robot', name:'Robot', e:'🤖' }, { id:'invader', name:'Invader', e:'👾' },
+    { id:'alien', name:'Alien', e:'👽' }, { id:'ufo', name:'UFO', e:'🛸' },
+    { id:'joystick', name:'Joystick', e:'🕹️' }, { id:'headphones', name:'Headphones', e:'🎧' },
+    { id:'ninja', name:'Ninja', e:'🥷' }, { id:'wizard', name:'Wizard', e:'🧙' },
+    { id:'cowboy', name:'Cowboy', e:'🤠' }, { id:'arm', name:'Cyber Arm', e:'🦾' },
+  ]},
+];
+const ICON_BY_ID = {};
+let iconSeq = 0;
+ICON_SETS.forEach(set => set.icons.forEach(ic => {
+  ic.bg = ICON_BG[iconSeq++ % ICON_BG.length];
+  ic.cat = set.cat;
+  ICON_BY_ID[ic.id] = ic;
+}));
+
+function iconOf(picture){
+  const p = String(picture || '');
+  return p.slice(0,5) === 'icon:' ? (ICON_BY_ID[p.slice(5)] || null) : null;
+}
+function iconHTML(ic){ return '<span class="gb-ic" style="background:'+ic.bg+'">'+(ic.svg || esc(ic.e))+'</span>'; }
+// `fill` is for slots that size themselves (profile head, friend row, picker tile);
+// the sidebar leaves it off because its CSS gives the <img> an explicit 36px.
+function avatarHTML(u, fill){
+  const ic = iconOf(u && u.picture);
+  if(ic) return iconHTML(ic);
+  const pic = (u && u.picture) || '';
+  if(/^https?:\/\//.test(pic)){
+    return '<img src="'+esc(pic)+'" alt="" referrerpolicy="no-referrer"'+
+           (fill ? ' style="width:100%;height:100%;object-fit:cover"' : '')+'>';
+  }
+  return '';
+}
+function initialOf(u){ return esc(((u && u.name) || '?').charAt(0).toUpperCase()); }
+function googlePhoto(){ return localStorage.getItem('glitchbox_gphoto') || ''; }
+
+function renderIconPicker(){
+  const box = document.getElementById('icon-grid');
+  if(!box || !currentUser) return;
+  const cur = String(currentUser.picture || '');
+  const curIcon = iconOf(cur);
+  const label = document.getElementById('icon-name');
+  if(label) label.textContent = curIcon ? curIcon.name : (cur ? 'Google photo' : '');
+  let h = '';
+  const photo = googlePhoto();
+  if(photo){
+    h += '<div class="icon-cat">Your photo</div>' +
+         '<button class="icon-pick'+(cur === photo ? ' sel' : '')+'" title="Google photo" onclick="pickIcon(\'\')">'+
+         '<img src="'+esc(photo)+'" alt="" referrerpolicy="no-referrer"></button>';
+  }
+  ICON_SETS.forEach(set => {
+    h += '<div class="icon-cat">'+esc(set.cat)+'</div>';
+    set.icons.forEach(ic => {
+      h += '<button class="icon-pick'+(curIcon === ic ? ' sel' : '')+'" title="'+esc(ic.name)+
+           '" onclick="pickIcon(\''+ic.id+'\')">'+iconHTML(ic)+'</button>';
+    });
+  });
+  box.innerHTML = h;
+}
+
+// Paint the new pick everywhere at once, save it locally, then tell the server so
+// friends see it too. A failed sync is not fatal — the choice still sticks on this device.
+async function pickIcon(id){
+  if(!currentUser) return;
+  currentUser.picture = id ? 'icon:'+id : googlePhoto();
+  try { localStorage.setItem('glitchbox_user', JSON.stringify(currentUser)); } catch(e){}
+  paintSidebarAvatar();
+  updateProfileHeader();
+  renderIconPicker();
+  try { await api('/api/avatar', { method:'POST', body:{ picture: currentUser.picture } }); }
+  catch(e){ console.warn('Icon sync failed (kept locally):', e.message); }
+}
+
+function paintSidebarAvatar(){
+  const av = document.getElementById('user-avatar');
+  if(av) av.innerHTML = avatarHTML(currentUser) || '<span class="avatar-fallback">'+initialOf(currentUser)+'</span>';
+}
+
+function avInitial(u){ return '<div class="friend-av">'+(avatarHTML(u,true) || initialOf(u))+'</div>'; }
 // Privacy: never expose other players' email addresses in the UI — show display name only.
 function rowInfo(u){ return '<div class="friend-info"><div class="friend-name">'+esc(u.name)+'</div></div>'; }
 
@@ -1423,9 +1600,8 @@ function report(sub){
 }
 
 function updateProfileHeader(){
-  document.getElementById('profile-avatar').innerHTML = currentUser.picture
-    ? '<img src="'+esc(currentUser.picture)+'" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover">'
-    : '<span class="avatar-fallback">'+esc((currentUser.name||'?').charAt(0).toUpperCase())+'</span>';
+  document.getElementById('profile-avatar').innerHTML =
+    avatarHTML(currentUser, true) || '<span class="avatar-fallback">'+initialOf(currentUser)+'</span>';
   document.getElementById('profile-name').textContent = currentUser.name;
   document.getElementById('profile-email').textContent = currentUser.email;
   const mc = document.getElementById('my-code');
@@ -1441,7 +1617,7 @@ function updateProfileHeader(){
 async function openProfile(){
   if(!currentUser) return;
   document.getElementById('friend-code-in').value=''; document.getElementById('search-results').innerHTML='';
-  updateProfileHeader(); renderFriends(); renderRequests(); renderBlocked(); renderGameInvites();
+  updateProfileHeader(); renderIconPicker(); renderFriends(); renderRequests(); renderBlocked(); renderGameInvites();
   document.getElementById('profile-modal').classList.add('show');
   await refreshState();
 }
@@ -1458,6 +1634,7 @@ document.getElementById('game-grid').addEventListener('click', e => {
 function glitchLogout(){
   localStorage.removeItem('glitchbox_user');
   localStorage.removeItem('glitchbox_session');
+  localStorage.removeItem('glitchbox_gphoto');
   if(window.google && google.accounts && google.accounts.id){ google.accounts.id.disableAutoSelect(); }
   location.reload();
 }
