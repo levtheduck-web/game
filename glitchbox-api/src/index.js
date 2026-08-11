@@ -53,6 +53,13 @@ function makeCode(len) {
   for (const b of rnd) s += CODE_ALPHABET[b % CODE_ALPHABET.length];
   return s;
 }
+// Length-independent, early-exit-free string compare, for the owner claim code.
+function constantEq(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 // An avatar chosen from the hub's icon grid, stored in `picture` as "icon:<id>".
 function isIcon(p) { return /^icon:[a-z0-9-]{1,24}$/.test(String(p || "")); }
 // Public view of another user — never leaks email.
@@ -97,6 +104,9 @@ export class Hub extends DurableObject {
       this.sql.exec(`CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)`);
       // Defensive: add `code` column if this DO predates the friend-code feature.
       try { this.sql.exec("ALTER TABLE users ADD COLUMN code TEXT"); } catch (e) { /* already there */ }
+      // …and the moderation columns, for a DO that predates the admin console.
+      try { this.sql.exec("ALTER TABLE users ADD COLUMN banned INTEGER"); } catch (e) { /* already there */ }
+      try { this.sql.exec("ALTER TABLE users ADD COLUMN ban_reason TEXT"); } catch (e) { /* already there */ }
       this.sql.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_code ON users(code)");
       // Ensure a signing secret exists.
       const row = this.sql.exec("SELECT v FROM meta WHERE k='secret'").toArray()[0];
@@ -132,11 +142,31 @@ export class Hub extends DurableObject {
     let data;
     try { data = JSON.parse(b64urlDecodeStr(payload)); } catch { throw new HttpError(401, "bad payload"); }
     if (!data.exp || data.exp < Date.now()) throw new HttpError(401, "session expired");
+    // One check here covers every authenticated endpoint: a banned account can hold a
+    // valid session token and still do nothing with it.
+    const u = this.userOf(data.sub);
+    if (u && u.banned) throw new HttpError(403, "banned:" + (u.ban_reason || ""));
     return data.sub;
   }
 
   userOf(sub) {
-    return this.sql.exec("SELECT sub, email, name, picture, code, created FROM users WHERE sub = ?", sub).toArray()[0] || null;
+    return this.sql.exec(
+      "SELECT sub, email, name, picture, code, created, banned, ban_reason FROM users WHERE sub = ?",
+      sub).toArray()[0] || null;
+  }
+
+  // ── owner / admin ──
+  // The owner is one account, recorded once in `meta` and never inferred from the
+  // request, so nothing a client sends can promote itself.
+  metaGet(k) { const r = this.sql.exec("SELECT v FROM meta WHERE k = ?", k).toArray()[0]; return r ? r.v : null; }
+  metaSet(k, v) {
+    this.sql.exec("INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v", k, v);
+  }
+  ownerSub() { return this.metaGet("owner"); }
+  async requireOwner(token) {
+    const me = await this.verifySession(token);
+    if (!this.ownerSub() || this.ownerSub() !== me) throw new HttpError(403, "not the owner");
+    return me;
   }
   // Assign a unique friend code if the user doesn't have one yet.
   ensureCode(sub) {
@@ -232,6 +262,12 @@ export class Hub extends DurableObject {
       info.sub, info.email || "", info.name || info.email || "Player",
       picture, now, now);
     if (!existing) this.sql.exec("UPDATE users SET created = ? WHERE sub = ?", now, info.sub);
+    // Optional zero-setup path: set OWNER_EMAIL as a Worker secret and that Google
+    // account becomes owner the next time it signs in. Otherwise use the claim code.
+    const ownerEmail = String((this.env && this.env.OWNER_EMAIL) || "").toLowerCase();
+    if (ownerEmail && !this.ownerSub() && String(info.email || "").toLowerCase() === ownerEmail) {
+      this.metaSet("owner", info.sub);
+    }
     this.ensureCode(info.sub);
     const session = await this.makeSession(info.sub);
     const profile = this.userOf(info.sub);
@@ -266,7 +302,115 @@ export class Hub extends DurableObject {
     const invitesOut = this.sql.exec(
       `SELECT i.game, i.room, i.created, u.sub, u.name, u.picture FROM invites i
        JOIN users u ON u.sub = i.to_sub WHERE i.from_sub = ? ORDER BY i.created DESC`, me).toArray();
-    return { profile, friends, incoming, outgoing, blocked, invitesIn, invitesOut };
+    return { profile, friends, incoming, outgoing, blocked, invitesIn, invitesOut,
+             isOwner: this.ownerSub() === me };
+  }
+
+  // ══ ADMIN ══ Everything below answers only to the owner account.
+
+  // One-time claim. The code is a Worker secret (`wrangler secret put ADMIN_CLAIM`), so
+  // it never ships in the page, and the claim can only ever fire once.
+  async adminClaim(token, code) {
+    const me = await this.verifySession(token);
+    if (this.ownerSub() === me) return { ok: true, already: true };
+    if (this.ownerSub()) throw new HttpError(403, "owner already claimed");
+    const secret = String((this.env && this.env.ADMIN_CLAIM) || "");
+    if (!secret) throw new HttpError(503, "owner claim is not configured");
+    if (!constantEq(String(code || ""), secret)) throw new HttpError(403, "bad claim code");
+    this.metaSet("owner", me);
+    return { ok: true };
+  }
+
+  async adminOverview(token) {
+    await this.requireOwner(token);
+    const now = Date.now();
+    const n = (q, ...a) => this.sql.exec(q, ...a).toArray()[0].n;
+    return {
+      counts: {
+        players:     n("SELECT COUNT(*) AS n FROM users"),
+        online:      n("SELECT COUNT(*) AS n FROM users WHERE last_seen > ?", now - ONLINE_WINDOW),
+        newToday:    n("SELECT COUNT(*) AS n FROM users WHERE created > ?", now - 86400000),
+        banned:      n("SELECT COUNT(*) AS n FROM users WHERE banned"),
+        friendships: Math.floor(n("SELECT COUNT(*) AS n FROM friends") / 2),
+        requests:    n("SELECT COUNT(*) AS n FROM requests"),
+        invites:     n("SELECT COUNT(*) AS n FROM invites"),
+        reports:     n("SELECT COUNT(*) AS n FROM reports"),
+        saves:       n("SELECT COUNT(*) AS n FROM saves"),
+      },
+      topGames: this.sql.exec(
+        "SELECT game, COUNT(*) AS players FROM saves GROUP BY game ORDER BY players DESC LIMIT 10").toArray(),
+      recent: this.sql.exec(
+        "SELECT sub, name, created FROM users ORDER BY created DESC LIMIT 8").toArray(),
+    };
+  }
+
+  async adminPlayers(token, q, limit) {
+    await this.requireOwner(token);
+    const term = "%" + String(q || "").toLowerCase() + "%";
+    const lim = Math.min(200, Math.max(1, Number(limit) || 100));
+    return {
+      owner: this.ownerSub(),
+      players: this.sql.exec(
+        `SELECT u.sub, u.name, u.email, u.picture, u.code, u.created, u.last_seen,
+                u.banned, u.ban_reason,
+                (SELECT COUNT(*) FROM friends f WHERE f.a = u.sub)      AS friends,
+                (SELECT COUNT(*) FROM saves s   WHERE s.sub = u.sub)    AS saves,
+                (SELECT COUNT(*) FROM reports r WHERE r.reported = u.sub) AS reports
+         FROM users u
+         WHERE ? = '%%' OR LOWER(u.name) LIKE ? OR LOWER(u.email) LIKE ? OR LOWER(u.code) LIKE ?
+         ORDER BY u.last_seen DESC LIMIT ?`,
+        term, term, term, term, lim).toArray(),
+    };
+  }
+
+  async adminReports(token) {
+    await this.requireOwner(token);
+    return {
+      reports: this.sql.exec(
+        `SELECT r.id, r.reason, r.created,
+                a.sub AS reporter_sub, a.name AS reporter, b.sub AS reported_sub,
+                b.name AS reported, b.banned
+         FROM reports r
+         LEFT JOIN users a ON a.sub = r.reporter
+         LEFT JOIN users b ON b.sub = r.reported
+         ORDER BY r.created DESC LIMIT 100`).toArray(),
+    };
+  }
+
+  async adminBan(token, sub, banned, reason) {
+    const me = await this.requireOwner(token);
+    if (!sub || sub === me) throw new HttpError(400, "you can't ban yourself");
+    if (!this.userOf(sub)) throw new HttpError(404, "no such player");
+    this.sql.exec("UPDATE users SET banned = ?, ban_reason = ? WHERE sub = ?",
+      banned ? 1 : null, banned ? String(reason || "").slice(0, 200) : null, sub);
+    // A ban should also stop anything already in flight.
+    if (banned) {
+      this.sql.exec("DELETE FROM invites WHERE from_sub = ? OR to_sub = ?", sub, sub);
+      this.sql.exec("DELETE FROM requests WHERE from_sub = ? OR to_sub = ?", sub, sub);
+    }
+    return { ok: true, sub, banned: !!banned };
+  }
+
+  async adminDeletePlayer(token, sub) {
+    const me = await this.requireOwner(token);
+    if (!sub || sub === me) throw new HttpError(400, "you can't delete yourself");
+    if (!this.userOf(sub)) throw new HttpError(404, "no such player");
+    for (const q of [
+      "DELETE FROM friends WHERE a = ? OR b = ?",
+      "DELETE FROM requests WHERE from_sub = ? OR to_sub = ?",
+      "DELETE FROM blocks WHERE blocker = ? OR blocked = ?",
+      "DELETE FROM invites WHERE from_sub = ? OR to_sub = ?",
+      "DELETE FROM reports WHERE reporter = ? OR reported = ?",
+    ]) this.sql.exec(q, sub, sub);
+    this.sql.exec("DELETE FROM saves WHERE sub = ?", sub);
+    this.sql.exec("DELETE FROM users WHERE sub = ?", sub);
+    return { ok: true, sub };
+  }
+
+  async adminDismissReport(token, id) {
+    await this.requireOwner(token);
+    this.sql.exec("DELETE FROM reports WHERE id = ?", Number(id) || 0);
+    return { ok: true };
   }
 
   // ── game invites ──
@@ -507,9 +651,21 @@ export default {
       }
       if (path === "/api/saves") return json(await stub.listSaves(auth), 200, origin);
 
+      // Owner-only console. Each of these re-checks ownership inside the Hub.
+      if (path === "/api/admin/overview") return json(await stub.adminOverview(auth), 200, origin);
+      if (path === "/api/admin/players") {
+        return json(await stub.adminPlayers(auth, url.searchParams.get("q"),
+          url.searchParams.get("limit")), 200, origin);
+      }
+      if (path === "/api/admin/reports") return json(await stub.adminReports(auth), 200, origin);
+
       if (request.method === "POST") {
         const body = await request.json().catch(() => ({}));
         if (path === "/api/avatar")   return json(await stub.setAvatar(auth, body.picture), 200, origin);
+        if (path === "/api/admin/claim")  return json(await stub.adminClaim(auth, body.code), 200, origin);
+        if (path === "/api/admin/ban")    return json(await stub.adminBan(auth, body.sub, body.banned, body.reason), 200, origin);
+        if (path === "/api/admin/delete") return json(await stub.adminDeletePlayer(auth, body.sub), 200, origin);
+        if (path === "/api/admin/dismiss-report") return json(await stub.adminDismissReport(auth, body.id), 200, origin);
         if (path === "/api/add-by-code") return json(await stub.addByCode(auth, body.code), 200, origin);
         if (path === "/api/accept")   return json(await stub.accept(auth, body.sub), 200, origin);
         if (path === "/api/decline")  return json(await stub.decline(auth, body.sub), 200, origin);

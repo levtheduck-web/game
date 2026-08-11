@@ -8,6 +8,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="glitchbox-config.js"></script>
+<!-- Owner console (Ctrl+Shift+A). Deferred so it loads after the hub's own script. -->
+<script src="glitchbox-admin.js" defer></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -472,7 +474,7 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
 .friend-av img { width:100%; height:100%; object-fit:cover; }
 .icon-grid {
   display:grid; grid-template-columns:repeat(auto-fill,minmax(50px,1fr)); gap:8px;
-  padding:0 26px 6px; max-height:250px; overflow-y:auto;
+  padding:0 26px 6px; max-height:360px; overflow-y:auto;   /* 120+ icons — give it room */
 }
 .icon-grid::-webkit-scrollbar { width:8px; }
 .icon-grid::-webkit-scrollbar-track { background:rgba(255,255,255,0.04); }
@@ -1261,7 +1263,8 @@ const FRIEND_BOUNTY = 40;   // per friend who joins you on GLITCHBOX
 
 // Profile icons are the existing picker's ICON_SETS (further down this file).
 // Tokens gate them by category: one free starter set, four you buy into.
-const ICON_PRICE={ 'Tech & Cool':0, 'Creatures':60, 'Cursed':70, 'Chaos':80, 'Memes':120 };
+const ICON_PRICE={ 'Tech & Cool':0, 'Snacks':50, 'Creatures':60, 'Cursed':70, 'Deep Space':70,
+                   'Chaos':80, 'Memes':120, 'Legendary':250 };
 
 function jsonGet(key,fallback){
   try{ const v=JSON.parse(localStorage.getItem(key)); return v==null?fallback:v; }
@@ -1741,6 +1744,10 @@ const ICON_SETS = [
     { id:'brain', name:'Brain', e:'🧠' }, { id:'pumpkin', name:'Pumpkin', e:'🎃' },
     { id:'ghost', name:'Ghost', e:'👻' }, { id:'nazar', name:'Evil Eye', e:'🧿' },
     { id:'nuke', name:'Radioactive', e:'☢️' }, { id:'grave', name:'Grave', e:'🪦' },
+    { id:'zombie', name:'Zombie', e:'🧟' }, { id:'vampire', name:'Vampire', e:'🧛' },
+    { id:'spider', name:'Spider', e:'🕷️' }, { id:'bat', name:'Bat', e:'🦇' },
+    { id:'coffin', name:'Coffin', e:'⚰️' }, { id:'orb', name:'Crystal Ball', e:'🔮' },
+    { id:'scream', name:'Scream', e:'😱' }, { id:'voodoo', name:'Hamsa', e:'🪬' },
   ]},
   { cat:'Creatures', icons:[
     { id:'frog', name:'Frog', e:'🐸' }, { id:'duck', name:'Duck', e:'🦆' },
@@ -1749,6 +1756,10 @@ const ICON_SETS = [
     { id:'snail', name:'Snail', e:'🐌' }, { id:'chicken', name:'Chicken', e:'🐔' },
     { id:'gorilla', name:'Gorilla', e:'🦍' }, { id:'wolf', name:'Wolf', e:'🐺' },
     { id:'blackcat', name:'Black Cat', e:'🐈‍⬛' }, { id:'unicorn', name:'Unicorn', e:'🦄' },
+    { id:'dragon', name:'Dragon', e:'🐉' }, { id:'snake', name:'Snake', e:'🐍' },
+    { id:'owl', name:'Owl', e:'🦉' }, { id:'bee', name:'Bee', e:'🐝' },
+    { id:'penguin', name:'Penguin', e:'🐧' }, { id:'sloth', name:'Sloth', e:'🦥' },
+    { id:'crab', name:'Crab', e:'🦀' }, { id:'dolphin', name:'Dolphin', e:'🐬' },
   ]},
   { cat:'Chaos', icons:[
     { id:'fire', name:'Fire', e:'🔥' }, { id:'bolt', name:'Lightning', e:'⚡' },
@@ -1757,6 +1768,32 @@ const ICON_SETS = [
     { id:'bread', name:'Bread', e:'🍞' }, { id:'ice', name:'Ice', e:'🧊' },
     { id:'dice', name:'Dice', e:'🎲' }, { id:'joker', name:'Joker', e:'🃏' },
     { id:'gem', name:'Gem', e:'💎' }, { id:'crown', name:'Crown', e:'👑' },
+    { id:'tornado', name:'Tornado', e:'🌪️' }, { id:'volcano', name:'Volcano', e:'🌋' },
+    { id:'sparkles', name:'Sparkles', e:'✨' }, { id:'party', name:'Party', e:'🎉' },
+    { id:'bullseye', name:'Bullseye', e:'🎯' }, { id:'magnet', name:'Magnet', e:'🧲' },
+    { id:'bomb', name:'Bomb', e:'💣' }, { id:'banana', name:'Banana', e:'🍌' },
+  ]},
+  { cat:'Snacks', icons:[
+    { id:'burger', name:'Burger', e:'🍔' }, { id:'taco', name:'Taco', e:'🌮' },
+    { id:'donut', name:'Donut', e:'🍩' }, { id:'fries', name:'Fries', e:'🍟' },
+    { id:'icecream', name:'Ice Cream', e:'🍦' }, { id:'ramen', name:'Ramen', e:'🍜' },
+    { id:'cupcake', name:'Cupcake', e:'🧁' }, { id:'candy', name:'Candy', e:'🍭' },
+    { id:'popcorn', name:'Popcorn', e:'🍿' }, { id:'soda', name:'Soda', e:'🥤' },
+    { id:'sushi', name:'Sushi', e:'🍣' }, { id:'cookie', name:'Cookie', e:'🍪' },
+  ]},
+  { cat:'Deep Space', icons:[
+    { id:'rocket', name:'Rocket', e:'🚀' }, { id:'planet', name:'Ringed Planet', e:'🪐' },
+    { id:'starburst', name:'Star', e:'🌟' }, { id:'comet', name:'Comet', e:'☄️' },
+    { id:'moon', name:'Moon', e:'🌙' }, { id:'galaxy', name:'Galaxy', e:'🌌' },
+    { id:'telescope', name:'Telescope', e:'🔭' }, { id:'earth', name:'Earth', e:'🌍' },
+    { id:'sun', name:'Sun', e:'🌞' }, { id:'astronaut', name:'Astronaut', e:'🧑‍🚀' },
+    { id:'shooting', name:'Shooting Star', e:'🌠' }, { id:'blackhole', name:'Black Hole', e:'🕳️' },
+  ]},
+  { cat:'Legendary', icons:[
+    { id:'trophy', name:'Trophy', e:'🏆' }, { id:'medal', name:'Gold Medal', e:'🥇' },
+    { id:'trident', name:'Trident', e:'🔱' }, { id:'shield', name:'Shield', e:'🛡️' },
+    { id:'sword', name:'Sword', e:'🗡️' }, { id:'fleur', name:'Fleur-de-lis', e:'⚜️' },
+    { id:'ring', name:'Ring', e:'💍' }, { id:'wyrm', name:'Wyrm', e:'🐲' },
   ]},
   { cat:'Tech & Cool', icons:[
     { id:'shades', name:'Cool', e:'😎' }, { id:'moai', name:'Moai', e:'🗿' },
@@ -1765,6 +1802,10 @@ const ICON_SETS = [
     { id:'joystick', name:'Joystick', e:'🕹️' }, { id:'headphones', name:'Headphones', e:'🎧' },
     { id:'ninja', name:'Ninja', e:'🥷' }, { id:'wizard', name:'Wizard', e:'🧙' },
     { id:'cowboy', name:'Cowboy', e:'🤠' }, { id:'arm', name:'Cyber Arm', e:'🦾' },
+    { id:'gamepad', name:'Gamepad', e:'🎮' }, { id:'disc', name:'Disc', e:'💿' },
+    { id:'floppy', name:'Floppy', e:'💾' }, { id:'monitor', name:'Monitor', e:'🖥️' },
+    { id:'battery', name:'Battery', e:'🔋' }, { id:'plug', name:'Plug', e:'🔌' },
+    { id:'radar', name:'Radar', e:'📡' }, { id:'keyboard', name:'Keyboard', e:'⌨️' },
   ]},
 ];
 const ICON_BY_ID = {};
