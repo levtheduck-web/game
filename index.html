@@ -159,12 +159,145 @@ body::before {
 .nav-item.fav.active { color:var(--yellow); border-left-color:var(--yellow);
   background:rgba(255,230,0,0.07); text-shadow:0 0 8px rgba(255,230,0,0.5); }
 .nav-item.fav.active .nav-count { color:var(--yellow); }
+/* ── TOKENS ── arcade currency; balance chip lives in the topbar ── */
+.token-chip {
+  display:flex; align-items:center; gap:8px; margin-left:12px; flex-shrink:0; cursor:pointer;
+  background:var(--bg3); border:1px solid rgba(255,230,0,0.35); color:var(--yellow);
+  padding:8px 14px; font-family:'Press Start 2P',monospace; font-size:10px; letter-spacing:1px;
+  box-shadow:0 0 14px rgba(255,230,0,0.1); transition:box-shadow 0.18s,border-color 0.18s;
+  clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+}
+.token-chip:hover { box-shadow:0 0 24px rgba(255,230,0,0.3); border-color:var(--yellow); }
+.token-chip .tc-coin { font-size:14px; line-height:1; }
+.token-chip.bump { animation:tokBump 0.5s cubic-bezier(.3,1.6,.5,1); }
+@keyframes tokBump { 0%{transform:scale(1)} 35%{transform:scale(1.16)} 100%{transform:scale(1)} }
+
+/* locked cards — the art is there but dimmed out behind the price */
+.game-card.locked .thumb-canvas { filter:grayscale(0.9) brightness(0.36) blur(1.2px); }
+.game-card.locked { border-color:rgba(255,230,0,0.18); }
+.game-card.locked:hover { border-color:rgba(255,230,0,0.5); box-shadow:0 8px 30px rgba(0,0,0,0.5),0 0 22px rgba(255,230,0,0.12); }
+.game-card.locked:hover::after { border-top-color:var(--yellow); }
+.game-card.locked .game-thumb-overlay { display:none; }
+.lock-veil {
+  position:absolute; inset:0; z-index:2; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:7px; pointer-events:none;
+}
+.lock-veil .lv-icon { font-size:24px; filter:drop-shadow(0 0 10px rgba(255,230,0,0.5)); }
+.lock-veil .lv-price {
+  font-family:'Press Start 2P',monospace; font-size:10px; letter-spacing:1px; color:#000;
+  background:var(--yellow); padding:5px 10px; box-shadow:0 0 18px rgba(255,230,0,0.45);
+  clip-path:polygon(5px 0%,100% 0%,calc(100% - 5px) 100%,0% 100%);
+}
+.lock-veil .lv-hint { font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:rgba(255,230,0,0.75); }
+.game-card.locked:hover .lv-hint { color:var(--yellow); text-shadow:0 0 8px var(--yellow); }
+.game-tag.special { background:rgba(255,230,0,0.12); color:var(--yellow); }
+.nav-item.special .nav-icon { color:var(--yellow); }
+.nav-item.special:hover { color:var(--yellow); border-left-color:rgba(255,230,0,0.4); background:rgba(255,230,0,0.04); }
+.nav-item.special.active { color:var(--yellow); border-left-color:var(--yellow); background:rgba(255,230,0,0.07); text-shadow:0 0 8px rgba(255,230,0,0.5); }
+.nav-item.special.active .nav-count { color:var(--yellow); }
+
+/* ── SHOP MODAL ── */
+.shop-modal { position:fixed; inset:0; z-index:9100; display:none; align-items:flex-start; justify-content:center;
+  padding:40px 20px; overflow-y:auto; background:rgba(3,5,12,0.84); backdrop-filter:blur(6px); }
+.shop-modal.show { display:flex; }
+.shop-card {
+  position:relative; width:100%; max-width:560px; background:rgba(8,11,20,0.97);
+  border:1px solid rgba(255,230,0,0.22); box-shadow:0 0 44px rgba(255,230,0,0.1),0 0 90px rgba(255,0,128,0.06);
+  clip-path:polygon(0 0,calc(100% - 24px) 0,100% 24px,100% 100%,24px 100%,0 calc(100% - 24px));
+}
+.shop-banner { height:88px; position:relative; border-bottom:1px solid rgba(255,230,0,0.16);
+  background:radial-gradient(ellipse at 70% 40%,rgba(255,230,0,0.22),transparent 60%),
+             radial-gradient(ellipse at 18% 70%,rgba(255,0,128,0.2),transparent 55%),linear-gradient(120deg,#150f00,#1a0016);
+  display:flex; align-items:center; gap:14px; padding:0 26px; }
+.shop-banner::after { content:''; position:absolute; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.14) 2px,rgba(0,0,0,0.14) 4px); }
+.shop-banner .sb-coin { font-size:34px; position:relative; z-index:1; filter:drop-shadow(0 0 12px rgba(255,230,0,0.6)); }
+.shop-banner .sb-text { position:relative; z-index:1; }
+.shop-title { font-family:'Press Start 2P',monospace; font-size:13px; color:#fff; text-shadow:0 0 14px rgba(255,230,0,0.5); margin-bottom:7px; }
+.shop-bal { font-family:'Press Start 2P',monospace; font-size:9px; color:var(--yellow); letter-spacing:1px; text-shadow:0 0 8px var(--yellow); }
+.shop-close { position:absolute; top:12px; right:14px; z-index:3; background:rgba(0,0,0,0.4); border:1px solid rgba(255,0,128,0.4);
+  color:var(--pink); width:30px; height:30px; cursor:pointer; font-size:16px; line-height:1; transition:all 0.15s;
+  clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%); }
+.shop-close:hover { background:rgba(255,0,128,0.15); box-shadow:0 0 12px var(--glow-p); }
+.shop-body { padding:20px 26px 26px; }
+.shop-sect { font-family:'Press Start 2P',monospace; font-size:9px; letter-spacing:2px; color:var(--pink);
+  text-shadow:0 0 8px var(--pink); padding:14px 0 12px; }
+.shop-item { display:flex; align-items:center; gap:14px; padding:12px 14px; background:var(--bg3);
+  border:1px solid rgba(255,230,0,0.1); border-left:2px solid var(--yellow); margin-bottom:9px; transition:box-shadow 0.15s; }
+.shop-item.flash { box-shadow:0 0 22px rgba(255,230,0,0.35); border-color:var(--yellow); }
+.shop-item.owned { border-left-color:var(--green); border-color:rgba(0,255,136,0.12); }
+.shop-item .si-emoji { font-size:28px; flex-shrink:0; width:34px; text-align:center; }
+.shop-item .si-info { flex:1; min-width:0; }
+.shop-item .si-name { font-size:15px; font-weight:700; color:var(--text); }
+.shop-item .si-desc { font-size:11.5px; color:var(--muted); font-weight:600; letter-spacing:0.3px; }
+.shop-btn { border:none; cursor:pointer; padding:9px 14px; font-family:'Rajdhani',sans-serif; font-weight:800; font-size:13px;
+  letter-spacing:1px; text-transform:uppercase; transition:box-shadow 0.15s; flex-shrink:0; white-space:nowrap;
+  clip-path:polygon(5px 0%,100% 0%,calc(100% - 5px) 100%,0% 100%); }
+.shop-btn.buy { background:var(--yellow); color:#150f00; }
+.shop-btn.buy:hover { box-shadow:0 0 18px rgba(255,230,0,0.5); }
+.shop-btn.buy:disabled { background:rgba(255,255,255,0.06); color:var(--muted); cursor:not-allowed; }
+.shop-btn.play { background:var(--green); color:#001a0c; text-decoration:none; display:inline-block; }
+.shop-btn.play:hover { box-shadow:0 0 18px rgba(0,255,136,0.5); }
+.earn-row { display:flex; align-items:center; gap:12px; padding:9px 12px; font-size:13.5px; font-weight:600; color:#9aa6c8;
+  background:rgba(255,255,255,0.02); border-left:2px solid rgba(0,245,255,0.35); margin-bottom:7px; }
+.earn-row b { color:var(--yellow); font-family:'Press Start 2P',monospace; font-size:9px; margin-left:auto; letter-spacing:1px; white-space:nowrap; }
+.earn-row .er-i { font-size:16px; width:20px; text-align:center; }
+
+/* daily reward panel */
+.daily-panel { display:flex; align-items:center; gap:16px; padding:16px 18px; background:var(--bg3);
+  border:1px solid rgba(255,230,0,0.12); border-left:2px solid var(--muted); }
+.daily-panel.ready { border-left-color:var(--yellow); box-shadow:0 0 26px rgba(255,230,0,0.14); border-color:rgba(255,230,0,0.3); }
+.dp-left { flex:1; min-width:0; }
+.dp-title { font-family:'Press Start 2P',monospace; font-size:11px; color:var(--yellow); text-shadow:0 0 10px rgba(255,230,0,0.4); margin-bottom:8px; }
+.daily-panel:not(.ready) .dp-title { color:var(--muted); text-shadow:none; }
+.dp-sub { font-size:12.5px; color:#8090b0; font-weight:600; margin-bottom:10px; }
+.dp-pips { display:flex; gap:5px; }
+.dp-pips .pip { width:16px; height:5px; background:rgba(255,255,255,0.09); }
+.dp-pips .pip.on { background:var(--yellow); box-shadow:0 0 8px rgba(255,230,0,0.5); }
+.dp-done { font-size:24px; color:var(--green); text-shadow:0 0 12px var(--green); flex-shrink:0; }
+.token-chip.ready { border-color:var(--yellow); box-shadow:0 0 20px rgba(255,230,0,0.28); }
+.token-chip.ready::after { content:''; width:7px; height:7px; border-radius:50%; background:var(--pink);
+  box-shadow:0 0 8px var(--pink); animation:pipPulse 1.4s infinite; }
+@keyframes pipPulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+/* paid icons inside the existing picker */
+.icon-pick.locked { opacity:0.5; border-color:rgba(255,230,0,0.22); }
+.icon-pick.locked .gb-ic { filter:grayscale(0.95) brightness(0.6); }
+.icon-pick.locked:hover { opacity:1; border-color:var(--yellow); box-shadow:0 0 14px rgba(255,230,0,0.3); }
+.icon-pick .ip-cost { position:absolute; left:0; right:0; bottom:0; background:rgba(6,8,16,0.86);
+  color:var(--yellow); font-family:'Press Start 2P',monospace; font-size:6.5px; letter-spacing:0.5px;
+  padding:2.5px 0; text-align:center; }
+.icon-cat .cat-price { color:var(--yellow); font-family:'Press Start 2P',monospace; font-size:8px; margin-left:8px; letter-spacing:0.5px; }
+.icon-bal { padding:0 26px 8px; font-size:11.5px; color:var(--yellow); font-weight:700; letter-spacing:0.5px; }
+
+/* icon shelf summary inside the token shop */
+.set-row { display:flex; align-items:center; gap:12px; padding:11px 13px; background:var(--bg3);
+  border:1px solid rgba(255,230,0,0.1); border-left:2px solid var(--yellow); margin-bottom:8px; }
+.set-row .sr-faces { font-size:19px; letter-spacing:1px; flex-shrink:0; }
+.set-row .sr-info { flex:1; min-width:0; }
+.set-row .sr-name { font-size:14px; font-weight:700; color:var(--text); }
+.set-row .sr-sub { font-size:11.5px; color:var(--muted); font-weight:600; }
+.set-row .sr-cost { font-family:'Press Start 2P',monospace; font-size:9px; color:var(--yellow); flex-shrink:0; }
+
+/* token toasts — stack under the topbar so gains are visible on any screen */
+.token-toasts { position:fixed; top:74px; right:20px; z-index:420; display:flex; flex-direction:column; gap:8px;
+  max-width:min(300px,calc(100vw - 40px)); pointer-events:none; }
+.token-toast { background:var(--bg2); border:1px solid rgba(255,230,0,0.45); border-left:3px solid var(--yellow);
+  box-shadow:0 0 26px rgba(255,230,0,0.16); padding:11px 14px; animation:tokIn 0.3s ease-out;
+  clip-path:polygon(9px 0%,100% 0%,calc(100% - 9px) 100%,0% 100%); }
+.token-toast.spend { border-color:rgba(0,255,136,0.45); border-left-color:var(--green); box-shadow:0 0 26px rgba(0,255,136,0.16); }
+.token-toast .tt-amt { font-family:'Press Start 2P',monospace; font-size:11px; color:var(--yellow); text-shadow:0 0 8px var(--yellow); margin-bottom:6px; }
+.token-toast.spend .tt-amt { color:var(--green); text-shadow:0 0 8px var(--green); }
+.token-toast .tt-why { font-size:13px; font-weight:600; color:var(--text); letter-spacing:0.3px; }
+@keyframes tokIn { from { opacity:0; transform:translateX(18px); } to { opacity:1; transform:none; } }
+
 .no-results { text-align:center; padding:60px 20px; color:var(--muted); display:none; }
 .no-results.show { display:block; }
 .no-results p { font-family:'Press Start 2P',monospace; font-size:9px; margin-top:14px; }
 ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:var(--bg); } ::-webkit-scrollbar-thumb { background:rgba(0,245,255,0.2); }
 @media (max-width:900px) { .sidebar{display:none;} .featured{height:200px;} .featured h2{font-size:13px;} }
-@media (max-width:600px) { .content{padding:14px;} .topbar{padding:10px 14px;} .game-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;} .tag-filter{display:none;} }
+@media (max-width:600px) { .content{padding:14px;} .topbar{padding:10px 14px;} .game-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;} .tag-filter{display:none;}
+  .token-chip{margin-left:auto;padding:8px 11px;}   /* the filters are gone — the chip takes the right edge */
+  .token-toasts{top:66px;right:10px;} }
 
 /* ── AUTH GATE ── */
 .auth-overlay {
@@ -444,6 +577,11 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
     <a class="nav-item"        id="nav-adventure"   href="#" onclick="filterCategory('adventure');return false;"><span class="nav-icon">◬</span> Adventure       <span class="nav-count" id="cnt-adventure">0</span></a>
     <a class="nav-item"        id="nav-multiplayer" href="#" onclick="filterCategory('multiplayer');return false;"><span class="nav-icon">◎</span> Multiplayer     <span class="nav-count" id="cnt-multiplayer">0</span></a>
     <a class="nav-item"        id="nav-other"       href="#" onclick="filterCategory('other');return false;"><span class="nav-icon">◇</span> Other           <span class="nav-count" id="cnt-other">0</span></a>
+    <a class="nav-item special" id="nav-special"    href="#" onclick="filterCategory('special');return false;"><span class="nav-icon">🔒</span> Special         <span class="nav-count" id="cnt-special">0</span></a>
+  </div>
+  <div class="sidebar-section" style="padding-top:6px;">
+    <div class="sidebar-label">TOKENS</div>
+    <a class="nav-item special" href="#" onclick="openShop();return false;"><span class="nav-icon">🪙</span> Token Shop <span class="nav-count" id="cnt-tokens">0</span></a>
   </div>
   <div class="sidebar-user" id="sidebar-user">
     <span id="user-avatar"></span>
@@ -474,7 +612,8 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
       <div class="stat-tile"><div class="stat-num" id="stat-since">—</div><div class="stat-label">Member Since</div></div>
     </div>
     <div class="profile-section-title">// YOUR ICON <span id="icon-name"></span></div>
-    <div class="icon-hint">Pick who you are. Your friends see it too.</div>
+    <div class="icon-hint">Pick who you are. Your friends see it too. Locked icons cost tokens — tap one to buy it.</div>
+    <div class="icon-bal" id="icon-bal"></div>
     <div class="icon-grid" id="icon-grid"></div>
     <div class="profile-section-title">// YOUR FRIEND CODE</div>
     <div style="display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid rgba(0,245,255,.3);border-radius:10px;padding:10px 14px;margin-bottom:8px;">
@@ -510,6 +649,29 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
     <button class="picker-close" onclick="closePicker()">Cancel</button>
   </div>
 </div>
+<div class="shop-modal" id="shop-modal" onclick="if(event.target===this)closeShop()">
+  <div class="shop-card">
+    <div class="shop-banner">
+      <button class="shop-close" onclick="closeShop()" title="Close">✕</button>
+      <span class="sb-coin">🪙</span>
+      <div class="sb-text">
+        <div class="shop-title">TOKEN SHOP</div>
+        <div class="shop-bal">BALANCE: <span id="shop-balance">0</span> TOKENS</div>
+      </div>
+    </div>
+    <div class="shop-body">
+      <div class="shop-sect">// DAILY REWARD</div>
+      <div id="shop-daily"></div>
+      <div class="shop-sect">// SPECIAL GAMES</div>
+      <div id="shop-items"></div>
+      <div class="shop-sect">// PROFILE ICONS</div>
+      <div id="shop-icons"></div>
+      <div class="shop-sect">// HOW TO EARN</div>
+      <div id="shop-earn"></div>
+    </div>
+  </div>
+</div>
+<div class="token-toasts" id="token-toasts"></div>
 <div class="invite-toasts" id="invite-toasts"></div>
 <div class="main">
   <div class="topbar">
@@ -522,6 +684,9 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
       <button class="tag-btn" onclick="setSort('hot',this,'pink')">▲ HOT</button>
       <button class="tag-btn" onclick="setSort('new',this,'yellow')">★ NEW</button>
       <button class="tag-btn" onclick="setSort('mp',this,'')">⬡ MULTI</button>
+    </div>
+    <div class="token-chip" id="token-chip" onclick="openShop()" title="Arcade tokens — click for the shop">
+      <span class="tc-coin">🪙</span><span id="token-balance">0</span>
     </div>
   </div>
   <div class="content">
@@ -555,27 +720,27 @@ const GAMES=[
   {name:'Pixel War',           file:'pixel-war.html',              emoji:'🪖',color:['#0a1800','#1a3008'],category:'action',     tags:['hot']},
   {name:'Pixel War Alt',       file:'pixelwar.html',               emoji:'⚔️',color:['#100a20','#201030'],category:'action',     tags:[]},
   {name:'Pixel War Solo',      file:'pixelwar-solo.html',          emoji:'🚀',color:['#00101a','#001828'],category:'action',     tags:[]},
-  {name:'War Combined',        file:'war-combined.html',           emoji:'🛡️',color:['#180000','#300808'],category:'action',     tags:['hot']},
+  {name:'War Combined',        file:'war-combined.html',           emoji:'🛡️',color:['#180000','#300808'],category:'action',     tags:['hot'],price:120,blurb:'Two arsenals in one battlefield — subs, carriers, jets and armor'},
   {name:'Nuclear DEFCON',      file:'nuclear.html',                emoji:'☢️',color:['#141000','#242000'],category:'strategy',   tags:['hot']},
   {name:'Spaceship',           file:'spaceship-solo.html',         emoji:'🚀',color:['#020510','#060f28'],category:'action',     tags:['hot']},
   {name:'Spaceship MP',        file:'spaceship-mp.html',           emoji:'🛸',color:['#040610','#080f26'],category:'multiplayer',tags:['mp']},
   {name:'Build a Bridge',      file:'build-a-bridge.html',         emoji:'🌉',color:['#060c18','#0c1830'],category:'puzzle',     tags:['hot']},
-  {name:'Red Horizon',         file:'mars-colony.html',            emoji:'🔴',color:['#180400','#301000'],category:'simulation', tags:['new']},
+  {name:'Red Horizon',         file:'mars-colony.html',            emoji:'🔴',color:['#180400','#301000'],category:'simulation', tags:['new'],price:90,blurb:'Red Horizon — build a colony that survives the Martian night'},
   {name:'Untamed',             file:'national-park-tycoon.html',   emoji:'🏞️',color:['#041200','#082400'],category:'simulation', tags:['new']},
   {name:'Park Simulator',      file:'national-park-simulator.html',emoji:'⛺',color:['#060e00','#0e1c00'],category:'simulation', tags:[]},
   {name:'Virus',               file:'virus.html',                  emoji:'🦠',color:['#0a0414','#180828'],category:'strategy',   tags:['hot']},
   {name:'Pathogen',            file:'pathogen.html',               emoji:'🧬',color:['#041208','#081e0e'],category:'strategy',   tags:[]},
   {name:'Last Transmission',   file:'last-transmission.html',      emoji:'📡',color:['#040a14','#081424'],category:'adventure',  tags:['new']},
-  {name:'Last Transmission 3D',file:'last-transmission-3d.html',   emoji:'🌌',color:['#02040e','#060c1e'],category:'adventure',  tags:['new']},
-  {name:'Cheese Heist 3D',     file:'cheese-heist-3d.html',        emoji:'🧀',color:['#1a1500','#2a2200'],category:'action',     tags:[]},
+  {name:'Last Transmission 3D',file:'last-transmission-3d.html',   emoji:'🌌',color:['#02040e','#060c1e'],category:'adventure',  tags:['new'],price:100,blurb:'The deep-space story, rebuilt in 3D'},
+  {name:'Cheese Heist 3D',     file:'cheese-heist-3d.html',        emoji:'🧀',color:['#1a1500','#2a2200'],category:'action',     tags:[],price:80,blurb:'Full 3D stealth heist — grab the cheese, stay out of sight'},
   {name:'Fib Factory',         file:'fib-factory.html',            emoji:'🎭',color:['#1a001a','#2a002a'],category:'multiplayer',tags:['mp']},
-  {name:'Yellowstone Carnage', file:'yellowstone-carnage.html',    emoji:'🌋',color:['#1a0a00','#2a1500'],category:'action',     tags:['new']},
+  {name:'Yellowstone Carnage', file:'yellowstone-carnage.html',    emoji:'🌋',color:['#1a0a00','#2a1500'],category:'action',     tags:['new'],price:60,blurb:'Supervolcano chaos, no survivors guaranteed'},
   {name:'Speed Stars',         file:'speed-stars.html',            emoji:'🏎️',color:['#000a1a','#001030'],category:'action',     tags:[]},
   {name:'Hacker',              file:'hacker.html',                 emoji:'💻',color:['#001a00','#003300'],category:'puzzle',     tags:[]},
   {name:'DJ',                  file:'dj.html',                     emoji:'🎧',color:['#0a001a','#15002a'],category:'other',      tags:[]},
   {name:'Decision Roulette',   file:'decision-roulette.html',      emoji:'🎰',color:['#1a0000','#2a0a00'],category:'other',      tags:[]},
   {name:'Case Board',          file:'case-board.html',             emoji:'🔎',color:['#0a0a0a','#141414'],category:'puzzle',     tags:[]},
-  {name:'Roach Rave',          file:'roach-rave.html',             emoji:'🪳',color:['#0d0a00','#1a1400'],category:'other',      tags:[]},
+  {name:'Roach Rave',          file:'roach-rave.html',             emoji:'🪳',color:['#0d0a00','#1a1400'],category:'other',      tags:[],price:40,blurb:'Paste a YouTube link, watch roaches dance to it'},
   {name:'Nothing',             file:'nothing.html',                emoji:'⬜',color:['#080808','#101010'],category:'other',      tags:[]},
 ];
 
@@ -1067,13 +1232,271 @@ function toggleFav(file){
 // favorited from another tab (or from inside a game) — keep this view honest
 addEventListener('storage',e=>{ if(e.key===FAV_KEY){ updateCounts(); renderGames(); } });
 
+// ══════════════════ ARCADE TOKENS ══════════════════
+// A local, per-device arcade wallet. Tokens are earned by playing and spent on
+// the games carrying a `price` (the "special" shelf). Everything lives in
+// localStorage — no backend needed, so it works on GitHub Pages and offline.
+//
+//   glitchbox.tokens   number   current balance
+//   glitchbox.owned    string[] filenames of unlocked special games
+//   glitchbox.seen     string[] games played at least once (first-play bonus)
+//   glitchbox.playts   {file:ts} last rewarded play, for the repeat-play cooldown
+//   glitchbox.daily    'YYYY-MM-DD' last claimed daily reward
+//   glitchbox.streak   number   consecutive days claimed
+//   glitchbox.icons    string[] profile icons bought with tokens
+//   glitchbox.fpaid    number   friends already paid out (referral high-water mark)
+//   glitchbox.queue    [{amt,why}] gains earned on the way out of a game,
+//                                  shown as toasts the next time the hub loads
+const TOK={
+  bal:'glitchbox.tokens', own:'glitchbox.owned', seen:'glitchbox.seen',
+  ts:'glitchbox.playts', daily:'glitchbox.daily', streak:'glitchbox.streak',
+  queue:'glitchbox.queue', icons:'glitchbox.icons', fpaid:'glitchbox.fpaid',
+};
+const WELCOME_GRANT = 50;   // enough to reach the cheapest shelf right away
+const FIRST_PLAY    = 10;   // bonus the first time you open any game
+const REPLAY        = 3;    // per play afterwards, once past the cooldown
+const REPLAY_COOL   = 10*60*1000;
+const DAILY_BASE    = 25, DAILY_STEP = 5, DAILY_MAX_STREAK = 6;
+const FRIEND_BOUNTY = 40;   // per friend who joins you on GLITCHBOX
+
+// Profile icons are the existing picker's ICON_SETS (further down this file).
+// Tokens gate them by category: one free starter set, four you buy into.
+const ICON_PRICE={ 'Tech & Cool':0, 'Creatures':60, 'Cursed':70, 'Chaos':80, 'Memes':120 };
+
+function jsonGet(key,fallback){
+  try{ const v=JSON.parse(localStorage.getItem(key)); return v==null?fallback:v; }
+  catch(e){ return fallback; }
+}
+function jsonSet(key,val){ try{ localStorage.setItem(key,JSON.stringify(val)); }catch(e){} }
+
+function tokens(){ const n=parseInt(localStorage.getItem(TOK.bal),10); return isNaN(n)?0:n; }
+function setTokens(n){ try{ localStorage.setItem(TOK.bal,String(Math.max(0,n|0))); }catch(e){} paintTokens(); }
+function ownedList(){ const v=jsonGet(TOK.own,[]); return Array.isArray(v)?v:[]; }
+function isOwned(file){ return ownedList().indexOf(file)!==-1; }
+function isLocked(g){ return !!g.price && !isOwned(g.file); }
+
+// Grant tokens. `defer` queues the toast instead of showing it — used when the
+// browser is already navigating into a game and a toast would never be seen.
+function grant(amt,why,defer){
+  if(amt<=0) return;
+  setTokens(tokens()+amt);
+  if(defer){ const q=jsonGet(TOK.queue,[]); q.push({amt,why}); jsonSet(TOK.queue,q); }
+  else tokenToast('+'+amt,why);
+}
+
+function paintTokens(){
+  const n=tokens();
+  const chip=document.getElementById('token-chip');
+  const el=document.getElementById('token-balance');
+  if(el && el.textContent!==String(n)){
+    el.textContent=n;
+    if(chip){ chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump'); }
+  } else if(el) el.textContent=n;
+  const sb=document.getElementById('shop-balance'); if(sb) sb.textContent=n;
+  const ct=document.getElementById('cnt-tokens');   if(ct) ct.textContent=n;
+}
+
+function tokenToast(amt,why,spend){
+  const wrap=document.getElementById('token-toasts'); if(!wrap) return;
+  const t=document.createElement('div');
+  t.className='token-toast'+(spend?' spend':'');
+  t.innerHTML='<div class="tt-amt">'+esc(amt)+' 🪙</div><div class="tt-why">'+esc(why)+'</div>';
+  wrap.appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity .4s,transform .4s'; t.style.opacity='0'; t.style.transform='translateX(18px)';
+    setTimeout(()=>t.remove(),420); }, 4200);
+}
+
+// ── earning ──
+function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function dayKeyOffset(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+// The daily reward is claimed by hand in the shop — logging in every day builds
+// a streak, and each day in a row is worth more, up to DAILY_MAX_STREAK days.
+function dailyInfo(){
+  const today=todayKey(), last=localStorage.getItem(TOK.daily);
+  const streak=parseInt(localStorage.getItem(TOK.streak),10)||0;
+  const next = last===today ? streak : (last===dayKeyOffset(-1) ? streak+1 : 1);
+  return { ready:last!==today, streak:Math.max(next,1),
+           amt: DAILY_BASE + Math.min(Math.max(next,1)-1,DAILY_MAX_STREAK-1)*DAILY_STEP };
+}
+function claimDaily(){
+  const d=dailyInfo(); if(!d.ready) return;
+  try{ localStorage.setItem(TOK.daily,todayKey()); localStorage.setItem(TOK.streak,String(d.streak)); }catch(e){}
+  grant(d.amt, d.streak>1 ? ('Daily reward · '+d.streak+'-day streak') : 'Daily reward');
+  renderShop(); paintDaily();
+}
+// Red pip on the token chip whenever today's reward is still sitting there.
+function paintDaily(){
+  const chip=document.getElementById('token-chip'); if(!chip) return;
+  chip.classList.toggle('ready', dailyInfo().ready);
+  chip.title = dailyInfo().ready ? 'Daily reward ready — click to claim' : 'Arcade tokens — click for the shop';
+}
+
+// Friend bounty: every friend who joins you on GLITCHBOX pays out once. The
+// high-water mark means unfriending and re-adding can't farm it.
+function rewardFriends(count){
+  const paid=parseInt(localStorage.getItem(TOK.fpaid),10)||0;
+  if(count<=paid) return;
+  const n=count-paid;
+  try{ localStorage.setItem(TOK.fpaid,String(count)); }catch(e){}
+  grant(n*FRIEND_BOUNTY, n+' friend'+(n>1?'s':'')+' on GLITCHBOX');
+}
+
+// ── profile icons (prices layered onto the picker's ICON_SETS) ──
+function iconsOwned(){ const v=jsonGet(TOK.icons,[]); return Array.isArray(v)?v:[]; }
+function iconPrice(ic){ return (ic && ICON_PRICE[ic.cat]) || 0; }
+function iconOwned(ic){ return iconPrice(ic)===0 || iconsOwned().indexOf(ic.id)!==-1; }
+// Buy, then immediately wear it — nobody buys an icon they didn't want on.
+function buyIcon(id){
+  const ic=ICON_BY_ID[id]; if(!ic) return;
+  if(iconOwned(ic)) return pickIcon(id);
+  const price=iconPrice(ic);
+  if(tokens()<price){ tokenToast('NEED '+(price-tokens()),'Not enough tokens for '+ic.name); return; }
+  setTokens(tokens()-price);
+  const own=iconsOwned(); own.push(id); jsonSet(TOK.icons,own);
+  tokenToast('-'+price,'Unlocked the '+ic.name+' icon',true);
+  pickIcon(id);
+}
+
+function claimStartup(){
+  // First ever visit: seed the wallet so the shelf isn't a brick wall.
+  if(localStorage.getItem(TOK.bal)===null){
+    setTokens(WELCOME_GRANT);
+    tokenToast('+'+WELCOME_GRANT,'Welcome bonus — spend it well');
+  }
+  paintDaily();
+  if(dailyInfo().ready) setTimeout(()=>tokenToast('DAILY','Reward ready — open the token shop'),700);
+  // Anything earned while walking into a game last time.
+  const q=jsonGet(TOK.queue,[]);
+  if(Array.isArray(q)&&q.length){
+    jsonSet(TOK.queue,[]);
+    q.slice(-4).forEach((e,i)=>setTimeout(()=>tokenToast('+'+e.amt,e.why),260*i));
+  }
+  paintTokens();
+}
+
+// Called as a game tile is clicked, immediately before navigation.
+function rewardPlay(file,name){
+  const seen=jsonGet(TOK.seen,[]);
+  const ts=jsonGet(TOK.ts,{}), now=Date.now();
+  if(seen.indexOf(file)===-1){
+    seen.push(file); jsonSet(TOK.seen,seen);
+    ts[file]=now; jsonSet(TOK.ts,ts);   // the first play starts the cooldown too,
+    grant(FIRST_PLAY,'First play · '+name,true);   // else re-entering pays again at once
+    return;
+  }
+  if(!ts[file] || now-ts[file]>REPLAY_COOL){
+    ts[file]=now; jsonSet(TOK.ts,ts);
+    grant(REPLAY,'Played '+name,true);
+  }
+}
+
+// ── spending ──
+function buyGame(file){
+  const g=GAMES.find(x=>x.file===file);
+  if(!g||!g.price||isOwned(file)) return false;
+  if(tokens()<g.price){
+    tokenToast('NEED '+(g.price-tokens()),'Not enough tokens for '+g.name);
+    return false;
+  }
+  setTokens(tokens()-g.price);
+  const own=ownedList(); own.push(file); jsonSet(TOK.own,own);
+  tokenToast('-'+g.price,'Unlocked '+g.name+' — go play it',true);
+  renderGames(); updateCounts(); renderShop();
+  return true;
+}
+
+// ── shop ──
+const EARN_RULES=[
+  ['📅','Daily reward — log in and claim it','+'+DAILY_BASE],
+  ['🔥','Streak bonus for each day in a row','+'+DAILY_STEP],
+  ['🎮','Play a game for the first time','+'+FIRST_PLAY],
+  ['🔁','Play any game again (10 min cooldown)','+'+REPLAY],
+  ['👥','Every friend who joins you on GLITCHBOX','+'+FRIEND_BOUNTY],
+];
+function renderDaily(){
+  const box=document.getElementById('shop-daily'); if(!box) return;
+  const d=dailyInfo();
+  const pips=Array.from({length:DAILY_MAX_STREAK},(_,i)=>
+    '<span class="pip'+(i < (d.ready?d.streak-1:d.streak) ?' on':'')+'"></span>').join('');
+  box.innerHTML=
+    '<div class="daily-panel'+(d.ready?' ready':'')+'">'+
+      '<div class="dp-left"><div class="dp-title">'+(d.ready?'DAY '+d.streak+' REWARD':'CLAIMED TODAY')+'</div>'+
+        '<div class="dp-sub">'+(d.ready
+          ? 'Log in every day — the streak keeps paying more.'
+          : 'Come back tomorrow for '+(DAILY_BASE+Math.min(d.streak,DAILY_MAX_STREAK-1)*DAILY_STEP)+' 🪙 · '+d.streak+'-day streak')+'</div>'+
+        '<div class="dp-pips">'+pips+'</div></div>'+
+      (d.ready
+        ? '<button class="shop-btn buy" onclick="claimDaily()">🪙 Claim '+d.amt+'</button>'
+        : '<div class="dp-done">✓</div>')+
+    '</div>';
+}
+// The icons themselves are bought in the profile picker (that's where you can see
+// yourself wearing them) — the shop just shows what each set costs.
+function renderIcons(){
+  const box=document.getElementById('shop-icons'); if(!box) return;
+  const own=iconsOwned();
+  box.innerHTML=ICON_SETS.map(set=>{
+    const price=ICON_PRICE[set.cat]||0;
+    const mine=set.icons.filter(ic=>iconOwned(ic)).length;
+    // emoji sets show their faces; the hand-drawn SVG set draws itself, shrunk down
+    const faces=set.icons.slice(0,4).map(ic=>ic.e||
+      '<span style="display:inline-block;width:19px;height:19px;vertical-align:middle">'+ic.svg+'</span>').join(' ');
+    return '<div class="set-row"><div class="sr-faces">'+faces+'</div>'+
+      '<div class="sr-info"><div class="sr-name">'+esc(set.cat)+'</div>'+
+      '<div class="sr-sub">'+mine+' / '+set.icons.length+' unlocked</div></div>'+
+      '<div class="sr-cost">'+(price?'🪙 '+price:'FREE')+'</div></div>';
+  }).join('')+
+  '<button class="shop-btn buy" style="width:100%;margin-top:4px" onclick="openIconPicker()">'+
+  (currentUser?'Open the icon picker →':'Sign in to wear icons')+'</button>';
+}
+function openIconPicker(){
+  closeShop();
+  if(!currentUser){ openAuth('login'); return; }
+  openProfile();
+  setTimeout(()=>{ const el=document.getElementById('icon-grid'); if(el) el.scrollIntoView({block:'center',behavior:'smooth'}); },120);
+}
+function renderShop(focusFile){
+  paintTokens(); renderDaily(); renderIcons();
+  const box=document.getElementById('shop-items');
+  const specials=GAMES.filter(g=>g.price);
+  specials.sort((a,b)=>(isOwned(a.file)-isOwned(b.file))||(a.price-b.price));
+  box.innerHTML=specials.map(g=>{
+    const own=isOwned(g.file), afford=tokens()>=g.price;
+    const btn = own
+      ? '<a class="shop-btn play" href="'+esc(g.file)+'">▶ Play</a>'
+      : '<button class="shop-btn buy" '+(afford?'':'disabled ')+'onclick="buyGame(\''+esc(g.file)+'\')">🪙 '+g.price+'</button>';
+    return '<div class="shop-item'+(own?' owned':'')+(focusFile===g.file?' flash':'')+'" data-file="'+esc(g.file)+'">'+
+      '<div class="si-emoji">'+g.emoji+'</div>'+
+      '<div class="si-info"><div class="si-name">'+esc(g.name)+(own?' <span class="game-tag new">OWNED</span>':'')+'</div>'+
+      '<div class="si-desc">'+esc(g.blurb||g.category)+'</div></div>'+btn+'</div>';
+  }).join('');
+  document.getElementById('shop-earn').innerHTML=EARN_RULES.map(r=>
+    '<div class="earn-row"><span class="er-i">'+r[0]+'</span>'+esc(r[1])+'<b>'+r[2]+' 🪙</b></div>').join('');
+}
+function openShop(focusFile){
+  renderShop(focusFile);
+  document.getElementById('shop-modal').classList.add('show');
+  if(focusFile){
+    const el=document.querySelector('.shop-item[data-file="'+focusFile+'"]');
+    if(el) el.scrollIntoView({block:'nearest'});
+  }
+}
+function closeShop(){ document.getElementById('shop-modal').classList.remove('show'); }
+addEventListener('keydown',e=>{ if(e.key==='Escape') closeShop(); });
+// wallet changed in another tab (or in a game) — keep this view honest
+addEventListener('storage',e=>{
+  if(e.key===TOK.bal||e.key===TOK.own){ paintTokens(); updateCounts(); renderGames();
+    if(document.getElementById('shop-modal').classList.contains('show')) renderShop(); }
+});
+
 let activeCategory='all',activeSort='all';
 
 function filterCategory(cat){
   activeCategory=cat;
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
   const el=document.getElementById('nav-'+cat);if(el)el.classList.add('active');
-  const L={all:'ALL GAMES',favorites:'FAVORITES',action:'ACTION',strategy:'STRATEGY',puzzle:'PUZZLE',simulation:'SIMULATION',adventure:'ADVENTURE',multiplayer:'MULTIPLAYER',other:'OTHER'};
+  const L={all:'ALL GAMES',favorites:'FAVORITES',special:'SPECIAL GAMES // TOKEN SHELF',action:'ACTION',strategy:'STRATEGY',puzzle:'PUZZLE',simulation:'SIMULATION',adventure:'ADVENTURE',multiplayer:'MULTIPLAYER',other:'OTHER'};
   document.getElementById('section-label').textContent=L[cat]||'GAMES';
   renderGames();
 }
@@ -1087,6 +1510,7 @@ function renderGames(){
   const q=document.getElementById('search').value.toLowerCase().trim();
   let games=GAMES;
   if(activeCategory==='favorites')games=games.filter(g=>isFav(g.file));
+  else if(activeCategory==='special')games=games.filter(g=>g.price);
   else if(activeCategory!=='all')games=games.filter(g=>g.category===activeCategory);
   if(activeSort==='hot')games=games.filter(g=>g.tags.includes('hot'));
   else if(activeSort==='new')games=games.filter(g=>g.tags.includes('new'));
@@ -1102,13 +1526,22 @@ function renderGames(){
   }
   noRes.classList.remove('show');
   games.forEach(g=>{
-    const a=document.createElement('a');a.className='game-card';a.href=g.file;
-    const badges=g.tags.map(t=>`<span class="game-tag ${t}">${t==='hot'?'▲ HOT':t==='new'?'★ NEW':t==='mp'?'⬡ MULTI':t}</span>`).join('');
+    const locked=isLocked(g);
+    const a=document.createElement('a');
+    a.className='game-card'+(locked?' locked':'');
+    a.href=locked?'#':g.file;                 // locked tiles open the shop, not the game
+    const badges=g.tags.map(t=>`<span class="game-tag ${t}">${t==='hot'?'▲ HOT':t==='new'?'★ NEW':t==='mp'?'⬡ MULTI':t}</span>`).join('')
+      +(g.price?`<span class="game-tag special">${locked?'🔒 '+g.price:'✦ OWNED'}</span>`:'');
+    const veil=locked?`<div class="lock-veil"><div class="lv-icon">🔒</div><div class="lv-price">🪙 ${g.price}</div><div class="lv-hint">Unlock</div></div>`:'';
     const on=isFav(g.file);
     // a <span>, not a <button>: the card itself is an <a> and nesting a button
     // inside a link is invalid HTML
     const fav=`<span class="fav-btn${on?' on':''}" role="button" tabindex="0" aria-pressed="${on}" title="${on?'Remove from favorites':'Add to favorites'}">${on?'★':'☆'}</span>`;
-    a.innerHTML=`<div class="game-thumb"><canvas class="thumb-canvas" width="320" height="200"></canvas><div class="game-thumb-scan"></div><div class="game-thumb-overlay"><div class="play-btn">▶</div></div>${fav}</div><div class="game-info"><div class="game-name">${g.name}</div><div class="game-meta"><span class="game-tag cat">${g.category.toUpperCase()}</span>${badges}</div></div>`;
+    a.innerHTML=`<div class="game-thumb"><canvas class="thumb-canvas" width="320" height="200"></canvas><div class="game-thumb-scan"></div><div class="game-thumb-overlay"><div class="play-btn">▶</div></div>${veil}${fav}</div><div class="game-info"><div class="game-name">${g.name}</div><div class="game-meta"><span class="game-tag cat">${g.category.toUpperCase()}</span>${badges}</div></div>`;
+    if(locked) a.addEventListener('click',ev=>{
+      if(ev.target.closest('.fav-btn')) return;
+      ev.preventDefault(); openShop(g.file);
+    });
     grid.appendChild(a);
     const canvas=a.querySelector('.thumb-canvas'),ctx=canvas.getContext('2d');
     const gid=g.file.replace('.html','');
@@ -1137,8 +1570,15 @@ function updateCounts(){
   });
   const f=document.getElementById('cnt-favorites');
   if(f)f.textContent=GAMES.filter(g=>isFav(g.file)).length;   // count only games that still exist
+  const s=document.getElementById('cnt-special');
+  if(s)s.textContent=GAMES.filter(g=>isLocked(g)).length;     // how many are still locked
+  paintTokens();
 }
-updateCounts();renderGames();
+claimStartup();updateCounts();renderGames();
+// Deep links. Queued behind a tick so the sign-in pass has already run — the icon
+// picker needs to know whether you're signed in before it decides where to send you.
+if(location.hash==='#shop')  addEventListener('load',()=>setTimeout(openShop,0));
+if(location.hash==='#icons') addEventListener('load',()=>setTimeout(openIconPicker,0));
 
 // ══════════════════ GOOGLE SIGN-IN / REGISTRATION ══════════════════
 // 👉 Paste your OAuth Client ID here (from Google Cloud Console → Credentials).
@@ -1258,6 +1698,7 @@ function renderAll(){
   const inv = (lastState.invitesIn||[]).length;
   document.getElementById('friend-count').textContent = n;
   const stf = document.getElementById('stat-friends'); if(stf) stf.textContent = n;
+  rewardFriends(n);            // every friend who joins you pays a token bounty, once
   const badge = document.getElementById('req-badge');
   // A game invite is time-sensitive, so it outranks a friend request in the badge.
   if(inv>0){ badge.textContent = inv+' invite'+(inv>1?'s':''); badge.classList.add('show'); }
@@ -1369,13 +1810,22 @@ function renderIconPicker(){
          '<img src="'+esc(photo)+'" alt="" referrerpolicy="no-referrer"></button>';
   }
   ICON_SETS.forEach(set => {
-    h += '<div class="icon-cat">'+esc(set.cat)+'</div>';
+    const price = ICON_PRICE[set.cat] || 0;
+    h += '<div class="icon-cat">'+esc(set.cat)+
+         (price ? '<span class="cat-price">🪙 '+price+' EACH</span>' : '<span class="cat-price" style="color:var(--green)">FREE</span>')+
+         '</div>';
     set.icons.forEach(ic => {
-      h += '<button class="icon-pick'+(curIcon === ic ? ' sel' : '')+'" title="'+esc(ic.name)+
-           '" onclick="pickIcon(\''+ic.id+'\')">'+iconHTML(ic)+'</button>';
+      const owned = iconOwned(ic);
+      // Locked icons buy themselves on click; owned ones just get worn.
+      h += '<button class="icon-pick'+(curIcon === ic ? ' sel' : '')+(owned ? '' : ' locked')+
+           '" title="'+esc(ic.name)+(owned ? '' : ' — '+price+' tokens')+
+           '" onclick="'+(owned ? 'pickIcon' : 'buyIcon')+'(\''+ic.id+'\')">'+iconHTML(ic)+
+           (owned ? '' : '<span class="ip-cost">'+price+'</span>')+'</button>';
     });
   });
   box.innerHTML = h;
+  const bal = document.getElementById('icon-bal');
+  if(bal) bal.innerHTML = '🪙 '+tokens()+' tokens · '+GAMES.filter(g=>g.price&&!isOwned(g.file)).length+' locked games left';
 }
 
 // Paint the new pick everywhere at once, save it locally, then tell the server so
@@ -1623,12 +2073,18 @@ async function openProfile(){
 }
 function closeProfile(){ document.getElementById('profile-modal').classList.remove('show'); }
 
-// Count a "game played" whenever a game tile is launched (local, per device).
+// Count a "game played" whenever a game tile is launched (local, per device),
+// and pay out the play tokens. Locked tiles never get here — they open the shop.
 document.getElementById('game-grid').addEventListener('click', e => {
-  if(currentUser && e.target.closest('.game-card')){
+  const card = e.target.closest('.game-card');
+  if(!card || e.target.closest('.fav-btn') || card.classList.contains('locked')) return;
+  if(currentUser){
     const k = 'glitchbox_played_'+currentUser.sub;
     localStorage.setItem(k, (parseInt(localStorage.getItem(k)||'0',10)+1));
   }
+  const file = (card.getAttribute('href')||'').split('/').pop();
+  const g = GAMES.find(x=>x.file===file);
+  if(g) rewardPlay(g.file, g.name);
 });
 
 function glitchLogout(){
@@ -1674,6 +2130,75 @@ function initGoogleAuth(){
   google.accounts.id.initialize({ client_id:GOOGLE_CLIENT_ID, callback:handleCredential, auto_select:false });
   google.accounts.id.renderButton(document.getElementById('g-signin-btn'), {
     theme:'filled_black', size:'large', shape:'rectangular', text:'continue_with', width:300
+  });
+}
+
+// ── #tokencheck ── headless self-test of the wallet (open index.html#tokencheck).
+// Snapshots every token key first and restores it at the end, so running it never
+// costs you tokens or unlocks you anything for real.
+if(location.hash==='#tokencheck'){
+  addEventListener('load',()=>{
+    const keys=Object.values(TOK).concat(['glitchbox.seen']);
+    const snap={}; keys.forEach(k=>snap[k]=localStorage.getItem(k));
+    const out=[]; let fails=0;
+    const ok=(name,cond)=>{ out.push((cond?'PASS  ':'FAIL  ')+name); if(!cond)fails++; };
+    const wipe=()=>keys.forEach(k=>localStorage.removeItem(k));
+
+    wipe(); setTokens(200);
+    const paid=GAMES.find(g=>g.price);
+    ok('special game starts locked', isLocked(paid));
+    ok('cheap buy refused when broke', (setTokens(1), buyGame(paid.file)===false && isLocked(paid)));
+    setTokens(paid.price+5);
+    ok('buy unlocks the game', buyGame(paid.file)===true && !isLocked(paid));
+    ok('buy debits the wallet', tokens()===5);
+    ok('owning survives a re-read', isOwned(paid.file));
+
+    wipe(); setTokens(0);
+    ok('daily starts claimable', dailyInfo().ready && dailyInfo().streak===1);
+    claimDaily();
+    ok('daily pays the base amount', tokens()===DAILY_BASE);
+    ok('daily cannot be double-claimed', !dailyInfo().ready && (claimDaily(),tokens()===DAILY_BASE));
+    localStorage.setItem(TOK.daily,dayKeyOffset(-1));
+    ok('yesterday keeps the streak', dailyInfo().ready && dailyInfo().streak===2);
+    localStorage.setItem(TOK.daily,dayKeyOffset(-3));
+    ok('a gap resets the streak', dailyInfo().streak===1);
+
+    wipe(); setTokens(0);
+    rewardPlay('nothing.html','Nothing');
+    ok('first play pays the bonus', tokens()===FIRST_PLAY);
+    rewardPlay('nothing.html','Nothing');
+    ok('replay is on cooldown', tokens()===FIRST_PLAY);
+    const ts=jsonGet(TOK.ts,{}); ts['nothing.html']=Date.now()-REPLAY_COOL-1000; jsonSet(TOK.ts,ts);
+    rewardPlay('nothing.html','Nothing');
+    ok('replay pays once past cooldown', tokens()===FIRST_PLAY+REPLAY);
+    ok('play toasts are queued for the hub', jsonGet(TOK.queue,[]).length===2);
+
+    wipe(); setTokens(0);
+    rewardFriends(2);
+    ok('friends pay a bounty each', tokens()===2*FRIEND_BOUNTY);
+    rewardFriends(2);
+    ok('the same friends never pay twice', tokens()===2*FRIEND_BOUNTY);
+    rewardFriends(3);
+    ok('a new friend pays again', tokens()===3*FRIEND_BOUNTY);
+
+    wipe(); setTokens(0);
+    const free=ICON_SETS.find(s=>!ICON_PRICE[s.cat]).icons[0];
+    const paidIcon=ICON_SETS.find(s=>ICON_PRICE[s.cat]).icons[0];
+    ok('free set needs no tokens', iconOwned(free) && iconPrice(free)===0);
+    ok('paid icon starts locked', !iconOwned(paidIcon) && iconPrice(paidIcon)>0);
+    buyIcon(paidIcon.id);
+    ok('paid icon refused when broke', !iconOwned(paidIcon));
+    setTokens(iconPrice(paidIcon));
+    buyIcon(paidIcon.id);
+    ok('paid icon unlocks and debits', iconOwned(paidIcon) && tokens()===0);
+
+    keys.forEach(k=>{ if(snap[k]===null) localStorage.removeItem(k); else localStorage.setItem(k,snap[k]); });
+    paintTokens(); paintDaily(); updateCounts(); renderGames();
+    const pre=document.createElement('pre');
+    pre.id='tokencheck-out';
+    pre.style.cssText='position:fixed;inset:0;z-index:99999;overflow:auto;background:#04060e;color:#d0d8f0;padding:20px;font:13px ui-monospace,monospace;';
+    pre.textContent=(fails?'✗ '+fails+' FAILED':'✓ ALL '+out.length+' CHECKS PASSED')+'\n\n'+out.join('\n');
+    document.body.appendChild(pre);
   });
 }
 
