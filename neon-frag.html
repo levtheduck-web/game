@@ -1,0 +1,1167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>NEON FRAG — 1v1 Arena</title>
+<script src="glitchbox-save.js"></script>
+<style>
+  :root{ --cyan:#00f5ff; --pink:#ff0080; --yellow:#ffe600; --green:#00ff88; --red:#ff3355;
+         --bg:#05070e; --bg2:#0a0e1a; --panel:rgba(8,12,22,.94); --muted:#5a6690; --text:#d6e2ff; }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; overflow:hidden; background:var(--bg); color:var(--text);
+    font-family:'Rajdhani',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; user-select:none; }
+  canvas#view{ position:fixed; inset:0; width:100%; height:100%; display:block; cursor:none; image-rendering:pixelated; }
+  .hidden{ display:none !important; }
+
+  /* ── HUD ── */
+  #hud{ position:fixed; inset:0; pointer-events:none; z-index:5; }
+  .cross{ position:absolute; left:50%; top:50%; width:26px; height:26px; margin:-13px 0 0 -13px; }
+  .cross i{ position:absolute; background:var(--cyan); box-shadow:0 0 6px var(--cyan); opacity:.85; }
+  .cross i:nth-child(1){ left:11px; top:0; width:2px; height:8px; }
+  .cross i:nth-child(2){ left:11px; bottom:0; width:2px; height:8px; }
+  .cross i:nth-child(3){ top:11px; left:0; height:2px; width:8px; }
+  .cross i:nth-child(4){ top:11px; right:0; height:2px; width:8px; }
+  .cross.hit i{ background:var(--red); box-shadow:0 0 10px var(--red); }
+  #hitmark{ position:absolute; left:50%; top:50%; width:34px; height:34px; margin:-17px 0 0 -17px; opacity:0;
+    transition:opacity .12s; }
+  #hitmark::before,#hitmark::after{ content:''; position:absolute; inset:0; border:2px solid var(--red);
+    border-radius:2px; transform:rotate(45deg); clip-path:polygon(0 0,100% 0,100% 22%,0 22%,0 100%,22% 100%,22% 0); }
+  #hitmark.on{ opacity:1; }
+
+  .corner{ position:absolute; padding:14px 18px; }
+  .lb{ left:0; bottom:0; } .rb{ right:0; bottom:0; text-align:right; } .lt{ left:0; top:0; } .rt{ right:0; top:0; text-align:right; }
+  .stat{ font-family:'Press Start 2P',monospace; font-size:30px; line-height:1; text-shadow:0 0 16px currentColor; }
+  .stat small{ display:block; font-family:'Rajdhani',sans-serif; font-size:12px; letter-spacing:2px;
+    font-weight:700; color:var(--muted); text-shadow:none; margin-top:7px; }
+  #hp{ color:var(--green); } #hp.low{ color:var(--red); animation:pulseLow .7s infinite; }
+  @keyframes pulseLow{ 0%,100%{opacity:1} 50%{opacity:.45} }
+  #ammo{ color:var(--yellow); }
+  .wep{ font-size:13px; font-weight:800; letter-spacing:2px; color:var(--cyan); margin-bottom:6px; }
+  .wep b{ color:var(--muted); font-weight:700; }
+
+  .score{ display:flex; gap:14px; align-items:center; font-family:'Press Start 2P',monospace; font-size:16px; }
+  .score .me{ color:var(--cyan); text-shadow:0 0 14px var(--cyan); }
+  .score .them{ color:var(--pink); text-shadow:0 0 14px var(--pink); }
+  .score .vs{ font-size:10px; color:var(--muted); }
+  #feed{ position:absolute; right:18px; top:78px; display:flex; flex-direction:column; align-items:flex-end; gap:5px; }
+  .kill{ font-size:13px; font-weight:700; letter-spacing:.5px; background:rgba(6,10,20,.72);
+    border-right:3px solid var(--cyan); padding:5px 10px; animation:killIn .2s; }
+  .kill.bad{ border-right-color:var(--pink); }
+  @keyframes killIn{ from{opacity:0;transform:translateX(14px)} to{opacity:1;transform:none} }
+  #minimap{ position:absolute; left:18px; top:64px; border:1px solid rgba(0,245,255,.28); background:rgba(4,7,14,.68); }
+  #flash{ position:absolute; inset:0; background:radial-gradient(circle at 50% 55%,transparent 35%,rgba(255,40,80,.55));
+    opacity:0; transition:opacity .18s; }
+  #flash.on{ opacity:1; }
+  #respawn{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(4,6,12,.62); font-family:'Press Start 2P',monospace; }
+  #respawn .rt1{ font-size:20px; color:var(--pink); text-shadow:0 0 20px var(--pink); }
+  #respawn .rt2{ font-size:44px; color:#fff; margin-top:22px; text-shadow:0 0 24px var(--cyan); }
+  #tip{ position:absolute; left:50%; bottom:96px; transform:translateX(-50%); font-size:13px; font-weight:700;
+    letter-spacing:1.5px; color:var(--muted); text-align:center; }
+
+  /* ── menus ── */
+  #ui{ position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; padding:20px;
+    background:radial-gradient(120% 90% at 50% 0%,#101b33,#04060d 70%); overflow-y:auto; }
+  .panel{ width:min(460px,100%); background:var(--panel); border:1px solid rgba(0,245,255,.22);
+    box-shadow:0 0 60px rgba(0,245,255,.1),0 0 120px rgba(255,0,128,.06); padding:26px; }
+  .logo{ font-family:'Press Start 2P',monospace; font-size:26px; text-align:center; letter-spacing:2px;
+    background:linear-gradient(92deg,var(--cyan),var(--pink)); -webkit-background-clip:text; background-clip:text;
+    color:transparent; filter:drop-shadow(0 0 18px rgba(0,245,255,.35)); }
+  .tagline{ text-align:center; font-size:12px; letter-spacing:3px; color:var(--muted); font-weight:700; margin:12px 0 24px; }
+  .btn{ display:block; width:100%; margin-bottom:10px; padding:15px; cursor:pointer; border:none; font:inherit;
+    font-weight:800; font-size:15px; letter-spacing:1.5px; background:var(--cyan); color:#00131a;
+    clip-path:polygon(9px 0,100% 0,calc(100% - 9px) 100%,0 100%); transition:transform .12s,box-shadow .18s; }
+  .btn:hover{ transform:translateY(-2px); box-shadow:0 0 26px rgba(0,245,255,.5); }
+  .btn.ghost{ background:transparent; border:1px solid rgba(0,245,255,.35); color:var(--cyan); clip-path:none; }
+  .btn.ghost:hover{ background:rgba(0,245,255,.08); box-shadow:none; }
+  .btn.pink{ background:var(--pink); color:#1a0010; }
+  .btn:disabled{ background:transparent; border:1px solid var(--muted); color:var(--muted); cursor:default; transform:none; box-shadow:none; }
+  .sect{ font-family:'Press Start 2P',monospace; font-size:9px; letter-spacing:2px; color:var(--pink);
+    text-shadow:0 0 8px var(--pink); margin:22px 0 12px; }
+  .row{ display:flex; gap:8px; }
+  input[type=text]{ flex:1; min-width:0; padding:14px; background:#060a14; border:1px solid rgba(0,245,255,.3);
+    color:var(--cyan); font:inherit; font-weight:800; font-size:18px; letter-spacing:.3em; text-align:center; text-transform:uppercase; }
+  input[type=text]:focus{ outline:none; border-color:var(--cyan); box-shadow:0 0 14px rgba(0,245,255,.25); }
+  .note{ font-size:12.5px; color:var(--muted); font-weight:600; line-height:1.5; }
+  .note b{ color:var(--text); }
+  .err{ color:var(--pink); }
+  .code-big{ font-family:'Press Start 2P',monospace; font-size:34px; letter-spacing:.16em; color:var(--yellow);
+    text-align:center; text-shadow:0 0 22px rgba(255,230,0,.5); padding:16px 0 6px; }
+  .keys{ display:grid; grid-template-columns:auto 1fr; gap:7px 14px; font-size:13px; font-weight:600; }
+  .keys b{ color:var(--cyan); font-family:'Press Start 2P',monospace; font-size:9px; letter-spacing:1px; white-space:nowrap; }
+  .opt{ display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px; font-weight:700; }
+  .opt input[type=range]{ flex:1; accent-color:#00f5ff; }
+  .opt span{ min-width:38px; text-align:right; color:var(--cyan); font-family:'Press Start 2P',monospace; font-size:9px; }
+  .seg{ display:flex; gap:6px; margin-bottom:14px; }
+  .seg button{ flex:1; padding:10px; cursor:pointer; font:inherit; font-weight:800; font-size:12px; letter-spacing:1px;
+    background:transparent; border:1px solid rgba(0,245,255,.28); color:var(--muted); }
+  .seg button.on{ background:rgba(0,245,255,.14); border-color:var(--cyan); color:var(--cyan); }
+  .wi-row{ display:flex; align-items:center; gap:9px; padding:8px 10px; background:#070b16; border:1px solid rgba(0,245,255,.12); margin-bottom:6px; }
+  .wi-dot{ width:8px; height:8px; border-radius:50%; background:var(--muted); flex-shrink:0; }
+  .wi-dot.on{ background:var(--green); box-shadow:0 0 8px var(--green); }
+  .wi-name{ flex:1; font-weight:700; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .wi-btn{ padding:5px 11px; cursor:pointer; border:none; font:inherit; font-weight:800; font-size:11px;
+    letter-spacing:1px; background:var(--cyan); color:#00131a; }
+  .wi-btn:disabled{ background:transparent; border:1px solid var(--muted); color:var(--muted); }
+  .final{ text-align:center; }
+  .final .verdict{ font-family:'Press Start 2P',monospace; font-size:30px; margin-bottom:8px; }
+  .final .verdict.win{ color:var(--green); text-shadow:0 0 26px var(--green); }
+  .final .verdict.lose{ color:var(--pink); text-shadow:0 0 26px var(--pink); }
+  .final .tally{ font-family:'Press Start 2P',monospace; font-size:38px; color:#fff; margin:18px 0 6px; }
+  .final .tally .a{ color:var(--cyan); } .final .tally .b{ color:var(--pink); }
+
+  /* ── touch controls ── */
+  #touch{ position:fixed; inset:0; z-index:6; pointer-events:none; }
+  #touch .stick{ position:absolute; left:26px; bottom:26px; width:130px; height:130px; border-radius:50%;
+    border:2px solid rgba(0,245,255,.25); background:rgba(6,10,20,.35); pointer-events:auto; }
+  #touch .stick i{ position:absolute; left:50%; top:50%; width:52px; height:52px; margin:-26px 0 0 -26px;
+    border-radius:50%; background:rgba(0,245,255,.35); box-shadow:0 0 18px rgba(0,245,255,.4); }
+  #touch .fire{ position:absolute; right:26px; bottom:34px; width:96px; height:96px; border-radius:50%;
+    border:2px solid rgba(255,0,128,.45); background:rgba(255,0,128,.16); pointer-events:auto;
+    display:flex; align-items:center; justify-content:center; font-weight:900; letter-spacing:1px; color:var(--pink); }
+  #touch .swap{ position:absolute; right:36px; bottom:146px; width:74px; height:44px; border:1px solid rgba(255,230,0,.4);
+    background:rgba(255,230,0,.12); color:var(--yellow); pointer-events:auto; display:flex; align-items:center;
+    justify-content:center; font-weight:800; font-size:12px; letter-spacing:1px; }
+  #smokeout{ position:fixed; left:0; top:0; z-index:99; background:#000; color:#0f0; font:12px/1.5 monospace;
+    padding:10px; white-space:pre; max-height:100%; overflow:auto; }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="flash"></div>
+  <canvas id="minimap" width="150" height="150"></canvas>
+  <div class="cross" id="cross"><i></i><i></i><i></i><i></i></div>
+  <div id="hitmark"></div>
+  <div id="feed"></div>
+  <div class="corner lb"><div class="stat" id="hp">100<small>HEALTH</small></div></div>
+  <div class="corner rb">
+    <div class="wep" id="wepname">PULSE <b>[1]</b></div>
+    <div class="stat" id="ammo">∞<small>AMMO</small></div>
+  </div>
+  <div class="corner rt">
+    <div class="score"><span class="me" id="s-me">0</span><span class="vs">FRAGS</span><span class="them" id="s-them">0</span></div>
+  </div>
+  <div id="tip"></div>
+  <div id="respawn" class="hidden"><div class="rt1" id="deathmsg">FRAGGED</div><div class="rt2" id="rcount">3</div></div>
+</div>
+
+<div id="touch" class="hidden">
+  <div class="stick" id="stick"><i id="knob"></i></div>
+  <div class="fire" id="firebtn">FIRE</div>
+  <div class="swap" id="swapbtn">WEAPON</div>
+</div>
+
+<div id="ui">
+  <!-- HOME -->
+  <div class="panel" id="panel-home">
+    <div class="logo">NEON FRAG</div>
+    <div class="tagline">// 1V1 ARENA DEATHMATCH</div>
+    <button class="btn" id="m-practice">PRACTICE VS BOT</button>
+    <button class="btn pink" id="m-online">PLAY A FRIEND</button>
+    <button class="btn ghost" id="m-howto">CONTROLS &amp; OPTIONS</button>
+    <div class="note" style="margin-top:16px">First to <b>10 frags</b> takes the match. Grab the shotgun and rail before your opponent does.</div>
+  </div>
+
+  <!-- ONLINE -->
+  <div class="panel hidden" id="panel-online">
+    <div class="logo" style="font-size:19px">ONLINE 1V1</div>
+    <div class="tagline">// SAME CODE, SAME ARENA</div>
+    <button class="btn" id="m-create">CREATE A ROOM</button>
+    <div class="sect">// OR JOIN ONE</div>
+    <div class="row">
+      <input type="text" id="join-code" maxlength="4" placeholder="CODE" autocomplete="off"/>
+      <button class="btn" style="width:auto;padding:14px 22px;margin:0" id="m-join">JOIN</button>
+    </div>
+    <div class="note err" id="online-status" style="margin-top:12px"></div>
+    <button class="btn ghost" id="m-back1" style="margin-top:18px">BACK</button>
+  </div>
+
+  <!-- WAITING ROOM -->
+  <div class="panel hidden" id="panel-wait">
+    <div class="logo" style="font-size:19px">WAITING</div>
+    <div class="tagline">// SEND THIS CODE TO YOUR OPPONENT</div>
+    <div class="code-big" id="wait-code">----</div>
+    <button class="btn ghost" id="m-copy">COPY CODE</button>
+    <div id="wait-invite" class="hidden">
+      <div class="sect">// OR INVITE A FRIEND</div>
+      <div id="wait-friends"></div>
+    </div>
+    <button class="btn ghost" id="m-cancel" style="margin-top:18px">CANCEL</button>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="panel hidden" id="panel-howto">
+    <div class="logo" style="font-size:19px">CONTROLS</div>
+    <div class="tagline">// CLICK THE ARENA TO CAPTURE THE MOUSE</div>
+    <div class="keys">
+      <b>W A S D</b><span>Move / strafe</span>
+      <b>MOUSE</b><span>Look</span>
+      <b>CLICK</b><span>Fire</span>
+      <b>SHIFT</b><span>Sprint</span>
+      <b>1 2 3</b><span>Pulse · Shred · Rail</span>
+      <b>Q</b><span>Next weapon</span>
+      <b>ESC</b><span>Release the mouse</span>
+    </div>
+    <div class="sect">// OPTIONS</div>
+    <div class="opt">MOUSE<input type="range" id="o-sens" min="20" max="300" value="120"/><span id="o-sens-v">1.2</span></div>
+    <div class="opt">VOLUME<input type="range" id="o-vol" min="0" max="100" value="70"/><span id="o-vol-v">70</span></div>
+    <div class="opt">DETAIL<input type="range" id="o-res" min="40" max="100" value="80"/><span id="o-res-v">80</span></div>
+    <div class="sect">// BOT SKILL</div>
+    <div class="seg" id="seg-diff">
+      <button data-d="0">ROOKIE</button><button data-d="1" class="on">FIGHTER</button><button data-d="2">NIGHTMARE</button>
+    </div>
+    <button class="btn ghost" id="m-back2">BACK</button>
+  </div>
+
+  <!-- MATCH OVER -->
+  <div class="panel hidden final" id="panel-over">
+    <div class="verdict" id="ov-verdict">VICTORY</div>
+    <div class="note" id="ov-sub"></div>
+    <div class="tally"><span class="a" id="ov-me">0</span> — <span class="b" id="ov-them">0</span></div>
+    <div class="note" id="ov-stats" style="margin-bottom:18px"></div>
+    <button class="btn" id="ov-again">REMATCH</button>
+    <button class="btn ghost" id="ov-menu">MAIN MENU</button>
+  </div>
+</div>
+
+<script src="glitchbox-config.js"></script>
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const SMOKE = location.hash.indexOf('smoke') !== -1;
+const clamp = (v,a,b) => v<a?a:v>b?b:v;
+const TAU = Math.PI*2;
+
+// ══════════════ RNG ══════════════
+// Seeded so host and guest generate byte-identical arenas from one shared number.
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// ══════════════ AUDIO ══════════════
+// Everything is synthesised — no asset files to load, nothing to 404 on Pages.
+const Audio_ = {
+  ctx:null, vol:0.7,
+  on(){ if(!this.ctx){ try{ this.ctx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+        if(this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+  blip(freq, dur, type, gain, sweep){
+    if(!this.ctx || this.vol<=0) return;
+    const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type||'square'; o.frequency.setValueAtTime(freq, t);
+    if(sweep) o.frequency.exponentialRampToValueAtTime(Math.max(30,sweep), t+dur);
+    g.gain.setValueAtTime((gain||0.2)*this.vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0008, t+dur);
+    o.connect(g).connect(this.ctx.destination); o.start(t); o.stop(t+dur+0.02);
+  },
+  noise(dur, gain, hp){
+    if(!this.ctx || this.vol<=0) return;
+    const t = this.ctx.currentTime, n = Math.floor(this.ctx.sampleRate*dur);
+    const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate), d = buf.getChannelData(0);
+    for(let i=0;i<n;i++) d[i] = (Math.random()*2-1) * (1 - i/n);
+    const s = this.ctx.createBufferSource(); s.buffer = buf;
+    const f = this.ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp||400;
+    const g = this.ctx.createGain(); g.gain.value = (gain||0.2)*this.vol;
+    s.connect(f).connect(g).connect(this.ctx.destination); s.start();
+  },
+  shot(w){ if(w===0){ this.blip(420,0.09,'square',0.16,120); this.noise(0.06,0.12,900); }
+           else if(w===1){ this.noise(0.22,0.3,220); this.blip(140,0.16,'sawtooth',0.16,50); }
+           else { this.blip(1500,0.28,'sawtooth',0.16,90); this.noise(0.16,0.14,1600); } },
+  hurt(){ this.blip(180,0.16,'sawtooth',0.22,70); this.noise(0.1,0.16,300); },
+  hitmark(){ this.blip(1300,0.05,'square',0.12); },
+  die(){ this.blip(300,0.5,'sawtooth',0.24,45); this.noise(0.4,0.18,200); },
+  pickup(){ this.blip(700,0.07,'square',0.14); setTimeout(()=>this.blip(1100,0.09,'square',0.14),60); },
+  frag(){ [880,1180,1560].forEach((f,i)=>setTimeout(()=>this.blip(f,0.12,'square',0.15),i*70)); },
+  step(){ this.noise(0.035,0.045,150); },
+};
+
+// ══════════════ MAP ══════════════
+// Rotationally symmetric so neither spawn gets the better half of the arena.
+const MS = 24;                       // map is MS x MS tiles
+const ITEM_KINDS = { h:{c:'#00ff88',n:'HEALTH'}, a:{c:'#ffe600',n:'AMMO'}, s:{c:'#ff9500',n:'SHRED'}, r:{c:'#ff0080',n:'RAIL'} };
+
+function genMap(seed){
+  const rnd = mulberry32(seed>>>0);
+  const g = new Uint8Array(MS*MS);
+  const at = (x,y) => g[y*MS+x];
+  const set = (x,y,v) => { if(x>0&&y>0&&x<MS-1&&y<MS-1) g[y*MS+x] = v; };
+  // Solid border, open interior.
+  for(let x=0;x<MS;x++){ g[x] = 1; g[(MS-1)*MS+x] = 1; }
+  for(let y=0;y<MS;y++){ g[y*MS] = 1; g[y*MS+MS-1] = 1; }
+
+  const c = MS>>1;
+  // Blocks are stamped on one half and echoed 180° into the other.
+  const stamp = (x,y,w,h,t) => {
+    for(let j=0;j<h;j++) for(let i=0;i<w;i++){
+      set(x+i, y+j, t);
+      set(MS-1-(x+i), MS-1-(y+j), t);          // rotational twin
+    }
+  };
+  for(let n=0;n<22;n++){
+    const w = 1 + Math.floor(rnd()*4), h = 1 + Math.floor(rnd()*4);
+    const x = 2 + Math.floor(rnd()*(MS-5)), y = 2 + Math.floor(rnd()*(MS-5));
+    stamp(x, y, w, h, 1 + Math.floor(rnd()*3));
+  }
+  // A central pillar room gives the middle some cover to fight around.
+  stamp(c-4, c-4, 2, 2, 2); stamp(c-4, c+2, 2, 2, 2);
+
+  const spawns = [[2.5,2.5],[MS-2.5,MS-2.5]];
+  // Spawns and their immediate surroundings are always clear.
+  spawns.forEach(sp => { const sx=Math.floor(sp[0]), sy=Math.floor(sp[1]);
+    for(let j=-2;j<=2;j++) for(let i=-2;i<=2;i++) set(sx+i, sy+j, 0); });
+
+  // Guarantee a route. Carving spawn 0 -> centre and mirroring it also carves
+  // centre -> spawn 1, so the two halves are always joined however the blocks fell.
+  // Without this a stamp can seal a spawn in, and the flood fill below would then
+  // treat that whole pocket as dead space and brick the player into a wall.
+  const carve = (x,y) => { set(x,y,0); set(MS-1-x, MS-1-y, 0); };
+  for(let x=2;x<=c;x++){ carve(x,2); carve(x,3); }
+  for(let y=2;y<=c;y++){ carve(c,y); carve(c+1,y); }
+
+  // Flood fill from spawn 0; anything unreachable is filled in so no pickup strands.
+  const seen = new Uint8Array(MS*MS), q = [[Math.floor(spawns[0][0]), Math.floor(spawns[0][1])]];
+  seen[q[0][1]*MS+q[0][0]] = 1;
+  while(q.length){
+    const [x,y] = q.pop();
+    [[1,0],[-1,0],[0,1],[0,-1]].forEach(d => {
+      const nx=x+d[0], ny=y+d[1];
+      if(nx<0||ny<0||nx>=MS||ny>=MS) return;
+      if(seen[ny*MS+nx] || at(nx,ny)) return;
+      seen[ny*MS+nx] = 1; q.push([nx,ny]);
+    });
+  }
+  for(let y=1;y<MS-1;y++) for(let x=1;x<MS-1;x++) if(!at(x,y) && !seen[y*MS+x]) g[y*MS+x] = 1;
+
+  // Pickups: mirrored pairs so both players have the same shopping list.
+  const items = [], half = [];
+  for(let y=2;y<MS-2;y++) for(let x=2;x<MS-2;x++)
+    if(!at(x,y) && seen[y*MS+x] && (x+y) < MS-2) half.push([x,y]);
+  const kinds = ['s','r','h','h','a','a'];
+  kinds.forEach(k => {
+    if(!half.length) return;
+    const i = Math.floor(rnd()*half.length), p = half.splice(i,1)[0];
+    items.push({ x:p[0]+0.5, y:p[1]+0.5, kind:k, up:true, at:0 });
+    items.push({ x:MS-1-p[0]+0.5, y:MS-1-p[1]+0.5, kind:k, up:true, at:0 });
+  });
+  return { g, spawns, items };
+}
+
+let MAP = genMap(1);
+const solid = (x,y) => {
+  const ix = Math.floor(x), iy = Math.floor(y);
+  if(ix<0||iy<0||ix>=MS||iy>=MS) return true;
+  return MAP.g[iy*MS+ix] !== 0;
+};
+
+// ══════════════ ENTITIES ══════════════
+const WEAPONS = [
+  { name:'PULSE', dmg:16, rof:135,  spread:0.014, pellets:1, ammo:null,     range:24, kick:0.5, col:'#00f5ff' },
+  { name:'SHRED', dmg:11, rof:680,  spread:0.10,  pellets:7, ammo:'shells', range:8.5, kick:2.6, col:'#ffe600' },
+  { name:'RAIL',  dmg:58, rof:1050, spread:0.0,   pellets:1, ammo:'slugs',  range:40, kick:1.7, col:'#ff0080' },
+];
+const FRAG_LIMIT = 10, RESPAWN_MS = 3000;
+
+function newFighter(isMe){
+  return { x:2.5, y:2.5, ang:0.8, hp:100, armor:0, w:0, ammo:{shells:0,slugs:0},
+           alive:true, deadAt:0, frags:0, deaths:0, shots:0, hits:0, lastFire:0,
+           bob:0, me:!!isMe, has:{1:false,2:false} };
+}
+let P = newFighter(true), E = newFighter(false);
+
+function spawnAt(f, idx){
+  const sp = MAP.spawns[idx] || MAP.spawns[0];
+  f.x = sp[0]; f.y = sp[1];
+  f.ang = Math.atan2(MS/2 - f.y, MS/2 - f.x);      // face the middle
+  f.hp = 100; f.armor = 0; f.alive = true; f.w = 0;
+  f.ammo = { shells:0, slugs:0 }; f.has = {1:false,2:false};
+}
+
+// ══════════════ RAYCASTER ══════════════
+const view = $('view'), vctx = view.getContext('2d');
+const back = document.createElement('canvas'), bctx = back.getContext('2d');
+let RES = 0.8, VW = 480, VH = 270, zbuf = new Float32Array(VW);
+const FOV = 0.72;                    // plane length; ~66° horizontal
+
+function sizeView(){
+  const w = Math.max(320, window.innerWidth||320), h = Math.max(200, window.innerHeight||200);
+  view.width = w; view.height = h;
+  VW = Math.max(160, Math.floor(w*RES*0.5)); VH = Math.max(100, Math.floor(h*RES*0.5));
+  back.width = VW; back.height = VH; zbuf = new Float32Array(VW);
+  vctx.imageSmoothingEnabled = false;
+}
+
+// One DDA walk; returns distance to the wall along the ray plus which tile face it hit.
+function castWall(ox, oy, ang, maxd){
+  const dx = Math.cos(ang), dy = Math.sin(ang);
+  let mx = Math.floor(ox), my = Math.floor(oy);
+  const ddx = Math.abs(1/(dx||1e-9)), ddy = Math.abs(1/(dy||1e-9));
+  const sx = dx<0?-1:1, sy = dy<0?-1:1;
+  let sdx = (dx<0 ? ox-mx : mx+1-ox)*ddx, sdy = (dy<0 ? oy-my : my+1-oy)*ddy;
+  let side = 0, tile = 1, guard = 0;
+  const lim = maxd||60;
+  while(guard++ < 256){
+    if(sdx < sdy){ sdx += ddx; mx += sx; side = 0; } else { sdy += ddy; my += sy; side = 1; }
+    if(mx<0||my<0||mx>=MS||my>=MS){ tile = 1; break; }
+    tile = MAP.g[my*MS+mx];
+    if(tile) break;
+    if((side ? sdy-ddy : sdx-ddx) > lim) break;
+  }
+  const dist = side ? sdy-ddy : sdx-ddx;
+  return { dist: Math.max(0.0001, dist), side, tile, mx, my };
+}
+
+const WALL_COL = [null, [0,140,190], [150,20,90], [110,90,20]];
+
+function render(now){
+  const dirx = Math.cos(P.ang), diry = Math.sin(P.ang);
+  const plx = -diry*FOV, ply = dirx*FOV;
+
+  // sky + floor: two flat gradients, cheap and it suits the neon look
+  const sky = bctx.createLinearGradient(0,0,0,VH/2);
+  sky.addColorStop(0,'#0a0f22'); sky.addColorStop(1,'#1b2448');
+  bctx.fillStyle = sky; bctx.fillRect(0,0,VW,VH/2);
+  const fl = bctx.createLinearGradient(0,VH/2,0,VH);
+  fl.addColorStop(0,'#0b1020'); fl.addColorStop(1,'#050810');
+  bctx.fillStyle = fl; bctx.fillRect(0,VH/2,VW,VH/2);
+  // Horizon-anchored rings at fixed world distances: the floor equivalent of a
+  // speedometer, and far cheaper than casting a textured floor per pixel.
+  bctx.fillStyle = 'rgba(0,245,255,.07)';
+  for(let d=1; d<=14; d++){
+    const y = (VH/2 + VH*1.3/(2*d))|0;
+    if(y > VH) continue;
+    bctx.fillRect(0, y, VW, 1);
+  }
+
+  const pitch = (P.bob*2)|0;
+  for(let x=0;x<VW;x++){
+    const cam = 2*x/VW - 1;
+    const ray = Math.atan2(diry + ply*cam, dirx + plx*cam);
+    const hit = castWall(P.x, P.y, ray, 60);
+    // fisheye correction: project onto the view direction
+    const perp = Math.max(0.05, hit.dist*Math.cos(ray - P.ang));
+    zbuf[x] = perp;
+    const h = Math.min(VH*5, (VH*1.3/perp)|0);
+    const y0 = ((VH-h)>>1) + pitch;
+    const base = WALL_COL[hit.tile] || WALL_COL[1];
+    const shade = clamp(1.15 - perp/22, 0.12, 1) * (hit.side ? 0.68 : 1);
+    bctx.fillStyle = 'rgb('+(base[0]*shade|0)+','+(base[1]*shade|0)+','+(base[2]*shade|0)+')';
+    bctx.fillRect(x, y0, 1, h);
+    // a bright rim on the top edge reads as a neon strip and sells the depth
+    bctx.fillStyle = 'rgba(0,245,255,'+(0.5*shade).toFixed(3)+')';
+    bctx.fillRect(x, y0, 1, Math.max(1, h*0.03));
+  }
+
+  // ── sprites: pickups + the other fighter, painted back to front ──
+  const sprites = [];
+  MAP.items.forEach(it => { if(it.up) sprites.push({ x:it.x, y:it.y, kind:'item', it }); });
+  if(E.alive) sprites.push({ x:E.x, y:E.y, kind:'foe' });
+  sprites.forEach(s => { s.d = (s.x-P.x)*(s.x-P.x) + (s.y-P.y)*(s.y-P.y); });
+  sprites.sort((a,b)=>b.d-a.d);
+
+  const invDet = 1/(plx*diry - dirx*ply);
+  sprites.forEach(s => {
+    const rx = s.x-P.x, ry = s.y-P.y;
+    const tx = invDet*(diry*rx - dirx*ry);
+    const ty = invDet*(-ply*rx + plx*ry);          // depth along the view axis
+    if(ty <= 0.15) return;
+    const sx = ((VW/2)*(1 + tx/ty))|0;
+    const size = Math.abs((VH/ty)|0);
+    const isFoe = s.kind === 'foe';
+    const h = isFoe ? size*0.82 : size*0.34, w = isFoe ? size*0.42 : size*0.34;
+    const y0 = ((VH-size)>>1) + pitch + (isFoe ? size*0.18 : size*0.62);
+    const x0 = (sx - w/2)|0;
+    for(let x=Math.max(0,x0); x<Math.min(VW, x0+w); x++){
+      if(zbuf[x] <= ty) continue;                  // behind a wall on this column
+      const u = (x-x0)/w;
+      if(isFoe) drawFoeColumn(bctx, x, y0, h, u, ty);
+      else {
+        const it = s.it, col = ITEM_KINDS[it.kind].c;
+        const edge = Math.abs(u-0.5)*2;
+        if(edge > 0.92) continue;
+        bctx.globalAlpha = clamp(1.1 - ty/20, 0.15, 1);
+        bctx.fillStyle = col;
+        const bob = Math.sin(now/320 + it.x)*h*0.12;
+        bctx.fillRect(x, y0+bob + h*edge*0.4, 1, h*(1-edge*0.7));
+        bctx.globalAlpha = 1;
+      }
+    }
+  });
+  vctx.drawImage(back, 0, 0, VW, VH, 0, 0, view.width, view.height);
+}
+
+// The opponent is drawn as vertical slices of a neon silhouette — no sprite sheet,
+// and it scales cleanly at any distance.
+function drawFoeColumn(ctx, x, y0, h, u, dist){
+  const a = clamp(1.15 - dist/26, 0.2, 1);
+  const headTop = h*0.02, headBot = h*0.2, torsoBot = h*0.66;
+  const inHead = Math.abs(u-0.5) < 0.16, inTorso = Math.abs(u-0.5) < 0.42;
+  const legGap = Math.abs(u-0.5) < 0.08;
+  ctx.globalAlpha = a;
+  if(inHead){ ctx.fillStyle = '#ff2b8a'; ctx.fillRect(x, y0+headTop, 1, headBot-headTop); }
+  if(inTorso){ ctx.fillStyle = '#c9145f'; ctx.fillRect(x, y0+headBot, 1, torsoBot-headBot);
+    ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(x, y0+headBot+h*0.06, 1, h*0.03); }
+  if(inTorso && !legGap){ ctx.fillStyle = '#7d0d3c'; ctx.fillRect(x, y0+torsoBot, 1, h*0.34); }
+  ctx.globalAlpha = 1;
+}
+
+// ══════════════ MOVEMENT ══════════════
+const RAD = 0.28;                    // fighter collision radius
+function tryMove(f, nx, ny){
+  // Axes are resolved separately so you slide along a wall instead of sticking to it.
+  if(!solid(nx + Math.sign(nx-f.x)*RAD, f.y)) f.x = nx;
+  if(!solid(f.x, ny + Math.sign(ny-f.y)*RAD)) f.y = ny;
+}
+
+// ══════════════ WEAPONS ══════════════
+// Shooter-authoritative: whoever pulls the trigger decides whether it connected and
+// tells the victim. With two players that is both the simplest and the fairest-feeling
+// option — you hit what your own screen showed you hitting.
+function hitscanFoe(from, ang, range, foe){
+  if(!foe.alive) return null;
+  const dx = foe.x-from.x, dy = foe.y-from.y;
+  const along = dx*Math.cos(ang) + dy*Math.sin(ang);
+  if(along <= 0.2 || along > range) return null;
+  const perp = Math.abs(-dx*Math.sin(ang) + dy*Math.cos(ang));
+  if(perp > 0.42) return null;
+  if(castWall(from.x, from.y, ang, along).dist < along) return null;   // wall in the way
+  return { dist: along };
+}
+
+function canFire(f, now){
+  const w = WEAPONS[f.w];
+  if(!f.alive || now - f.lastFire < w.rof) return false;
+  if(w.ammo && f.ammo[w.ammo] <= 0) return false;
+  return true;
+}
+
+function fire(f, now, foe, onHit){
+  if(!canFire(f, now)) return false;
+  const w = WEAPONS[f.w];
+  f.lastFire = now;
+  if(w.ammo) f.ammo[w.ammo]--;
+  f.shots++;
+  let dealt = 0;
+  for(let i=0;i<w.pellets;i++){
+    const a = f.ang + (Math.random()-0.5)*w.spread*2;
+    const h = hitscanFoe(f, a, w.range, foe);
+    if(h){ const falloff = w.pellets>1 ? clamp(1 - h.dist/w.range*0.6, 0.4, 1) : 1;
+           dealt += Math.round(w.dmg*falloff); }
+  }
+  if(f.me){
+    Audio_.shot(f.w);
+    kick = w.kick; flashT = now;
+    if(dealt > 0){ f.hits++; onHit && onHit(dealt); }
+    net.send({ t:'f', x:f.x, y:f.y, a:f.ang, w:f.w });
+  }
+  return dealt;
+}
+
+function nextWeapon(f, dir){
+  for(let i=1;i<=3;i++){
+    const n = (f.w + i*(dir||1) + 3) % 3;
+    const w = WEAPONS[n];
+    if(!w.ammo || f.ammo[w.ammo] > 0){ f.w = n; return; }
+  }
+}
+
+// ══════════════ DAMAGE ══════════════
+let flashT = 0, kick = 0, hitmarkT = 0;
+function damage(f, dmg, now){
+  if(!f.alive) return;
+  f.hp -= dmg;
+  if(f.me){ $('flash').classList.add('on'); setTimeout(()=>$('flash').classList.remove('on'), 170); Audio_.hurt(); }
+  if(f.hp <= 0){
+    f.hp = 0; f.alive = false; f.deadAt = now; f.deaths++;
+    if(f.me){
+      Audio_.die();
+      net.send({ t:'d' });
+      E.frags++;                                  // my death is their frag
+      addKill(false, 'YOU WERE FRAGGED');
+      $('respawn').classList.remove('hidden');
+      checkMatchEnd();
+    }
+  }
+}
+
+function respawn(f, now){
+  spawnAt(f, f.me ? (net.role === 'guest' ? 1 : 0) : (net.role === 'guest' ? 0 : 1));
+  f.alive = true;
+  if(f.me){ $('respawn').classList.add('hidden'); net.send({ t:'rs', x:f.x, y:f.y }); }
+}
+
+function addKill(good, text){
+  const box = $('feed'), d = document.createElement('div');
+  d.className = 'kill' + (good ? '' : ' bad');
+  d.textContent = text;
+  box.appendChild(d);
+  setTimeout(()=>d.remove(), 3200);
+  while(box.children.length > 4) box.firstChild.remove();
+}
+
+function checkMatchEnd(){
+  if(P.frags >= FRAG_LIMIT || E.frags >= FRAG_LIMIT) endMatch();
+}
+
+// ══════════════ ITEMS ══════════════
+const ITEM_RESPAWN = 12000;
+function updateItems(now){
+  MAP.items.forEach((it,i) => {
+    if(!it.up){ if(now - it.at > ITEM_RESPAWN) it.up = true; return; }
+    const d = Math.hypot(it.x-P.x, it.y-P.y);
+    if(d < 0.55 && P.alive && takeItem(it)){
+      it.up = false; it.at = now; Audio_.pickup();
+      net.send({ t:'p', i:i });
+      showTip(ITEM_KINDS[it.kind].n + ' PICKED UP');
+    }
+  });
+}
+function takeItem(it){
+  if(it.kind === 'h'){ if(P.hp >= 100) return false; P.hp = Math.min(100, P.hp+35); return true; }
+  if(it.kind === 'a'){ P.ammo.shells += 8; P.ammo.slugs += 3; return true; }
+  if(it.kind === 's'){ P.ammo.shells += 16; P.has[1] = true; P.w = 1; return true; }
+  if(it.kind === 'r'){ P.ammo.slugs += 6; P.has[2] = true; P.w = 2; return true; }
+  return false;
+}
+let tipT = 0;
+function showTip(t){ $('tip').textContent = t; tipT = performance.now(); }
+
+// ══════════════ BOT ══════════════
+// Practice opponent. Not a pathfinder — it walks the direct line and slides off walls,
+// which in an arena this open reads as competent without the cost of A*.
+const DIFF = [ { aim:0.22, react:520, speed:2.4, burst:0.5 },
+               { aim:0.10, react:300, speed:3.0, burst:0.75 },
+               { aim:0.035, react:150, speed:3.5, burst:0.95 } ];
+let diff = 1;
+const bot = { t:0, strafe:1, jitter:0, seeSince:0 };
+
+function updateBot(dt, now){
+  if(!E.alive){ if(now - E.deadAt > RESPAWN_MS) respawn(E, now); return; }
+  const D = DIFF[diff];
+  const dx = P.x-E.x, dy = P.y-E.y, dist = Math.hypot(dx,dy) || 0.001;
+  const toPlayer = Math.atan2(dy,dx);
+  const clear = P.alive && castWall(E.x, E.y, toPlayer, dist).dist >= dist;
+
+  // Aim drifts toward the player; the error term is what makes ROOKIE miss.
+  let want = toPlayer + Math.sin(now/220)*D.aim;
+  let diffA = ((want - E.ang + Math.PI*3) % TAU) - Math.PI;
+  E.ang += clamp(diffA, -6*dt, 6*dt);
+
+  if(clear){
+    if(!bot.seeSince) bot.seeSince = now;
+    // Keep the range honest for the weapon in hand.
+    const want = E.w === 1 ? 3 : 7;
+    const push = dist > want ? 1 : dist < want*0.6 ? -1 : 0;
+    bot.t -= dt; if(bot.t <= 0){ bot.strafe *= -1; bot.t = 0.6 + Math.random(); }
+    const mv = D.speed*dt;
+    tryMove(E, E.x + Math.cos(E.ang)*push*mv + Math.cos(E.ang+Math.PI/2)*bot.strafe*mv*0.8,
+               E.y + Math.sin(E.ang)*push*mv + Math.sin(E.ang+Math.PI/2)*bot.strafe*mv*0.8);
+    if(now - bot.seeSince > D.react && Math.abs(diffA) < 0.22 && Math.random() < D.burst){
+      const dealt = fire(E, now, P, null);
+      if(dealt > 0) damage(P, dealt, now);
+      if(dealt !== false) Audio_.shot(E.w);
+    }
+  } else {
+    bot.seeSince = 0;
+    // No line of sight: walk toward the player, sliding off whatever is in the way.
+    const mv = D.speed*dt*0.9;
+    const before = E.x + '' + E.y;
+    tryMove(E, E.x + Math.cos(toPlayer + bot.jitter)*mv, E.y + Math.sin(toPlayer + bot.jitter)*mv);
+    if(before === E.x + '' + E.y) bot.jitter = (Math.random()-0.5)*2.4;   // stuck → try elsewhere
+    else bot.jitter *= 0.9;
+  }
+  // Bots restock rather than stand around empty.
+  MAP.items.forEach((it,i) => {
+    if(it.up && Math.hypot(it.x-E.x, it.y-E.y) < 0.6){
+      it.up = false; it.at = now;
+      if(it.kind === 'h') E.hp = Math.min(100, E.hp+35);
+      if(it.kind === 's'){ E.ammo.shells += 16; E.w = 1; }
+      if(it.kind === 'r'){ E.ammo.slugs += 6; E.w = 2; }
+      if(it.kind === 'a'){ E.ammo.shells += 8; E.ammo.slugs += 3; }
+    }
+  });
+  if(WEAPONS[E.w].ammo && E.ammo[WEAPONS[E.w].ammo] <= 0) E.w = 0;
+}
+
+// ══════════════ INPUT ══════════════
+const keys = Object.create(null);
+let sens = 1.2, firing = false, locked = false;
+const touch = { active:false, mx:0, my:0, id:null, fire:false, lookId:null, lx:0 };
+const isTouch = matchMedia('(hover: none)').matches || 'ontouchstart' in window;
+
+addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if(state !== 'play') return;
+  if(e.code === 'Digit1') P.w = 0;
+  if(e.code === 'Digit2' && P.ammo.shells > 0) P.w = 1;
+  if(e.code === 'Digit3' && P.ammo.slugs > 0) P.w = 2;
+  if(e.code === 'KeyQ') nextWeapon(P, 1);
+  if(e.code === 'Space') e.preventDefault();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+
+view.addEventListener('mousedown', () => {
+  Audio_.on();
+  if(state !== 'play') return;
+  if(!locked && view.requestPointerLock){ view.requestPointerLock(); return; }
+  firing = true;
+});
+addEventListener('mouseup', () => { firing = false; });
+document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === view; });
+addEventListener('mousemove', e => {
+  if(locked && state === 'play') P.ang = (P.ang + e.movementX*0.0022*sens + TAU) % TAU;
+});
+addEventListener('wheel', e => { if(state === 'play') nextWeapon(P, e.deltaY > 0 ? 1 : -1); }, {passive:true});
+
+// Touch: left stick moves, right half drags to look, buttons fire and swap.
+function bindTouch(){
+  const stick = $('stick'), knob = $('knob');
+  stick.addEventListener('touchstart', e => { e.preventDefault(); touch.active = true; touch.id = e.changedTouches[0].identifier; }, {passive:false});
+  addEventListener('touchmove', e => {
+    for(const t of e.changedTouches){
+      if(t.identifier === touch.id){
+        const r = stick.getBoundingClientRect();
+        touch.mx = clamp((t.clientX - (r.left+r.width/2))/(r.width/2), -1, 1);
+        touch.my = clamp((t.clientY - (r.top+r.height/2))/(r.height/2), -1, 1);
+        knob.style.transform = 'translate('+(touch.mx*34)+'px,'+(touch.my*34)+'px)';
+      } else if(t.identifier === touch.lookId){
+        P.ang = (P.ang + (t.clientX - touch.lx)*0.006*sens + TAU) % TAU;
+        touch.lx = t.clientX;
+      }
+    }
+  }, {passive:false});
+  addEventListener('touchend', e => {
+    for(const t of e.changedTouches){
+      if(t.identifier === touch.id){ touch.active = false; touch.id = null; touch.mx = touch.my = 0; knob.style.transform = ''; }
+      if(t.identifier === touch.lookId) touch.lookId = null;
+    }
+  });
+  view.addEventListener('touchstart', e => {
+    const t = e.changedTouches[0];
+    if(touch.lookId === null){ touch.lookId = t.identifier; touch.lx = t.clientX; }
+  }, {passive:true});
+  $('firebtn').addEventListener('touchstart', e => { e.preventDefault(); firing = true; Audio_.on(); }, {passive:false});
+  $('firebtn').addEventListener('touchend', e => { e.preventDefault(); firing = false; }, {passive:false});
+  $('swapbtn').addEventListener('touchstart', e => { e.preventDefault(); nextWeapon(P, 1); }, {passive:false});
+}
+
+// ══════════════ HUD ══════════════
+const mm = $('minimap'), mmx = mm.getContext('2d');
+let lastHud = {};
+function updateHud(now){
+  const hp = Math.max(0, Math.round(P.hp));
+  if(lastHud.hp !== hp){ lastHud.hp = hp; $('hp').firstChild.textContent = hp; $('hp').classList.toggle('low', hp <= 30); }
+  const w = WEAPONS[P.w], am = w.ammo ? P.ammo[w.ammo] : '∞';
+  if(lastHud.am !== am){ lastHud.am = am; $('ammo').firstChild.textContent = am; }
+  if(lastHud.w !== P.w){ lastHud.w = P.w; $('wepname').innerHTML = w.name + ' <b>[' + (P.w+1) + ']</b>'; }
+  if(lastHud.f !== P.frags){ lastHud.f = P.frags; $('s-me').textContent = P.frags; }
+  if(lastHud.e !== E.frags){ lastHud.e = E.frags; $('s-them').textContent = E.frags; }
+  $('hitmark').classList.toggle('on', now - hitmarkT < 130);
+  if(tipT && now - tipT > 1600){ $('tip').textContent = ''; tipT = 0; }
+  if(!P.alive){ $('rcount').textContent = Math.ceil((RESPAWN_MS - (now - P.deadAt))/1000); }
+}
+
+function drawMinimap(){
+  const S = mm.width/MS;
+  mmx.clearRect(0,0,mm.width,mm.height);
+  mmx.fillStyle = 'rgba(0,245,255,.16)';
+  for(let y=0;y<MS;y++) for(let x=0;x<MS;x++) if(MAP.g[y*MS+x]) mmx.fillRect(x*S, y*S, S, S);
+  MAP.items.forEach(it => { if(!it.up) return;
+    mmx.fillStyle = ITEM_KINDS[it.kind].c; mmx.fillRect(it.x*S-1.5, it.y*S-1.5, 3, 3); });
+  // The opponent only shows when you can actually see them — no free wallhack.
+  if(E.alive && castWall(P.x,P.y,Math.atan2(E.y-P.y,E.x-P.x),40).dist >= Math.hypot(E.x-P.x,E.y-P.y)){
+    mmx.fillStyle = '#ff0080'; mmx.beginPath(); mmx.arc(E.x*S, E.y*S, 3, 0, TAU); mmx.fill();
+  }
+  mmx.fillStyle = '#00f5ff'; mmx.beginPath(); mmx.arc(P.x*S, P.y*S, 3, 0, TAU); mmx.fill();
+  mmx.strokeStyle = 'rgba(0,245,255,.6)'; mmx.beginPath(); mmx.moveTo(P.x*S, P.y*S);
+  mmx.lineTo((P.x+Math.cos(P.ang)*2)*S, (P.y+Math.sin(P.ang)*2)*S); mmx.stroke();
+}
+
+// First-person weapon, drawn in screen space over the raycast frame.
+function drawGun(now){
+  const w = WEAPONS[P.w], cw = view.width, ch = view.height;
+  const bobx = Math.sin(P.bob)*10, boby = Math.abs(Math.cos(P.bob))*8;
+  const cx = cw*0.5 + 96 + bobx, cy = ch + boby - 8 - kick*14;
+  vctx.save();
+  vctx.translate(cx, cy);
+  vctx.fillStyle = '#0d1526'; vctx.strokeStyle = w.col; vctx.lineWidth = 2;
+  vctx.beginPath();
+  vctx.moveTo(-58,0); vctx.lineTo(-46,-74); vctx.lineTo(6,-96); vctx.lineTo(40,-84);
+  vctx.lineTo(34,-30); vctx.lineTo(58,0); vctx.closePath();
+  vctx.fill(); vctx.stroke();
+  vctx.fillStyle = w.col; vctx.globalAlpha = 0.5; vctx.fillRect(-30,-70,20,6); vctx.globalAlpha = 1;
+  if(now - flashT < 70){
+    const g = vctx.createRadialGradient(0,-100,2,0,-100,52);
+    g.addColorStop(0, w.col); g.addColorStop(1, 'rgba(0,0,0,0)');
+    vctx.fillStyle = g; vctx.beginPath(); vctx.arc(0,-100,52,0,TAU); vctx.fill();
+  }
+  vctx.restore();
+  kick *= 0.86;
+}
+
+// ══════════════ NET ══════════════
+const CODE_A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function code4(){ let s=''; const r = new Uint8Array(4);
+  (crypto.getRandomValues ? crypto.getRandomValues(r) : r.fill(7));
+  for(const b of r) s += CODE_A[b%CODE_A.length]; return s; }
+
+function wsURL(room, role){
+  const base = window.GLITCHBOX_WS && !/PLACEHOLDER/i.test(window.GLITCHBOX_WS)
+    ? window.GLITCHBOX_WS
+    : (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws';
+  return base + '?room=' + encodeURIComponent(room) + '&role=' + role;
+}
+
+const net = {
+  ws:null, role:null, code:'', online:false, lastSend:0,
+  connect(room, role, onOpen){
+    this.close(); this.code = room; this.role = role; this.online = true;
+    setStatus('Connecting…');
+    let ws; try { ws = new WebSocket(wsURL(room, role)); }
+    catch(e){ setStatus('Couldn’t reach the game server.', true); this.online = false; return; }
+    this.ws = ws;
+    ws.onopen = () => onOpen && onOpen();
+    ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch(e){ return; } handleNet(m); };
+    ws.onerror = () => setStatus('Couldn’t reach the game server. Check your connection.', true);
+    ws.onclose = () => { if(state === 'play'){ showPanel('panel-home'); endToMenu('Opponent disconnected.'); } };
+  },
+  send(o){ if(this.online && this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(o)); },
+  close(){ if(this.ws){ try { this.ws.close(); } catch(e){} this.ws = null; } this.online = false; },
+};
+
+function handleNet(m){
+  switch(m.t){
+    case 'created': showPanel('panel-wait'); $('wait-code').textContent = net.code; loadWaitFriends(); break;
+    case 'error': setStatus(m.msg || 'That didn’t work.', true); showPanel('panel-online'); net.close(); break;
+    case 'start':
+      // The host owns the arena seed so both players fight in the same building.
+      if(net.role === 'host'){ const seed = (Math.random()*1e9)|0; net.send({ t:'map', seed:seed }); startMatch(seed); }
+      break;
+    case 'map': if(net.role === 'guest') startMatch(m.seed); break;
+    case 's': E.x = m.x; E.y = m.y; E.ang = m.a; E.hp = m.hp; E.alive = !!m.al; E.w = m.w|0; break;
+    case 'f': {
+      const d = Math.hypot(m.x-P.x, m.y-P.y);
+      if(d < 26 && castWall(P.x,P.y,Math.atan2(m.y-P.y,m.x-P.x),d).dist >= d - 0.2) Audio_.shot(m.w|0);
+      break;
+    }
+    case 'h': damage(P, m.d|0, performance.now()); break;
+    case 'd':                                   // they died → that's my frag
+      P.frags++; E.alive = false; E.deadAt = performance.now();
+      Audio_.frag(); addKill(true, 'YOU FRAGGED THEM'); checkMatchEnd(); break;
+    case 'rs': E.x = m.x; E.y = m.y; E.alive = true; E.hp = 100; break;
+    case 'p': { const it = MAP.items[m.i|0]; if(it){ it.up = false; it.at = performance.now(); } break; }
+    case 'rm': resetMatch(); break;
+    case 'left': endToMenu('Opponent left the arena.'); break;
+  }
+}
+
+function setStatus(t, err){ const s = $('online-status'); if(!s) return; s.textContent = t; s.classList.toggle('err', !!err); }
+
+// ══════════════ MATCH FLOW ══════════════
+let state = 'menu', mode = 'practice', last = 0, acc = 0;
+
+function showPanel(id){
+  ['panel-home','panel-online','panel-wait','panel-howto','panel-over'].forEach(p => $(p).classList.toggle('hidden', p !== id));
+  $('ui').classList.remove('hidden');
+}
+function startMatch(seed){
+  MAP = genMap(seed == null ? ((Math.random()*1e9)|0) : seed);
+  P = newFighter(true); E = newFighter(false);
+  const mine = (net.online && net.role === 'guest') ? 1 : 0;
+  spawnAt(P, mine); spawnAt(E, 1-mine);
+  lastHud = {}; state = 'play'; mode = net.online ? 'online' : 'practice';
+  $('ui').classList.add('hidden'); $('hud').classList.remove('hidden');
+  $('touch').classList.toggle('hidden', !isTouch);
+  $('respawn').classList.add('hidden');
+  $('feed').innerHTML = '';
+  showTip(mode === 'online' ? 'FIGHT — FIRST TO ' + FRAG_LIMIT : 'PRACTICE — FIRST TO ' + FRAG_LIMIT);
+  Audio_.on();
+  if(!isTouch && view.requestPointerLock) view.requestPointerLock();
+}
+function resetMatch(){ startMatch((Math.random()*1e9)|0); }
+function endMatch(){
+  state = 'over';
+  if(document.exitPointerLock) document.exitPointerLock();
+  const win = P.frags > E.frags;
+  $('ov-verdict').textContent = win ? 'VICTORY' : 'DEFEAT';
+  $('ov-verdict').className = 'verdict ' + (win ? 'win' : 'lose');
+  $('ov-sub').textContent = win ? 'The arena is yours.' : 'Rematch and take it back.';
+  $('ov-me').textContent = P.frags; $('ov-them').textContent = E.frags;
+  const acc2 = P.shots ? Math.round(P.hits/P.shots*100) : 0;
+  $('ov-stats').textContent = 'Accuracy ' + acc2 + '% · ' + P.shots + ' shots fired · ' + P.deaths + ' deaths';
+  $('hud').classList.add('hidden'); $('touch').classList.add('hidden');
+  showPanel('panel-over');
+  career.frags += P.frags; career.matches++; if(win) career.wins++;
+  if(P.shots > 20) career.bestAcc = Math.max(career.bestAcc, acc2);
+  if(window.GBSave) GBSave.save();
+}
+function endToMenu(msg){
+  state = 'menu'; net.close();
+  if(document.exitPointerLock) document.exitPointerLock();
+  $('hud').classList.add('hidden'); $('touch').classList.add('hidden');
+  showPanel('panel-home');
+  if(msg) showTip(msg);
+}
+
+// ══════════════ LOOP ══════════════
+function step(now){
+  requestAnimationFrame(step);
+  const dt = Math.min(0.05, (now - last)/1000 || 0.016); last = now;
+  if(state !== 'play'){ return; }
+
+  if(P.alive){
+    // movement
+    let fwd = (keys.KeyW?1:0) - (keys.KeyS?1:0), str = (keys.KeyD?1:0) - (keys.KeyA?1:0);
+    if(touch.active){ fwd += -touch.my; str += touch.mx; }
+    if(keys.ArrowLeft) P.ang -= 2.4*dt;
+    if(keys.ArrowRight) P.ang += 2.4*dt;
+    const sprint = keys.ShiftLeft || keys.ShiftRight ? 1.5 : 1;
+    const sp = 3.1*sprint*dt;
+    if(fwd || str){
+      const len = Math.hypot(fwd, str) || 1;
+      tryMove(P, P.x + (Math.cos(P.ang)*fwd + Math.cos(P.ang+Math.PI/2)*str)/len*sp,
+                 P.y + (Math.sin(P.ang)*fwd + Math.sin(P.ang+Math.PI/2)*str)/len*sp);
+      P.bob += dt*10*sprint;
+      if(Math.sin(P.bob) > 0.985) Audio_.step();
+    } else P.bob += dt*1.5;
+    if(firing){
+      const dealt = fire(P, now, E, d => {
+        hitmarkT = now; Audio_.hitmark();
+        if(mode === 'online') net.send({ t:'h', d:d });
+        else { damage(E, d, now); if(!E.alive){ P.frags++; Audio_.frag(); addKill(true,'YOU FRAGGED THE BOT'); checkMatchEnd(); } }
+      });
+    }
+    updateItems(now);
+  } else if(now - P.deadAt > RESPAWN_MS){
+    respawn(P, now);
+  }
+
+  if(mode === 'practice') updateBot(dt, now);
+  else if(now - net.lastSend > 50){                 // 20 Hz position sync
+    net.lastSend = now;
+    net.send({ t:'s', x:+P.x.toFixed(2), y:+P.y.toFixed(2), a:+P.ang.toFixed(3), hp:P.hp|0, al:P.alive?1:0, w:P.w });
+  }
+
+  render(now); drawGun(now); updateHud(now); drawMinimap();
+}
+
+// ══════════════ CAREER STATS ══════════════
+// Nothing here gates play — it's just a record that follows your GLITCHBOX account.
+const career = { frags:0, wins:0, matches:0, bestAcc:0 };
+if(window.GBSave) GBSave.register({
+  save: () => ({ f:career.frags, w:career.wins, m:career.matches, a:career.bestAcc }),
+  load: d => { career.frags = d.f|0; career.wins = d.w|0; career.matches = d.m|0; career.bestAcc = d.a|0; },
+});
+
+// ══════════════ UI WIRING ══════════════
+$('m-practice').onclick = () => { Audio_.on(); net.close(); startMatch(); };
+$('m-online').onclick = () => { showPanel('panel-online'); setStatus(''); };
+$('m-howto').onclick = () => showPanel('panel-howto');
+$('m-back1').onclick = () => showPanel('panel-home');
+$('m-back2').onclick = () => showPanel('panel-home');
+$('m-create').onclick = () => { const c = code4(); net.connect(c, 'host', () => net.send({ t:'create', code:c })); };
+$('m-join').onclick = () => {
+  const c = ($('join-code').value || '').trim().toUpperCase();
+  if(c.length < 4){ setStatus('Enter the 4-letter code your opponent gave you.', true); return; }
+  net.connect(c, 'guest', () => net.send({ t:'join', code:c }));
+};
+$('join-code').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,''); });
+$('m-cancel').onclick = () => { net.close(); showPanel('panel-online'); };
+$('m-copy').onclick = () => {
+  const c = $('wait-code').textContent;
+  if(navigator.clipboard) navigator.clipboard.writeText(c).catch(()=>{});
+  $('m-copy').textContent = 'COPIED!'; setTimeout(()=>{ $('m-copy').textContent = 'COPY CODE'; }, 1200);
+};
+$('ov-again').onclick = () => { if(net.online) net.send({ t:'rm' }); resetMatch(); };
+$('ov-menu').onclick = () => endToMenu();
+
+const oSens = $('o-sens'), oVol = $('o-vol'), oRes = $('o-res');
+function applyOpts(){
+  sens = oSens.value/100; $('o-sens-v').textContent = sens.toFixed(1);
+  Audio_.vol = oVol.value/100; $('o-vol-v').textContent = oVol.value;
+  RES = oRes.value/100; $('o-res-v').textContent = oRes.value; sizeView();
+  try { localStorage.setItem('neonfrag.opts', JSON.stringify({ s:oSens.value, v:oVol.value, r:oRes.value, d:diff })); } catch(e){}
+}
+[oSens,oVol,oRes].forEach(el => el.addEventListener('input', applyOpts));
+$('seg-diff').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  diff = +b.dataset.d;
+  [...$('seg-diff').children].forEach(c => c.classList.toggle('on', c === b));
+  applyOpts();
+});
+try {
+  const o = JSON.parse(localStorage.getItem('neonfrag.opts') || 'null');
+  if(o){ oSens.value = o.s; oVol.value = o.v; oRes.value = o.r; diff = o.d|0;
+         [...$('seg-diff').children].forEach(c => c.classList.toggle('on', +c.dataset.d === diff)); }
+} catch(e){}
+
+// ── invite a GLITCHBOX friend straight into this room ──
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function hubApi(path, body){
+  const token = localStorage.getItem('glitchbox_session') || '';
+  if(!token || !window.GLITCHBOX_BACKEND_READY) throw new Error('signed out');
+  const r = await fetch(window.GLITCHBOX_API + path, {
+    method: body ? 'POST' : 'GET',
+    headers: Object.assign({ Authorization:'Bearer ' + token }, body ? { 'Content-Type':'application/json' } : {}),
+    body: body ? JSON.stringify(body) : undefined });
+  const data = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+  return data;
+}
+async function loadWaitFriends(){
+  const wrap = $('wait-invite'), box = $('wait-friends');
+  let st; try { st = await hubApi('/api/me'); } catch(e){ wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  const list = st.friends || [];
+  if(!list.length){ box.innerHTML = '<div class="note">No friends yet — add some from the GLITCHBOX menu.</div>'; return; }
+  box.innerHTML = list.map(f =>
+    '<div class="wi-row"><span class="wi-dot' + (f.online ? ' on' : '') + '"></span>' +
+    '<span class="wi-name">' + esc(f.name) + '</span>' +
+    '<button class="wi-btn" data-sub="' + esc(f.sub) + '">Invite</button></div>').join('');
+  box.querySelectorAll('.wi-btn').forEach(b => b.onclick = async () => {
+    b.disabled = true; b.textContent = 'Sending…';
+    try {
+      // Point the invite at the room we're already sitting in, not a fresh one.
+      await hubApi('/api/invite', { sub:b.dataset.sub, game:'neon-frag.html', room:net.code });
+      b.textContent = 'Invited';
+    } catch(e){ b.textContent = 'Failed'; b.disabled = false; }
+  });
+}
+
+// Arrived from a hub invite? The hash carries the room and which side we are.
+function autoRoom(){
+  const h = new URLSearchParams(location.hash.replace(/^#/,''));
+  const room = (h.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(!room) return false;
+  showPanel('panel-online');
+  if(h.get('host') === '1') net.connect(room, 'host', () => net.send({ t:'create', code:room }));
+  else net.connect(room, 'guest', () => net.send({ t:'join', code:room }));
+  return true;
+}
+
+addEventListener('resize', sizeView);
+sizeView(); applyOpts();
+if(isTouch) bindTouch();
+
+// ══════════════ SELF-TESTS (#smoke) ══════════════
+// Headless check that the arena is playable: geometry, hitscan, combat and 60 real
+// rendered frames. Run any time with neon-frag.html#smoke.
+function runSmoke(){
+  const out = [], fail = [];
+  const ok = (name, cond, extra) => { (cond ? out : fail).push((cond ? 'PASS  ' : 'FAIL  ') + name + (extra ? '  (' + extra + ')' : '')); };
+  try {
+    // ── map geometry ──
+    for(let seed = 1; seed <= 12; seed++){
+      const m = genMap(seed);
+      let border = true;
+      for(let i=0;i<MS;i++) if(!m.g[i] || !m.g[(MS-1)*MS+i] || !m.g[i*MS] || !m.g[i*MS+MS-1]) border = false;
+      ok('seed ' + seed + ': border sealed', border);
+      const sp = m.spawns.every(s => !m.g[Math.floor(s[1])*MS + Math.floor(s[0])]);
+      ok('seed ' + seed + ': spawns on open floor', sp);
+      // every item and the far spawn must be reachable from spawn 0
+      const seen = new Uint8Array(MS*MS), st = [[Math.floor(m.spawns[0][0]), Math.floor(m.spawns[0][1])]];
+      seen[st[0][1]*MS+st[0][0]] = 1;
+      while(st.length){ const [x,y] = st.pop();
+        [[1,0],[-1,0],[0,1],[0,-1]].forEach(d => { const nx=x+d[0], ny=y+d[1];
+          if(nx<0||ny<0||nx>=MS||ny>=MS||seen[ny*MS+nx]||m.g[ny*MS+nx]) return;
+          seen[ny*MS+nx] = 1; st.push([nx,ny]); }); }
+      ok('seed ' + seed + ': both spawns connected', !!seen[Math.floor(m.spawns[1][1])*MS + Math.floor(m.spawns[1][0])]);
+      ok('seed ' + seed + ': all pickups reachable',
+         m.items.every(it => seen[Math.floor(it.y)*MS + Math.floor(it.x)]));
+      ok('seed ' + seed + ': pickups mirrored in pairs', m.items.length % 2 === 0 && m.items.length >= 4);
+    }
+    // same seed → identical arena on both machines
+    const a = genMap(4242), b = genMap(4242);
+    ok('same seed builds the same arena', a.g.every((v,i) => v === b.g[i]) &&
+       JSON.stringify(a.items.map(i=>[i.x,i.y,i.kind])) === JSON.stringify(b.items.map(i=>[i.x,i.y,i.kind])));
+
+    // ── raycasting on a known-empty room ──
+    MAP = { g:new Uint8Array(MS*MS), spawns:[[2.5,2.5],[MS-2.5,MS-2.5]], items:[] };
+    for(let i=0;i<MS;i++){ MAP.g[i]=1; MAP.g[(MS-1)*MS+i]=1; MAP.g[i*MS]=1; MAP.g[i*MS+MS-1]=1; }
+    let raysOk = true, d0 = castWall(2.5, 2.5, 0, 60).dist;
+    for(let i=0;i<64;i++){ const r = castWall(14.5, 14.5, i/64*TAU, 60).dist;
+      if(!isFinite(r) || r <= 0 || r > MS*1.5) raysOk = false; }
+    ok('rays always terminate inside the arena', raysOk);
+    ok('east wall is where it should be', Math.abs(d0 - (MS-1-2.5)) < 0.02, 'got ' + d0.toFixed(2));
+
+    // ── hitscan ──
+    P = newFighter(true); E = newFighter(false);
+    P.x = 5.5; P.y = 14.5; P.ang = 0; E.x = 9.5; E.y = 14.5; E.alive = true;
+    ok('clear line of sight registers a hit', !!hitscanFoe(P, 0, 24, E));
+    ok('shot behind you misses', !hitscanFoe(P, Math.PI, 24, E));
+    ok('out of range misses', !hitscanFoe(P, 0, 2, E));
+    MAP.g[14*MS + 7] = 1;                                  // drop a wall between them
+    ok('wall between fighters blocks the shot', !hitscanFoe(P, 0, 24, E));
+    MAP.g[14*MS + 7] = 0;
+
+    // ── weapons ──
+    P.w = 0; P.lastFire = 0;
+    ok('pulse fires', fire(P, 1000, E, null) > 0);
+    ok('rate of fire is enforced', fire(P, 1010, E, null) === false);
+    P.w = 1; P.ammo.shells = 1; P.lastFire = 0;
+    fire(P, 5000, E, null);
+    ok('shred spends a shell', P.ammo.shells === 0);
+    ok('empty gun will not fire', fire(P, 9000, E, null) === false);
+    P.w = 0;
+    ok('pulse never runs dry', fire(P, 12000, E, null) !== false);
+
+    // ── damage, death, respawn ──
+    P.frags = 0; E.frags = 0; E.hp = 100; E.alive = true;
+    damage(E, 60, 1000); ok('damage lands', E.hp === 40);
+    damage(E, 60, 1200); ok('zero health is a death', !E.alive && E.deaths === 1);
+    MAP = genMap(7); respawn(E, 2000);
+    ok('respawn restores health', E.alive && E.hp === 100);
+    ok('respawn puts you on open floor', !solid(E.x, E.y));
+
+    // ── pickups ──
+    MAP.items = [{ x:P.x, y:P.y, kind:'h', up:true, at:0 }];
+    P.hp = 40; updateItems(3000);
+    ok('health pickup heals and disappears', P.hp === 75 && !MAP.items[0].up);
+
+    // ── the bot has to actually move ──
+    MAP = genMap(3); P = newFighter(true); E = newFighter(false);
+    spawnAt(P, 0); spawnAt(E, 1);
+    const sx = E.x, sy = E.y;
+    for(let i=0;i<180;i++) updateBot(0.016, 1000 + i*16);
+    ok('bot moves toward the fight', Math.hypot(E.x-sx, E.y-sy) > 0.5);
+    ok('bot stays inside the arena', !solid(E.x, E.y) && isFinite(E.x) && isFinite(E.y));
+
+    // ── render for real ──
+    MAP = genMap(11); spawnAt(P, 0); spawnAt(E, 1); state = 'play';
+    let rendered = 0;
+    for(let i=0;i<60;i++){ P.ang += 0.1; render(1000 + i*16); drawGun(1000 + i*16); drawMinimap(); rendered++; }
+    ok('60 frames render without error', rendered === 60);
+    ok('backbuffer has pixels', back.width > 0 && back.height > 0);
+  } catch(err){
+    fail.push('FAIL  threw: ' + (err && err.message) + '\n' + (err && err.stack || ''));
+  }
+  const total = out.length + fail.length;
+  const head = (fail.length ? 'SMOKE FAIL ' : 'SMOKE PASS ') + out.length + '/' + total;
+  document.title = head;
+  const pre = document.createElement('pre');
+  pre.id = 'smokeout';
+  pre.textContent = head + '\n\n' + fail.concat(out).join('\n');
+  document.body.appendChild(pre);
+  $('ui').classList.add('hidden');
+}
+
+// ══════════════ BOOT ══════════════
+if(SMOKE){ runSmoke(); }
+else {
+  requestAnimationFrame(step);
+  // #practice drops you straight into a bot match (handy for a quick look at the arena).
+  if(location.hash.indexOf('practice') !== -1) startMatch(1234);
+  else if(!autoRoom()) showPanel('panel-home');
+}
+})();
+</script>
+<script src="glitchbox-menu.js" defer></script>
+</body>
+</html>

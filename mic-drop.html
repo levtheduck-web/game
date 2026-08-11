@@ -1,0 +1,1057 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>MIC DROP — Karaoke Sing-Off</title>
+<script src="glitchbox-save.js"></script>
+<style>
+  :root{ --cyan:#00f5ff; --pink:#ff0080; --yellow:#ffe600; --green:#00ff88; --purple:#a44bff;
+         --bg:#07030f; --bg2:#120a22; --panel:rgba(14,8,26,.95); --muted:#6b5a8f; --text:#efe6ff; }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; overflow:hidden; color:var(--text); user-select:none;
+    background:radial-gradient(120% 90% at 50% 0%,#2a0f4a,#07030f 65%);
+    font-family:'Rajdhani',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  canvas#stage{ position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .hidden{ display:none !important; }
+
+  /* ── overlay UI ── */
+  #ui{ position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center;
+    padding:20px; overflow-y:auto; }
+  .panel{ width:min(520px,100%); background:var(--panel); border:1px solid rgba(164,75,255,.3);
+    box-shadow:0 0 70px rgba(164,75,255,.16),0 0 130px rgba(255,0,128,.08); padding:26px; }
+  .logo{ font-family:'Press Start 2P',monospace; font-size:27px; text-align:center; letter-spacing:1px;
+    background:linear-gradient(92deg,var(--pink),var(--yellow)); -webkit-background-clip:text; background-clip:text;
+    color:transparent; filter:drop-shadow(0 0 20px rgba(255,0,128,.45)); }
+  .tagline{ text-align:center; font-size:12px; letter-spacing:3px; color:var(--muted); font-weight:700; margin:12px 0 22px; }
+  .btn{ display:block; width:100%; margin-bottom:10px; padding:15px; cursor:pointer; border:none; font:inherit;
+    font-weight:800; font-size:15px; letter-spacing:1.5px; background:var(--pink); color:#fff;
+    clip-path:polygon(9px 0,100% 0,calc(100% - 9px) 100%,0 100%); transition:transform .12s,box-shadow .18s; }
+  .btn:hover{ transform:translateY(-2px); box-shadow:0 0 28px rgba(255,0,128,.55); }
+  .btn.ghost{ background:transparent; border:1px solid rgba(164,75,255,.4); color:var(--purple); clip-path:none; }
+  .btn.ghost:hover{ background:rgba(164,75,255,.1); box-shadow:none; }
+  .btn.gold{ background:var(--yellow); color:#241c00; }
+  .sect{ font-family:'Press Start 2P',monospace; font-size:9px; letter-spacing:2px; color:var(--cyan);
+    text-shadow:0 0 8px var(--cyan); margin:22px 0 12px; }
+  .note{ font-size:12.5px; color:var(--muted); font-weight:600; line-height:1.55; }
+  .note b{ color:var(--text); }
+  .err{ color:var(--pink); }
+  .row{ display:flex; gap:8px; }
+  input[type=text]{ flex:1; min-width:0; padding:14px; background:#0b0616; border:1px solid rgba(164,75,255,.4);
+    color:var(--cyan); font:inherit; font-weight:800; font-size:18px; letter-spacing:.3em; text-align:center; text-transform:uppercase; }
+  input[type=text]:focus{ outline:none; border-color:var(--cyan); }
+  .code-big{ font-family:'Press Start 2P',monospace; font-size:34px; letter-spacing:.16em; color:var(--yellow);
+    text-align:center; text-shadow:0 0 22px rgba(255,230,0,.5); padding:16px 0 6px; }
+
+  /* song list */
+  .song{ display:flex; align-items:center; gap:14px; width:100%; margin-bottom:9px; padding:13px 15px; cursor:pointer;
+    background:#100a1e; border:1px solid rgba(164,75,255,.22); color:inherit; font:inherit; text-align:left;
+    transition:border-color .15s,transform .12s,background .15s; }
+  .song:hover{ border-color:var(--pink); transform:translateX(3px); background:#170d2a; }
+  .song.sel{ border-color:var(--yellow); background:rgba(255,230,0,.08); }
+  .song .em{ font-size:26px; flex-shrink:0; }
+  .song .si{ flex:1; min-width:0; }
+  .song .sn{ font-weight:800; font-size:15px; letter-spacing:.5px; }
+  .song .sd{ font-size:12px; color:var(--muted); font-weight:600; margin-top:3px; }
+  .song .sb{ text-align:right; flex-shrink:0; font-family:'Press Start 2P',monospace; font-size:9px; color:var(--yellow); }
+  .song .sb small{ display:block; color:var(--muted); font-size:8px; margin-top:5px; letter-spacing:1px; }
+
+  .seg{ display:flex; gap:6px; margin-bottom:14px; }
+  .seg button{ flex:1; padding:11px 8px; cursor:pointer; font:inherit; font-weight:800; font-size:12px; letter-spacing:1px;
+    background:transparent; border:1px solid rgba(164,75,255,.3); color:var(--muted); }
+  .seg button.on{ background:rgba(255,0,128,.16); border-color:var(--pink); color:#fff; }
+  .opt{ display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px; font-weight:700; }
+  .opt input[type=range]{ flex:1; accent-color:#ff0080; }
+  .opt span{ min-width:38px; text-align:right; color:var(--pink); font-family:'Press Start 2P',monospace; font-size:9px; }
+  .miclevel{ height:9px; background:#0b0616; border:1px solid rgba(0,245,255,.3); overflow:hidden; margin-top:6px; }
+  .miclevel i{ display:block; height:100%; width:0%; background:linear-gradient(90deg,var(--cyan),var(--green)); }
+  .wi-row{ display:flex; align-items:center; gap:9px; padding:8px 10px; background:#100a1e; border:1px solid rgba(164,75,255,.16); margin-bottom:6px; }
+  .wi-dot{ width:8px; height:8px; border-radius:50%; background:var(--muted); flex-shrink:0; }
+  .wi-dot.on{ background:var(--green); box-shadow:0 0 8px var(--green); }
+  .wi-name{ flex:1; font-weight:700; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .wi-btn{ padding:5px 11px; cursor:pointer; border:none; font:inherit; font-weight:800; font-size:11px; background:var(--pink); color:#fff; }
+  .wi-btn:disabled{ background:transparent; border:1px solid var(--muted); color:var(--muted); }
+
+  /* results */
+  .grade{ font-family:'Press Start 2P',monospace; font-size:64px; text-align:center; margin:6px 0 10px;
+    background:linear-gradient(92deg,var(--yellow),var(--pink)); -webkit-background-clip:text; background-clip:text;
+    color:transparent; filter:drop-shadow(0 0 24px rgba(255,230,0,.5)); }
+  .verdict{ font-family:'Press Start 2P',monospace; font-size:20px; text-align:center; margin-bottom:14px; }
+  .verdict.win{ color:var(--green); text-shadow:0 0 20px var(--green); }
+  .verdict.lose{ color:var(--pink); text-shadow:0 0 20px var(--pink); }
+  .bars{ margin:14px 0 18px; }
+  .bar{ margin-bottom:10px; }
+  .bar .bl{ display:flex; justify-content:space-between; font-size:12px; font-weight:800; letter-spacing:1px; margin-bottom:5px; }
+  .bar .bt{ height:12px; background:#0b0616; border:1px solid rgba(164,75,255,.3); }
+  .bar .bt i{ display:block; height:100%; background:linear-gradient(90deg,var(--pink),var(--yellow)); }
+  .bar.them .bt i{ background:linear-gradient(90deg,var(--purple),var(--cyan)); }
+  #smokeout{ position:fixed; left:0; top:0; z-index:99; background:#000; color:#0f0; font:12px/1.5 monospace;
+    padding:10px; white-space:pre; max-height:100%; overflow:auto; }
+  /* touch "sing" pad for keys mode on phones */
+  #pad{ position:fixed; right:20px; bottom:20px; z-index:6; width:120px; height:120px; border-radius:50%;
+    border:2px solid rgba(255,0,128,.5); background:rgba(255,0,128,.16); color:#fff; display:flex;
+    align-items:center; justify-content:center; font-weight:900; letter-spacing:1px; }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="pad" class="hidden">SING</div>
+
+<div id="ui">
+  <!-- HOME -->
+  <div class="panel" id="panel-home">
+    <div class="logo">MIC DROP</div>
+    <div class="tagline">// KARAOKE SING-OFF</div>
+    <button class="btn" id="m-solo">SING SOLO</button>
+    <button class="btn gold" id="m-online">SING-OFF VS A FRIEND</button>
+    <button class="btn ghost" id="m-setup">MIC &amp; OPTIONS</button>
+    <div class="note" style="margin-top:16px">Hit the notes with your voice. No mic? <b>Keys mode</b> lets you play the pitch with ↑ / ↓ and hold <b>SPACE</b> to sing.</div>
+  </div>
+
+  <!-- SONG SELECT -->
+  <div class="panel hidden" id="panel-songs">
+    <div class="logo" style="font-size:19px">PICK A SONG</div>
+    <div class="tagline" id="songs-sub">// SOLO</div>
+    <div id="song-list"></div>
+    <button class="btn ghost" id="m-back-songs" style="margin-top:14px">BACK</button>
+  </div>
+
+  <!-- ONLINE -->
+  <div class="panel hidden" id="panel-online">
+    <div class="logo" style="font-size:19px">SING-OFF</div>
+    <div class="tagline">// SAME SONG, TWO MICS, ONE WINNER</div>
+    <button class="btn" id="m-create">CREATE A ROOM</button>
+    <div class="sect">// OR JOIN ONE</div>
+    <div class="row">
+      <input type="text" id="join-code" maxlength="4" placeholder="CODE" autocomplete="off"/>
+      <button class="btn" style="width:auto;padding:14px 22px;margin:0" id="m-join">JOIN</button>
+    </div>
+    <div class="note err" id="online-status" style="margin-top:12px"></div>
+    <button class="btn ghost" id="m-back1" style="margin-top:18px">BACK</button>
+  </div>
+
+  <!-- WAITING -->
+  <div class="panel hidden" id="panel-wait">
+    <div class="logo" style="font-size:19px">WAITING</div>
+    <div class="tagline" id="wait-sub">// SEND THIS CODE TO YOUR DUET PARTNER</div>
+    <div class="code-big" id="wait-code">----</div>
+    <button class="btn ghost" id="m-copy">COPY CODE</button>
+    <div id="wait-invite" class="hidden">
+      <div class="sect">// OR INVITE A FRIEND</div>
+      <div id="wait-friends"></div>
+    </div>
+    <button class="btn ghost" id="m-cancel" style="margin-top:18px">CANCEL</button>
+  </div>
+
+  <!-- SETUP -->
+  <div class="panel hidden" id="panel-setup">
+    <div class="logo" style="font-size:19px">MIC &amp; OPTIONS</div>
+    <div class="tagline">// SING INTO IT AND WATCH THE BAR</div>
+    <div class="seg" id="seg-input">
+      <button data-i="mic" class="on">MICROPHONE</button><button data-i="keys">KEYS MODE</button>
+    </div>
+    <button class="btn ghost" id="m-mictest">ENABLE MICROPHONE</button>
+    <div class="miclevel"><i id="mic-bar"></i></div>
+    <div class="note" id="mic-note" style="margin-top:8px">Your browser will ask for permission. Nothing is recorded or uploaded — the audio never leaves this page.</div>
+    <div class="sect">// OPTIONS</div>
+    <div class="opt">MUSIC<input type="range" id="o-vol" min="0" max="100" value="70"/><span id="o-vol-v">70</span></div>
+    <div class="opt">GUIDE<input type="range" id="o-guide" min="0" max="100" value="35"/><span id="o-guide-v">35</span></div>
+    <div class="note">GUIDE plays the melody quietly so you can hear the note you're aiming for.</div>
+    <button class="btn ghost" id="m-back2" style="margin-top:18px">BACK</button>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="panel hidden" id="panel-done">
+    <div class="grade" id="r-grade">A</div>
+    <div class="verdict" id="r-verdict"></div>
+    <div class="bars">
+      <div class="bar"><div class="bl"><span id="r-mename">YOU</span><span id="r-mescore">0</span></div><div class="bt"><i id="r-mebar"></i></div></div>
+      <div class="bar them hidden" id="r-thembox"><div class="bl"><span>OPPONENT</span><span id="r-themscore">0</span></div><div class="bt"><i id="r-thembar"></i></div></div>
+    </div>
+    <div class="note" id="r-stats" style="text-align:center;margin-bottom:16px"></div>
+    <button class="btn" id="r-again">SING IT AGAIN</button>
+    <button class="btn ghost" id="r-songs">PICK ANOTHER SONG</button>
+    <button class="btn ghost" id="r-menu">MAIN MENU</button>
+  </div>
+</div>
+
+<script src="glitchbox-config.js"></script>
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const SMOKE = location.hash.indexOf('smoke') !== -1;
+const clamp = (v,a,b) => v<a?a:v>b?b:v;
+
+// ══════════════ SONGS ══════════════
+// A line is "startBeat" plus pipe-separated "NOTE DURATION SYLLABLE" tokens; a `*`
+// on the duration marks a GOLD note (worth double). Melodies are either original or
+// traditional/public-domain, so nothing here needs a licence.
+const SONGS = [
+  { id:'neon-rain', title:'NEON RAIN', emoji:'🌧️', bpm:92, bpb:4,
+    desc:'Synthwave · slow · easy', chords:['Am','F','C','G','Am','F','C','G','Am','F','C','G'],
+    lines:[
+      [4,  'A3 1 Ne-|C4 1 on|E4 2 rain'],
+      [8,  'E4 1 falls|D4 1 on|C4 1 the|B3 1 bou-|A3 2 le-vard*'],
+      [16, 'C4 1 I|E4 1 count|F4 1 the|E4 1 flick-|D4 2 ers'],
+      [24, 'D4 1 in|C4 1 your|B3 1 win-|A3 3 dow*'],
+      [32, 'E4 1 ev-|E4 1 ery|F4 1 drop|G4 1 is|A4 2 code*'],
+      [40, 'G4 1 run-|F4 1 ning|E4 1 down|D4 2 slow'],
+      [48, 'C4 1 and|D4 1 I|E4 1 still|F4 1 hear|E4 2 you*'],
+      [56, 'D4 1 in|C4 1 the|B3 1 ne-|A3 4 on*'],
+    ] },
+  { id:'glitch-heart', title:'GLITCH IN MY HEART', emoji:'💔', bpm:126, bpb:4,
+    desc:'Upbeat · punchy · medium', chords:['C','G','Am','F','C','G','Am','F','C','G','F','C'],
+    lines:[
+      [4,  'G3 1 There\'s|C4 1 a|E4 1 glitch|G4 2 in*'],
+      [12, 'G4 1 my|F4 1 heart|E4 1 and|D4 1 it|C4 2 skips'],
+      [20, 'A3 1 ev-|C4 1 ery|E4 1 time|F4 1 you|G4 2 talk*'],
+      [28, 'F4 1 like|E4 1 a|D4 1 sky-|C4 3 line'],
+      [36, 'E4 1 buf-|E4 1 fer-|G4 1 ing|A4 2 love*'],
+      [44, 'A4 1 sev-|G4 1 en-|E4 1 ty|D4 1 nine|C4 2 per-cent'],
+      [52, 'C4 1 don\'t|D4 1 you|E4 1 dare|G4 1 re-|A4 2 fresh*'],
+      [60, 'G4 1 this|E4 1 glitch|D4 1 in|C4 4 my heart*'],
+    ] },
+  { id:'scarborough', title:'SCARBOROUGH FAIR', emoji:'🌿', bpm:88, bpb:3,
+    desc:'Traditional · gentle · classic', chords:['Dm','Dm','C','Dm','F','C','Dm','Dm','Dm','C','Dm','Dm'],
+    lines:[
+      [3,  'A3 1 Are|A4 2 you|A4 1 go-|E4 2 ing|E4 1 to'],
+      [12, 'G4 1 Scar-|A4 1 bo-|B4 1 rough|A4 3 Fair*'],
+      [21, 'F4 1 pars-|E4 1 ley|D4 2 sage|D4 1 rose-|E4 1 ma-|F4 1 ry'],
+      [30, 'D4 3 thyme*'],
+      [36, 'A3 1 re-|A4 2 mem-|A4 1 ber|E4 2 me|E4 1 to'],
+      [45, 'G4 1 one|A4 1 who|B4 1 lives|A4 3 there*'],
+      [54, 'F4 1 she|E4 1 once|D4 2 was|D4 1 a|E4 1 true|F4 1 love'],
+      [63, 'D4 4 of mine*'],
+    ] },
+];
+
+const NOTE_BASE = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+function noteToMidi(n){
+  const m = /^([A-G])([#b]?)(\d)$/.exec(n);
+  if(!m) return null;
+  return NOTE_BASE[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0) + (+m[3] + 1)*12;
+}
+const midiToFreq = m => 440*Math.pow(2, (m-69)/12);
+
+// Flatten the line notation into one timed note list per song.
+function buildSong(song){
+  const notes = [];
+  song.lines.forEach((line, li) => {
+    let b = line[0];
+    line[1].split('|').forEach((tok, i) => {
+      const p = tok.trim().split(/\s+/);
+      const midi = noteToMidi(p[0]);
+      const gold = /\*/.test(tok);
+      const dur = parseFloat(p[1]);
+      const word = p.slice(2).join(' ').replace(/\*/g,'');
+      if(midi == null || !isFinite(dur) || dur <= 0) return;
+      notes.push({ b:b, d:dur, midi:midi, w:word, gold:gold, line:li, first:i===0, hit:0, done:false });
+      b += dur;
+    });
+  });
+  notes.sort((a,b) => a.b - b.b);
+  const last = notes[notes.length-1];
+  return { notes, endBeat: last ? last.b + last.d + 2 : 8,
+           lo: Math.min(...notes.map(n=>n.midi)), hi: Math.max(...notes.map(n=>n.midi)),
+           maxScore: notes.reduce((s,n) => s + (n.gold?200:100), 0) };
+}
+SONGS.forEach(s => { s.built = buildSong(s); });
+
+// ══════════════ AUDIO ══════════════
+// Backing band is synthesised on the fly: bass, pad, drums and an optional guide
+// melody. A lookahead scheduler keeps it in time without pre-building 1000 nodes.
+const CHORDS = { major:[0,4,7], minor:[0,3,7] };
+function chordNotes(name){
+  const m = /^([A-G][#b]?)(m?)$/.exec(name);
+  if(!m) return [48,52,55];
+  const root = noteToMidi(m[1] + '3');
+  return (m[2] === 'm' ? CHORDS.minor : CHORDS.major).map(i => root + i);
+}
+
+const A = {
+  ctx:null, master:null, musicVol:0.7, guideVol:0.35,
+  t0:0, playing:false, timer:null, song:null, scheduled:0, beatDur:0.5,
+  init(){
+    if(this.ctx) return this.ctx;
+    try { this.ctx = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){ return null; }
+    this.master = this.ctx.createGain(); this.master.gain.value = 1; this.master.connect(this.ctx.destination);
+    return this.ctx;
+  },
+  resume(){ if(this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+  tone(t, freq, dur, type, gain, dest){
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(gain, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    o.connect(g).connect(dest || this.master); o.start(t); o.stop(t + dur + 0.03);
+  },
+  drum(t, kind){
+    const g = this.ctx.createGain(); g.connect(this.master);
+    if(kind === 'k'){
+      const o = this.ctx.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(45, t+0.13);
+      g.gain.setValueAtTime(0.5*this.musicVol, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.16);
+      o.connect(g); o.start(t); o.stop(t+0.2);
+    } else {
+      const n = Math.floor(this.ctx.sampleRate*0.09), buf = this.ctx.createBuffer(1,n,this.ctx.sampleRate), d = buf.getChannelData(0);
+      for(let i=0;i<n;i++) d[i] = (Math.random()*2-1)*(1-i/n);
+      const s = this.ctx.createBufferSource(); s.buffer = buf;
+      const f = this.ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = kind === 'h' ? 7000 : 1800;
+      g.gain.value = (kind === 'h' ? 0.1 : 0.28)*this.musicVol;
+      s.connect(f).connect(g); s.start(t);
+    }
+  },
+  // Everything within the next 0.25s gets scheduled; called on a 40ms timer.
+  pump(){
+    if(!this.playing || !this.song) return;
+    const S = this.song, until = this.ctx.currentTime + 0.25;
+    while(this.t0 + this.scheduled*this.beatDur < until && this.scheduled <= S.built.endBeat){
+      const beat = this.scheduled, t = this.t0 + beat*this.beatDur;
+      const bar = Math.floor(beat / S.bpb), inBar = beat % S.bpb;
+      // drums
+      this.drum(t, inBar === 0 ? 'k' : (S.bpb === 4 && inBar === 2) ? 'k' : 's');
+      this.drum(t + this.beatDur/2, 'h');
+      // bass + pad on the bar
+      if(inBar === 0){
+        const ch = chordNotes(S.chords[bar % S.chords.length]);
+        this.tone(t, midiToFreq(ch[0]-12), this.beatDur*S.bpb*0.9, 'triangle', 0.22*this.musicVol);
+        ch.forEach(n => this.tone(t, midiToFreq(n), this.beatDur*S.bpb*0.85, 'sawtooth', 0.05*this.musicVol));
+      }
+      // guide melody
+      if(this.guideVol > 0){
+        S.built.notes.forEach(n => {
+          if(n.b >= beat && n.b < beat+1)
+            this.tone(this.t0 + n.b*this.beatDur, midiToFreq(n.midi), n.d*this.beatDur*0.9, 'sine', 0.10*this.guideVol);
+        });
+      }
+      this.scheduled++;
+    }
+  },
+  start(song, leadIn){
+    this.init(); if(!this.ctx) return 0;
+    this.resume();
+    this.song = song; this.beatDur = 60/song.bpm; this.scheduled = 0;
+    this.t0 = this.ctx.currentTime + (leadIn == null ? 2.2 : leadIn);
+    this.playing = true;
+    clearInterval(this.timer); this.timer = setInterval(() => this.pump(), 40);
+    this.pump();
+    return this.t0;
+  },
+  stop(){ this.playing = false; clearInterval(this.timer); this.timer = null; },
+  beatNow(){ return this.ctx ? (this.ctx.currentTime - this.t0)/this.beatDur : 0; },
+  sfx(freq, dur, type, gain){
+    if(!this.ctx) return;
+    this.tone(this.ctx.currentTime, freq, dur||0.1, type||'square', (gain||0.14));
+  },
+};
+
+// ══════════════ PITCH INPUT ══════════════
+// Two ways in: a real microphone (autocorrelation on the time-domain signal), or
+// KEYS MODE, which is a full fallback rather than a toy — same scoring path.
+const Mic = {
+  ready:false, denied:false, analyser:null, buf:null, level:0, stream:null,
+  async enable(){
+    const ctx = A.init(); if(!ctx) return false;
+    A.resume();
+    if(this.ready) return true;
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
+    } catch(e){ this.denied = true; return false; }
+    const src = ctx.createMediaStreamSource(this.stream);
+    this.analyser = ctx.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.buf = new Float32Array(this.analyser.fftSize);
+    src.connect(this.analyser);            // deliberately NOT connected to output — no feedback howl
+    this.ready = true; this.denied = false;
+    return true;
+  },
+  // Returns a MIDI number, or null when it's just room noise.
+  detect(){
+    if(!this.ready) return null;
+    const a = this.analyser, buf = this.buf, N = buf.length, sr = A.ctx.sampleRate;
+    a.getFloatTimeDomainData(buf);
+    let rms = 0;
+    for(let i=0;i<N;i++) rms += buf[i]*buf[i];
+    rms = Math.sqrt(rms/N);
+    this.level = rms;
+    if(rms < 0.009) return null;                       // silence gate
+    const minLag = Math.floor(sr/1000), maxLag = Math.floor(sr/70);   // 70Hz–1kHz singing range
+    let best = -1, bestCorr = 0, lastCorr = 1;
+    for(let lag = minLag; lag < maxLag; lag++){
+      let c = 0;
+      for(let i=0;i<N-lag;i++) c += buf[i]*buf[i+lag];
+      c /= (N-lag);
+      if(c > bestCorr && c > lastCorr){ bestCorr = c; best = lag; }
+      lastCorr = c;
+    }
+    if(best < 0 || bestCorr < 0.004) return null;
+    // parabolic interpolation around the peak sharpens the estimate
+    const corrAt = lag => { let c = 0; for(let i=0;i<N-lag;i++) c += buf[i]*buf[i+lag]; return c/(N-lag); };
+    const y1 = corrAt(best-1), y2 = bestCorr, y3 = corrAt(best+1);
+    const shift = (y3 - y1)/(2*(2*y2 - y1 - y3) || 1e-9);
+    const freq = sr/(best + clamp(shift,-1,1));
+    if(!isFinite(freq) || freq < 60 || freq > 1200) return null;
+    return 69 + 12*Math.log2(freq/440);
+  },
+};
+
+// Keys mode state: a cursor you drive with the arrows, and SPACE to actually sing.
+const Keys = { midi:60, singing:false };
+
+// ══════════════ GAME STATE ══════════════
+const G = {
+  song:null, notes:[], score:0, combo:0, best:0, accSum:0, accN:0,
+  pitch:null, disp:null, trail:[], parts:[], pos:0, running:false, online:false,
+  oppScore:0, oppName:'OPPONENT', ended:false, input:'mic', started:0,
+};
+let state = 'menu';
+
+function resetRun(song){
+  G.song = song;
+  G.notes = song.built.notes.map(n => Object.assign({}, n, { hit:0, done:false }));
+  G.score = 0; G.combo = 0; G.best = 0; G.accSum = 0; G.accN = 0;
+  G.trail.length = 0; G.parts.length = 0; G.oppScore = 0; G.ended = false; G.pos = -99;
+}
+
+// Distance in semitones ignoring octave — a bass and a soprano can both nail a note.
+function pcDiff(a, b){
+  let d = Math.abs(((a - b) % 12 + 12) % 12);
+  return d > 6 ? 12 - d : d;
+}
+function nearestOctave(p, target){
+  if(p == null) return null;
+  let d = p;
+  while(d - target > 6) d -= 12;
+  while(target - d > 6) d += 12;
+  return d;
+}
+function inputPitch(){
+  if(G.input === 'keys') return Keys.singing ? Keys.midi : null;
+  return Mic.detect();
+}
+
+function scoreNote(n){
+  const durSec = n.d*A.beatDur;
+  const ratio = clamp(n.hit/Math.max(0.05, durSec), 0, 1);
+  const base = n.gold ? 200 : 100;
+  const mult = 1 + Math.min(G.combo, 20)*0.03;
+  G.score += Math.round(base*ratio*mult);
+  G.accSum += ratio; G.accN++;
+  if(ratio >= 0.45){ G.combo++; G.best = Math.max(G.best, G.combo);
+    if(ratio >= 0.85) A.sfx(n.gold ? 1600 : 1150, 0.09, 'square', 0.10);
+  } else G.combo = 0;
+  n.ratio = ratio;
+}
+
+function burst(x, y, col, n){
+  for(let i=0;i<(n||8);i++)
+    G.parts.push({ x:x, y:y, vx:(Math.random()-0.5)*260, vy:-Math.random()*220-40,
+                   life:0.6+Math.random()*0.4, t:0, c:col });
+}
+
+function update(dt){
+  if(!G.running) return;
+  G.pos = A.beatNow();
+  const p = inputPitch();
+  G.pitch = p;
+
+  let active = null;
+  for(const n of G.notes){
+    if(G.pos >= n.b && G.pos < n.b + n.d){
+      active = active || n;
+      if(p != null){
+        const diff = pcDiff(p, n.midi);
+        if(diff <= 1.2) n.hit += dt*(diff <= 0.5 ? 1 : 0.6);
+      }
+    } else if(!n.done && G.pos >= n.b + n.d){
+      n.done = true; scoreNote(n);
+      if(n.ratio >= 0.6) burst(layout.nowX, yFor(n.midi), n.gold ? '#ffe600' : '#ff0080', n.gold ? 16 : 9);
+    }
+  }
+  G.disp = active ? nearestOctave(p, active.midi) : p;
+
+  // pitch trail, oldest first
+  G.trail.push({ b:G.pos, m:G.disp, on:p != null });
+  while(G.trail.length && G.trail[0].b < G.pos - 3) G.trail.shift();
+
+  for(let i=G.parts.length-1;i>=0;i--){
+    const q = G.parts[i];
+    q.t += dt; q.x += q.vx*dt; q.y += q.vy*dt; q.vy += 620*dt;
+    if(q.t > q.life) G.parts.splice(i,1);
+  }
+
+  if(G.online && G.pos > 0 && performance.now() - lastSync > 350){
+    lastSync = performance.now();
+    net.send({ t:'sc', s:G.score, c:G.combo });
+  }
+  if(!G.ended && G.pos > G.song.built.endBeat){ G.ended = true; finish(); }
+}
+
+// ══════════════ RENDER ══════════════
+const cv = $('stage'), cx = cv.getContext('2d');
+const layout = { W:960, H:540, nowX:220, top:110, bot:400, ppb:112 };
+function sizeStage(){
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = window.innerWidth || 960, h = window.innerHeight || 540;
+  cv.width = w*dpr; cv.height = h*dpr;
+  cx.setTransform(dpr,0,0,dpr,0,0);
+  layout.W = w; layout.H = h;
+  layout.nowX = Math.round(w*0.24);
+  layout.top = Math.round(h*0.20); layout.bot = Math.round(h*0.66);
+  layout.ppb = Math.max(46, (w - layout.nowX - 30)/6);
+}
+function yFor(midi){
+  const s = G.song ? G.song.built : { lo:57, hi:81 };
+  const span = Math.max(4, s.hi - s.lo + 2);
+  return layout.bot - ((midi - s.lo + 1)/span)*(layout.bot - layout.top);
+}
+const xFor = beat => layout.nowX + (beat - G.pos)*layout.ppb;
+
+function roundRect(c, x, y, w, h, r){
+  c.beginPath();
+  c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+}
+
+function draw(now){
+  const W = layout.W, H = layout.H;
+  cx.clearRect(0,0,W,H);
+  // stage backdrop: a slow pulse that leans on the combo so a hot streak is visible
+  const heat = clamp(G.combo/18, 0, 1);
+  const g = cx.createRadialGradient(W/2, H*0.15, 20, W/2, H*0.15, H*1.1);
+  g.addColorStop(0, 'rgba(' + (60+heat*140|0) + ',10,' + (90+heat*60|0) + ',.9)');
+  g.addColorStop(1, 'rgba(7,3,15,0)');
+  cx.fillStyle = g; cx.fillRect(0,0,W,H);
+
+  if(!G.song) return;
+  // staff lines
+  cx.strokeStyle = 'rgba(164,75,255,.14)'; cx.lineWidth = 1;
+  const s = G.song.built;
+  for(let m = s.lo; m <= s.hi; m++){
+    if(m % 12 !== 0) continue;
+    const y = yFor(m); cx.beginPath(); cx.moveTo(0,y); cx.lineTo(W,y); cx.stroke();
+  }
+  // bar lines, so you can feel the beat even with the music off
+  cx.strokeStyle = 'rgba(255,255,255,.05)';
+  for(let b = Math.floor(G.pos)-1; b < G.pos+7; b++){
+    if(b % G.song.bpb !== 0) continue;
+    const x = xFor(b); cx.beginPath(); cx.moveTo(x, layout.top-30); cx.lineTo(x, layout.bot+30); cx.stroke();
+  }
+
+  // ── notes ──
+  const NH = Math.max(10, (layout.bot-layout.top)/Math.max(6, s.hi-s.lo+2) - 2);
+  G.notes.forEach(n => {
+    const x = xFor(n.b), w = n.d*layout.ppb - 4;
+    if(x + w < -20 || x > W + 20) return;
+    const y = yFor(n.midi) - NH/2;
+    const live = G.pos >= n.b && G.pos < n.b + n.d;
+    cx.globalAlpha = n.done ? 0.42 : 1;
+    // the shell
+    cx.fillStyle = n.gold ? 'rgba(255,230,0,.16)' : 'rgba(164,75,255,.2)';
+    roundRect(cx, x, y, w, NH, NH/2); cx.fill();
+    cx.strokeStyle = n.gold ? 'rgba(255,230,0,.75)' : 'rgba(164,75,255,.6)';
+    cx.lineWidth = live ? 2.5 : 1.4; roundRect(cx, x, y, w, NH, NH/2); cx.stroke();
+    // the part you've actually sung
+    const ratio = clamp(n.hit/Math.max(0.05, n.d*A.beatDur), 0, 1);
+    if(ratio > 0){
+      cx.fillStyle = n.gold ? '#ffe600' : '#ff0080';
+      roundRect(cx, x, y, Math.max(4, w*ratio), NH, NH/2); cx.fill();
+    }
+    cx.globalAlpha = 1;
+  });
+
+  // ── your pitch trail ──
+  cx.lineWidth = 3; cx.strokeStyle = '#00f5ff'; cx.shadowColor = '#00f5ff'; cx.shadowBlur = 12;
+  cx.beginPath(); let pen = false;
+  G.trail.forEach(t => {
+    if(t.m == null || !t.on){ pen = false; return; }
+    const x = xFor(t.b), y = yFor(t.m);
+    if(!pen){ cx.moveTo(x,y); pen = true; } else cx.lineTo(x,y);
+  });
+  cx.stroke(); cx.shadowBlur = 0;
+  if(G.disp != null && G.pitch != null){
+    cx.fillStyle = '#00f5ff'; cx.beginPath(); cx.arc(layout.nowX, yFor(G.disp), 8, 0, Math.PI*2); cx.fill();
+  }
+
+  // now-line
+  cx.strokeStyle = 'rgba(255,255,255,.5)'; cx.lineWidth = 2;
+  cx.beginPath(); cx.moveTo(layout.nowX, layout.top-34); cx.lineTo(layout.nowX, layout.bot+34); cx.stroke();
+
+  // particles
+  G.parts.forEach(q => {
+    cx.globalAlpha = clamp(1 - q.t/q.life, 0, 1);
+    cx.fillStyle = q.c; cx.fillRect(q.x, q.y, 4, 4);
+  });
+  cx.globalAlpha = 1;
+
+  // ── lyrics ──
+  const li = currentLine();
+  cx.textAlign = 'center';
+  if(li != null){
+    const words = G.notes.filter(n => n.line === li);
+    const font = Math.max(20, Math.min(40, W/26));
+    cx.font = '800 ' + font + 'px Rajdhani, sans-serif';
+    const widths = words.map(n => cx.measureText(n.w + ' ').width);
+    let x = W/2 - widths.reduce((a,b)=>a+b,0)/2;
+    words.forEach((n,i) => {
+      const live = G.pos >= n.b && G.pos < n.b + n.d;
+      cx.fillStyle = live ? (n.gold ? '#ffe600' : '#fff') : n.done ? 'rgba(239,230,255,.45)' : 'rgba(239,230,255,.8)';
+      if(live){ cx.shadowColor = n.gold ? '#ffe600' : '#ff0080'; cx.shadowBlur = 16; }
+      cx.fillText(n.w, x + widths[i]/2, layout.bot + 78);
+      cx.shadowBlur = 0;
+      x += widths[i];
+    });
+    const nxt = G.notes.filter(n => n.line === li+1);
+    if(nxt.length){
+      cx.font = '700 ' + Math.max(14, font*0.55) + 'px Rajdhani, sans-serif';
+      cx.fillStyle = 'rgba(239,230,255,.35)';
+      cx.fillText(nxt.map(n=>n.w).join(' '), W/2, layout.bot + 78 + font*0.95);
+    }
+  }
+
+  // ── HUD ──
+  cx.textAlign = 'left';
+  cx.font = '800 13px Rajdhani, sans-serif'; cx.fillStyle = 'rgba(239,230,255,.5)';
+  // pushed clear of the shared MENU / SAVE dots that live in the top-left corner
+  cx.fillText('SCORE', 24, 92);
+  cx.font = '700 30px "Press Start 2P", monospace'; cx.fillStyle = '#ffe600';
+  cx.fillText(String(G.score), 24, 128);
+  if(G.combo > 1){
+    cx.font = '700 15px "Press Start 2P", monospace'; cx.fillStyle = '#ff0080';
+    cx.fillText('x' + G.combo + ' COMBO', 24, 158);
+  }
+  cx.textAlign = 'right';
+  cx.font = '800 13px Rajdhani, sans-serif'; cx.fillStyle = 'rgba(239,230,255,.5)';
+  cx.fillText(G.online ? G.oppName : G.song.title, W-24, 34);
+  if(G.online){
+    cx.font = '700 22px "Press Start 2P", monospace'; cx.fillStyle = '#a44bff';
+    cx.fillText(String(G.oppScore), W-24, 66);
+    const lead = G.score - G.oppScore;
+    cx.font = '800 14px Rajdhani, sans-serif';
+    cx.fillStyle = lead >= 0 ? '#00ff88' : '#ff0080';
+    cx.fillText(lead >= 0 ? 'LEADING BY ' + lead : 'BEHIND BY ' + (-lead), W-24, 92);
+  }
+
+  // countdown / input hint before the first beat
+  if(G.pos < 0){
+    const n = Math.ceil(-G.pos*A.beatDur);
+    cx.textAlign = 'center';
+    cx.font = '700 64px "Press Start 2P", monospace';
+    cx.fillStyle = '#fff'; cx.shadowColor = '#ff0080'; cx.shadowBlur = 30;
+    cx.fillText(n > 0 ? String(n) : 'SING!', W/2, H/2);
+    cx.shadowBlur = 0;
+    cx.font = '800 15px Rajdhani, sans-serif'; cx.fillStyle = 'rgba(239,230,255,.6)';
+    cx.fillText(G.input === 'keys' ? 'HOLD SPACE AND STEER WITH ↑ / ↓' : 'SING INTO YOUR MIC', W/2, H/2 + 52);
+  }
+}
+function currentLine(){
+  let li = null;
+  for(const n of G.notes){ if(G.pos < n.b + n.d){ li = n.line; break; } }
+  if(li == null && G.notes.length) li = G.notes[G.notes.length-1].line;
+  return li;
+}
+
+// ══════════════ NET ══════════════
+let lastSync = 0;
+const CODE_A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function code4(){ let s=''; const r = new Uint8Array(4);
+  (crypto.getRandomValues ? crypto.getRandomValues(r) : r.fill(5));
+  for(const b of r) s += CODE_A[b%CODE_A.length]; return s; }
+function wsURL(room, role){
+  const base = window.GLITCHBOX_WS && !/PLACEHOLDER/i.test(window.GLITCHBOX_WS)
+    ? window.GLITCHBOX_WS
+    : (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws';
+  return base + '?room=' + encodeURIComponent(room) + '&role=' + role;
+}
+const net = {
+  ws:null, role:null, code:'', online:false,
+  connect(room, role, onOpen){
+    this.close(); this.code = room; this.role = role; this.online = true;
+    setStatus('Connecting…');
+    let ws; try { ws = new WebSocket(wsURL(room, role)); }
+    catch(e){ setStatus('Couldn’t reach the game server.', true); this.online = false; return; }
+    this.ws = ws;
+    ws.onopen = () => onOpen && onOpen();
+    ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch(e){ return; } handleNet(m); };
+    ws.onerror = () => setStatus('Couldn’t reach the game server. Check your connection.', true);
+    ws.onclose = () => { if(state === 'play'){ setStatus('Your partner dropped out.', true); } };
+  },
+  send(o){ if(this.online && this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(o)); },
+  close(){ if(this.ws){ try { this.ws.close(); } catch(e){} this.ws = null; } this.online = false; },
+};
+function setStatus(t, err){ const s = $('online-status'); if(!s) return; s.textContent = t; s.classList.toggle('err', !!err); }
+
+function handleNet(m){
+  switch(m.t){
+    case 'created': showPanel('panel-wait'); $('wait-code').textContent = net.code; loadWaitFriends(); break;
+    case 'error': setStatus(m.msg || 'That didn’t work.', true); showPanel('panel-online'); net.close(); break;
+    case 'start':
+      // Host is the DJ: they pick the song, the guest gets told what to sing.
+      if(net.role === 'host'){ openSongs(true); }
+      else { showPanel('panel-wait'); $('wait-sub').textContent = '// YOUR PARTNER IS PICKING THE SONG'; $('wait-code').textContent = net.code; }
+      break;
+    case 'song': { const s = SONGS.find(x => x.id === m.id); if(s) beginSong(s, true); break; }
+    case 'sc': G.oppScore = m.s|0; break;
+    case 'end':
+      G.oppScore = m.s|0; G.oppFinal = true;
+      if(state === 'done') paintResults();
+      break;
+    case 'again': if(state === 'done' && G.song) beginSong(G.song, true); break;
+    case 'left': setStatus('Your partner left.', true); if(state === 'play'){ A.stop(); showPanel('panel-online'); state = 'menu'; } break;
+  }
+}
+
+// ══════════════ FLOW ══════════════
+function showPanel(id){
+  ['panel-home','panel-songs','panel-online','panel-wait','panel-setup','panel-done']
+    .forEach(p => $(p).classList.toggle('hidden', p !== id));
+  $('ui').classList.remove('hidden');
+}
+function openSongs(online){
+  $('songs-sub').textContent = online ? '// YOU PICK — YOUR PARTNER SINGS THE SAME ONE' : '// SOLO';
+  renderSongs(online); showPanel('panel-songs');
+}
+function renderSongs(online){
+  $('song-list').innerHTML = SONGS.map(s => {
+    const best = bests[s.id] || 0;
+    return '<button class="song" data-id="' + s.id + '"><span class="em">' + s.emoji + '</span>' +
+      '<span class="si"><span class="sn">' + s.title + '</span><span class="sd">' + s.desc + ' · ' + s.bpm + ' BPM</span></span>' +
+      '<span class="sb">' + (best ? best : '—') + '<small>BEST</small></span></button>';
+  }).join('');
+  [...$('song-list').children].forEach(b => b.onclick = () => {
+    const s = SONGS.find(x => x.id === b.dataset.id);
+    if(!s) return;
+    if(online) net.send({ t:'song', id:s.id });
+    beginSong(s, !!online);
+  });
+}
+function beginSong(song, online){
+  resetRun(song);
+  G.online = !!online; G.oppFinal = false;
+  A.init(); A.resume();
+  A.start(song, 2.4);
+  G.running = true; state = 'play';
+  $('ui').classList.add('hidden');
+  $('pad').classList.toggle('hidden', G.input !== 'keys' || !isTouch);
+  G.started = performance.now();
+}
+function finish(){
+  G.running = false; A.stop(); state = 'done';
+  const acc = G.accN ? G.accSum/G.accN : 0;
+  G.acc = acc;
+  if(!bests[G.song.id] || G.score > bests[G.song.id]){ bests[G.song.id] = G.score; saveBests(); }
+  if(G.online) net.send({ t:'end', s:G.score, a:Math.round(acc*100) });
+  paintResults();
+  showPanel('panel-done');
+  $('pad').classList.add('hidden');
+}
+function gradeFor(acc){ return acc >= 0.9 ? 'S' : acc >= 0.8 ? 'A' : acc >= 0.65 ? 'B' : acc >= 0.5 ? 'C' : 'D'; }
+function paintResults(){
+  const acc = G.acc || 0, max = Math.max(1, G.song.built.maxScore*1.3);
+  $('r-grade').textContent = gradeFor(acc);
+  $('r-mescore').textContent = G.score;
+  $('r-mebar').style.width = clamp(G.score/max*100, 2, 100) + '%';
+  $('r-stats').textContent = Math.round(acc*100) + '% of the notes · best combo x' + G.best + ' · ' + G.song.title;
+  $('r-thembox').classList.toggle('hidden', !G.online);
+  if(G.online){
+    $('r-themscore').textContent = G.oppFinal ? G.oppScore : G.oppScore + ' (singing…)';
+    $('r-thembar').style.width = clamp(G.oppScore/max*100, 2, 100) + '%';
+    const v = $('r-verdict');
+    if(!G.oppFinal){ v.textContent = 'WAITING FOR THEM…'; v.className = 'verdict'; }
+    else if(G.score > G.oppScore){ v.textContent = 'YOU WIN THE SING-OFF'; v.className = 'verdict win'; }
+    else if(G.score < G.oppScore){ v.textContent = 'THEY TOOK IT'; v.className = 'verdict lose'; }
+    else { v.textContent = 'DEAD HEAT'; v.className = 'verdict'; }
+  } else {
+    $('r-verdict').textContent = acc >= 0.8 ? 'THAT WAS A PERFORMANCE' : acc >= 0.5 ? 'NOT BAD AT ALL' : 'KEEP PRACTISING';
+    $('r-verdict').className = 'verdict';
+  }
+}
+
+// ══════════════ SAVES ══════════════
+let bests = {};
+try { bests = JSON.parse(localStorage.getItem('micdrop.bests') || '{}') || {}; } catch(e){ bests = {}; }
+function saveBests(){
+  try { localStorage.setItem('micdrop.bests', JSON.stringify(bests)); } catch(e){}
+  if(window.GBSave) GBSave.save();
+}
+if(window.GBSave) GBSave.register({
+  save: () => ({ bests: bests }),
+  load: d => { bests = Object.assign(bests, d.bests || {});
+               try { localStorage.setItem('micdrop.bests', JSON.stringify(bests)); } catch(e){} },
+});
+
+// ══════════════ INPUT ══════════════
+const isTouch = matchMedia('(hover: none)').matches || 'ontouchstart' in window;
+addEventListener('keydown', e => {
+  if(e.code === 'Space'){ Keys.singing = true; e.preventDefault(); }
+  if(e.code === 'ArrowUp'){ Keys.midi = clamp(Keys.midi+1, 40, 88); e.preventDefault(); }
+  if(e.code === 'ArrowDown'){ Keys.midi = clamp(Keys.midi-1, 40, 88); e.preventDefault(); }
+});
+addEventListener('keyup', e => { if(e.code === 'Space') Keys.singing = false; });
+(function bindPad(){
+  const pad = $('pad'); let py = 0;
+  pad.addEventListener('touchstart', e => { e.preventDefault(); Keys.singing = true; py = e.touches[0].clientY; }, {passive:false});
+  pad.addEventListener('touchmove', e => { e.preventDefault();
+    const dy = py - e.touches[0].clientY;
+    if(Math.abs(dy) > 12){ Keys.midi = clamp(Keys.midi + (dy>0?1:-1), 40, 88); py = e.touches[0].clientY; } }, {passive:false});
+  pad.addEventListener('touchend', e => { e.preventDefault(); Keys.singing = false; }, {passive:false});
+})();
+
+// ══════════════ UI WIRING ══════════════
+$('m-solo').onclick = () => { A.init(); A.resume(); net.close(); openSongs(false); };
+$('m-online').onclick = () => { showPanel('panel-online'); setStatus(''); };
+$('m-setup').onclick = () => showPanel('panel-setup');
+$('m-back1').onclick = () => showPanel('panel-home');
+$('m-back2').onclick = () => showPanel('panel-home');
+$('m-back-songs').onclick = () => { net.close(); showPanel('panel-home'); };
+$('m-create').onclick = () => { const c = code4(); net.connect(c, 'host', () => net.send({ t:'create', code:c })); };
+$('m-join').onclick = () => {
+  const c = ($('join-code').value||'').trim().toUpperCase();
+  if(c.length < 4){ setStatus('Enter the 4-letter code your partner gave you.', true); return; }
+  net.connect(c, 'guest', () => net.send({ t:'join', code:c }));
+};
+$('join-code').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,''); });
+$('m-cancel').onclick = () => { net.close(); showPanel('panel-online'); };
+$('m-copy').onclick = () => {
+  const c = $('wait-code').textContent;
+  if(navigator.clipboard) navigator.clipboard.writeText(c).catch(()=>{});
+  $('m-copy').textContent = 'COPIED!'; setTimeout(()=>{ $('m-copy').textContent = 'COPY CODE'; }, 1200);
+};
+$('r-again').onclick = () => { if(G.online) net.send({ t:'again' }); beginSong(G.song, G.online); };
+$('r-songs').onclick = () => openSongs(G.online && net.role === 'host');
+$('r-menu').onclick = () => { net.close(); A.stop(); state = 'menu'; showPanel('panel-home'); };
+
+$('seg-input').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  G.input = b.dataset.i;
+  [...$('seg-input').children].forEach(c => c.classList.toggle('on', c === b));
+  $('mic-note').textContent = G.input === 'keys'
+    ? 'Keys mode: hold SPACE to sing and steer the pitch with ↑ / ↓. No microphone needed.'
+    : 'Your browser will ask for permission. Nothing is recorded or uploaded — the audio never leaves this page.';
+  try { localStorage.setItem('micdrop.input', G.input); } catch(err){}
+});
+$('m-mictest').onclick = async () => {
+  $('m-mictest').textContent = 'ASKING…';
+  const ok = await Mic.enable();
+  $('m-mictest').textContent = ok ? 'MICROPHONE IS LIVE' : 'MICROPHONE BLOCKED';
+  if(ok){ G.input = 'mic'; [...$('seg-input').children].forEach(c => c.classList.toggle('on', c.dataset.i === 'mic')); }
+  else {
+    G.input = 'keys';
+    [...$('seg-input').children].forEach(c => c.classList.toggle('on', c.dataset.i === 'keys'));
+    $('mic-note').innerHTML = 'No microphone, no problem — <b>keys mode</b> is switched on. Hold SPACE and steer with ↑ / ↓.';
+  }
+};
+const oVol = $('o-vol'), oGuide = $('o-guide');
+function applyOpts(){
+  A.musicVol = oVol.value/100; $('o-vol-v').textContent = oVol.value;
+  A.guideVol = oGuide.value/100; $('o-guide-v').textContent = oGuide.value;
+  try { localStorage.setItem('micdrop.opts', JSON.stringify({ v:oVol.value, g:oGuide.value })); } catch(e){}
+}
+[oVol,oGuide].forEach(el => el.addEventListener('input', applyOpts));
+try {
+  const o = JSON.parse(localStorage.getItem('micdrop.opts') || 'null');
+  if(o){ oVol.value = o.v; oGuide.value = o.g; }
+  const i = localStorage.getItem('micdrop.input');
+  if(i){ G.input = i; [...$('seg-input').children].forEach(c => c.classList.toggle('on', c.dataset.i === i)); }
+} catch(e){}
+applyOpts();
+
+// ── invite a GLITCHBOX friend into the room ──
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function hubApi(path, body){
+  const token = localStorage.getItem('glitchbox_session') || '';
+  if(!token || !window.GLITCHBOX_BACKEND_READY) throw new Error('signed out');
+  const r = await fetch(window.GLITCHBOX_API + path, {
+    method: body ? 'POST' : 'GET',
+    headers: Object.assign({ Authorization:'Bearer ' + token }, body ? { 'Content-Type':'application/json' } : {}),
+    body: body ? JSON.stringify(body) : undefined });
+  const data = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+  return data;
+}
+async function loadWaitFriends(){
+  const wrap = $('wait-invite'), box = $('wait-friends');
+  let st; try { st = await hubApi('/api/me'); } catch(e){ wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  const list = st.friends || [];
+  if(!list.length){ box.innerHTML = '<div class="note">No friends yet — add some from the GLITCHBOX menu.</div>'; return; }
+  box.innerHTML = list.map(f =>
+    '<div class="wi-row"><span class="wi-dot' + (f.online ? ' on' : '') + '"></span>' +
+    '<span class="wi-name">' + esc(f.name) + '</span>' +
+    '<button class="wi-btn" data-sub="' + esc(f.sub) + '">Invite</button></div>').join('');
+  box.querySelectorAll('.wi-btn').forEach(b => b.onclick = async () => {
+    b.disabled = true; b.textContent = 'Sending…';
+    try { await hubApi('/api/invite', { sub:b.dataset.sub, game:'mic-drop.html', room:net.code }); b.textContent = 'Invited'; }
+    catch(e){ b.textContent = 'Failed'; b.disabled = false; }
+  });
+}
+function autoRoom(){
+  const h = new URLSearchParams(location.hash.replace(/^#/,''));
+  const room = (h.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(!room) return false;
+  showPanel('panel-online');
+  if(h.get('host') === '1') net.connect(room, 'host', () => net.send({ t:'create', code:room }));
+  else net.connect(room, 'guest', () => net.send({ t:'join', code:room }));
+  return true;
+}
+
+// ══════════════ LOOP ══════════════
+let last = 0;
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last)/1000 || 0.016); last = now;
+  if(state === 'play') update(dt);
+  if(state === 'play' || state === 'done') draw(now);
+  // live mic meter while the setup panel is open
+  if(!$('panel-setup').classList.contains('hidden') && Mic.ready){
+    Mic.detect(); $('mic-bar').style.width = clamp(Mic.level*900, 0, 100) + '%';
+  }
+}
+addEventListener('resize', sizeStage);
+sizeStage();
+
+// ══════════════ SELF-TESTS (#smoke) ══════════════
+// Everything scoring-related runs off a fake clock, so the whole song can be sung
+// (perfectly, badly, and an octave out) in a few milliseconds with no audio device.
+function runSmoke(){
+  const out = [], fail = [];
+  const ok = (name, cond, extra) => { (cond ? out : fail).push((cond ? 'PASS  ' : 'FAIL  ') + name + (extra ? '  (' + extra + ')' : '')); };
+  const realBeatNow = A.beatNow;
+  try {
+    // ── note parsing ──
+    ok('A4 is midi 69', noteToMidi('A4') === 69);
+    ok('C4 is midi 60', noteToMidi('C4') === 60);
+    ok('F#3 is midi 54', noteToMidi('F#3') === 54);
+    ok('Bb3 is midi 58', noteToMidi('Bb3') === 58);
+    ok('nonsense note is rejected', noteToMidi('H9') === null);
+
+    SONGS.forEach(s => {
+      const b = s.built;
+      ok(s.id + ': has notes', b.notes.length > 8, b.notes.length + ' notes');
+      ok(s.id + ': every note is valid', b.notes.every(n =>
+        isFinite(n.midi) && n.midi > 30 && n.midi < 96 && n.d > 0 && n.w.length > 0));
+      ok(s.id + ': notes run in time order', b.notes.every((n,i) => i === 0 || n.b >= b.notes[i-1].b));
+      ok(s.id + ': no note overlaps the next', b.notes.every((n,i) =>
+        i === b.notes.length-1 || n.b + n.d <= b.notes[i+1].b + 0.001));
+      ok(s.id + ': has gold notes', b.notes.some(n => n.gold));
+      ok(s.id + ': range is singable', b.hi - b.lo <= 24, b.lo + '–' + b.hi);
+      ok(s.id + ': song ends after the last note', b.endBeat > b.notes[b.notes.length-1].b);
+      ok(s.id + ': every chord is playable', s.chords.length >= 4 && s.chords.every(c => chordNotes(c).length === 3));
+    });
+
+    // ── pitch maths ──
+    ok('same note is a perfect match', pcDiff(60,60) === 0);
+    ok('an octave up is still the same note', pcDiff(72,60) === 0);
+    ok('a semitone is a semitone', pcDiff(61,60) === 1 && pcDiff(59,60) === 1);
+    ok('tritone is the furthest you can be', pcDiff(66,60) === 6);
+    ok('display pitch folds into the target octave', nearestOctave(72,60) === 60 && nearestOctave(48,60) === 60);
+
+    // ── scoring a single note ──
+    A.beatDur = 0.5;
+    G.song = SONGS[0]; G.score = 0; G.combo = 0; G.accSum = 0; G.accN = 0;
+    let n1 = { d:2, gold:false, hit:1.0 };                    // 2 beats = 1.0s at 120bpm
+    scoreNote(n1);
+    ok('a fully sung note pays full points', G.score === 100, 'got ' + G.score);
+    ok('a fully sung note builds combo', G.combo === 1);
+    G.score = 0; scoreNote({ d:2, gold:true, hit:1.0 });
+    ok('gold notes are worth double', G.score > 200, 'got ' + G.score);   // includes combo bonus
+    G.score = 0; G.combo = 5; scoreNote({ d:2, gold:false, hit:0 });
+    ok('a missed note scores nothing', G.score === 0);
+    ok('a missed note breaks the combo', G.combo === 0);
+
+    // ── sing a whole song on a fake clock ──
+    function simulate(song, mode){
+      resetRun(song);
+      A.beatDur = 60/song.bpm;
+      G.input = 'keys'; G.online = false; G.running = true; G.ended = false;
+      let beat = -1;
+      A.beatNow = () => beat;
+      const dt = 1/60, dB = dt/A.beatDur;
+      let guard = 0;
+      while(beat < song.built.endBeat + 1 && guard++ < 200000){
+        const cur = G.notes.filter(x => beat >= x.b && beat < x.b + x.d)[0];
+        if(mode === 'silent' || !cur) Keys.singing = false;
+        else {
+          Keys.singing = true;
+          Keys.midi = cur.midi + (mode === 'octave' ? 12 : mode === 'flat' ? 3 : 0);
+        }
+        update(dt);
+        beat += dB;
+      }
+      return { acc: G.accN ? G.accSum/G.accN : 0, score:G.score, notes:G.accN };
+    }
+    const perfect = simulate(SONGS[0], 'perfect');
+    ok('a perfect run scores every note', perfect.notes === SONGS[0].built.notes.length);
+    ok('a perfect run is near 100%', perfect.acc > 0.9, Math.round(perfect.acc*100) + '%');
+    ok('a perfect run scores points', perfect.score > SONGS[0].built.maxScore*0.9, perfect.score + ' pts');
+    ok('a perfect run grades S', gradeFor(perfect.acc) === 'S');
+
+    const octave = simulate(SONGS[1], 'octave');
+    ok('singing an octave out still counts', octave.acc > 0.9, Math.round(octave.acc*100) + '%');
+
+    const silent = simulate(SONGS[0], 'silent');
+    ok('saying nothing scores nothing', silent.score === 0 && silent.acc === 0);
+    ok('saying nothing grades D', gradeFor(silent.acc) === 'D');
+
+    const flat = simulate(SONGS[0], 'flat');            // three semitones off
+    ok('singing the wrong note does not score', flat.acc < 0.05, Math.round(flat.acc*100) + '%');
+
+    // ── drawing ──
+    sizeStage();
+    resetRun(SONGS[2]);
+    let frames = 0;
+    A.beatNow = () => frames*0.05;
+    for(let i=0;i<60;i++){ update(1/60); draw(1000+i*16); frames++; }
+    ok('60 frames render without error', frames === 60);
+    ok('canvas has real pixels', cv.width > 0 && cv.height > 0);
+
+    // ── results screen ──
+    G.acc = 0.93; G.score = 4321; G.best = 12; G.online = false; G.song = SONGS[0];
+    paintResults();
+    ok('results screen fills in', $('r-grade').textContent === 'S' && $('r-mescore').textContent === '4321');
+    G.online = true; G.oppScore = 9999; G.oppFinal = true; paintResults();
+    ok('losing a sing-off says so', /TOOK IT/.test($('r-verdict').textContent));
+    G.oppScore = 1; paintResults();
+    ok('winning a sing-off says so', /YOU WIN/.test($('r-verdict').textContent));
+  } catch(err){
+    fail.push('FAIL  threw: ' + (err && err.message) + '\n' + (err && err.stack || ''));
+  }
+  A.beatNow = realBeatNow;
+  const total = out.length + fail.length;
+  const head = (fail.length ? 'SMOKE FAIL ' : 'SMOKE PASS ') + out.length + '/' + total;
+  document.title = head;
+  const pre = document.createElement('pre');
+  pre.id = 'smokeout';
+  pre.textContent = head + '\n\n' + fail.concat(out).join('\n');
+  document.body.appendChild(pre);
+  $('ui').classList.add('hidden');
+}
+
+// ══════════════ BOOT ══════════════
+if(SMOKE){ runSmoke(); }
+else if(location.hash.indexOf('demo') !== -1){
+  // #demo runs the highway on a wall clock with a stand-in singer — no mic, no audio
+  // device needed. Handy for a quick look at the game without hitting a note.
+  const s = SONGS[0];
+  resetRun(s); A.beatDur = 60/s.bpm; G.input = 'keys'; G.running = true; state = 'play';
+  const t0 = performance.now() - 7*A.beatDur*1000;
+  A.beatNow = () => (performance.now() - t0)/1000/A.beatDur;
+  setInterval(() => {
+    const cur = G.notes.filter(x => G.pos >= x.b && G.pos < x.b + x.d)[0];
+    Keys.singing = !!cur;
+    if(cur) Keys.midi = cur.midi + (Math.random() < 0.25 ? 1 : 0);
+  }, 60);
+  $('ui').classList.add('hidden');
+  requestAnimationFrame(frame);
+} else {
+  requestAnimationFrame(frame);
+  if(!autoRoom()) showPanel('panel-home');
+}
+})();
+</script>
+<script src="glitchbox-menu.js" defer></script>
+</body>
+</html>

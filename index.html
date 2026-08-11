@@ -538,6 +538,38 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
 .picker-close { display:block; width:100%; margin-top:6px; background:transparent; border:1px solid rgba(255,0,128,.35);
   color:var(--pink); padding:9px; font:inherit; font-weight:700; font-size:13px; cursor:pointer; }
 .picker-close:hover { background:rgba(255,0,128,.12); }
+/* ── INVITE MODAL ── the referral side of the wallet ── */
+.inv-modal { position:fixed; inset:0; z-index:9200; display:none; align-items:center; justify-content:center;
+  padding:20px; background:rgba(3,5,12,0.86); backdrop-filter:blur(6px); }
+.inv-modal.show { display:flex; }
+.inv-card { position:relative; width:min(540px,100%); max-height:90vh; overflow-y:auto; background:var(--bg2);
+  border:1px solid rgba(0,245,255,0.28); box-shadow:0 0 60px rgba(0,245,255,0.12); }
+.inv-head { position:relative; overflow:hidden; padding:20px 24px;
+  background:linear-gradient(120deg,#001f2e,#00506b); border-bottom:1px solid rgba(0,245,255,0.3); }
+.inv-head::after { content:''; position:absolute; inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.14) 2px,rgba(0,0,0,0.14) 4px); }
+.inv-title { position:relative; z-index:1; font-family:'Press Start 2P',monospace; font-size:14px;
+  color:var(--cyan); text-shadow:0 0 14px var(--glow-c); }
+.inv-sub { position:relative; z-index:1; margin-top:9px; font-size:13px; font-weight:600; color:var(--text); opacity:0.85; }
+.inv-close { position:absolute; top:12px; right:14px; z-index:3; width:30px; height:30px; cursor:pointer;
+  background:rgba(0,0,0,0.4); border:1px solid rgba(255,0,128,0.4); color:var(--pink); font:inherit; font-weight:700; }
+.inv-close:hover { background:rgba(255,0,128,0.15); box-shadow:0 0 12px var(--glow-p); }
+.inv-body { padding:20px 24px 24px; }
+.inv-sect { font-family:'Press Start 2P',monospace; font-size:9px; letter-spacing:2px; color:var(--pink);
+  text-shadow:0 0 8px var(--pink); margin:20px 0 10px; }
+.inv-sect:first-child { margin-top:0; }
+.inv-row { display:flex; align-items:center; gap:10px; padding:10px 12px; margin-bottom:7px; font-size:13px;
+  font-weight:600; background:var(--bg3); border:1px solid var(--border); }
+.inv-row .ir-i { font-size:16px; width:22px; text-align:center; flex-shrink:0; }
+.inv-row b { margin-left:auto; flex-shrink:0; font-family:'Press Start 2P',monospace; font-size:10px; color:var(--yellow); }
+.inv-note { margin-top:12px; font-size:12px; font-weight:600; color:var(--muted); text-align:center; }
+.inv-linkbox { display:flex; gap:8px; margin-bottom:8px; }
+.inv-linkbox input { flex:1; min-width:0; padding:11px 12px; font:inherit; font-size:12px;
+  background:var(--bg); border:1px solid rgba(0,245,255,0.3); color:var(--cyan); }
+.inv-linkbox button { flex-shrink:0; padding:0 16px; cursor:pointer; border:none; font:inherit; font-weight:800;
+  background:var(--cyan); color:#001014; }
+.inv-linkbox button:hover { box-shadow:0 0 16px var(--glow-c); }
+.inv-linkbox button.ghost { background:transparent; border:1px solid rgba(0,245,255,0.4); color:var(--cyan); }
 </style>
 </head>
 <body>
@@ -584,6 +616,7 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
   <div class="sidebar-section" style="padding-top:6px;">
     <div class="sidebar-label">TOKENS</div>
     <a class="nav-item special" href="#" onclick="openShop();return false;"><span class="nav-icon">🪙</span> Token Shop <span class="nav-count" id="cnt-tokens">0</span></a>
+    <a class="nav-item special" href="#" onclick="openInvite();return false;"><span class="nav-icon">🎁</span> Invite Friends <span class="nav-count" id="cnt-invite"></span></a>
   </div>
   <div class="sidebar-user" id="sidebar-user">
     <span id="user-avatar"></span>
@@ -668,8 +701,33 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
       <div id="shop-items"></div>
       <div class="shop-sect">// PROFILE ICONS</div>
       <div id="shop-icons"></div>
+      <div class="shop-sect">// INVITE FRIENDS</div>
+      <div id="shop-invite"></div>
       <div class="shop-sect">// HOW TO EARN</div>
       <div id="shop-earn"></div>
+    </div>
+  </div>
+</div>
+<div class="inv-modal" id="invite-modal" onclick="if(event.target===this)closeInvite()">
+  <div class="inv-card">
+    <div class="inv-head">
+      <button class="inv-close" onclick="closeInvite()" title="Close">✕</button>
+      <div class="inv-title">🎁 INVITE FRIENDS</div>
+      <div class="inv-sub">Send your link. Every friend who joins you pays out tokens — and they land with a bonus too.</div>
+    </div>
+    <div class="inv-body">
+      <div class="inv-sect">// YOUR INVITE LINK</div>
+      <div class="inv-linkbox">
+        <input type="text" id="invite-link" readonly onclick="this.select()" />
+        <button id="invite-copy-btn" onclick="copyInvite()">Copy</button>
+        <button class="ghost" id="invite-share-btn" onclick="shareInvite()" style="display:none">Share</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted);font-weight:600;" id="invite-code-line"></div>
+      <div class="inv-sect">// HOW IT PAYS</div>
+      <div id="invite-rules"></div>
+      <div class="inv-sect">// PROGRESS</div>
+      <div class="inv-row"><span class="ir-i">👥</span>Friends on your account<b id="invite-count">0</b></div>
+      <div class="inv-note" id="invite-next"></div>
     </div>
   </div>
 </div>
@@ -714,6 +772,8 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
 </div>
 <script>
 const GAMES=[
+  {name:'Neon Frag',           file:'neon-frag.html',              emoji:'🔫',color:['#05070e','#101b33'],category:'multiplayer',tags:['new','hot','mp']},
+  {name:'Mic Drop',            file:'mic-drop.html',               emoji:'🎤',color:['#12061f','#2a0f4a'],category:'multiplayer',tags:['new','mp']},
   {name:'Wet Paint',           file:'wet-paint.html',              emoji:'🎨',color:['#1a0e08','#2e1a10'],category:'adventure',  tags:['new','hot']},
   {name:'Magic Wand',          file:'magic-wand.html',             emoji:'🪄',color:['#0a0616','#1a0f33'],category:'other',      tags:['new','hot']},
   {name:'Neon Putt',           file:'neon-putt.html',              emoji:'⛳',color:['#04120f','#0a2620'],category:'puzzle',     tags:['new','hot']},
@@ -756,6 +816,51 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
+
+'neon-frag':(c)=>{
+  _GV(c,0,0,320,100,'#0a0f22','#1b2448');
+  _GV(c,0,100,320,100,'#0b1020','#050810');
+  // corridor walls in one-point perspective, meeting at the vanishing point
+  const vp=[160,100];
+  [[0,-1],[320,1]].forEach(([x,dir])=>{
+    c.fillStyle=dir<0?'#0d5f80':'#0a4a66';
+    c.beginPath(); c.moveTo(x,20); c.lineTo(x,180);
+    c.lineTo(vp[0]-dir*54,vp[1]+34); c.lineTo(vp[0]-dir*54,vp[1]-34); c.closePath(); c.fill();
+  });
+  _F(c,106,66,108,68,'#7a0f3e');                       // back wall
+  _F(c,106,66,108,4,'#ff2b8a');
+  for(let i=1;i<5;i++) _L(c,0,100+i*i*3,320,100+i*i*3,'rgba(0,245,255,.09)',1);
+  _C(c,160,104,7,'#ff2b8a');                            // opponent, mid-corridor
+  _F(c,155,104,10,20,'#c9145f');
+  // crosshair + gun
+  _L(c,160,88,160,96,'#00f5ff',2); _L(c,160,112,160,120,'#00f5ff',2);
+  _L(c,148,104,156,104,'#00f5ff',2); _L(c,164,104,172,104,'#00f5ff',2);
+  c.fillStyle='#0d1526'; c.strokeStyle='#00f5ff'; c.lineWidth=2;
+  c.beginPath(); c.moveTo(196,200); c.lineTo(204,158); c.lineTo(232,146);
+  c.lineTo(250,152); c.lineTo(246,178); c.lineTo(258,200); c.closePath(); c.fill(); c.stroke();
+  _SC(c);
+},
+
+'mic-drop':(c)=>{
+  _GV(c,0,0,320,200,'#3a1160','#07030f');
+  _ST(c,22);
+  // note highway
+  [[18,120,52],[78,96,38],[124,140,46],[178,74,56],[240,110,60]].forEach(([x,y,w],i)=>{
+    c.fillStyle=i===3?'#ffe600':'#a44bff';
+    c.globalAlpha=i===3?1:.75;
+    c.beginPath(); c.roundRect ? c.roundRect(x,y,w,11,6) : c.rect(x,y,w,11); c.fill();
+  });
+  c.globalAlpha=1;
+  _L(c,96,44,96,168,'rgba(255,255,255,.5)',2);          // now-line
+  _C(c,96,101,6,'#00f5ff');
+  // mic
+  c.fillStyle='#e9e2ff'; c.beginPath(); c.roundRect ? c.roundRect(268,120,20,38,10) : c.rect(268,120,20,38); c.fill();
+  _F(c,276,158,4,18,'#8a7fb0'); _F(c,266,176,24,5,'#8a7fb0');
+  c.fillStyle='rgba(255,0,128,.25)'; c.beginPath(); c.arc(278,139,26,0,6.28); c.fill();
+  c.fillStyle='#ffe600'; c.font='bold 15px monospace'; c.textAlign='left';
+  c.fillText('♪  ♫   ♪', 16, 34);
+  _SC(c);
+},
 
 'wet-paint':(c)=>{
   // brick wall, and a Blank half-painted into it
@@ -1253,6 +1358,7 @@ const TOK={
   bal:'glitchbox.tokens', own:'glitchbox.owned', seen:'glitchbox.seen',
   ts:'glitchbox.playts', daily:'glitchbox.daily', streak:'glitchbox.streak',
   queue:'glitchbox.queue', icons:'glitchbox.icons', fpaid:'glitchbox.fpaid',
+  ref:'glitchbox.ref', refadded:'glitchbox.refadded',
 };
 const WELCOME_GRANT = 50;   // enough to reach the cheapest shelf right away
 const FIRST_PLAY    = 10;   // bonus the first time you open any game
@@ -1260,6 +1366,7 @@ const REPLAY        = 3;    // per play afterwards, once past the cooldown
 const REPLAY_COOL   = 10*60*1000;
 const DAILY_BASE    = 25, DAILY_STEP = 5, DAILY_MAX_STREAK = 6;
 const FRIEND_BOUNTY = 40;   // per friend who joins you on GLITCHBOX
+const REF_WELCOME   = 75;   // for arriving through someone's invite link
 
 // Profile icons are the existing picker's ICON_SETS (further down this file).
 // Tokens gate them by category: one free starter set, four you buy into.
@@ -1345,6 +1452,66 @@ function rewardFriends(count){
   grant(n*FRIEND_BOUNTY, n+' friend'+(n>1?'s':'')+' on GLITCHBOX');
 }
 
+// ── invite links ──
+// There's no referral backend: the friend graph already knows who linked up with
+// whom, and rewardFriends() pays that side. A link only carries your friend code so
+// the newcomer arrives with it ready to add — plus a bonus for turning up at all.
+// It's banked under its own key, so it never disturbs the friend high-water mark.
+function applyRef(code){
+  if(!code || localStorage.getItem(TOK.ref)) return false;
+  try { localStorage.setItem(TOK.ref, code); } catch(e){}
+  grant(REF_WELCOME, 'Invited by '+code+' — welcome bonus');
+  return true;
+}
+function captureRef(){
+  let code = '';
+  try { code = (new URLSearchParams(location.search).get('ref')||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6); }
+  catch(e){}
+  if(!code) return;
+  applyRef(code);
+  // Drop ?ref= from the URL so a refresh can't read as a second invite.
+  try { history.replaceState(null,'',location.pathname+location.hash); } catch(e){}
+}
+function pendingRef(){ return localStorage.getItem(TOK.refadded) ? '' : (localStorage.getItem(TOK.ref)||''); }
+
+function inviteCode(){ return (lastState.profile && lastState.profile.code) || ''; }
+function inviteLink(){
+  const base = location.origin + location.pathname, c = inviteCode();
+  return c ? base+'?ref='+c : base;
+}
+function renderInvite(){
+  const c = inviteCode(), n = (lastState.friends||[]).length;
+  document.getElementById('invite-link').value = inviteLink();
+  document.getElementById('invite-code-line').innerHTML = c
+    ? 'Your friend code: <b style="color:var(--cyan)">'+esc(c)+'</b> — whoever opens this link starts with '+REF_WELCOME+' 🪙 and your code ready to add.'
+    : 'Sign in to get your own friend code. Until then this is just a plain link to the arcade.';
+  document.getElementById('invite-share-btn').style.display = navigator.share ? '' : 'none';
+  document.getElementById('invite-rules').innerHTML = [
+    ['🤝','Each friend who links up with you','+'+FRIEND_BOUNTY],
+    ['🎉','Them, for arriving on your link','+'+REF_WELCOME],
+  ].map(r => '<div class="inv-row"><span class="ir-i">'+r[0]+'</span>'+esc(r[1])+'<b>'+r[2]+' 🪙</b></div>').join('');
+  document.getElementById('invite-count').textContent = n;
+  document.getElementById('invite-next').textContent = n
+    ? 'Worth '+(n*FRIEND_BOUNTY)+' 🪙 in bounties so far.'
+    : 'Nobody yet — send the link to someone.';
+}
+function openInvite(){
+  renderInvite();
+  document.getElementById('invite-modal').classList.add('show');
+  if(getSession()) refreshState();          // pull a fresh code + friend list
+}
+function closeInvite(){ document.getElementById('invite-modal').classList.remove('show'); }
+function copyInvite(){
+  if(navigator.clipboard) navigator.clipboard.writeText(inviteLink()).catch(()=>{});
+  else document.getElementById('invite-link').select();
+  const b = document.getElementById('invite-copy-btn'), t = b.textContent;
+  b.textContent = 'Copied!'; setTimeout(()=>{ b.textContent = t; }, 1300);
+}
+function shareInvite(){
+  if(!navigator.share) return copyInvite();
+  navigator.share({ title:'GLITCHBOX', text:'Come play GLITCHBOX with me', url:inviteLink() }).catch(()=>{});
+}
+
 // ── profile icons (prices layered onto the picker's ICON_SETS) ──
 function iconsOwned(){ const v=jsonGet(TOK.icons,[]); return Array.isArray(v)?v:[]; }
 function iconPrice(ic){ return (ic && ICON_PRICE[ic.cat]) || 0; }
@@ -1416,6 +1583,7 @@ const EARN_RULES=[
   ['🎮','Play a game for the first time','+'+FIRST_PLAY],
   ['🔁','Play any game again (10 min cooldown)','+'+REPLAY],
   ['👥','Every friend who joins you on GLITCHBOX','+'+FRIEND_BOUNTY],
+  ['🎁','Arriving through a friend’s invite link','+'+REF_WELCOME],
 ];
 function renderDaily(){
   const box=document.getElementById('shop-daily'); if(!box) return;
@@ -1474,6 +1642,14 @@ function renderShop(focusFile){
       '<div class="si-info"><div class="si-name">'+esc(g.name)+(own?' <span class="game-tag new">OWNED</span>':'')+'</div>'+
       '<div class="si-desc">'+esc(g.blurb||g.category)+'</div></div>'+btn+'</div>';
   }).join('');
+  const vb=document.getElementById('shop-invite');
+  if(vb){
+    const fn=(lastState.friends||[]).length;
+    vb.innerHTML='<div class="earn-row"><span class="er-i">🔗</span>'+
+      (fn ? fn+' friend'+(fn>1?'s':'')+' joined you — '+(fn*FRIEND_BOUNTY)+' 🪙 earned'
+          : 'Send your link and get paid for every friend who joins')+
+      '<b><a href="#" onclick="closeShop();openInvite();return false;" style="color:var(--cyan)">LINK</a></b></div>';
+  }
   document.getElementById('shop-earn').innerHTML=EARN_RULES.map(r=>
     '<div class="earn-row"><span class="er-i">'+r[0]+'</span>'+esc(r[1])+'<b>'+r[2]+' 🪙</b></div>').join('');
 }
@@ -1486,7 +1662,7 @@ function openShop(focusFile){
   }
 }
 function closeShop(){ document.getElementById('shop-modal').classList.remove('show'); }
-addEventListener('keydown',e=>{ if(e.key==='Escape') closeShop(); });
+addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeShop(); closeInvite(); } });
 // wallet changed in another tab (or in a game) — keep this view honest
 addEventListener('storage',e=>{
   if(e.key===TOK.bal||e.key===TOK.own){ paintTokens(); updateCounts(); renderGames();
@@ -1577,7 +1753,7 @@ function updateCounts(){
   if(s)s.textContent=GAMES.filter(g=>isLocked(g)).length;     // how many are still locked
   paintTokens();
 }
-claimStartup();updateCounts();renderGames();
+claimStartup();captureRef();updateCounts();renderGames();
 // Deep links. Queued behind a tick so the sign-in pass has already run — the icon
 // picker needs to know whether you're signed in before it decides where to send you.
 if(location.hash==='#shop')  addEventListener('load',()=>setTimeout(openShop,0));
@@ -1607,7 +1783,9 @@ let lastState = { profile:null, friends:[], incoming:[], outgoing:[], blocked:[]
 // work from GitHub Pages with no server to run. Add a game here once it speaks the
 // relay protocol (see Room in glitchbox-api/src/index.js).
 const MP_GAMES = [
-  { file:'quoridor.html', name:'Quoridor', emoji:'🧱', desc:'2 players · race across the board, wall each other in' },
+  { file:'quoridor.html',  name:'Quoridor',  emoji:'🧱', desc:'2 players · race across the board, wall each other in' },
+  { file:'neon-frag.html', name:'Neon Frag', emoji:'🔫', desc:'2 players · 3D arena deathmatch, first to 10 frags' },
+  { file:'mic-drop.html',  name:'Mic Drop',  emoji:'🎤', desc:'2 players · karaoke sing-off, highest score wins' },
 ];
 const MP_BY_FILE = Object.fromEntries(MP_GAMES.map(g => [g.file, g]));
 function gameName(file){ return (MP_BY_FILE[file] && MP_BY_FILE[file].name) || file.replace(/\.html$/,''); }
@@ -1702,6 +1880,8 @@ function renderAll(){
   document.getElementById('friend-count').textContent = n;
   const stf = document.getElementById('stat-friends'); if(stf) stf.textContent = n;
   rewardFriends(n);            // every friend who joins you pays a token bounty, once
+  const ci=document.getElementById('cnt-invite'); if(ci) ci.textContent = n || '';
+  if(document.getElementById('invite-modal').classList.contains('show')) renderInvite();
   const badge = document.getElementById('req-badge');
   // A game invite is time-sensitive, so it outranks a friend request in the badge.
   if(inv>0){ badge.textContent = inv+' invite'+(inv>1?'s':''); badge.classList.add('show'); }
@@ -2061,6 +2241,8 @@ async function addByCode(){
   if(code.length < 6){ statusMsg('Enter a 6-character friend code.', true); return; }
   try {
     lastState = await api('/api/add-by-code', { method:'POST', body:{ code } });
+    // Adding the code you were invited with closes the loop — stop pre-filling it.
+    if(code === localStorage.getItem(TOK.ref)){ try { localStorage.setItem(TOK.refadded,'1'); } catch(e){} }
     inp.value = ''; renderAll();
     statusMsg(lastState.message || 'Done.');
   } catch(e){ statusMsg(e.message || 'Could not add player.', true); }
@@ -2108,6 +2290,10 @@ function updateProfileHeader(){
 async function openProfile(){
   if(!currentUser) return;
   document.getElementById('friend-code-in').value=''; document.getElementById('search-results').innerHTML='';
+  // Arrived on someone's link? Put their code in the box so the invite actually lands.
+  const pend = pendingRef();
+  if(pend){ document.getElementById('friend-code-in').value = pend;
+            statusMsg('Your inviter’s code is filled in — hit Add to link up.'); }
   updateProfileHeader(); renderIconPicker(); renderFriends(); renderRequests(); renderBlocked(); renderGameInvites();
   document.getElementById('profile-modal').classList.add('show');
   await refreshState();
@@ -2221,6 +2407,22 @@ if(location.hash==='#tokencheck'){
     ok('the same friends never pay twice', tokens()===2*FRIEND_BOUNTY);
     rewardFriends(3);
     ok('a new friend pays again', tokens()===3*FRIEND_BOUNTY);
+
+    wipe(); setTokens(0);
+    ok('an invite link pays the newcomer', applyRef('AB12CD') && tokens()===REF_WELCOME);
+    ok('the same link never pays twice', !applyRef('AB12CD') && tokens()===REF_WELCOME);
+    ok('a second link pays nothing', !applyRef('ZZ99XX') && tokens()===REF_WELCOME);
+    rewardFriends(1);
+    ok('the welcome bonus and friend bounty stack cleanly', tokens()===REF_WELCOME+FRIEND_BOUNTY);
+    ok('the inviter code is pending until you add it', pendingRef()==='AB12CD');
+    localStorage.setItem(TOK.refadded,'1');
+    ok('adding the code clears the prompt', pendingRef()==='');
+    const savedProfile=lastState.profile;
+    lastState.profile={ code:'QX7T2M' };
+    ok('your link carries your friend code', inviteLink().slice(-11)==='?ref=QX7T2M');
+    lastState.profile=null;
+    ok('signed out, the link is just the arcade', inviteLink().indexOf('?ref=')===-1);
+    lastState.profile=savedProfile;
 
     wipe(); setTokens(0);
     const free=ICON_SETS.find(s=>!ICON_PRICE[s.cat]).icons[0];
