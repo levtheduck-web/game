@@ -570,6 +570,53 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
   background:var(--cyan); color:#001014; }
 .inv-linkbox button:hover { box-shadow:0 0 16px var(--glow-c); }
 .inv-linkbox button.ghost { background:transparent; border:1px solid rgba(0,245,255,0.4); color:var(--cyan); }
+
+/* ══ COLLAPSING HOVER SIDEBAR ═══════════════════════════════════════
+   A 64px icon rail that unfolds to full width when the cursor lands on
+   it. The nav is lifted out of flow so unfolding *overlays* the grid
+   instead of reflowing it; body keeps a rail-wide gutter. Inner blocks
+   stay pinned at the open width and get clipped by the rail, so nothing
+   re-wraps mid-animation — the labels just slide out and fade. */
+:root { --rail:64px; --rail-open:230px; }
+body { padding-left:var(--rail); transition:padding-left .22s cubic-bezier(.4,0,.2,1); }
+body.sb-pinned { padding-left:var(--rail-open); }
+.sidebar {
+  position:fixed; left:0; top:0; height:100vh; width:var(--rail);
+  min-width:0; overflow-x:hidden; z-index:200;
+  transition:width .22s cubic-bezier(.4,0,.2,1), box-shadow .22s;
+}
+.sidebar:hover, .sidebar.pinned { width:var(--rail-open); box-shadow:14px 0 44px rgba(0,0,0,.6); }
+.sidebar.pinned { box-shadow:none; }
+.sidebar-logo, .sidebar-section, .sidebar-user, #guest-auth { width:var(--rail-open); flex-shrink:0; }
+.sidebar-logo { display:flex; align-items:center; padding:22px 13px 18px; }
+.logo-link { flex:1; min-width:0; }
+.sidebar-section { padding:18px 8px 6px; }
+.nav-item { white-space:nowrap; }
+.nav-icon { flex-shrink:0; }
+/* everything that only makes sense once the menu is open */
+.sidebar .logo-text, .sidebar .logo-sub, .sidebar .sidebar-label, .sidebar .nav-text,
+.sidebar .nav-count, .sidebar .sidebar-user-info, .sidebar .logout-btn,
+.sidebar .sb-pin, .sidebar #guest-auth {
+  opacity:0; transition:opacity .12s ease;
+}
+.sidebar:hover .logo-text, .sidebar:hover .logo-sub, .sidebar:hover .sidebar-label,
+.sidebar:hover .nav-text, .sidebar:hover .nav-count, .sidebar:hover .sidebar-user-info,
+.sidebar:hover .logout-btn, .sidebar:hover .sb-pin, .sidebar:hover #guest-auth,
+.sidebar.pinned .logo-text, .sidebar.pinned .logo-sub, .sidebar.pinned .sidebar-label,
+.sidebar.pinned .nav-text, .sidebar.pinned .nav-count, .sidebar.pinned .sidebar-user-info,
+.sidebar.pinned .logout-btn, .sidebar.pinned .sb-pin, .sidebar.pinned #guest-auth {
+  opacity:1; transition-delay:.07s;
+}
+.sb-pin {
+  flex-shrink:0; width:26px; height:26px; background:transparent; cursor:pointer;
+  border:1px solid rgba(0,245,255,0.25); color:var(--muted);
+  font-size:14px; line-height:1; font-family:'Rajdhani',sans-serif; font-weight:700;
+  transition:color .15s, border-color .15s, box-shadow .15s;
+  clip-path:polygon(5px 0%,100% 0%,calc(100% - 5px) 100%,0% 100%);
+}
+.sb-pin:hover { color:var(--cyan); border-color:var(--cyan); box-shadow:0 0 12px var(--glow-c); }
+.sb-pin.on { color:var(--cyan); border-color:var(--cyan); }
+@media (max-width:900px) { body, body.sb-pinned { padding-left:0; } }
 </style>
 </head>
 <body>
@@ -599,24 +646,25 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
       <div class="logo-icon">🕹</div>
       <div><div class="logo-text">GLITCHBOX</div><div class="logo-sub">// ENTER THE GLITCH</div></div>
     </a>
+    <button class="sb-pin" id="sb-pin" onclick="toggleSidebarPin()" title="Keep the menu open">»</button>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">BROWSE</div>
-    <a class="nav-item fav"    id="nav-favorites"  href="#" onclick="filterCategory('favorites');return false;"><span class="nav-icon">★</span> Favorites       <span class="nav-count" id="cnt-favorites">0</span></a>
-    <a class="nav-item active" id="nav-all"         href="#" onclick="filterCategory('all');return false;"><span class="nav-icon">◈</span> All Games       <span class="nav-count" id="cnt-all">0</span></a>
-    <a class="nav-item"        id="nav-action"      href="#" onclick="filterCategory('action');return false;"><span class="nav-icon">⚔</span> Action          <span class="nav-count" id="cnt-action">0</span></a>
-    <a class="nav-item"        id="nav-strategy"    href="#" onclick="filterCategory('strategy');return false;"><span class="nav-icon">◉</span> Strategy        <span class="nav-count" id="cnt-strategy">0</span></a>
-    <a class="nav-item"        id="nav-puzzle"      href="#" onclick="filterCategory('puzzle');return false;"><span class="nav-icon">◫</span> Puzzle          <span class="nav-count" id="cnt-puzzle">0</span></a>
-    <a class="nav-item"        id="nav-simulation"  href="#" onclick="filterCategory('simulation');return false;"><span class="nav-icon">◧</span> Simulation      <span class="nav-count" id="cnt-simulation">0</span></a>
-    <a class="nav-item"        id="nav-adventure"   href="#" onclick="filterCategory('adventure');return false;"><span class="nav-icon">◬</span> Adventure       <span class="nav-count" id="cnt-adventure">0</span></a>
-    <a class="nav-item"        id="nav-multiplayer" href="#" onclick="filterCategory('multiplayer');return false;"><span class="nav-icon">◎</span> Multiplayer     <span class="nav-count" id="cnt-multiplayer">0</span></a>
-    <a class="nav-item"        id="nav-other"       href="#" onclick="filterCategory('other');return false;"><span class="nav-icon">◇</span> Other           <span class="nav-count" id="cnt-other">0</span></a>
-    <a class="nav-item special" id="nav-special"    href="#" onclick="filterCategory('special');return false;"><span class="nav-icon">🔒</span> Special         <span class="nav-count" id="cnt-special">0</span></a>
+    <a class="nav-item fav"    id="nav-favorites"  href="#" onclick="filterCategory('favorites');return false;"><span class="nav-icon">★</span><span class="nav-text">Favorites</span><span class="nav-count" id="cnt-favorites">0</span></a>
+    <a class="nav-item active" id="nav-all"         href="#" onclick="filterCategory('all');return false;"><span class="nav-icon">◈</span><span class="nav-text">All Games</span><span class="nav-count" id="cnt-all">0</span></a>
+    <a class="nav-item"        id="nav-action"      href="#" onclick="filterCategory('action');return false;"><span class="nav-icon">⚔</span><span class="nav-text">Action</span><span class="nav-count" id="cnt-action">0</span></a>
+    <a class="nav-item"        id="nav-strategy"    href="#" onclick="filterCategory('strategy');return false;"><span class="nav-icon">◉</span><span class="nav-text">Strategy</span><span class="nav-count" id="cnt-strategy">0</span></a>
+    <a class="nav-item"        id="nav-puzzle"      href="#" onclick="filterCategory('puzzle');return false;"><span class="nav-icon">◫</span><span class="nav-text">Puzzle</span><span class="nav-count" id="cnt-puzzle">0</span></a>
+    <a class="nav-item"        id="nav-simulation"  href="#" onclick="filterCategory('simulation');return false;"><span class="nav-icon">◧</span><span class="nav-text">Simulation</span><span class="nav-count" id="cnt-simulation">0</span></a>
+    <a class="nav-item"        id="nav-adventure"   href="#" onclick="filterCategory('adventure');return false;"><span class="nav-icon">◬</span><span class="nav-text">Adventure</span><span class="nav-count" id="cnt-adventure">0</span></a>
+    <a class="nav-item"        id="nav-multiplayer" href="#" onclick="filterCategory('multiplayer');return false;"><span class="nav-icon">◎</span><span class="nav-text">Multiplayer</span><span class="nav-count" id="cnt-multiplayer">0</span></a>
+    <a class="nav-item"        id="nav-other"       href="#" onclick="filterCategory('other');return false;"><span class="nav-icon">◇</span><span class="nav-text">Other</span><span class="nav-count" id="cnt-other">0</span></a>
+    <a class="nav-item special" id="nav-special"    href="#" onclick="filterCategory('special');return false;"><span class="nav-icon">🔒</span><span class="nav-text">Special</span><span class="nav-count" id="cnt-special">0</span></a>
   </div>
   <div class="sidebar-section" style="padding-top:6px;">
     <div class="sidebar-label">TOKENS</div>
-    <a class="nav-item special" href="#" onclick="openShop();return false;"><span class="nav-icon">🪙</span> Token Shop <span class="nav-count" id="cnt-tokens">0</span></a>
-    <a class="nav-item special" href="#" onclick="openInvite();return false;"><span class="nav-icon">🎁</span> Invite Friends <span class="nav-count" id="cnt-invite"></span></a>
+    <a class="nav-item special" href="#" onclick="openShop();return false;"><span class="nav-icon">🪙</span><span class="nav-text">Token Shop</span><span class="nav-count" id="cnt-tokens">0</span></a>
+    <a class="nav-item special" href="#" onclick="openInvite();return false;"><span class="nav-icon">🎁</span><span class="nav-text">Invite Friends</span><span class="nav-count" id="cnt-invite"></span></a>
   </div>
   <div class="sidebar-user" id="sidebar-user">
     <span id="user-avatar"></span>
@@ -2499,6 +2547,20 @@ if(location.hash==='#tokencheck'){
 setInterval(() => { if(getSession() && !document.hidden) refreshState(); }, POLL_MS);
 document.addEventListener('visibilitychange', () => { if(!document.hidden && getSession()) refreshState(); });
 window.addEventListener('load', initGoogleAuth);
+
+/* ── sidebar pin ── the rail unfolds on hover for free; this locks it
+   open (and widens the gutter so it stops covering the grid). */
+function toggleSidebarPin(on){
+  const bar = document.querySelector('.sidebar'), btn = document.getElementById('sb-pin');
+  if(on === undefined) on = !document.body.classList.contains('sb-pinned');
+  document.body.classList.toggle('sb-pinned', on);
+  bar.classList.toggle('pinned', on);
+  btn.textContent = on ? '\u00ab' : '\u00bb';
+  btn.classList.toggle('on', on);
+  btn.title = on ? 'Collapse the menu' : 'Keep the menu open';
+  try { localStorage.setItem('gb_sidebar_pinned', on ? '1' : '0'); } catch(e){}
+}
+try { if(localStorage.getItem('gb_sidebar_pinned') === '1') toggleSidebarPin(true); } catch(e){}
 </script>
 </body>
 </html>
