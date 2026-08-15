@@ -772,6 +772,7 @@ body.locked .main { filter:blur(6px); pointer-events:none; }
 </div>
 <script>
 const GAMES=[
+  {name:'Blast Radius',        file:'blast-radius.html',            emoji:'💥',color:['#03040c','#141d44'],category:'multiplayer',tags:['new','hot','mp']},
   {name:'Neon Frag',           file:'neon-frag.html',              emoji:'🔫',color:['#05070e','#101b33'],category:'multiplayer',tags:['new','hot','mp']},
   {name:'Mic Drop',            file:'mic-drop.html',               emoji:'🎤',color:['#12061f','#2a0f4a'],category:'multiplayer',tags:['new','mp']},
   {name:'Wet Paint',           file:'wet-paint.html',              emoji:'🎨',color:['#1a0e08','#2e1a10'],category:'adventure',  tags:['new','hot']},
@@ -816,6 +817,53 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
+
+'blast-radius':(c)=>{
+  _GV(c,0,0,320,200,'#03040c','#080e22','#141d44');
+  _ST(c,24);
+  // moon with a soft halo
+  const mg=c.createRadialGradient(258,34,0,258,34,46);
+  mg.addColorStop(0,'rgba(255,240,200,.26)'); mg.addColorStop(1,'rgba(255,240,200,0)');
+  c.fillStyle=mg; c.beginPath(); c.arc(258,34,46,0,6.28); c.fill();
+  _C(c,258,34,13,'#f6efd6'); _C(c,262,30,4,'rgba(120,130,160,.3)');
+  // rolling ground, deep band under a neon crest
+  const hy=x=>146+Math.sin(x*0.0195+0.6)*16+Math.sin(x*0.052+2.1)*6;
+  const fillTo=(off,col)=>{ c.beginPath(); c.moveTo(0,200);
+    for(let x=0;x<=320;x+=4) c.lineTo(x,hy(x)+off);
+    c.lineTo(320,200); c.closePath(); c.fillStyle=col; c.fill(); };
+  fillTo(0,'#12313f'); fillTo(9,'#0a1e2c');
+  c.save(); c.shadowColor='rgba(60,255,190,.85)'; c.shadowBlur=8;
+  c.strokeStyle='#3dffc0'; c.lineWidth=2; c.beginPath();
+  for(let x=0;x<=320;x+=4){ if(x) c.lineTo(x,hy(x)); else c.moveTo(x,hy(x)); }
+  c.stroke(); c.restore();
+  // the shell's arc, mid-flight
+  for(let i=0;i<=22;i++){ const t=i/22, x=48+t*180, y=hy(48)-10-88*Math.sin(Math.PI*t)+t*14;
+    c.fillStyle='rgba(255,208,90,'+(0.22+0.62*(1-t)).toFixed(2)+')'; c.fillRect(x-1.5,y-1.5,3,3); }
+  // impact
+  const ex=234, ey=hy(234)-3;
+  const eg=c.createRadialGradient(ex,ey,0,ex,ey,36);
+  eg.addColorStop(0,'#fff6d8'); eg.addColorStop(.32,'#ffb03a');
+  eg.addColorStop(.68,'rgba(255,80,20,.42)'); eg.addColorStop(1,'rgba(255,60,0,0)');
+  c.fillStyle=eg; c.beginPath(); c.arc(ex,ey,36,0,6.28); c.fill();
+  for(let i=0;i<11;i++){ const a=i*0.62, r=17+(i*7)%15;
+    _F(c,ex+Math.cos(a)*r,ey+Math.sin(a)*r*0.8,2,2,'#ffe600'); }
+  // the duellists
+  const tank=(x,col,fill,ang)=>{
+    const y=hy(x)+2;
+    c.save(); c.strokeStyle=col; c.lineWidth=4; c.lineCap='round';
+    c.shadowColor=col; c.shadowBlur=9;
+    c.beginPath(); c.moveTo(x,y-11); c.lineTo(x+Math.cos(ang)*21,y-11-Math.sin(ang)*21); c.stroke(); c.restore();
+    c.fillStyle=fill; c.strokeStyle=col; c.lineWidth=2;
+    c.beginPath(); c.moveTo(x-15,y-3); c.lineTo(x-11,y-12); c.lineTo(x+11,y-12); c.lineTo(x+15,y-3);
+    c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.arc(x,y-12,6,Math.PI,0); c.fill(); c.stroke();
+    _F(c,x-15,y-3,30,4,'#0b1220');
+    for(let i=0;i<5;i++) _F(c,x-12+i*6,y-2,2,2,col);
+  };
+  tank(48,'#00f5ff','#063a49',0.85);
+  tank(268,'#ff0080','#4a0327',Math.PI-0.85);
+  _SC(c);
+},
 
 'neon-frag':(c)=>{
   _GV(c,0,0,320,100,'#0a0f22','#1b2448');
@@ -1783,6 +1831,7 @@ let lastState = { profile:null, friends:[], incoming:[], outgoing:[], blocked:[]
 // work from GitHub Pages with no server to run. Add a game here once it speaks the
 // relay protocol (see Room in glitchbox-api/src/index.js).
 const MP_GAMES = [
+  { file:'blast-radius.html', name:'Blast Radius', emoji:'💥', desc:'2 players · turn-based artillery duel, best of three' },
   { file:'quoridor.html',  name:'Quoridor',  emoji:'🧱', desc:'2 players · race across the board, wall each other in' },
   { file:'neon-frag.html', name:'Neon Frag', emoji:'🔫', desc:'2 players · 3D arena deathmatch, first to 10 frags' },
   { file:'mic-drop.html',  name:'Mic Drop',  emoji:'🎤', desc:'2 players · karaoke sing-off, highest score wins' },
