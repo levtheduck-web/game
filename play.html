@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GLITCHBOX — Play</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="glitchbox-config.js"></script>
+<!-- Game roster + thumbnail art, shared with index.html -->
+<script src="glitchbox-games.js"></script>
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --bg:#060810; --bg2:#0a0d18; --bg3:#0f1425; --panel:#080b14;
+  --pink:#ff0080; --cyan:#00f5ff; --yellow:#ffe600; --green:#00ff88;
+  --text:#d0d8f0; --muted:#4a5580;
+  --glow-p:rgba(255,0,128,0.4); --glow-c:rgba(0,245,255,0.4);
+}
+html { font-family:'Rajdhani',sans-serif; font-size:15px; }
+body { background:var(--bg); color:var(--text); min-height:100vh; overflow-x:hidden; }
+body::before {
+  content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image:linear-gradient(rgba(0,245,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,0.03) 1px,transparent 1px);
+  background-size:40px 40px;
+}
+
+/* ── TOP BAR ── */
+.topbar {
+  position:sticky; top:0; z-index:40; display:flex; align-items:center; gap:14px;
+  padding:11px 20px; background:rgba(8,11,20,0.94); backdrop-filter:blur(8px);
+  border-bottom:1px solid rgba(0,245,255,0.12);
+}
+.topbar::after {
+  content:''; position:absolute; left:0; right:0; bottom:0; height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan),var(--pink),transparent); opacity:0.5;
+}
+.back-link { display:flex; align-items:center; gap:10px; text-decoration:none; flex-shrink:0; }
+.logo-icon {
+  width:34px; height:34px; background:var(--bg3);
+  border:1px solid var(--cyan); box-shadow:0 0 12px var(--glow-c),inset 0 0 8px rgba(0,245,255,0.1);
+  display:flex; align-items:center; justify-content:center; font-size:16px;
+  clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);
+}
+.logo-text { font-family:'Press Start 2P',monospace; font-size:8px; color:var(--cyan); text-shadow:0 0 10px var(--cyan); line-height:1.7; }
+.logo-sub { font-size:7px; color:var(--pink); text-shadow:0 0 8px var(--pink); }
+.back-link:hover .logo-icon { box-shadow:0 0 20px var(--glow-c); }
+.tb-title { display:flex; align-items:center; gap:10px; min-width:0; margin-left:6px; }
+.tb-emoji { font-size:22px; line-height:1; flex-shrink:0; }
+.tb-name { font-size:17px; font-weight:700; letter-spacing:0.6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tb-right { margin-left:auto; display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.token-chip {
+  display:flex; align-items:center; gap:8px; text-decoration:none; flex-shrink:0;
+  background:var(--bg3); border:1px solid rgba(255,230,0,0.35); color:var(--yellow);
+  padding:7px 13px; font-family:'Press Start 2P',monospace; font-size:9px; letter-spacing:1px;
+  box-shadow:0 0 14px rgba(255,230,0,0.1); transition:box-shadow 0.18s,border-color 0.18s;
+  clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+}
+.token-chip:hover { box-shadow:0 0 24px rgba(255,230,0,0.3); border-color:var(--yellow); }
+
+/* ── STAGE ── */
+.wrap { position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:20px; }
+.stage {
+  position:relative; background:#000;
+  border:1px solid rgba(0,245,255,0.16);
+  box-shadow:0 0 40px rgba(0,0,0,0.6),0 0 30px rgba(0,245,255,0.06);
+  clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px));
+}
+.frame-box { position:relative; width:100%; aspect-ratio:16/9; min-height:320px; background:#000; }
+.frame-box iframe { position:absolute; inset:0; width:100%; height:100%; border:0; display:block; background:#000; }
+/* fullscreen: the stage fills the screen and the toolbar gets out of the way */
+.stage:fullscreen { clip-path:none; border:0; width:100vw; height:100vh; background:#000; }
+.stage:fullscreen .frame-box { aspect-ratio:auto; width:100vw; height:100vh; }
+.stage:fullscreen .toolbar { display:none; }
+.stage:-webkit-full-screen .frame-box { aspect-ratio:auto; width:100vw; height:100vh; }
+.stage:-webkit-full-screen .toolbar { display:none; }
+
+/* click-to-play veil: the first click hands the keyboard to the game */
+.veil {
+  position:absolute; inset:0; z-index:5; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:14px; cursor:pointer;
+  background:radial-gradient(ellipse at 50% 45%,rgba(8,11,24,0.82),rgba(3,4,10,0.97));
+}
+.veil.gone { display:none; }
+.veil .v-play {
+  width:76px; height:76px; background:var(--pink); box-shadow:0 0 34px var(--glow-p);
+  display:flex; align-items:center; justify-content:center; font-size:30px; color:#fff;
+  clip-path:polygon(9px 0%,100% 0%,calc(100% - 9px) 100%,0% 100%);
+}
+.veil .v-text { font-family:'Press Start 2P',monospace; font-size:10px; letter-spacing:1.5px; color:var(--cyan); text-shadow:0 0 10px var(--cyan); }
+.veil .v-hint { font-size:12px; font-weight:600; color:var(--muted); letter-spacing:0.6px; }
+
+.toolbar {
+  display:flex; align-items:center; gap:7px; flex-wrap:wrap;
+  padding:9px 12px; background:var(--bg2); border-top:1px solid rgba(0,245,255,0.1);
+}
+.tool {
+  display:flex; align-items:center; gap:7px; padding:7px 13px; cursor:pointer;
+  background:transparent; border:1px solid rgba(0,245,255,0.16); color:var(--muted);
+  font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:700; letter-spacing:1px;
+  text-transform:uppercase; text-decoration:none; transition:all 0.15s;
+  clip-path:polygon(5px 0%,100% 0%,calc(100% - 5px) 100%,0% 100%);
+}
+.tool:hover { border-color:var(--cyan); color:var(--cyan); box-shadow:0 0 14px rgba(0,245,255,0.14); }
+.tool .t-i { font-size:14px; line-height:1; }
+.tool.primary { background:var(--cyan); border-color:var(--cyan); color:#001014; box-shadow:0 0 16px var(--glow-c); }
+.tool.primary:hover { color:#001014; box-shadow:0 0 26px var(--glow-c); }
+.tool.star.on { color:var(--yellow); border-color:rgba(255,230,0,0.55); text-shadow:0 0 8px var(--yellow); }
+.tool.right { margin-left:auto; }
+.tool.quit { border-color:rgba(255,0,128,0.3); }
+.tool.quit:hover { border-color:var(--pink); color:var(--pink); box-shadow:0 0 14px var(--glow-p); }
+
+/* the always-fullscreen preference, mirrored from the hub */
+.pref {
+  display:flex; align-items:center; gap:8px; padding:7px 12px; cursor:pointer;
+  color:var(--muted); font-size:12px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase;
+  -webkit-user-select:none; user-select:none; transition:color 0.15s;
+}
+.pref:hover { color:var(--cyan); }
+.pref .box {
+  width:15px; height:15px; border:1px solid rgba(0,245,255,0.35); display:flex;
+  align-items:center; justify-content:center; font-size:11px; line-height:1; color:var(--cyan);
+}
+.pref.on { color:var(--cyan); }
+.pref.on .box { background:rgba(0,245,255,0.14); border-color:var(--cyan); box-shadow:0 0 10px rgba(0,245,255,0.25); }
+
+/* ── GAME INFO STRIP ── */
+.info-strip { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:16px 2px 4px; }
+.info-strip h1 { font-family:'Press Start 2P',monospace; font-size:15px; color:#fff; text-shadow:0 0 14px rgba(0,245,255,0.4); letter-spacing:1px; }
+.blurb { font-size:14px; font-weight:600; color:#8090b0; letter-spacing:0.3px; padding:8px 2px 0; max-width:760px; }
+
+/* ── SECTIONS + CARDS (mirrors the hub) ── */
+.section { padding-top:28px; }
+.section-header { display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+.section-title { font-family:'Press Start 2P',monospace; font-size:11px; color:var(--pink); text-shadow:0 0 12px var(--pink); letter-spacing:1.5px; white-space:nowrap; }
+.section-line { flex:1; height:1px; background:linear-gradient(90deg,var(--pink),transparent); opacity:0.4; }
+.game-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:14px; }
+.game-card {
+  background:var(--bg2); border:1px solid rgba(0,245,255,0.08); cursor:pointer;
+  transition:transform 0.18s,border-color 0.18s,box-shadow 0.18s;
+  text-decoration:none; color:inherit; display:flex; flex-direction:column; position:relative;
+  clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));
+}
+.game-card::after { content:''; position:absolute; top:0; right:0; border-top:12px solid rgba(0,245,255,0.15); border-left:12px solid transparent; transition:border-top-color 0.2s; }
+.game-card:hover { transform:translateY(-5px); border-color:rgba(0,245,255,0.35); box-shadow:0 8px 30px rgba(0,0,0,0.5),0 0 20px rgba(0,245,255,0.1); }
+.game-card:hover::after { border-top-color:var(--cyan); }
+.game-thumb { width:100%; aspect-ratio:16/10; position:relative; overflow:hidden; display:block; }
+.thumb-canvas { width:100%; height:100%; display:block; }
+.game-thumb-scan { position:absolute; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.1) 3px,rgba(0,0,0,0.1) 4px); pointer-events:none; }
+.game-thumb-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.3); opacity:0; transition:opacity 0.2s; display:flex; align-items:center; justify-content:center; }
+.game-card:hover .game-thumb-overlay { opacity:1; }
+.play-btn { width:46px; height:46px; background:var(--pink); box-shadow:0 0 20px var(--glow-p); display:flex; align-items:center; justify-content:center; font-size:18px; clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%); }
+.game-info { padding:10px 12px 12px; }
+.game-name { font-size:13px; font-weight:700; margin-bottom:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:0.3px; }
+.game-meta { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+.game-tag { font-size:9px; font-weight:700; padding:2px 7px; letter-spacing:0.8px; text-transform:uppercase; background:rgba(255,255,255,0.05); color:var(--muted); clip-path:polygon(3px 0%,100% 0%,calc(100% - 3px) 100%,0% 100%); }
+.game-tag.cat { background:rgba(0,245,255,0.08); color:rgba(0,245,255,0.6); }
+.game-tag.hot { background:rgba(255,0,128,0.12); color:var(--pink); }
+.game-tag.new { background:rgba(0,255,136,0.1); color:var(--green); }
+.game-tag.mp  { background:rgba(255,230,0,0.1); color:var(--yellow); }
+.game-tag.special { background:rgba(255,230,0,0.12); color:var(--yellow); }
+.game-card.locked .thumb-canvas { filter:grayscale(0.9) brightness(0.36) blur(1.2px); }
+.game-card.locked { border-color:rgba(255,230,0,0.18); }
+.game-card.locked:hover { border-color:rgba(255,230,0,0.5); box-shadow:0 8px 30px rgba(0,0,0,0.5),0 0 22px rgba(255,230,0,0.12); }
+.game-card.locked:hover::after { border-top-color:var(--yellow); }
+.game-card.locked .game-thumb-overlay { display:none; }
+.lock-veil { position:absolute; inset:0; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; pointer-events:none; }
+.lock-veil .lv-icon { font-size:24px; filter:drop-shadow(0 0 10px rgba(255,230,0,0.5)); }
+.lock-veil .lv-price { font-family:'Press Start 2P',monospace; font-size:10px; letter-spacing:1px; color:#000; background:var(--yellow); padding:5px 10px; box-shadow:0 0 18px rgba(255,230,0,0.45); clip-path:polygon(5px 0%,100% 0%,calc(100% - 5px) 100%,0% 100%); }
+.lock-veil .lv-hint { font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:rgba(255,230,0,0.75); }
+.game-card.locked:hover .lv-hint { color:var(--yellow); text-shadow:0 0 8px var(--yellow); }
+
+.foot { padding:34px 2px 40px; text-align:center; }
+.foot a { color:var(--cyan); text-decoration:none; font-weight:700; letter-spacing:1px; font-size:13px; text-transform:uppercase; }
+.foot a:hover { text-shadow:0 0 10px var(--cyan); }
+
+@media (max-width:760px) {
+  .wrap { padding:12px; }
+  .tb-name { font-size:15px; }
+  .logo-text, .token-chip { display:none; }
+  .frame-box { aspect-ratio:4/3; min-height:260px; }
+  .game-grid { grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="back-link" href="index.html" title="Back to GLITCHBOX">
+    <div class="logo-icon">◤</div>
+    <div class="logo-text">GLITCH<br /><span class="logo-sub">BOX</span></div>
+  </a>
+  <div class="tb-title">
+    <span class="tb-emoji" id="tb-emoji">🎮</span>
+    <span class="tb-name" id="tb-name">Loading…</span>
+  </div>
+  <div class="tb-right">
+    <a class="token-chip" href="index.html#shop" title="Arcade tokens — open the shop">
+      <span>🪙</span><span id="token-balance">0</span>
+    </a>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="stage" id="stage">
+    <div class="frame-box" id="frame-box">
+      <iframe id="game-frame" title="Game" allow="fullscreen; autoplay; microphone; camera; gamepad; clipboard-write; xr-spatial-tracking" allowfullscreen></iframe>
+      <div class="veil" id="veil">
+        <div class="v-play">▶</div>
+        <div class="v-text" id="veil-title">PLAY</div>
+        <div class="v-hint">Click to start — keyboard goes to the game</div>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button class="tool primary" onclick="goFullscreen()"><span class="t-i">⛶</span>Fullscreen</button>
+      <button class="tool" onclick="restart()"><span class="t-i">⟳</span>Restart</button>
+      <button class="tool star" id="fav-tool" onclick="toggleFav()"><span class="t-i" id="fav-icon">☆</span><span id="fav-text">Favorite</span></button>
+      <a class="tool" id="raw-link" href="#" target="_blank" rel="noopener" title="Open the game on its own page"><span class="t-i">↗</span>New tab</a>
+      <label class="pref" id="pref-full" title="Skip this page and jump straight into the game next time">
+        <span class="box" id="pref-box"></span>Always fullscreen
+      </label>
+      <a class="tool quit right" href="index.html"><span class="t-i">✕</span>Quit</a>
+    </div>
+  </div>
+
+  <div class="info-strip">
+    <h1 id="game-title">GAME</h1>
+    <span class="game-tag cat" id="game-cat">—</span>
+    <span id="game-badges"></span>
+  </div>
+  <p class="blurb" id="game-blurb"></p>
+
+  <div class="section" id="sect-like" style="display:none">
+    <div class="section-header">
+      <div class="section-title">MORE LIKE THIS</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="game-grid" id="grid-like"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">MORE GAMES</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="game-grid" id="grid-more"></div>
+  </div>
+
+  <div class="foot"><a href="index.html">◀ Back to the arcade</a></div>
+</div>
+
+<script>
+// ══════════════════ WHICH GAME ══════════════════
+// ?g=neon-putt.html — everything after the query string (the #room=... deep links
+// the hub builds for multiplayer) is handed through to the iframe untouched.
+const params = new URLSearchParams(location.search);
+const wanted = (params.get('g')||'').split('/').pop();
+const game   = GAMES.find(x => x.file === wanted);
+
+// ── token + favorite storage, the same keys the hub reads ──
+const TOK={ bal:'glitchbox.tokens', own:'glitchbox.owned', seen:'glitchbox.seen',
+            ts:'glitchbox.playts', queue:'glitchbox.queue' };
+const FAV_KEY='glitchbox.favs';
+const PLAY_MODE_KEY='glitchbox.playmode';
+const FIRST_PLAY=10, REPLAY=3, REPLAY_COOL=10*60*1000;
+
+function jsonGet(k,f){ try{ const v=JSON.parse(localStorage.getItem(k)); return v==null?f:v; }catch(e){ return f; } }
+function jsonSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+function tokens(){ const n=parseInt(localStorage.getItem(TOK.bal),10); return isNaN(n)?0:n; }
+function ownedList(){ const v=jsonGet(TOK.own,[]); return Array.isArray(v)?v:[]; }
+function isLocked(g){ return !!g.price && ownedList().indexOf(g.file)===-1; }
+function favList(){ const v=jsonGet(FAV_KEY,[]); return Array.isArray(v)?v:[]; }
+function isFav(file){ return favList().indexOf(file)!==-1; }
+
+// An unknown or still-locked game has no business being framed here.
+if(!game){ location.replace('index.html'); }
+else if(isLocked(game)){ location.replace('index.html#shop'); }
+
+// ══════════════════ THE GAME WINDOW ══════════════════
+const frame = document.getElementById('game-frame');
+const stage = document.getElementById('stage');
+const veil  = document.getElementById('veil');
+const src   = game ? game.file + location.hash : 'about:blank';
+
+document.title = (game ? game.name : 'Play') + ' — GLITCHBOX';
+if(game){
+  document.getElementById('tb-emoji').textContent = game.emoji;
+  document.getElementById('tb-name').textContent  = game.name;
+  document.getElementById('veil-title').textContent = game.name.toUpperCase();
+  document.getElementById('game-title').textContent = game.name.toUpperCase();
+  document.getElementById('game-cat').textContent   = game.category.toUpperCase();
+  document.getElementById('game-badges').innerHTML  = game.tags.map(t =>
+    '<span class="game-tag '+t+'">'+(t==='hot'?'▲ HOT':t==='new'?'★ NEW':t==='mp'?'⬡ MULTI':t)+'</span>').join(' ');
+  document.getElementById('game-blurb').textContent = game.blurb || '';
+  document.getElementById('raw-link').href = src;
+  frame.src = src;
+}
+
+// The quit buttons inside the games point at index.html. Inside a frame that would
+// load the whole arcade in a little box, so pop it back out to the real window.
+frame.addEventListener('load', () => {
+  let href='';
+  try { href = frame.contentWindow.location.href; } catch(e){ return; }
+  if(!href || href==='about:blank') return;              // the restart blank-out
+  const file = href.split('#')[0].split('?')[0].split('/').pop();
+  if(file==='index.html' || file==='' || file==='play.html'){
+    top.location.href = 'index.html';
+  }
+});
+
+// First click hands the keyboard over — iframes don't get key events until focused.
+function startGame(){ veil.classList.add('gone'); try{ frame.contentWindow.focus(); }catch(e){} frame.focus(); }
+veil.addEventListener('click', startGame);
+document.getElementById('frame-box').addEventListener('click', () => { try{ frame.contentWindow.focus(); }catch(e){} });
+
+function restart(){
+  frame.src = 'about:blank';
+  setTimeout(() => { frame.src = src; veil.classList.remove('gone'); }, 30);
+}
+
+// ══════════════════ FULLSCREEN ══════════════════
+function goFullscreen(){
+  startGame();
+  const el = stage;
+  const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+  if(req){
+    Promise.resolve(req.call(el)).then(() => { try{ frame.contentWindow.focus(); }catch(e){} })
+      .catch(() => { window.open(src,'_self'); });   // blocked? fall back to the plain page
+  } else {
+    window.open(src,'_self');
+  }
+}
+document.addEventListener('fullscreenchange', () => {
+  if(document.fullscreenElement){ try{ frame.contentWindow.focus(); }catch(e){} }
+});
+
+// ══════════════════ "ALWAYS FULLSCREEN" PREFERENCE ══════════════════
+// Shared with the hub's FRAMED/FULL switch — tick it here and the arcade stops
+// routing through this page entirely.
+function playMode(){ return localStorage.getItem(PLAY_MODE_KEY)==='full'?'full':'framed'; }
+function paintPref(){
+  const on = playMode()==='full';
+  document.getElementById('pref-full').classList.toggle('on',on);
+  document.getElementById('pref-box').textContent = on?'✕':'';
+}
+document.getElementById('pref-full').addEventListener('click', () => {
+  try{ localStorage.setItem(PLAY_MODE_KEY, playMode()==='full'?'framed':'full'); }catch(e){}
+  paintPref(); renderGrids();
+});
+paintPref();
+
+// ══════════════════ FAVORITE ══════════════════
+function paintFav(){
+  if(!game) return;
+  const on = isFav(game.file);
+  document.getElementById('fav-tool').classList.toggle('on',on);
+  document.getElementById('fav-icon').textContent = on?'★':'☆';
+  document.getElementById('fav-text').textContent = on?'Favorited':'Favorite';
+}
+function toggleFav(){
+  if(!game) return;
+  const l = favList(), i = l.indexOf(game.file);
+  if(i===-1) l.push(game.file); else l.splice(i,1);
+  jsonSet(FAV_KEY,l); paintFav();
+}
+paintFav();
+
+// ══════════════════ PLAY REWARD ══════════════════
+// Same rules as the hub: the payout is queued and shown the next time you land
+// on the arcade, so it never covers up the game.
+function rewardPlay(g){
+  const seen=jsonGet(TOK.seen,[]), ts=jsonGet(TOK.ts,{}), now=Date.now();
+  const pay=(amt,why)=>{
+    try{ localStorage.setItem(TOK.bal,String(Math.max(0,tokens()+amt))); }catch(e){}
+    const q=jsonGet(TOK.queue,[]); q.push({amt,why}); jsonSet(TOK.queue,q);
+    document.getElementById('token-balance').textContent=tokens();
+  };
+  if(seen.indexOf(g.file)===-1){
+    seen.push(g.file); jsonSet(TOK.seen,seen);
+    ts[g.file]=now; jsonSet(TOK.ts,ts);
+    pay(FIRST_PLAY,'First play · '+g.name);
+    return;
+  }
+  if(!ts[g.file] || now-ts[g.file]>REPLAY_COOL){
+    ts[g.file]=now; jsonSet(TOK.ts,ts);
+    pay(REPLAY,'Played '+g.name);
+  }
+}
+document.getElementById('token-balance').textContent = tokens();
+if(game) rewardPlay(game);
+
+// ══════════════════ RECOMMENDATIONS ══════════════════
+function gameURL(file){
+  return playMode()==='full' ? file : 'play.html?g='+encodeURIComponent(file);
+}
+// A tiny bit of ordering so the strip under the game isn't random: same category
+// first, then the hot ones, then everything else — favorites float up either way.
+function score(g){
+  let s=0;
+  if(game && g.category===game.category) s+=100;
+  if(isFav(g.file)) s+=50;
+  if(g.tags.includes('hot')) s+=12;
+  if(g.tags.includes('new')) s+=8;
+  if(isLocked(g)) s-=30;
+  return s;
+}
+function card(g){
+  const locked=isLocked(g);
+  const a=document.createElement('a');
+  a.className='game-card'+(locked?' locked':'');
+  a.href=locked?'index.html#shop':gameURL(g.file);
+  const badges=g.tags.map(t=>'<span class="game-tag '+t+'">'+(t==='hot'?'▲ HOT':t==='new'?'★ NEW':t==='mp'?'⬡ MULTI':t)+'</span>').join('')
+    +(g.price?'<span class="game-tag special">'+(locked?'🔒 '+g.price:'✦ OWNED')+'</span>':'');
+  const lock=locked?'<div class="lock-veil"><div class="lv-icon">🔒</div><div class="lv-price">🪙 '+g.price+'</div><div class="lv-hint">Unlock</div></div>':'';
+  a.innerHTML='<div class="game-thumb"><canvas class="thumb-canvas" width="320" height="200"></canvas>'+
+    '<div class="game-thumb-scan"></div><div class="game-thumb-overlay"><div class="play-btn">▶</div></div>'+lock+'</div>'+
+    '<div class="game-info"><div class="game-name">'+g.name+'</div>'+
+    '<div class="game-meta"><span class="game-tag cat">'+g.category.toUpperCase()+'</span>'+badges+'</div></div>';
+  const ctx=a.querySelector('.thumb-canvas').getContext('2d');
+  (DRAW[g.file.replace('.html','')]||DRAW.fallback)(ctx,g);
+  return a;
+}
+function renderGrids(){
+  const rest=GAMES.filter(g=>!game||g.file!==game.file);
+  const like=rest.filter(g=>game&&g.category===game.category).slice(0,6);
+  const likeFiles=like.map(g=>g.file);
+  const more=rest.filter(g=>likeFiles.indexOf(g.file)===-1).sort((a,b)=>score(b)-score(a));
+
+  const sectLike=document.getElementById('sect-like'), gLike=document.getElementById('grid-like');
+  gLike.innerHTML='';
+  if(like.length){ sectLike.style.display=''; like.forEach(g=>gLike.appendChild(card(g))); }
+  else sectLike.style.display='none';
+
+  const gMore=document.getElementById('grid-more');
+  gMore.innerHTML='';
+  more.forEach(g=>gMore.appendChild(card(g)));
+}
+renderGrids();
+</script>
+</body>
+</html>
