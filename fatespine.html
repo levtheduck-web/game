@@ -1882,7 +1882,8 @@ function stepProps(btn){
       WF[F_R0] = (WF[F_R0] + DT) % 2.4;
       if(WI[ib+PI_STATE]===0){
         const who = anyActorOn(x, y, w, h);
-        if(who !== -2 && (who === -1 ? (btn & BTN_ACT) : (tapeBtn(GTAPE, WI[GSI+who*GS_N+G_BUF]*4*TAPE_MAX, WI[GSI+who*GS_N+G_CUR]) & BTN_ACT))){
+        if(who !== -2 && (who === -1 ? (btn & BTN_ACT)
+            : (tapeBtn(GTAPE, WI[GSI+who*GS_N+G_BUF]*4*TAPE_MAX, Math.max(0, WI[GSI+who*GS_N+G_CUR]-1)) & BTN_ACT))){
           WI[ib+PI_STATE]=1; WI[I_DOOR]=1; WF[F_R1]=18;
           WI[I_WINDOW] = who === -1 ? 0 : Math.max(1, WI[I_TICK]-WI[I_FORKTICK]);
           sfx('grab');
@@ -4293,6 +4294,44 @@ function runSmoke(){
   ok('an ending resolves from the facts', ['DEATH','ESCAPE','UNWRITTEN'].indexOf(SAVE.ending) !== -1, SAVE.ending);
   drawEnding(16); ok('the ending screen renders', true);
   endingCard = null;
+
+  // ── THE PRESS, played rather than asserted ────────────────────────────
+  function pressPos(){
+    for(let i=0;i<MAXP;i++) if(WI[PRI+i*PI_N+PI_TYPE] === PR_PRESS)
+      return {x:WF[PR+i*PR_N+P_X], y:WF[PR+i*PR_N+P_Y], i};
+    return null;
+  }
+  startNode('n5'); nextBuf = 0;
+  let pp = pressPos();
+  ok('THE HAND has a press in it', !!pp);
+  WF[PL+A_X] = pp.x; WF[PL+A_Y] = pp.y;
+  for(let t=0;t<30;t++){
+    const b = t >= 10 ? BTN_ACT : 0;
+    tapeWrite(TAPE,0,WI[I_TICK],b,0,0); step(b,0,0); ringRec();
+  }
+  ok('grabbing the key opens the way out', WI[I_DOOR] === 1);
+  ok('doing it yourself costs you the arm', WI[I_WINDOW] === 0);
+  ok('and the ram actually lands on you', WI[I_DMG] >= 1, 'dmg '+WI[I_DMG]);
+  ok('which is the default outcome, not a fail state',
+     NODES['n5'].outcomes.find(o=>o.test({exit:true,window:WI[I_WINDOW]})).id === 'ARM_TAKEN');
+  startNode('n5'); nextBuf = 0;
+  pp = pressPos();
+  WF[PL+A_X] = pp.x; WF[PL+A_Y] = pp.y;
+  for(let t=0;t<24;t++){
+    const b = t >= 10 ? BTN_ACT : 0;
+    tapeWrite(TAPE,0,WI[I_TICK],b,0,0); step(b,0,0); ringRec();
+  }
+  ringRestore(4);                                   // scrub back before the grab
+  ok('the rewind un-grabs the key', WI[I_DOOR] === 0 && WI[I_WINDOW] === 0);
+  ok('a fork leaves your past self walking into the press', makeEcho(4, 24));
+  WF[PL+A_X] = pp.x - 260; WF[PL+A_Y] = pp.y;       // and you get clear
+  for(let t=0;t<40;t++){ tapeWrite(TAPE,0,WI[I_TICK],0,0,0); step(0,0,0); ringRec(); }
+  ok('the echo grabs the key for you', WI[I_DOOR] === 1);
+  ok('inside the eighteen-tick window', WI[I_WINDOW] > 0 && WI[I_WINDOW] <= 18, 'window '+WI[I_WINDOW]);
+  ok('YOU KEEP THE HAND',
+     NODES['n5'].outcomes.find(o=>o.test({exit:true,window:WI[I_WINDOW]})).id === 'HAND_SAVED');
+  ok('and it was the echo that paid for it', WI[GSI+G_ALIVE] !== 1 && WI[I_DMG] === 0);
+
   startNode('n10');
   for(let k=0;k<40;k++) simTick();
   const tickBefore = WI[I_TICK];
