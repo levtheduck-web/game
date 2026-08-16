@@ -3,6 +3,7 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
+  {name:'Fatespine',           file:'fatespine.html',              emoji:'\u23f3',color:['#0a0410','#24103a'],category:'action',     tags:['new','hot']},
   {name:'Blast Radius',        file:'blast-radius.html',            emoji:'💥',color:['#03040c','#141d44'],category:'multiplayer',tags:['new','hot','mp']},
   {name:'Neon Frag',           file:'neon-frag.html',              emoji:'🔫',color:['#05070e','#101b33'],category:'multiplayer',tags:['new','hot','mp']},
   {name:'Mic Drop',            file:'mic-drop.html',               emoji:'🎤',color:['#12061f','#2a0f4a'],category:'multiplayer',tags:['new','mp']},
@@ -48,6 +49,54 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
+
+'fatespine':(c)=>{
+  _GV(c,0,0,320,200,'#050308','#12061f','#24103a');
+  // the Spine: a branching graph of nights, drawn behind everything
+  const nodes=[[42,150],[78,132],[114,150],[152,128],[190,146],[228,124],[264,142],[290,112]];
+  c.strokeStyle='rgba(122,80,180,.55)'; c.lineWidth=1.5;
+  for(let i=0;i<nodes.length-1;i++){
+    c.beginPath(); c.moveTo(nodes[i][0],nodes[i][1]);
+    c.bezierCurveTo((nodes[i][0]+nodes[i+1][0])/2,nodes[i][1],
+                    (nodes[i][0]+nodes[i+1][0])/2,nodes[i+1][1],
+                    nodes[i+1][0],nodes[i+1][1]);
+    c.stroke();
+  }
+  // the one edge that only exists because you changed something
+  c.strokeStyle='#ffd24a'; c.lineWidth=2; c.setLineDash([4,3]);
+  c.beginPath(); c.moveTo(152,128); c.lineTo(150,74); c.stroke(); c.setLineDash([]);
+  const hex=(x,y,r,fill,stroke)=>{
+    c.beginPath();
+    for(let k=0;k<6;k++){const a=k/6*6.283; const px=x+Math.cos(a)*r, py=y+Math.sin(a)*r; k?c.lineTo(px,py):c.moveTo(px,py);}
+    c.closePath(); c.fillStyle=fill; c.fill(); c.strokeStyle=stroke; c.lineWidth=1.5; c.stroke();
+  };
+  for(const n of nodes) hex(n[0],n[1],7,'#1c1430','#5a76a8');
+  hex(152,128,8,'#2a1a08','#ffd24a');
+  // the amber Fracture hanging off it
+  c.save(); c.translate(150,70); c.rotate(0.785);
+  _F(c,-7,-7,14,14,'#3a2a08');
+  c.strokeStyle='#ffb01f'; c.lineWidth=2; c.strokeRect(-7,-7,14,14); c.restore();
+  // neon ledges
+  _F(c,24,176,120,2,'#ff3ad0'); _F(c,196,176,104,2,'#ff3ad0');
+  _F(c,96,44,86,2,'rgba(255,58,208,.45)');
+  // you, and the two of you that came before
+  const vek=(x,y,col,al)=>{
+    c.globalAlpha=al; c.fillStyle=col;
+    c.beginPath(); c.moveTo(x-8,y); c.lineTo(x-7,y-26); c.lineTo(x-2,y-33);
+    c.lineTo(x+3,y-33); c.lineTo(x+8,y-25); c.lineTo(x+9,y); c.closePath(); c.fill();
+    c.fillStyle='#ffffff'; c.globalAlpha=al*0.9; _F(c,x+1,y-28,3,2,'#ffffff');
+    c.globalAlpha=1;
+  };
+  vek(52,176,'#2ec6ff',.28); vek(80,176,'#3ad8ff',.42); vek(112,176,'#48e8ff',1);
+  // the rewind tear
+  c.globalAlpha=.5; _F(c,0,88,320,3,'#ff0044'); _F(c,4,91,320,2,'#00ffee'); c.globalAlpha=1;
+  // chrono filmstrip
+  for(let i=0;i<5;i++){
+    _F(c,120+i*17,12,14,8,i<3?'#ff3ad0':'#1a1030');
+    _F(c,120+i*17,10,14,1,'#0a0614');
+  }
+  _SC(c);
+},
 
 'blast-radius':(c)=>{
   _GV(c,0,0,320,200,'#03040c','#080e22','#141d44');

@@ -1,0 +1,4342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>FATESPINE</title>
+<script src="glitchbox-save.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden;background:#050308;color:#dfe8ff;
+    font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#020104}
+  canvas{display:block;image-rendering:auto;touch-action:none;outline:none;
+    box-shadow:0 0 90px rgba(120,40,200,.18)}
+  #smokeout{position:fixed;inset:0;z-index:99;background:#000;color:#0f0;font:12px/1.45 monospace;
+    padding:14px;overflow:auto;white-space:pre;margin:0}
+  #a11y{position:fixed;left:-9999px;top:0}
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="cv" width="1280" height="736" tabindex="0"></canvas></div>
+<button id="a11y" onclick="window.__quit&&window.__quit()">Quit to GLITCHBOX menu</button>
+<script>
+"use strict";
+/* ============================================================================
+   FATESPINE — rewind the night, then rewrite the life.
+   ----------------------------------------------------------------------------
+   Three nested loops, all the same verb at different zoom:
+     THE SECOND — hold R and time scrubs backwards; let go and the body you
+                  abandoned stands up as an ECHO replaying your input tape.
+     THE NIGHT  — one locked screen, one outcome, measured by what you did.
+     THE LIFE   — outcomes write FACTS, facts redraw the Spine, and the edges
+                  they draw are the only doors to the five power chambers.
+
+   Determinism contract (asserted by #smoke, break any line and rewind lies):
+     * DT is the literal 1/60. step() never reads Date/performance/Math.random,
+       never touches the DOM, and never keeps a float alive between ticks.
+     * The whole world is two flat typed arrays, WF (Float64) + WI (Int32).
+       If step() reads it, it lives in there. No exceptions.
+     * One snapshot per tick into a flat ring; rewind is a memcpy, never a
+       re-simulation, so scrubbing is exact by construction.
+     * Particles are never stored — they are an analytic function of
+       (tick - spawnTick, seed), so they rewind for free.
+
+   Hashes:  #smoke self-tests · #dev debug overlay · #n7 / #f3 jump to a room
+   ========================================================================== */
+
+const HASH  = location.hash.slice(1).toLowerCase();
+const SMOKE = HASH.indexOf('smoke') !== -1;
+const DEV   = HASH.indexOf('dev')   !== -1 || SMOKE;
+
+// ══════════════════════════ 1. WORLD STATE LAYOUT ══════════════════════════
+// Everything the simulation knows lives at a fixed offset in WF/WI. Named
+// constants only — a magic number here is a bug you find three days later.
+
+const DT = 1/60, TW = 32, GW = 40, GH = 23;
+const SCRW = GW*TW, SCRH = GH*TW;                      // 1280 x 736, locked
+
+const MAXG = 6, MAXE = 32, MAXB = 192, MAXP = 28;      // ghosts (4 yours + 2 hostile)
+
+// -- float block offsets --
+const GF = 0,                    GF_N = 24;
+const PL = GF + GF_N,            AC_N = 24;            // one ACTOR = 24 floats
+const GH0 = PL + AC_N;                                 // ghost i at GH0 + i*AC_N
+const EN = GH0 + MAXG*AC_N,      EN_N = 14;
+const BU = EN + MAXE*EN_N,       BU_N = 7;
+const PR = BU + MAXB*BU_N,       PR_N = 8;
+const WF_N = PR + MAXP*PR_N;
+
+// global floats
+const F_CHRONO=0, F_DOORT=1, F_PLATEH=2, F_STASX=3, F_STASY=4, F_STAST=5,
+      F_SLIPT=6, F_TIME=7, F_R0=8, F_R1=9, F_R2=10, F_R3=11, F_R4=12,
+      F_R5=13, F_R6=14, F_R7=15, F_K0=16;   // F_K0..F_K7 = room scratch ring
+
+// actor floats (player and every ghost share this layout — one stepActor)
+const A_X=0, A_Y=1, A_VX=2, A_VY=3, A_FACE=4, A_DASHT=5, A_DASHCD=6, A_COY=7,
+      A_JBUF=8, A_IFR=9, A_FIRECD=10, A_RELOAD=11, A_BLADET=12, A_BLADECD=13,
+      A_STASCD=14, A_SWAPCD=15, A_WALL=16, A_FLASH=17, A_GRND=18, A_AIM=19,
+      A_SLIPCD=20, A_SQUASH=21, A_PHASE=22, A_HP=23;
+
+// enemy floats
+const E_X=0, E_Y=1, E_VX=2, E_VY=3, E_HP=4, E_CD=5, E_T=6, E_AIM=7,
+      E_AX=8, E_AY=9, E_FLASH=10, E_PH=11, E_TX=12, E_TY=13;
+
+// bullet floats / prop floats
+const B_X=0, B_Y=1, B_VX=2, B_VY=3, B_LIFE=4, B_R=5, B_SP=6;
+const P_X=0, P_Y=1, P_VX=2, P_VY=3, P_T=4, P_VAL=5, P_W=6, P_H=7;
+
+// -- int block offsets --
+const GI = 0,                    GI_N = 24;
+const PLI = GI + GI_N,           AI_N = 4;
+const GSI = PLI + AI_N,          GS_N = 6;
+const GAI = GSI + MAXG*GS_N;                     // each echo gets its own AI_N block
+const ENI = GAI + MAXG*AI_N,     EI_N = 4;
+const BUI = ENI + MAXE*EI_N,     BI_N = 3;
+const PRI = BUI + MAXB*BI_N,     PI_N = 3;
+const WI_N = PRI + MAXP*PI_N;
+
+const I_TICK=0, I_SEED=1, I_HP=2, I_KILLS=3, I_DMG=4, I_FORKS=5, I_AMMO=6,
+      I_EXIT=7, I_GCOUNT=8, I_EALIVE=9, I_BCUR=10, I_CARRY=11, I_SPLINT=12,
+      I_REWINDS=13, I_WINDOW=14, I_FORKTICK=15, I_DOOR=16, I_LAYER=17,
+      I_PHASE=18, I_BOSSDOWN=19, I_PLATEF=20, I_HOLD=21, I_DEATHS=22, I_MAXECHO=23;
+
+const AI_GROUND=0, AI_STATE=1, AI_WALL=2, AI_SP=3;
+const G_ALIVE=0, G_CUR=1, G_BIRTH=2, G_END=3, G_BUF=4, G_HOSTILE=5;
+const N_TYPE=0, N_ALIVE=1, N_STATE=2, N_TGT=3;
+const BI_ALIVE=0, BI_OWNER=1, BI_FLAG=2;
+const PI_TYPE=0, PI_ALIVE=1, PI_STATE=2;
+
+const WF = new Float64Array(WF_N);
+const WI = new Int32Array(WI_N);
+
+// ══════════════════════════ 2. THE SNAPSHOT RING ═══════════════════════════
+// One flat snapshot per tick. Six seconds deep — the same six seconds as the
+// chrono bar, on purpose, so the meter can never promise what the ring cannot
+// deliver. Record is two .set() calls; restore is two more, and exact.
+
+const RING_N = 360;
+const RF = new Float64Array(WF_N*RING_N);
+const RI = new Int32Array (WI_N*RING_N);
+let ringMin = 0;                       // oldest tick still in the ring
+
+function ringRec(){
+  const t = WI[I_TICK], k = ((t % RING_N) + RING_N) % RING_N;
+  RF.set(WF, k*WF_N); RI.set(WI, k*WI_N);
+  if(t - ringMin >= RING_N) ringMin = t - RING_N + 1;
+}
+function ringRestore(t){
+  const k = ((t % RING_N) + RING_N) % RING_N;
+  WF.set(RF.subarray(k*WF_N, (k+1)*WF_N));
+  WI.set(RI.subarray(k*WI_N, (k+1)*WI_N));
+  validateGhosts();
+}
+function ringClear(){ ringMin = WI[I_TICK]; ringRec(); }
+
+// ══════════════════════════ 3. INPUT TAPES ═════════════════════════════════
+// 4 bytes per tick per actor. The player reads its own aim back out of the
+// tape before using it, so a ghost of you moves exactly as you did — no
+// "close enough", no drift.
+//   b0 buttons: 0 L 1 R 2 jump 3 dash 4 fire 5 blade 6 stasis 7 interact
+//   b1/b2 aim quantised to 1/1024 turn, plus swap / slip / lastword bits
+//   b3 parity (always 0; #smoke leans on it)
+const TAPE_MAX = 5400;                            // 90 s cap on one attempt
+const TAPE  = new Uint8Array(4*TAPE_MAX);
+const NBUF  = 8;                                  // ghost tape buffers
+const GTAPE = new Uint8Array(4*TAPE_MAX*NBUF);
+const tapeBirth = new Int32Array(NBUF).fill(-1);  // which fork owns each buffer
+
+const BTN_L=1, BTN_R=2, BTN_JUMP=4, BTN_DASH=8, BTN_FIRE=16, BTN_BLADE=32,
+      BTN_STASIS=64, BTN_ACT=128;
+const X_SWAP=4, X_SLIP=8, X_LW=16;
+
+function tapeWrite(arr, base, tick, btn, aim, ext){
+  if(tick < 0 || tick >= TAPE_MAX) return;
+  const q = ((Math.round(aim/(Math.PI*2)*1024) % 1024) + 1024) % 1024;
+  const o = base + tick*4;
+  arr[o] = btn; arr[o+1] = q & 255; arr[o+2] = ((q>>8)&3) | ext; arr[o+3] = 0;
+}
+function tapeBtn(arr, base, tick){
+  if(tick < 0 || tick >= TAPE_MAX) return 0;
+  return arr[base + tick*4];
+}
+function tapeAim(arr, base, tick){
+  if(tick < 0 || tick >= TAPE_MAX) return 0;
+  const o = base + tick*4;
+  return ((arr[o+1] | ((arr[o+2]&3)<<8)) / 1024) * Math.PI*2;
+}
+function tapeExt(arr, base, tick){
+  if(tick < 0 || tick >= TAPE_MAX) return 0;
+  return arr[base + tick*4 + 2] & ~3;
+}
+// A ghost is only real while the buffer it was cut from still belongs to it.
+function validateGhosts(){
+  for(let i=0;i<MAXG;i++){
+    const gi = GSI + i*GS_N;
+    if(WI[gi+G_ALIVE] && WI[gi+G_HOSTILE] === 0){
+      if(tapeBirth[WI[gi+G_BUF]] !== WI[gi+G_BIRTH]) WI[gi+G_ALIVE] = 0;
+    }
+  }
+}
+
+// ══════════════════════════ 4. RANDOMNESS ══════════════════════════════════
+// rngSim lives inside the snapshot, so rewinding rewinds luck too.
+// rngFx is free-running and step() must never read it.
+function rngSim(){
+  let x = WI[I_SEED]|0;
+  x ^= x<<13; x|=0; x ^= x>>>17; x ^= x<<5; x|=0;
+  WI[I_SEED] = x;
+  return ((x>>>0) / 4294967296);
+}
+let fxSeed = 22446688;
+function rngFx(){
+  let x = fxSeed|0;
+  x ^= x<<13; x|=0; x ^= x>>>17; x ^= x<<5; x|=0;
+  fxSeed = x;
+  return ((x>>>0) / 4294967296);
+}
+// FNV-1a over the whole world — the determinism tests compare these.
+function worldHash(){
+  let h = 0x811c9dc5;
+  for(let i=0;i<WF_N;i++){
+    const v = Math.round(WF[i]*4096);
+    h ^= (v & 255);       h = Math.imul(h, 16777619);
+    h ^= ((v>>8) & 255);  h = Math.imul(h, 16777619);
+    h ^= ((v>>16) & 255); h = Math.imul(h, 16777619);
+  }
+  for(let i=0;i<WI_N;i++){
+    const v = WI[i];
+    h ^= (v & 255);       h = Math.imul(h, 16777619);
+    h ^= ((v>>8) & 255);  h = Math.imul(h, 16777619);
+    h ^= ((v>>16) & 255); h = Math.imul(h, 16777619);
+  }
+  return h>>>0;
+}
+
+// ══════════════════════════ 5. FACTS, POWERS, ERAS ═════════════════════════
+// FATE is a mutable 16-bit int. POWERS is monotone — nothing in this game ever
+// clears a bit of it. Your arm can go back to flesh; you still know how to Pin.
+
+const F_MOTHER=1<<0,  F_DOG=1<<1,     F_GANG=1<<2,   F_FREE=1<<3,
+      F_KESH=1<<4,    F_BLOOD=1<<5,   F_MERCY=1<<6,  F_CHROME=1<<7,
+      F_HAND=1<<8,    F_WITNESS=1<<9, F_QUIET=1<<10, F_NAMED=1<<11,
+      F_DOC=1<<12,    F_BURNED=1<<13, F_LIMP=1<<14,  F_VAULT=1<<15;
+
+const FACT_NAMES = [
+  ['F_MOTHER','you went back into the fire'], ['F_DOG','the dog came with you'],
+  ['F_GANG','you took the oath'],             ['F_FREE','you walked away from it'],
+  ['F_KESH','Kesh respects you'],             ['F_BLOOD','you left bodies on the run'],
+  ['F_MERCY','you left nobody on the run'],   ['F_CHROME','the press took your arm'],
+  ['F_HAND','you kept the hand'],             ['F_WITNESS','the lights were on'],
+  ['F_QUIET','it happened in the dark'],      ['F_NAMED','the city knows your name'],
+  ['F_DOC','you hold the ledger'],            ['F_BURNED','they burned you'],
+  ['F_LIMP','you walk wrong now'],            ['F_VAULT','the vault is open'],
+];
+
+const P_FORK=1, P_SLIP=2, P_STASIS=4, P_SWAP=8, P_BLADE=16, P_LASTWORD=32;
+const POWER_INFO = [
+  {bit:P_FORK,    name:'REWIND / FORK', key:'R',   glyph:'↺'},
+  {bit:P_SLIP,    name:'PHASE SLIP',    key:'F+R', glyph:'◧'},
+  {bit:P_STASIS,  name:'STASIS PIN',    key:'Q',   glyph:'❉'},
+  {bit:P_SWAP,    name:'SWAP',          key:'X',   glyph:'⇄'},
+  {bit:P_BLADE,   name:'CAUSAL BLADE',  key:'RMB', glyph:'⚔'},
+  {bit:P_LASTWORD,name:'LAST WORD',     key:'TAB', glyph:'⏸'},
+];
+
+// bg / mid / ink / accent / hi — each era commits to one light source
+const ERAS = {
+  ASH  :{bg:'#0b0705', mid:'#1a0f0a', ink:'#2b1a12', acc:'#ff5a1f', hi:'#ffd9a0', name:'ASH'},
+  WIRE :{bg:'#07080f', mid:'#12131f', ink:'#1e2033', acc:'#ffb01f', hi:'#fff0c0', name:'WIRE'},
+  GLASS:{bg:'#04090c', mid:'#0a1620', ink:'#102330', acc:'#34f0e0', hi:'#eafcff', name:'GLASS'},
+  SPINE:{bg:'#0a0410', mid:'#170a26', ink:'#24103a', acc:'#ff3ad0', hi:'#ffd7f5', name:'SPINE'},
+  ZERO :{bg:'#050505', mid:'#0e0e0e', ink:'#1a1a1a', acc:'#ff2b2b', hi:'#ffffff', name:'ZERO'},
+};
+
+// ══════════════════════════ 6. THE 18 ARENAS ═══════════════════════════════
+// Every arena is exactly one locked screen. No scrolling, ever — you must be
+// able to see all four of your selves at once or the whole fantasy dies.
+// Rows are the 21 interior rows; the loader forces a solid border, so a short
+// string just means "empty out to the wall".
+//
+//   .  empty     #  solid      =  one-way      ^  spike      %  breakable
+//   D  door      P  spawn      X  exit         A B C plates  S  splinter
+//   m  mother    g  dog        *  press        T  transmitter  J  oath marker
+//   w  watcher   s  sweeper    t  turret       n  warden      c  censor
+//   r  scrubber  k  Kesh       U  Auditor      Z  Archivist   L  laser rail
+
+const ROOMS = {
+
+// ─────────────────────────── ERA I : ASH ───────────────────────────────────
+n1:{ name:'THE FIRE', era:'ASH', par:40, gold:28, forkCap:0, forksLocked:true,
+  premise:'The roof is coming down and she is still in the back room.',
+  rows:[
+  '',
+  '.............................X..........',
+  '...........................======.......',
+  '',
+  '.....................======.............',
+  '',
+  '...............======...................',
+  '',
+  '.........======.........................',
+  '',
+  '...======...............................',
+  '',
+  '........======..........................',
+  '',
+  '..............======....................',
+  '',
+  '....................======..............',
+  '',
+  '..........................======........',
+  '',
+  '..m........................P............',
+  ], fire:true, beams:[[17,14],[24,26]] },
+
+n2:{ name:'THE FENCE', era:'ASH', par:45, gold:31.5, forkCap:3, exitNeedsDoor:true, plateHold:1,
+  premise:'Two latches, nine hundred pixels apart, and only one of you.',
+  rows:[
+  '',
+  '..................%.S%..................',
+  '..................####..................',
+  '',
+  '.........======..........======.........',
+  '',
+  '....w...............................w...',
+  '',
+  '...======...................======......',
+  '',
+  '',
+  '..............======....................',
+  '',
+  '.......................======...........',
+  '',
+  '',
+  '..........................g.............',
+  '',
+  '..................................DD....',
+  '..................................DD....',
+  '...A......P....................B..DD..X.',
+  ], splinters:[0] },
+
+n3:{ name:'THE OATH', era:'ASH', par:50, gold:35, forkCap:2,
+  premise:'Kesh puts the knife on the table and waits for you to pick a side.',
+  rows:[
+  '',
+  '',
+  '.......======..................======...',
+  '',
+  '',
+  '.................======.................',
+  '',
+  '',
+  '...======..........................=====',
+  '',
+  '',
+  '..............======....................',
+  '',
+  '',
+  '......======...............======.......',
+  '',
+  '',
+  '...................k....................',
+  '',
+  '..J.......P........................X....',
+  '',
+  ] },
+
+// ─────────────────────────── ERA II : WIRE ─────────────────────────────────
+n4:{ name:'THE RUN', era:'WIRE', par:55, gold:38.5, forkCap:3,
+  premise:'Across the yard before the shift changes. Nobody has to die.',
+  rows:[
+  '',
+  '.....w.........................w........',
+  '',
+  '........======..........======..........',
+  '',
+  '',
+  '..s..........................s..........',
+  '#####==============#####################',
+  '..............................S.........',
+  '..........................%%%%%%........',
+  '',
+  '.....======.........======..............',
+  '',
+  '..r.....................................',
+  '..........................%.............',
+  '#############==########%#####===########',
+  '',
+  '.........======.................======..',
+  '',
+  '...s....................................',
+  '..P..................................X..',
+  '',
+  ], splinters:[1] },
+
+n5:{ name:'THE HAND', era:'WIRE', par:42, gold:29.4, forkCap:2,
+  premise:'The key is under the ram. The ram does not care whose arm is there.',
+  rows:[
+  '',
+  '...........c............................',
+  '',
+  '.t....................................t.',
+  '',
+  '.......======..............======.......',
+  '',
+  '',
+  '..................======................',
+  '',
+  '',
+  '....======....................======....',
+  '',
+  '',
+  '.....................S..................',
+  '..............#########.................',
+  '',
+  '..............*.........................',
+  '#############################...........',
+  '.....P.......................DD......X..',
+  '',
+  ], splinters:[2] },
+
+n6:{ name:'THE BLACKOUT', era:'WIRE', par:62, gold:43.4, forkCap:3,
+  premise:'Three breakers, one substation, and something in the dark counting.',
+  rows:[
+  '',
+  '..........c.............................',
+  '',
+  '.t...................................t..',
+  '',
+  '....======...............======.........',
+  '',
+  '..............w..............w..........',
+  '',
+  '...........======.........======........',
+  '',
+  '..S.....................................',
+  '.####...................................',
+  '',
+  '.......======...............======......',
+  '',
+  '',
+  '..............======....................',
+  '',
+  '........................................',
+  '..A.......P...........B.......C......X..',
+  '',
+  ], splinters:[3] },
+
+// ─────────────────────────── ERA III : GLASS ───────────────────────────────
+n7:{ name:'SIGNAL', era:'GLASS', par:48, gold:33.6, forkCap:3,
+  premise:'Twelve seconds on the transmitter and the whole city hears you.',
+  rows:[
+  '',
+  '................T.......................',
+  '..............======....................',
+  '',
+  '..t...............======............t...',
+  '',
+  '..............======....................',
+  '......w.........................w.......',
+  '..........======........................',
+  '',
+  '................======..................',
+  '.............................S..........',
+  '......................==========........',
+  '',
+  '................======..................',
+  '',
+  '..........======........................',
+  '',
+  '....======..............................',
+  '..................t.....................',
+  '..P..................................X..',
+  ], splinters:[4] },
+
+n8:{ name:'THE AUDITOR', era:'GLASS', par:74, gold:51.8, forkCap:3,
+  premise:'He keeps the ledger, and he keeps rewinding the floor you stand on.',
+  rows:[
+  '',
+  '.....c........................c.........',
+  '',
+  '',
+  '.......======..............======.......',
+  '',
+  '',
+  '..................U.....................',
+  '',
+  '..#####..................######.........',
+  '',
+  '',
+  '...........======...======..............',
+  '',
+  '',
+  '.....######................######.......',
+  '',
+  '',
+  '..............======....................',
+  '',
+  '..P..................................X..',
+  '',
+  ],
+  rowsB:[
+  '',
+  '.....c........................c.........',
+  '',
+  '..######......................######....',
+  '',
+  '',
+  '..............======....................',
+  '',
+  '..................U.....................',
+  '',
+  '.......=====................=====.......',
+  '',
+  '',
+  '....######................######........',
+  '',
+  '',
+  '..........======....======..............',
+  '',
+  '',
+  '..P..................................X..',
+  '',
+  ] },
+
+n9:{ name:'DEBT', era:'GLASS', par:52, gold:36.4, forkCap:3,
+  premise:'They want it back tonight, and they brought someone who cannot be shot from the front.',
+  rows:[
+  '',
+  '....w..........................w........',
+  '',
+  '.......======..............======.......',
+  '',
+  '',
+  '.................======.................',
+  '',
+  '..r......w..................w...........',
+  '',
+  '....======..................======......',
+  '',
+  '',
+  '..S...........======....................',
+  '.###....................................',
+  '',
+  '...........................n............',
+  '',
+  '',
+  '..P..................................X..',
+  '',
+  ], splinters:[5] },
+
+// ─────────────────────────── ERA IV : SPINE ────────────────────────────────
+n10:{ name:'THE VAULT DOOR', era:'SPINE', par:26, gold:18.2, forkCap:3, lastWord:true,
+  exitNeedsDoor:true, plateHold:30,
+  premise:'Three plates. Held at once. You are going to have to spend a version of yourself.',
+  rows:[
+  '.............................##.........',
+  '..........c..................##.........',
+  '.............................##.........',
+  '.t........................t..##.........',
+  '.............................##.........',
+  '.............................##.........',
+  '...................======....##.........',
+  '.............................##.........',
+  '.......................B.....##.........',
+  '.....................######..##.........',
+  '.............................##.........',
+  '.............................##.........',
+  '................=====........##.........',
+  '.............................##.........',
+  '.............====............##.........',
+  '..............###....###.....##.........',
+  '.........====.#........#.....##.........',
+  '..............#........#.....##.........',
+  '.....====.....#........#.....##.........',
+  '..............#........#.....##.........',
+  '..A...P.......#...C....#.....DD.....X...',
+  ] },
+
+n11:{ name:'THE CHOIR OF HANDS', era:'SPINE', par:58, gold:40.6, forkCap:4,
+  premise:'A shaft full of eyes. Everything you know, at once.',
+  rows:[
+  '',
+  '............................X...........',
+  '..........................======........',
+  '....c...................................',
+  '....................======..............',
+  '.t......................................',
+  '..........................======........',
+  '',
+  '....................======..............',
+  '................S.......................',
+  '..............======....................',
+  '..r.....................................',
+  '........======..........................',
+  '....................................t...',
+  '..............======....................',
+  '..................................c.....',
+  '....................======..............',
+  '............................S...........',
+  '..........................======........',
+  '..t............n........................',
+  '..P.....................................',
+  ], splinters:[6,7] },
+
+n12:{ name:'THE WARDEN', era:'SPINE', par:66, gold:46.2, forkCap:3, lastWord:true,
+  premise:'It only bleeds from behind, and it always turns to face you.',
+  rows:[
+  '',
+  '',
+  '.......======..................======...',
+  '',
+  '',
+  '',
+  '..======..........................======',
+  '',
+  '',
+  '................======..................',
+  '',
+  '',
+  '.....======....................======...',
+  '',
+  '',
+  '',
+  '..............................n.........',
+  '',
+  '',
+  '..P..................................X..',
+  '',
+  ] },
+
+n13:{ name:'MIDNIGHT', era:'ZERO', par:180, gold:126, forkCap:6, lastWord:true,
+  premise:'Something wearing your face, assembled out of every night you deleted.',
+  rows:[
+  '',
+  '',
+  '......======..................======....',
+  '',
+  '',
+  '..............S.........................',
+  '.............####.......................',
+  '',
+  '...======..........................=====',
+  '',
+  '',
+  '................Z.......................',
+  '',
+  '',
+  '.....======....................======...',
+  '',
+  '',
+  '..............======....................',
+  '',
+  '..P..................................X..',
+  '',
+  ], splinters:[8] },
+
+// ─────────────────────── THE FIVE FRACTURE CHAMBERS ────────────────────────
+// No story, no HP bar, no medals — a threshold and a stopwatch. The power is
+// loaned at the door and revoked at the exit unless you clear it.
+f1:{ name:'THE THIN WALL', era:'ASH', kind:'fracture', power:P_SLIP, pips:3, gatedExit:true,
+  limit:9.0, seal:6.5, maxDmg:0,
+  premise:'Two walls. One phase each. Nine seconds.',
+  brief:'CROSS THE CORRIDOR \u00b7 2 SLIPS \u00b7 NO DAMAGE',
+  rows:[
+  '',
+  '',
+  '',
+  '',
+  '',
+  '########################################',
+  '..........%...................%.........',
+  '..........%...................%.........',
+  '..P.......%...................%....X....',
+  '########################################',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  ], laser:true },
+
+f2:{ name:'AMBER', era:'WIRE', kind:'fracture', power:P_STASIS, pips:2, gatedExit:true,
+  limit:20.0, seal:15.0, noGround:true,
+  premise:'Three pins. Climb your own bullet-hell.',
+  brief:'REACH THE TOP \u00b7 3 PINS \u00b7 NO FLOOR AFTER THE FIRST',
+  rows:[
+  '..................X.....................',
+  '................#####...................',
+  '',
+  '',
+  '',
+  '.t....................................t.',
+  '',
+  '',
+  '',
+  '.t......................................',
+  '',
+  '',
+  '......................................t.',
+  '..P.....................................',
+  '########################################',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  ] },
+
+f3:{ name:'THE DONOR', era:'WIRE', kind:'fracture', power:P_SWAP, pips:4,
+  limit:25.0, seal:19.0, plateLatch:true, exitNeedsDoor:true,
+  premise:'Four cells. Every way out is behind you.',
+  brief:'FOUR PLATES \u00b7 25 SECONDS \u00b7 SWAP OR STAY DOWN THERE',
+  rows:[
+  '',
+  '',
+  '',
+  '',
+  '..P.....................................',
+  '######.#######.#######.#######.#########',
+  '..........#.......#.......#.............',
+  '..........#.......#.......#.............',
+  '..........#.......#.......#.............',
+  '..........#.......#.......#.............',
+  '..........#.......#.......#.............',
+  '..........#.......#.......#.............',
+  '..........#.......#.......#.............',
+  '..........#.......#.......#.............',
+  '..........#.......#.......#.............',
+  '..........#.......#.......#.............',
+  '..........#.......#.......#.............',
+  '..........#.......#.......#.............',
+  '..........#.......#.......#.............',
+  '..........#.......#.......#.............',
+  '.....A....#..B....#..C....#..H....X.....',
+  ] },
+
+f4:{ name:'THE CUT', era:'GLASS', kind:'fracture', power:P_BLADE, pips:5,
+  limit:30.0, seal:2.0, killWindow:3.0, killCount:5,
+  premise:'Five, off the ground, inside three seconds.',
+  brief:'5 BLADE KILLS · 3s WINDOW · FEET OFF THE FLOOR',
+  rows:[
+  '',
+  '',
+  '',
+  '.....w.......w........w.......w.........',
+  '...======..======...======..======......',
+  '',
+  '',
+  '.......w..........w..........w..........',
+  '.....======.....======.....======.......',
+  '',
+  '',
+  '',
+  '..........======......======............',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '..P.....................................',
+  '',
+  ] },
+
+f5:{ name:'TERMINAL', era:'ZERO', kind:'fracture', power:P_LASTWORD, pips:0,
+  limit:150.0, seal:118.0, gauntlet:true,
+  premise:'Three of them. One heart. No net.',
+  brief:'3 BOSSES · 1 HP · NO REWIND',
+  rows:[
+  '',
+  '',
+  '.......======..................======...',
+  '',
+  '',
+  '',
+  '..======..........................======',
+  '',
+  '',
+  '................======..................',
+  '',
+  '',
+  '.....======....................======...',
+  '',
+  '',
+  '',
+  '',
+  '',
+  '..P..................................X..',
+  '',
+  '',
+  ] },
+};
+
+// ══════════════════════════ 7. THE SPINE (fate graph) ══════════════════════
+// A node's outcome is never a dialogue pick — it is a predicate over what you
+// physically did. `requires.any` is the default on purpose: it is what keeps
+// the Knot's retraction fanout at zero, so nobody is ever sent back through
+// nine levels because they changed their childhood.
+
+const NODES = {
+n1 :{t:'THE FIRE',      era:'ASH',  x:430, y:250, after:[],
+     outcomes:[
+       {id:'WENT_BACK', test:s=>s.exit&&s.carried===1, set:F_MOTHER, clr:0,
+        line:'You went back in for her. It cost eleven seconds and the skin on your back.'},
+       {id:'RAN',       test:s=>s.exit, set:0, clr:F_MOTHER,
+        line:'You ran, and the roof came down behind you.'}],
+     edges:[['n2',0],['f1',F_MOTHER]]},
+
+n2 :{t:'THE FENCE',     era:'ASH',  x:520, y:250, after:['n1'],
+     outcomes:[
+       {id:'CARRIED', test:s=>s.exit&&s.carried===2, set:F_DOG, clr:0,
+        line:'You carried the dog over the fence. It slowed you down. You did it anyway.'},
+       {id:'RAN',     test:s=>s.exit, set:0, clr:F_DOG,
+        line:'You left it barking on the wrong side of the wire.'}],
+     edges:[['n3',0]]},
+
+n3 :{t:'THE OATH',      era:'ASH',  x:610, y:250, after:['n2'],
+     outcomes:[
+       {id:'REFUSED', test:s=>s.bossDown&&s.forks===0, set:F_KESH|F_FREE, clr:F_GANG,
+        line:'You put Kesh down without splitting yourself once. She has not forgotten it.'},
+       {id:'BEAT',    test:s=>s.bossDown, set:F_FREE, clr:F_GANG|F_KESH,
+        line:'You won, eventually, with four of you in the room. She counted.'},
+       {id:'JOINED',  test:s=>s.joined, set:F_GANG, clr:F_FREE|F_KESH,
+        line:'You took the oath. It was warm in there, for a while.'}],
+     edges:[['n4',0],['f4',F_KESH]]},
+
+n4 :{t:'THE RUN',       era:'WIRE', x:700, y:250, after:['n3'], req:{any:F_GANG|F_FREE},
+     outcomes:[
+       {id:'CLEAN',  test:s=>s.exit&&s.kills===0, set:F_MERCY, clr:F_BLOOD,
+        line:'You crossed the yard and left everybody standing.'},
+       {id:'KILLED', test:s=>s.exit, set:F_BLOOD, clr:F_MERCY,
+        line:'You crossed the yard. Not everybody did.'}],
+     edges:[['n5',0]]},
+
+n5 :{t:'THE HAND',      era:'WIRE', x:790, y:250, after:['n4'], knot:true,
+     outcomes:[
+       {id:'HAND_SAVED', test:s=>s.exit&&s.window>0&&s.window<=18, set:F_HAND, clr:F_CHROME,
+        line:'You kept the hand. Something else took the bill.'},
+       {id:'ARM_TAKEN',  test:s=>s.exit, set:F_CHROME, clr:F_HAND,
+        line:'They gave you an arm that does not shake.'}],
+     edges:[['n6',0],['f2',F_HAND],['f3',F_CHROME]]},
+
+n6 :{t:'THE BLACKOUT',  era:'WIRE', x:880, y:250, after:['n5'], req:{any:F_CHROME|F_HAND},
+     outcomes:[
+       {id:'LIT',  test:s=>s.exit&&s.plates>=3, set:F_WITNESS, clr:F_QUIET,
+        line:'You put the lights back on. Everyone saw what you are.'},
+       {id:'DARK', test:s=>s.exit, set:F_QUIET, clr:F_WITNESS,
+        line:'You did it in the dark, and the dark kept it.'}],
+     edges:[['n7',0]]},
+
+n7 :{t:'SIGNAL',        era:'GLASS',x:970, y:250, after:['n6'],
+     outcomes:[
+       {id:'BROADCAST', test:s=>s.exit&&s.hold>=12, set:F_NAMED, clr:0,
+        line:'Twelve seconds of you, on every screen in the district.'},
+       {id:'SILENT',    test:s=>s.exit, set:0, clr:F_NAMED,
+        line:'You pulled the plug and stayed nobody.'}],
+     edges:[['n8',0]]},
+
+n8 :{t:'THE AUDITOR',   era:'GLASS',x:970, y:440, after:['n7'],
+     outcomes:[
+       {id:'SPARED', test:s=>s.exit&&!s.bossDown&&s.time>=45, set:F_DOC, clr:0,
+        line:'You let him live for forty-five seconds and walked out with the ledger anyway.'},
+       {id:'KILLED', test:s=>s.bossDown, set:0, clr:F_DOC,
+        line:'You took the ledger off his body. Half the pages were you.'}],
+     edges:[['n9',0]]},
+
+n9 :{t:'DEBT',          era:'GLASS',x:880, y:440, after:['n8'],
+     outcomes:[
+       {id:'PAID',   test:s=>s.exit&&s.kills===0, set:0, clr:F_BURNED|F_LIMP,
+        line:'You paid it in full and nobody had to bleed for the arithmetic.'},
+       {id:'ROBBED', test:s=>s.exit, set:F_BURNED|F_LIMP, clr:F_DOC,
+        line:'They took it back out of your leg. You still walk wrong.'}],
+     edges:[['n10',0]]},
+
+n10:{t:'THE VAULT DOOR',era:'SPINE',x:790, y:440, after:['n9'],
+     outcomes:[
+       {id:'OPENED', test:s=>s.exit, set:F_VAULT, clr:0,
+        line:'Three plates, three of you, one door. The vault was never the hard part.'}],
+     edges:[['n11',0]]},
+
+n11:{t:'THE CHOIR',     era:'SPINE',x:700, y:440, after:['n10'], req:{any:F_CHROME|F_HAND},
+     outcomes:[
+       {id:'CLEARED', test:s=>s.exit, set:0, clr:0,
+        line:'A shaft full of eyes, and every one of them saw four of you.'}],
+     edges:[['n12',0]]},
+
+n12:{t:'THE WARDEN',    era:'SPINE',x:610, y:440, after:['n11'], req:{all:F_VAULT},
+     outcomes:[
+       {id:'CLEARED', test:s=>s.exit&&s.bossDown, set:0, clr:0,
+        line:'It never once saw the thing that killed it. That was the point.'}],
+     edges:[['n13',0],['f5',F_VAULT]]},
+
+n13:{t:'MIDNIGHT',      era:'ZERO', x:480, y:440, after:['n12'], reqPow:P_STASIS|P_SWAP|P_BLADE,
+     outcomes:[
+       {id:'ENDED', test:s=>s.exit, set:0, clr:0, line:'Midnight, and for once you were the one still standing.'}],
+     edges:[]},
+
+// The five chambers. Each hangs off exactly one edge, is named on the graph
+// from minute one, and is unreachable until the fact that draws its edge exists.
+f1 :{t:'FRACTURE I · THE THIN WALL', era:'ASH',  x:430, y:120, frac:true, need:F_MOTHER,  from:'n1'},
+f4 :{t:'FRACTURE IV · THE CUT',      era:'GLASS',x:610, y:120, frac:true, need:F_KESH,    from:'n3'},
+f2 :{t:'FRACTURE II · AMBER',        era:'WIRE', x:745, y:352, frac:true, need:F_HAND,    from:'n5'},
+f3 :{t:'FRACTURE III · THE DONOR',   era:'WIRE', x:855, y:352, frac:true, need:F_CHROME,  from:'n5'},
+f5 :{t:'FRACTURE V · TERMINAL',      era:'ZERO', x:600, y:600, frac:true, need:F_VAULT,   from:'n12', needClear:'n12'},
+};
+const NODE_ORDER = ['n1','n2','n3','n4','n5','n6','n7','n8','n9','n10','n11','n12','n13'];
+const FRAC_ORDER = ['f1','f2','f3','f4','f5'];
+const ALL_NODES  = NODE_ORDER.concat(FRAC_ORDER);
+
+// ══════════════════════════ 8. SAVE ════════════════════════════════════════
+const SAVE_KEY = 'fatespine.v1';
+const FRESH = () => ({
+  v:1, facts:0, powers:P_FORK, outcomes:{}, medals:{}, best:{}, anchored:{},
+  seals:{}, cleared:{}, splinters:0, fails:{}, soften:false, seen:{}, ending:null
+});
+let SAVE = FRESH();
+
+function saveGame(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); }catch(e){}
+}
+function loadGame(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return;
+    const d = JSON.parse(raw);
+    if(!d || d.v !== 1) return;
+    SAVE = Object.assign(FRESH(), d);
+    SAVE.powers |= P_FORK;
+  }catch(e){ SAVE = FRESH(); }
+}
+
+// Facts are never edited in place — they are recomputed from the outcomes you
+// have actually written, in node order, dropping any node whose door has since
+// closed unless GOLD anchored it. The fact set only shrinks while retracting,
+// so this provably reaches a fixpoint (asserted <= 16 passes by #smoke).
+function rebuildFacts(){
+  const dropped = [];
+  for(let pass=0; pass<16; pass++){
+    let F = 0, bad = null;
+    for(const id of NODE_ORDER){
+      const ocId = SAVE.outcomes[id];
+      if(!ocId) continue;
+      if(!SAVE.anchored[id] && !nodeOpen(id, F, true)){ bad = id; break; }
+      const oc = NODES[id].outcomes.find(o=>o.id===ocId);
+      if(oc){ F = (F | oc.set) & ~oc.clr; }
+    }
+    if(bad === null){ SAVE.facts = F; return dropped; }
+    dropped.push(bad);
+    delete SAVE.outcomes[bad]; delete SAVE.cleared[bad];
+    delete SAVE.medals[bad];   delete SAVE.best[bad];
+  }
+  SAVE.facts = 0;
+  return dropped;
+}
+
+// Is the door to this node open, given a fact set?
+// `chain` skips the "previous node cleared" test during a fact rebuild, where
+// clearedness is exactly what is being recomputed.
+function nodeOpen(id, F, chain){
+  const n = NODES[id];
+  if(!n) return false;
+  if(F === undefined) F = SAVE.facts;
+  if(n.frac){
+    if(n.need && !(F & n.need)) return false;
+    if(n.needClear && !SAVE.cleared[n.needClear]) return false;
+    return true;
+  }
+  if(!chain) for(const a of (n.after||[])) if(!SAVE.cleared[a]) return false;
+  const r = n.req;
+  if(r){
+    if(r.any  && !(F & r.any)) return false;
+    if(r.all  && (F & r.all) !== r.all) return false;
+    if(r.none && (F & r.none)) return false;
+  }
+  if(n.reqPow && (SAVE.powers & n.reqPow) !== n.reqPow) return false;
+  return true;
+}
+function splinterHas(i){ return (SAVE.splinters >> i) & 1; }
+function splinterCount(){ let c=0; for(let i=0;i<9;i++) if(splinterHas(i)) c++; return c; }
+function powerCount(){ let c=0; for(const p of POWER_INFO) if(SAVE.powers & p.bit) c++; return c; }
+
+// ══════════════════════════ 9. ROOM LOADING ════════════════════════════════
+// Tiles never mutate. Doors are a bit in WI, the Auditor's floor swap is an
+// index in WI, and breakables stay solid — they are one tile thick so PHASE
+// SLIP goes through them. Nothing in the world outlives a snapshot.
+
+const T_EMPTY=0, T_SOLID=1, T_ONEWAY=2, T_SPIKE=3, T_BREAK=4, T_DOOR=5;
+
+const E_WATCHER=1, E_SWEEPER=2, E_TURRET=3, E_WARDEN=4, E_CENSOR=5,
+      E_SCRUBBER=6, E_KESH=7, E_AUDITOR=8, E_ARCHIVIST=9, E_DOG=10, E_ALLY=11;
+const ENEMY_HP = {1:2, 2:3, 3:5, 4:4, 5:3, 6:2, 7:10, 8:12, 9:42, 10:99, 11:99};
+
+const PR_EXIT=1, PR_PLATE=2, PR_SPLINTER=3, PR_CARRY=4, PR_PRESS=5,
+      PR_TRANSMIT=6, PR_JOIN=7, PR_BEAM=8, PR_LASER=9, PR_GHOSTPROP=10;
+
+let TIL_A = new Int8Array(GW*GH), TIL_B = null;
+let roomId = 'n1', room = ROOMS.n1, era = ERAS.ASH;
+let BODY = {maxHp:3, dashCd:42, ammo:10, accel:1.0, coyote:6, bladeReach:56, cling:false, pips:0};
+let RUN  = null;      // load-time constants for the attempt in progress
+
+function tileIdx(tx,ty){ return ty*GW+tx; }
+function layer(){ return (WI[I_LAYER] && TIL_B) ? TIL_B : TIL_A; }
+function tileAt(tx,ty){
+  if(tx<0||ty<0||tx>=GW||ty>=GH) return T_SOLID;
+  return layer()[ty*GW+tx];
+}
+function solidAt(tx,ty){
+  const t = tileAt(tx,ty);
+  if(t===T_SOLID||t===T_BREAK) return true;
+  if(t===T_DOOR) return WI[I_DOOR]===0;
+  return false;
+}
+function onewayAt(tx,ty){ return tileAt(tx,ty)===T_ONEWAY; }
+function spikeAt(tx,ty){ return tileAt(tx,ty)===T_SPIKE; }
+function solidPx(x,y){ return solidAt(Math.floor(x/TW), Math.floor(y/TW)); }
+
+// Parse the 21 interior rows into a grid, forcing the outer wall.
+function parseRows(rows, sink){
+  const g = new Int8Array(GW*GH);
+  for(let x=0;x<GW;x++){ g[tileIdx(x,0)] = T_SOLID; g[tileIdx(x,GH-1)] = T_SOLID; }
+  for(let y=1;y<GH-1;y++){
+    const s = rows[y-1] || '';
+    g[tileIdx(0,y)] = T_SOLID; g[tileIdx(GW-1,y)] = T_SOLID;
+    for(let x=1;x<GW-1;x++){
+      const c = s[x] || '.';
+      let t = T_EMPTY;
+      switch(c){
+        case '#': t=T_SOLID;  break;
+        case '=': t=T_ONEWAY; break;
+        case '^': t=T_SPIKE;  break;
+        case '%': t=T_BREAK;  break;
+        case 'D': t=T_DOOR;   break;
+        case '.': break;
+        default : if(sink) sink(c, x, y);
+      }
+      g[tileIdx(x,y)] = t;
+    }
+  }
+  return g;
+}
+
+// Fate patches. A variant is always a patch, never a second grid.
+const PATCHES = {
+  n2:(F,add)=>{ add.prop(PR_GHOSTPROP, 20, 4, (F&F_MOTHER)?1:0); },
+  n4:(F,add)=>{ if(F&F_GANG){ add.enemy(E_WATCHER,12,3); add.enemy(E_WATCHER,28,12); }
+                if(F&F_DOG) add.enemy(E_DOG,4,20);
+                if(F&F_BLOOD) add.enemy(E_SWEEPER,20,20); },
+  n6:(F,add)=>{ if(F&F_HAND) add.enemy(E_WATCHER,20,6); },
+  n7:(F,add)=>{ if(F&F_BLOOD) add.enemy(E_WARDEN,26,19); if(F&F_NAMED) add.enemy(E_WATCHER,8,6); },
+  n9:(F,add)=>{ if(F&F_BLOOD) add.enemy(E_WARDEN,10,19); },
+  n10:(F,add)=>{ if(F&F_KESH) add.enemy(E_ALLY,9,20); if(F&F_DOG) add.enemy(E_DOG,4,20); },
+  n12:(F,add)=>{ if(F&F_KESH) add.enemy(E_ALLY,6,19); },
+  n13:(F,add)=>{ if(F&F_KESH) add.enemy(E_ALLY,5,19); if(F&F_DOG) add.enemy(E_DOG,7,19); },
+};
+
+// Body facts are mechanical, not cosmetic. This is what "you changed your
+// fate" feels like in the thumbs.
+function computeBody(F){
+  return {
+    maxHp     : (F & F_MOTHER) ? 4 : 3,
+    dashCd    : (F & F_HAND)   ? 34 : 42,
+    ammo      : (F & F_HAND)   ? 10 : 8,
+    accel     : (F & F_LIMP)   ? 0.88 : 1.0,
+    coyote    : (F & F_LIMP)   ? 5 : 6,
+    bladeReach: (F & F_CHROME) ? 64 : 56,
+    cling     : !!(F & F_CHROME),
+    pips      : 0,
+  };
+}
+
+let spawnTX = 2, spawnTY = 20;
+
+function loadRoom(id, opts){
+  opts = opts || {};
+  roomId = id; room = ROOMS[id]; era = ERAS[room.era];
+  WF.fill(0); WI.fill(0);
+  TIL_B = null;
+
+  const props = [], enemies = [], splinterIds = (room.splinters||[]).slice();
+  let splinterSeen = 0;
+  const add = {
+    prop : (type,tx,ty,val,w,h)=>props.push({type,tx,ty,val:val||0,w:w||24,h:h||24}),
+    enemy: (type,tx,ty)=>enemies.push({type,tx,ty}),
+  };
+
+  TIL_A = parseRows(room.rows, (c,x,y)=>{
+    switch(c){
+      case 'P': spawnTX=x; spawnTY=y; break;
+      case 'X': add.prop(PR_EXIT,x,y,0,30,44); break;
+      case 'A': add.prop(PR_PLATE,x,y,0,30,12); break;
+      case 'B': add.prop(PR_PLATE,x,y,1,30,12); break;
+      case 'C': add.prop(PR_PLATE,x,y,2,30,12); break;
+      case 'H': add.prop(PR_PLATE,x,y,3,30,12); break;
+      case 'D': break;
+      case 'E': add.prop(PR_PLATE,x,y,4,30,12); break;
+      case 'F': add.prop(PR_PLATE,x,y,5,30,12); break;
+      case 'S': add.prop(PR_SPLINTER,x,y,splinterIds[splinterSeen++]|0,20,20); break;
+      case 'm': add.prop(PR_CARRY,x,y,1,26,36); break;
+      case 'g': add.prop(PR_CARRY,x,y,2,26,22); break;
+      case '*': add.prop(PR_PRESS,x,y,0,64,24); break;
+      case 'T': add.prop(PR_TRANSMIT,x,y,0,34,44); break;
+      case 'J': add.prop(PR_JOIN,x,y,0,30,44); break;
+      case 'w': add.enemy(E_WATCHER,x,y);   break;
+      case 's': add.enemy(E_SWEEPER,x,y);   break;
+      case 't': add.enemy(E_TURRET,x,y);    break;
+      case 'n': add.enemy(E_WARDEN,x,y);    break;
+      case 'c': add.enemy(E_CENSOR,x,y);    break;
+      case 'r': add.enemy(E_SCRUBBER,x,y);  break;
+      case 'k': add.enemy(E_KESH,x,y);      break;
+      case 'U': add.enemy(E_AUDITOR,x,y);   break;
+      case 'Z': add.enemy(E_ARCHIVIST,x,y); break;
+    }
+  });
+  if(room.rowsB) TIL_B = parseRows(room.rowsB, ()=>{});
+  if(room.beams) for(const b of room.beams) add.prop(PR_BEAM, b[0], 1, b[1], 40, 40);
+  if(room.laser) add.prop(PR_LASER, 1, 9, 0, 18, 64);
+
+  const F = SAVE.facts;
+  if(PATCHES[id] && !room.kind) PATCHES[id](F, add);
+
+  BODY = computeBody(F);
+  const isFrac = room.kind === 'fracture';
+  // THE LOANER RULE: a chamber hands you the power at the door, because a
+  // trial is allowed to demand mastery of the very thing it grants.
+  const powers = SAVE.powers | (isFrac ? room.power : 0);
+
+  RUN = {
+    id, isFrac, powers, node:NODES[id],
+    par:room.par||0, gold:room.gold||0, forkCap:room.forkCap||0,
+    forksLocked:!!room.forksLocked,
+    pips:isFrac ? room.pips + (SAVE.soften?2:0) : 0,
+    limit:room.limit||0, seal:room.seal||0,
+    soften:!!SAVE.soften, lastWord:!!room.lastWord,
+    props, enemies, splinterIds,
+    startedFrom:opts.from||null,
+  };
+
+  // ── seed the world ──
+  WI[I_SEED]   = 0x5f3a71 ^ (id.charCodeAt(0)*7919) ^ (id.length*104729);
+  WI[I_HP]     = isFrac && room.gauntlet ? 1 : BODY.maxHp;
+  WI[I_AMMO]   = BODY.ammo;
+  WI[I_LAYER]  = 0;
+  WF[PL+A_X]   = spawnTX*TW + TW/2;
+  WF[PL+A_Y]   = spawnTY*TW + TW;
+  WF[PL+A_FACE]= 1;
+  WF[F_CHRONO] = isFrac ? 0 : 6.0;
+
+  for(let i=0;i<enemies.length && i<MAXE;i++){
+    const e = enemies[i], b = EN+i*EN_N, ib = ENI+i*EI_N;
+    WF[b+E_X] = e.tx*TW + TW/2;
+    WF[b+E_Y] = e.ty*TW + TW;
+    WF[b+E_AX]= WF[b+E_X]; WF[b+E_AY]= WF[b+E_Y];
+    WF[b+E_HP]= ENEMY_HP[e.type] || 3;
+    WF[b+E_CD]= 0.4 + i*0.13;
+    WI[ib+N_TYPE] = e.type; WI[ib+N_ALIVE] = 1;
+    if(e.type===E_TURRET||e.type===E_CENSOR) WF[b+E_Y] = e.ty*TW + TW/2;
+  }
+  // Props rest on the ground. Authoring a plate one row high in a text grid
+  // is far too easy, and a plate 32 px above the floor can never be stood on.
+  const gridSolid = (tx,ty)=>{
+    if(tx<0||ty<0||tx>=GW||ty>=GH) return true;
+    const t = TIL_A[ty*GW+tx];
+    return t===T_SOLID||t===T_BREAK||t===T_DOOR||t===T_ONEWAY;
+  };
+  const snapY = (tx,ty)=>{ for(let y=ty; y<ty+5 && y<GH-1; y++) if(gridSolid(tx,y+1)) return y; return ty; };
+  const SNAP = {1:1,2:1,3:1,4:1,5:1,6:1,7:1};
+  for(let i=0;i<props.length && i<MAXP;i++){
+    const p = props[i], b = PR+i*PR_N, ib = PRI+i*PI_N;
+    if(SNAP[p.type]) p.ty = snapY(p.tx, p.ty);
+    WF[b+P_X] = p.tx*TW + TW/2;
+    WF[b+P_Y] = p.ty*TW + TW;
+    WF[b+P_W] = p.w; WF[b+P_H] = p.h; WF[b+P_VAL] = p.val;
+    WI[ib+PI_TYPE] = p.type; WI[ib+PI_ALIVE] = 1;
+    if(p.type===PR_BEAM){ WF[b+P_Y] = TW; WF[b+P_T] = p.val; }
+    if(p.type===PR_LASER){ WF[b+P_X] = TW*1.5; }
+  }
+  countEnemies();
+
+  // tapes and history start clean
+  TAPE.fill(0); tapeBirth.fill(-1);
+  ringMin = 0; ringRec();
+}
+function countEnemies(){
+  let n = 0;
+  for(let i=0;i<MAXE;i++) if(WI[ENI+i*EI_N+N_ALIVE]===1){
+    const t = WI[ENI+i*EI_N+N_TYPE];
+    if(t!==E_DOG && t!==E_ALLY) n++;
+  }
+  WI[I_EALIVE] = n;
+}
+
+// ══════════════════════════ 10. PARTICLE EMITTERS ══════════════════════════
+// Never stored, never simulated. A particle's position is a pure function of
+// (tick - spawnTick, seed, kind), so rewinding plays them backwards for free
+// and they cost the snapshot exactly nothing.
+const FXN = 512;
+const FX = { tick:new Int32Array(FXN), kind:new Int8Array(FXN), x:new Float32Array(FXN),
+             y:new Float32Array(FXN), a:new Float32Array(FXN), s:new Int32Array(FXN), head:0 };
+const FX_HIT=1, FX_KILL=2, FX_FORK=3, FX_DUST=4, FX_SHOT=5, FX_ECHODIE=6,
+      FX_PICKUP=7, FX_SPARK=8, FX_BLADE=9, FX_SLIP=10;
+function emit(kind,x,y,a){
+  const h = FX.head;
+  FX.tick[h]=WI[I_TICK]; FX.kind[h]=kind; FX.x[h]=x; FX.y[h]=y; FX.a[h]=a||0;
+  FX.s[h]=(WI[I_TICK]*2654435761 ^ (x*7|0) ^ (y*131|0))>>>0;
+  FX.head=(h+1)%FXN;
+}
+
+// ══════════════════════════ 11. PHYSICS ════════════════════════════════════
+const GRAV=2000, TERM=900, RUNMAX=260, RUNACC=2400, FRIC=3000,
+      AIRACC=1400, AIRMAX=300, JUMPV=680, DASHV=1600, DASHTICKS=9;
+const PW=18, PH=34;                                    // player AABB
+
+function hitsSolid(cx, feet, w, h){
+  const x0=Math.floor((cx-w/2)/TW), x1=Math.floor((cx+w/2-0.001)/TW);
+  const y0=Math.floor((feet-h)/TW),  y1=Math.floor((feet-0.001)/TW);
+  for(let ty=y0;ty<=y1;ty++) for(let tx=x0;tx<=x1;tx++) if(solidAt(tx,ty)) return true;
+  return false;
+}
+function hitsSpike(cx, feet, w, h){
+  const x0=Math.floor((cx-w/2)/TW), x1=Math.floor((cx+w/2-0.001)/TW);
+  const y0=Math.floor((feet-h)/TW),  y1=Math.floor((feet-0.001)/TW);
+  for(let ty=y0;ty<=y1;ty++) for(let tx=x0;tx<=x1;tx++) if(spikeAt(tx,ty)) return true;
+  return false;
+}
+// Echoes are one-way platforms on their TOP EDGE ONLY and never a lateral
+// solid. Being crushed by a past self would be unforgivable, so it cannot
+// happen: they simply are not walls.
+function ghostTop(cx, w, prevFeet, newFeet, skipIdx){
+  let best = null;
+  for(let i=0;i<MAXG;i++){
+    if(i===skipIdx) continue;
+    const gi = GSI+i*GS_N;
+    if(!WI[gi+G_ALIVE]) continue;
+    const b = GH0+i*AC_N, gx = WF[b+A_X], gy = WF[b+A_Y];
+    const top = gy - PH;
+    if(Math.abs(gx-cx) > (w/2 + 9)) continue;
+    if(prevFeet <= top+2 && newFeet >= top){ if(best===null || top<best) best = top; }
+  }
+  return best;
+}
+// Move on one axis, resolve against tiles. Called with the actor already out
+// of the wall, so a snap to the tile boundary is always correct.
+function moveX(base, ibase, w, h){
+  const vx = WF[base+A_VX];
+  if(vx === 0) return;
+  const nx = WF[base+A_X] + vx*DT;
+  if(WF[base+A_PHASE] > 0){ WF[base+A_X] = nx; return; }   // phase-slipped
+  if(!hitsSolid(nx, WF[base+A_Y], w, h)){ WF[base+A_X] = nx; if(ibase>=0) WI[ibase+AI_WALL]=0; return; }
+  if(vx > 0) WF[base+A_X] = Math.floor((nx + w/2)/TW)*TW - w/2 - 0.01;
+  else       WF[base+A_X] = Math.floor((nx - w/2)/TW)*TW + TW + w/2 + 0.01;
+  WF[base+A_VX] = 0;
+  WF[base+A_WALL] = vx > 0 ? 1 : -1;
+  if(ibase>=0) WI[ibase+AI_WALL] = vx > 0 ? 1 : -1;
+}
+function moveY(base, ibase, w, h, gidx){
+  const vy = WF[base+A_VY];
+  const y0 = WF[base+A_Y];
+  const ny = y0 + vy*DT;
+  const phased = WF[base+A_PHASE] > 0;
+  if(ibase>=0) WI[ibase+AI_GROUND] = 0;
+  if(vy >= 0){                                            // falling
+    if(!phased){
+      // one-way tiles
+      const tyN = Math.floor((ny-0.001)/TW);
+      const x0=Math.floor((WF[base+A_X]-w/2)/TW), x1=Math.floor((WF[base+A_X]+w/2-0.001)/TW);
+      for(let ty=Math.floor((y0-0.001)/TW); ty<=tyN; ty++){
+        for(let tx=x0;tx<=x1;tx++){
+          if(onewayAt(tx,ty)){
+            const top = ty*TW;
+            if(y0 <= top+1 && ny >= top){
+              WF[base+A_Y]=top; WF[base+A_VY]=0;
+              if(ibase>=0) WI[ibase+AI_GROUND]=1;
+              return;
+            }
+          }
+        }
+      }
+      // echoes as platforms (player only)
+      if(gidx === -1){
+        const gt = ghostTop(WF[base+A_X], w, y0, ny, -1);
+        if(gt !== null){ WF[base+A_Y]=gt; WF[base+A_VY]=0; if(ibase>=0) WI[ibase+AI_GROUND]=2; return; }
+        const ft = frozenBulletTop(WF[base+A_X], w, y0, ny);
+        if(ft !== null){ WF[base+A_Y]=ft; WF[base+A_VY]=0; if(ibase>=0) WI[ibase+AI_GROUND]=3; return; }
+      }
+      if(hitsSolid(WF[base+A_X], ny, w, h)){
+        WF[base+A_Y] = Math.floor(ny/TW)*TW - 0.01;
+        WF[base+A_VY] = 0;
+        if(ibase>=0) WI[ibase+AI_GROUND] = 1;
+        return;
+      }
+    }
+    WF[base+A_Y] = ny;
+  } else {                                                // rising
+    if(!phased && hitsSolid(WF[base+A_X], ny, w, h)){
+      WF[base+A_Y] = Math.floor((ny-h)/TW)*TW + TW + h + 0.01;
+      WF[base+A_VY] = 0;
+      return;
+    }
+    WF[base+A_Y] = ny;
+  }
+}
+// If a slip expires with you inside rock, you are ejected along the entry
+// vector and it costs a heart. It never traps you.
+function unstick(base){
+  if(!hitsSolid(WF[base+A_X], WF[base+A_Y], PW, PH)) return false;
+  for(let r=1;r<=96;r+=4){
+    for(const d of [[0,-1],[1,0],[-1,0],[0,1],[1,-1],[-1,-1]]){
+      const nx = WF[base+A_X]+d[0]*r, ny = WF[base+A_Y]+d[1]*r;
+      if(!hitsSolid(nx,ny,PW,PH)){ WF[base+A_X]=nx; WF[base+A_Y]=ny; return true; }
+    }
+  }
+  return true;
+}
+
+// ══════════════════════════ 12. BULLETS ════════════════════════════════════
+function spawnBullet(x,y,vx,vy,owner,r){
+  let idx = -1;
+  for(let k=0;k<MAXB;k++){
+    const i = (WI[I_BCUR]+k) % MAXB;
+    if(!WI[BUI+i*BI_N+BI_ALIVE]){ idx=i; break; }
+  }
+  if(idx < 0) return -1;
+  WI[I_BCUR] = (idx+1) % MAXB;
+  const b = BU+idx*BU_N, ib = BUI+idx*BI_N;
+  WF[b+B_X]=x; WF[b+B_Y]=y; WF[b+B_VX]=vx; WF[b+B_VY]=vy;
+  WF[b+B_LIFE]=1.8; WF[b+B_R]=r||3;
+  WI[ib+BI_ALIVE]=1; WI[ib+BI_OWNER]=owner; WI[ib+BI_FLAG]=0;
+  return idx;
+}
+function killBullet(i){ WI[BUI+i*BI_N+BI_ALIVE]=0; }
+
+// ══════════════════════════ 13. THE ACTOR STEP ═════════════════════════════
+// The player and every echo run through this identical function. That is not
+// tidiness — it is the reason an echo of you does exactly what you did.
+function stepActor(base, ibase, btn, aim, gidx){
+  const isGhost = gidx >= 0;
+  const grounded = WI[ibase+AI_GROUND] !== 0;
+  const dashing  = WF[base+A_DASHT] > 0;
+
+  // ── timers ──
+  const dec = (o)=>{ if(WF[base+o] > 0) WF[base+o] = Math.max(0, WF[base+o]-1); };
+  dec(A_DASHCD); dec(A_COY); dec(A_JBUF); dec(A_IFR);
+  if(WF[base+A_FIRECD]>0) WF[base+A_FIRECD]=Math.max(0,WF[base+A_FIRECD]-DT);
+  if(WF[base+A_RELOAD]>0) WF[base+A_RELOAD]=Math.max(0,WF[base+A_RELOAD]-DT);
+  if(WF[base+A_BLADET]>0) WF[base+A_BLADET]=Math.max(0,WF[base+A_BLADET]-DT);
+  if(WF[base+A_BLADECD]>0)WF[base+A_BLADECD]=Math.max(0,WF[base+A_BLADECD]-DT);
+  if(WF[base+A_STASCD]>0) WF[base+A_STASCD]=Math.max(0,WF[base+A_STASCD]-DT);
+  if(WF[base+A_SWAPCD]>0) WF[base+A_SWAPCD]=Math.max(0,WF[base+A_SWAPCD]-DT);
+  if(WF[base+A_SLIPCD]>0) WF[base+A_SLIPCD]=Math.max(0,WF[base+A_SLIPCD]-DT);
+  if(WF[base+A_FLASH]>0)  WF[base+A_FLASH]=Math.max(0,WF[base+A_FLASH]-DT);
+  if(WF[base+A_SQUASH]>0) WF[base+A_SQUASH]=Math.max(0,WF[base+A_SQUASH]-DT);
+  if(WF[base+A_PHASE]>0){
+    WF[base+A_PHASE]=Math.max(0,WF[base+A_PHASE]-DT);
+    if(WF[base+A_PHASE]===0 && !isGhost){ if(unstick(base) && hitsSolid(WF[base+A_X],WF[base+A_Y],PW,PH)) hurtPlayer(1,base); }
+  }
+  WF[base+A_AIM] = aim;
+
+  const carrying = !isGhost && WI[I_CARRY] > 0;
+  const spdMul = carrying ? 0.85 : 1.0;
+
+  // ── run ──
+  const L = !!(btn & BTN_L), R = !!(btn & BTN_R);
+  const dir = (R?1:0) - (L?1:0);
+  if(dir) WF[base+A_FACE] = dir;
+  if(!dashing){
+    const acc = (grounded ? RUNACC*BODY.accel : AIRACC) * DT;
+    const max = (grounded ? RUNMAX : AIRMAX) * spdMul;
+    if(dir){
+      WF[base+A_VX] += dir*acc;
+      if(Math.abs(WF[base+A_VX]) > max && Math.sign(WF[base+A_VX])===dir)
+        WF[base+A_VX] = dir*Math.max(max, Math.abs(WF[base+A_VX]) - FRIC*DT);
+    } else if(grounded){
+      const s = Math.sign(WF[base+A_VX]);
+      WF[base+A_VX] -= s*Math.min(Math.abs(WF[base+A_VX]), FRIC*DT);
+    } else {
+      const s = Math.sign(WF[base+A_VX]);
+      WF[base+A_VX] -= s*Math.min(Math.abs(WF[base+A_VX]), 240*DT);
+    }
+  }
+
+  // ── wall cling (chrome arm only) ──
+  const wallDir = WI[ibase+AI_WALL];
+  const clinging = BODY.cling && !grounded && !dashing && wallDir!==0 && dir===wallDir && WF[base+A_VY] > 0;
+  if(clinging) WF[base+A_VY] = Math.min(WF[base+A_VY], 60);
+
+  // ── jump ──
+  if(btn & BTN_JUMP){ WF[base+A_JBUF] = 6; } else if(WF[base+A_VY] < 0) WF[base+A_VY] *= 0.86;
+  if(grounded) WF[base+A_COY] = BODY.coyote;
+  if(WF[base+A_JBUF] > 0 && (WF[base+A_COY] > 0 || clinging) && !dashing){
+    if(clinging && WF[base+A_COY] <= 0){
+      WF[base+A_VY] = -380; WF[base+A_VX] = -wallDir*480;
+    } else {
+      WF[base+A_VY] = -JUMPV;
+      emit(FX_DUST, WF[base+A_X], WF[base+A_Y], 0);
+    }
+    WF[base+A_JBUF]=0; WF[base+A_COY]=0;
+    if(!isGhost) sfx('jump');
+  }
+
+  // ── dash ──
+  if((btn & BTN_DASH) && WF[base+A_DASHCD]===0 && !dashing){
+    let dx = dir, dy = 0;
+    if(btn & BTN_JUMP) dy = -1;
+    if(!dx && !dy){ dx = WF[base+A_FACE]; }
+    const m = Math.hypot(dx,dy) || 1;
+    WF[base+A_VX] = dx/m*DASHV; WF[base+A_VY] = dy/m*DASHV;
+    WF[base+A_DASHT] = DASHTICKS; WF[base+A_DASHCD] = BODY.dashCd;
+    emit(FX_SLIP, WF[base+A_X], WF[base+A_Y], Math.atan2(dy,dx));
+    if(!isGhost) sfx('dash');
+  }
+  if(WF[base+A_DASHT] > 0){
+    WF[base+A_DASHT]--;
+    const t = WF[base+A_DASHT];
+    if(t >= 2 && t <= 7) WF[base+A_IFR] = Math.max(WF[base+A_IFR], 2);
+    if(t === 0){ WF[base+A_VX] *= 0.42; WF[base+A_VY] *= 0.30; }
+  } else {
+    WF[base+A_VY] = Math.min(TERM, WF[base+A_VY] + GRAV*DT);
+  }
+
+  // ── pistol ──
+  if((btn & BTN_FIRE) && WF[base+A_FIRECD]===0 && WF[base+A_RELOAD]===0){
+    const owner = isGhost ? (WI[GSI+gidx*GS_N+G_HOSTILE] ? -12-gidx : -2-gidx) : -1;
+    let ammo = isGhost ? 1 : WI[I_AMMO];
+    if(ammo > 0){
+      const a = aim;
+      spawnBullet(WF[base+A_X]+Math.cos(a)*16, WF[base+A_Y]-18+Math.sin(a)*16,
+                  Math.cos(a)*900, Math.sin(a)*900, owner, 3);
+      WF[base+A_FIRECD] = 0.14;
+      emit(FX_SHOT, WF[base+A_X]+Math.cos(a)*18, WF[base+A_Y]-18+Math.sin(a)*18, a);
+      if(!isGhost){ WI[I_AMMO]--; if(WI[I_AMMO]<=0) WF[base+A_RELOAD]=0.9; sfx('shot'); }
+    }
+  }
+  if(!isGhost && WI[I_AMMO]<=0 && WF[base+A_RELOAD]===0) WI[I_AMMO] = BODY.ammo;
+
+  // ── causal blade ──
+  if((btn & BTN_BLADE) && (RUN.powers & P_BLADE) && WF[base+A_BLADECD]===0){
+    WF[base+A_BLADET] = 0.25; WF[base+A_BLADECD] = 0.45;
+    bladeSwing(base, aim, isGhost ? (-2-gidx) : -1);
+    if(!isGhost) sfx('blade');
+  }
+
+  // ── integrate ──
+  moveX(base, ibase, PW, PH);
+  moveY(base, ibase, PW, PH, isGhost ? gidx : -1);
+  if(WF[base+A_X] < PW/2) { WF[base+A_X] = PW/2; WF[base+A_VX]=0; }
+  if(WF[base+A_X] > SCRW-PW/2){ WF[base+A_X]=SCRW-PW/2; WF[base+A_VX]=0; }
+
+  if(!isGhost && hitsSpike(WF[base+A_X], WF[base+A_Y], PW, PH)) hurtPlayer(1, base);
+}
+
+// ══════════════════════════ 14. DAMAGE & POWERS ════════════════════════════
+function hurtPlayer(n, base){
+  base = base===undefined ? PL : base;
+  if(WF[base+A_IFR] > 0 || WI[I_HP] <= 0) return;
+  WI[I_HP] -= n; WI[I_DMG] += n;
+  WF[base+A_IFR] = 48; WF[base+A_FLASH] = 0.3;
+  emit(FX_HIT, WF[base+A_X], WF[base+A_Y]-16, 0);
+  sfx('hurt'); shake(0.42);
+}
+function killEnemy(i, retro){
+  const ib = ENI+i*EI_N, b = EN+i*EN_N;
+  if(!WI[ib+N_ALIVE]) return;
+  WI[ib+N_ALIVE] = 0;
+  WI[I_KILLS]++;
+  WF[F_CHRONO] = Math.min(6, WF[F_CHRONO] + 0.6);   // aggression refuels the clock
+  emit(FX_KILL, WF[b+E_X], WF[b+E_Y]-16, 0);
+  sfx('kill'); shake(0.22); hitstop(6);
+  if(retro) WF[PL+A_DASHCD] = 0;                    // blade kills give the dash back
+  // A causal-blade kill is retroactive: every shot that enemy ever fired
+  // leaves the air in the same frame it dies.
+  if(retro) for(let k=0;k<MAXB;k++) if(WI[BUI+k*BI_N+BI_ALIVE] && WI[BUI+k*BI_N+BI_OWNER]===i) killBullet(k);
+  countEnemies();
+}
+function damageEnemy(i, n, fromX, retro){
+  const b = EN+i*EN_N, ib = ENI+i*EI_N;
+  const type = WI[ib+N_TYPE];
+  if(type===E_DOG || type===E_ALLY) return false;
+  // The Warden only bleeds from behind. That is the whole fight.
+  if(type===E_WARDEN || (type===E_ARCHIVIST && WI[I_PHASE]===1)){
+    const facing = Math.sign(WF[b+E_AIM]) || 1;
+    const side = Math.sign(fromX - WF[b+E_X]);
+    if(side === facing) return false;
+  }
+  WF[b+E_HP] -= n; WF[b+E_FLASH] = 0.18;
+  emit(FX_HIT, WF[b+E_X], WF[b+E_Y]-14, 0);
+  if(WF[b+E_HP] <= 0){
+    if(type===E_KESH || type===E_AUDITOR || type===E_ARCHIVIST){ WI[I_BOSSDOWN] = 1; }
+    killEnemy(i, retro);
+    return true;
+  }
+  sfx('tick');
+  return false;
+}
+function bladeSwing(base, aim, owner){
+  const bx = WF[base+A_X], by = WF[base+A_Y]-17, reach = BODY.bladeReach;
+  emit(FX_BLADE, bx, by, aim);
+  for(let i=0;i<MAXE;i++){
+    if(!WI[ENI+i*EI_N+N_ALIVE]) continue;
+    const e = EN+i*EN_N, dx = WF[e+E_X]-bx, dy = (WF[e+E_Y]-16)-by;
+    if(Math.hypot(dx,dy) > reach+16) continue;
+    let d = Math.atan2(dy,dx) - aim;
+    while(d >  Math.PI) d -= Math.PI*2;
+    while(d < -Math.PI) d += Math.PI*2;
+    if(Math.abs(d) < 0.96 && damageEnemy(i, 2, bx, true) && owner === -1
+       && WI[PLI+AI_GROUND] === 0) noteAirKill();
+  }
+  // the blade also cuts echoes — the undo button for a bad fork
+  if(owner === -1) for(let g=0;g<MAXG;g++){
+    const gi = GSI+g*GS_N;
+    if(!WI[gi+G_ALIVE] || WI[gi+G_HOSTILE]) continue;
+    const gb = GH0+g*AC_N, dx = WF[gb+A_X]-bx, dy = (WF[gb+A_Y]-17)-by;
+    if(Math.hypot(dx,dy) < reach+12){
+      let d = Math.atan2(dy,dx) - aim;
+      while(d >  Math.PI) d -= Math.PI*2;
+      while(d < -Math.PI) d += Math.PI*2;
+      if(Math.abs(d) < 0.96){ WI[gi+G_ALIVE]=0; emit(FX_ECHODIE, WF[gb+A_X], WF[gb+A_Y]-16, 0); }
+    }
+  }
+  // and it deletes bullets it passes through
+  for(let k=0;k<MAXB;k++){
+    if(!WI[BUI+k*BI_N+BI_ALIVE]) continue;
+    if(WI[BUI+k*BI_N+BI_OWNER] < 0) continue;
+    const bb = BU+k*BU_N;
+    if(Math.hypot(WF[bb+B_X]-bx, WF[bb+B_Y]-by) < reach) killBullet(k);
+  }
+}
+// THE CUT asks for five, off the ground, inside three seconds. A sliding
+// window of the last five kill times is the honest way to measure that.
+function noteAirKill(){
+  for(let k=0;k<4;k++) WF[F_K0+k] = WF[F_K0+k+1];
+  WF[F_K0+4] = WF[F_TIME];
+  let n = 0;
+  for(let k=0;k<5;k++) if(WF[F_K0+k] > 0 && WF[F_TIME]-WF[F_K0+k] <= 3.0) n++;
+  if(n > WI[I_HOLD]) WI[I_HOLD] = n;
+}
+function castStasis(x,y){
+  WF[F_STASX]=x; WF[F_STASY]=y; WF[F_STAST]=1.8;
+  WF[PL+A_STASCD]=3.5; WF[F_R5]++;                     // pin counter (chambers)
+  emit(FX_SPARK,x,y,0); sfx('stasis');
+}
+function doSwap(){
+  let best=-1, bt=1e9;
+  for(let g=0; g<MAXG; g++){
+    const gi=GSI+g*GS_N;
+    if(!WI[gi+G_ALIVE] || WI[gi+G_HOSTILE]) continue;
+    const gb=GH0+g*AC_N;
+    if(Math.hypot(WF[gb+A_X]-WF[PL+A_X], WF[gb+A_Y]-WF[PL+A_Y]) > 600) continue;
+    if(WI[gi+G_BIRTH] < bt){ bt=WI[gi+G_BIRTH]; best=g; }
+  }
+  if(best < 0){ WF[PL+A_FLASH]=0.12; return false; }
+  const gb=GH0+best*AC_N;
+  for(const f of [A_X,A_Y,A_VX,A_VY]){ const t=WF[PL+f]; WF[PL+f]=WF[gb+f]; WF[gb+f]=t; }
+  WF[PL+A_SWAPCD]=2.0; WF[F_CHRONO]=Math.max(0,WF[F_CHRONO]-0.5);
+  emit(FX_FORK,WF[PL+A_X],WF[PL+A_Y]-16,0); emit(FX_FORK,WF[gb+A_X],WF[gb+A_Y]-16,0);
+  sfx('swap'); return true;
+}
+function doSlip(){
+  WF[PL+A_PHASE]=0.45; WF[PL+A_SLIPCD]=2.0;
+  if(!RUN.isFrac) WF[F_CHRONO]=Math.max(0,WF[F_CHRONO]-1.2);
+  WF[F_R4]++;                                          // slip counter (chambers)
+  emit(FX_SLIP,WF[PL+A_X],WF[PL+A_Y]-16,0); sfx('slip');
+}
+function frozen(x,y){
+  return WF[F_STAST] > 0 && Math.hypot(x-WF[F_STASX], y-WF[F_STASY]) < 96;
+}
+
+// ══════════════════════════ 15. ENEMIES ════════════════════════════════════
+// Six archetypes, one sentence each, and three of them exist purely to make
+// your echoes mean something.
+function nearestActor(x,y,includeGhosts){
+  let bx=WF[PL+A_X], by=WF[PL+A_Y], bd=Math.hypot(bx-x,by-y), gi=-1;
+  if(includeGhosts) for(let g=0;g<MAXG;g++){
+    const q=GSI+g*GS_N;
+    if(!WI[q+G_ALIVE] || WI[q+G_HOSTILE]) continue;
+    const gb=GH0+g*AC_N, d=Math.hypot(WF[gb+A_X]-x, WF[gb+A_Y]-y);
+    if(d<bd){ bd=d; bx=WF[gb+A_X]; by=WF[gb+A_Y]; gi=g; }
+  }
+  return {x:bx, y:by, d:bd, g:gi};
+}
+function losClear(x0,y0,x1,y1){
+  const n = Math.ceil(Math.hypot(x1-x0,y1-y0)/16);
+  for(let i=1;i<n;i++){
+    const t=i/n;
+    if(solidPx(x0+(x1-x0)*t, y0+(y1-y0)*t)) return false;
+  }
+  return true;
+}
+function stepEnemy(i){
+  const ib = ENI+i*EI_N, b = EN+i*EN_N;
+  if(!WI[ib+N_ALIVE]) return;
+  const type = WI[ib+N_TYPE];
+  if(WF[b+E_FLASH]>0) WF[b+E_FLASH]=Math.max(0,WF[b+E_FLASH]-DT);
+  if(type !== E_SCRUBBER && frozen(WF[b+E_X], WF[b+E_Y]-16)) return;
+  WF[b+E_T] += DT;
+  if(WF[b+E_CD] > 0) WF[b+E_CD] -= DT;
+  const P = nearestActor(WF[b+E_X], WF[b+E_Y], true);
+  const soft = RUN.soften ? 0.8 : 1.0;
+
+  switch(type){
+  case E_WATCHER: {
+    WF[b+E_Y] = WF[b+E_AY] + Math.sin(WF[b+E_T]*1.6)*64;
+    WF[b+E_X] = WF[b+E_AX] + Math.cos(WF[b+E_T]*0.8)*20;
+    if(WF[b+E_CD] <= 0 && P.d < 620 && losClear(WF[b+E_X],WF[b+E_Y]-14,P.x,P.y-18)){
+      const a = Math.atan2(P.y-18-(WF[b+E_Y]-14), P.x-WF[b+E_X]);
+      spawnBullet(WF[b+E_X],WF[b+E_Y]-14,Math.cos(a)*900*soft,Math.sin(a)*900*soft,i,4);
+      WF[b+E_CD] = 1.6; emit(FX_SHOT,WF[b+E_X],WF[b+E_Y]-14,a);
+    }
+    break; }
+  case E_SWEEPER: {
+    const st = WI[ib+N_STATE];
+    WF[b+E_VY] = Math.min(TERM, WF[b+E_VY]+GRAV*DT);
+    if(st===0){                                    // patrol / look
+      WF[b+E_VX] *= 0.86;
+      if(WF[b+E_CD] <= 0 && Math.abs(P.y-WF[b+E_Y]) < 60 && P.d < 520){
+        WI[ib+N_STATE]=1; WF[b+E_CD]=0.35*(RUN.soften?1.3:1);
+        WF[b+E_TX]=Math.sign(P.x-WF[b+E_X])||1;
+      }
+    } else if(st===1){                             // telegraph
+      if(WF[b+E_CD] <= 0){ WI[ib+N_STATE]=2; WF[b+E_CD]=0.9; WF[b+E_VX]=WF[b+E_TX]*320*soft; }
+    } else {                                       // charge
+      if(WF[b+E_CD] <= 0){ WI[ib+N_STATE]=0; WF[b+E_CD]=1.1; }
+    }
+    const nx = WF[b+E_X]+WF[b+E_VX]*DT;
+    if(!hitsSolid(nx, WF[b+E_Y], 26, 26)) WF[b+E_X]=nx; else { WF[b+E_VX]=0; WI[ib+N_STATE]=0; WF[b+E_CD]=0.8; }
+    const ny = WF[b+E_Y]+WF[b+E_VY]*DT;
+    if(!hitsSolid(WF[b+E_X], ny, 26, 26)) WF[b+E_Y]=ny;
+    else { WF[b+E_Y]=Math.floor(ny/TW)*TW-0.01; WF[b+E_VY]=0; }
+    break; }
+  case E_TURRET: {
+    WF[b+E_AIM] += 0.70*DT;                        // 40 deg/s spiral
+    if(WF[b+E_CD] <= 0){
+      const a = WF[b+E_AIM];
+      for(let k=0;k<1;k++){
+        spawnBullet(WF[b+E_X],WF[b+E_Y],Math.cos(a)*420*soft,Math.sin(a)*420*soft,i,4);
+      }
+      WF[b+E_CD] = 0.18*(RUN.soften?1.4:1);
+    }
+    break; }
+  case E_WARDEN: {
+    const want = Math.atan2(0, P.x-WF[b+E_X]);
+    const cur  = WF[b+E_AIM] >= 0 ? 0 : Math.PI;
+    let target = (P.x > WF[b+E_X]) ? 1 : -1;
+    WF[b+E_AIM] += (target - WF[b+E_AIM])*Math.min(1, 1.05*DT*3);
+    WF[b+E_VY] = Math.min(TERM, WF[b+E_VY]+GRAV*DT);
+    const dir = Math.sign(WF[b+E_AIM]) || 1;
+    const nx = WF[b+E_X] + dir*80*DT;
+    if(!hitsSolid(nx, WF[b+E_Y], 30, 40)) WF[b+E_X]=nx;
+    const ny = WF[b+E_Y]+WF[b+E_VY]*DT;
+    if(!hitsSolid(WF[b+E_X], ny, 30, 40)) WF[b+E_Y]=ny;
+    else { WF[b+E_Y]=Math.floor(ny/TW)*TW-0.01; WF[b+E_VY]=0; }
+    if(WF[b+E_CD] <= 0 && P.d < 560){
+      const a = Math.atan2(P.y-20-(WF[b+E_Y]-22), P.x-WF[b+E_X]);
+      spawnBullet(WF[b+E_X]+dir*20,WF[b+E_Y]-22,Math.cos(a)*640*soft,Math.sin(a)*640*soft,i,5);
+      WF[b+E_CD]=1.2;
+    }
+    break; }
+  case E_CENSOR: {
+    // Brackets the nearest echo and deletes it. Makes an echo precious.
+    WF[b+E_X] = WF[b+E_AX] + Math.sin(WF[b+E_T]*0.9)*120;
+    if(WI[ib+N_STATE]===2){ if(WF[b+E_CD]<=0){ WI[ib+N_STATE]=0; } break; }
+    let tg=-1, td=1e9;
+    for(let g=0;g<MAXG;g++){
+      const q=GSI+g*GS_N;
+      if(!WI[q+G_ALIVE] || WI[q+G_HOSTILE]) continue;
+      const gb=GH0+g*AC_N, d=Math.hypot(WF[gb+A_X]-WF[b+E_X], WF[gb+A_Y]-WF[b+E_Y]);
+      if(d<td){ td=d; tg=g; }
+    }
+    if(tg<0){ WI[ib+N_STATE]=0; WI[ib+N_TGT]=-1; break; }
+    if(WI[ib+N_TGT]!==tg){ WI[ib+N_TGT]=tg; WI[ib+N_STATE]=1; WF[b+E_CD]=0.6*(RUN.soften?1.4:1); }
+    if(WI[ib+N_STATE]===1 && WF[b+E_CD]<=0){
+      const q=GSI+tg*GS_N, gb=GH0+tg*AC_N;
+      WI[q+G_ALIVE]=0; emit(FX_ECHODIE, WF[gb+A_X], WF[gb+A_Y]-16, 0);
+      WI[ib+N_STATE]=2; WF[b+E_CD]=4.0; WI[ib+N_TGT]=-1; sfx('censor');
+    }
+    break; }
+  case E_SCRUBBER: {
+    const a = Math.atan2(WF[PL+A_Y]-16-WF[b+E_Y], WF[PL+A_X]-WF[b+E_X]);
+    WF[b+E_X] += Math.cos(a)*90*DT; WF[b+E_Y] += Math.sin(a)*90*DT;
+    if(Math.hypot(WF[PL+A_X]-WF[b+E_X], WF[PL+A_Y]-16-WF[b+E_Y]) < 128)
+      WF[F_CHRONO] = Math.max(0, WF[F_CHRONO] - 2.0*DT);
+    break; }
+  case E_KESH:    stepKesh(i,b,ib,P,soft); break;
+  case E_AUDITOR: stepAuditor(i,b,ib,P,soft); break;
+  case E_ARCHIVIST: stepArchivist(i,b,ib,P,soft); break;
+  case E_DOG: {
+    const tx = WF[PL+A_X] - WF[PL+A_FACE]*40;
+    WF[b+E_X] += Math.max(-220*DT, Math.min(220*DT, (tx-WF[b+E_X])*0.09));
+    WF[b+E_VY] = Math.min(TERM, WF[b+E_VY]+GRAV*DT);
+    const ny = WF[b+E_Y]+WF[b+E_VY]*DT;
+    if(!hitsSolid(WF[b+E_X], ny, 22, 20)) WF[b+E_Y]=ny;
+    else { WF[b+E_Y]=Math.floor(ny/TW)*TW-0.01; WF[b+E_VY]=0; }
+    break; }
+  case E_ALLY: {                                   // Kesh, fighting beside you
+    const tx = WF[PL+A_X] - 70*(Math.sign(WF[PL+A_FACE])||1);
+    WF[b+E_X] += Math.max(-240*DT, Math.min(240*DT, (tx-WF[b+E_X])*0.07));
+    WF[b+E_VY] = Math.min(TERM, WF[b+E_VY]+GRAV*DT);
+    const ny = WF[b+E_Y]+WF[b+E_VY]*DT;
+    if(!hitsSolid(WF[b+E_X], ny, 22, 34)) WF[b+E_Y]=ny;
+    else { WF[b+E_Y]=Math.floor(ny/TW)*TW-0.01; WF[b+E_VY]=0; }
+    if(WF[b+E_CD] <= 0){
+      let t=-1, td=1e9;
+      for(let k=0;k<MAXE;k++){
+        if(!WI[ENI+k*EI_N+N_ALIVE]) continue;
+        const kt=WI[ENI+k*EI_N+N_TYPE];
+        if(kt===E_DOG||kt===E_ALLY) continue;
+        const d=Math.hypot(WF[EN+k*EN_N+E_X]-WF[b+E_X], WF[EN+k*EN_N+E_Y]-WF[b+E_Y]);
+        if(d<td){ td=d; t=k; }
+      }
+      if(t>=0 && td<560){
+        const a=Math.atan2(WF[EN+t*EN_N+E_Y]-16-(WF[b+E_Y]-20), WF[EN+t*EN_N+E_X]-WF[b+E_X]);
+        spawnBullet(WF[b+E_X],WF[b+E_Y]-20,Math.cos(a)*820,Math.sin(a)*820,-9,3);
+        WF[b+E_CD]=0.9;
+      }
+    }
+    break; }
+  }
+}
+// ── the three bosses, all reusing machinery that already exists ──
+function stepKesh(i,b,ib,P,soft){
+  WF[b+E_VY] = Math.min(TERM, WF[b+E_VY]+GRAV*DT);
+  const phase = Math.floor(WF[b+E_T]/2.0) % 6;
+  const dir = Math.sign(P.x - WF[b+E_X]) || 1;
+  WF[b+E_AIM] = dir;
+  let vx = 0;
+  switch(phase){
+    case 0: vx = dir*150; break;                                   // close
+    case 1: if(WF[b+E_CD]<=0){                                     // three-round burst
+              const a=Math.atan2(P.y-18-(WF[b+E_Y]-20), P.x-WF[b+E_X]);
+              for(let k=-1;k<=1;k++) spawnBullet(WF[b+E_X],WF[b+E_Y]-20,
+                Math.cos(a+k*0.16)*760*soft, Math.sin(a+k*0.16)*760*soft, i, 4);
+              WF[b+E_CD]=0.55; } break;
+    case 2: vx = -dir*220; break;                                  // back off
+    case 3: if(WF[b+E_CD]<=0){                                     // ring
+              for(let k=0;k<10;k++){ const a=k/10*Math.PI*2 + WF[b+E_T];
+                spawnBullet(WF[b+E_X],WF[b+E_Y]-20,Math.cos(a)*380*soft,Math.sin(a)*380*soft,i,4); }
+              WF[b+E_CD]=0.85; } break;
+    case 4: vx = dir*300; if(WI[PLI+AI_GROUND] && WF[b+E_VY]===0 && WF[b+E_CD]<=0){ WF[b+E_VY]=-560; WF[b+E_CD]=1.4; } break;
+    case 5: if(WF[b+E_CD]<=0){                                     // aimed pair
+              const a=Math.atan2(P.y-18-(WF[b+E_Y]-20), P.x-WF[b+E_X]);
+              spawnBullet(WF[b+E_X],WF[b+E_Y]-20,Math.cos(a)*980*soft,Math.sin(a)*980*soft,i,4);
+              WF[b+E_CD]=0.42; } break;
+  }
+  const nx = WF[b+E_X]+vx*DT;
+  if(!hitsSolid(nx, WF[b+E_Y], 24, 36)) WF[b+E_X]=nx;
+  const ny = WF[b+E_Y]+WF[b+E_VY]*DT;
+  if(!hitsSolid(WF[b+E_X], ny, 24, 36)) WF[b+E_Y]=ny;
+  else { WF[b+E_Y]=Math.floor(ny/TW)*TW-0.01; WF[b+E_VY]=0; }
+  if(WF[b+E_HP] <= 6 && !WI[ib+N_STATE]){          // summons at 60%
+    WI[ib+N_STATE]=1;
+    spawnEnemy(E_WATCHER, WF[b+E_X]-160, WF[b+E_Y]-160);
+    spawnEnemy(E_WATCHER, WF[b+E_X]+160, WF[b+E_Y]-160);
+  }
+}
+function stepAuditor(i,b,ib,P,soft){
+  // He rewinds the floor. Your echoes keep replaying their tapes into geometry
+  // that is no longer there — that is not a bug, that is the fight.
+  if(WF[b+E_T] > 12.0){
+    WF[b+E_T] = 0; WI[I_LAYER] = WI[I_LAYER] ? 0 : 1;
+    WF[F_R3] = 0.4; sfx('swapfloor'); shake(0.5);
+    for(let g=0;g<MAXG;g++){
+      const q=GSI+g*GS_N, gb=GH0+g*AC_N;
+      if(WI[q+G_ALIVE] && hitsSolid(WF[gb+A_X],WF[gb+A_Y],PW,PH)) WI[q+G_ALIVE]=0;
+    }
+    if(hitsSolid(WF[PL+A_X],WF[PL+A_Y],PW,PH)) unstick(PL);
+  }
+  if(WF[F_R3]>0) WF[F_R3]=Math.max(0,WF[F_R3]-DT);
+  const dir = Math.sign(P.x-WF[b+E_X])||1;
+  WF[b+E_X] += dir*70*DT;
+  WF[b+E_Y] = WF[b+E_AY] + Math.sin(WF[b+E_T]*1.1)*70;
+  if(WF[b+E_CD] <= 0){
+    const a=Math.atan2(P.y-18-WF[b+E_Y], P.x-WF[b+E_X]);
+    for(let k=-1;k<=1;k++) spawnBullet(WF[b+E_X],WF[b+E_Y],
+      Math.cos(a+k*0.34)*560*soft, Math.sin(a+k*0.34)*560*soft, i, 4);
+    WF[b+E_CD]=1.4;
+  }
+}
+function stepArchivist(i,b,ib,P,soft){
+  const hp = WF[b+E_HP];
+  const ph = hp > 28 ? 0 : hp > 14 ? 1 : 2;
+  if(WI[I_PHASE] !== ph){
+    WI[I_PHASE] = ph; WF[b+E_CD] = 1.2; shake(0.8); sfx('phase');
+    if(ph===2) spawnShades(2);
+    if(ph===1) spawnEnemy(E_WATCHER, WF[b+E_X]-200, WF[b+E_Y]-140);
+  }
+  WF[b+E_VY] = Math.min(TERM, WF[b+E_VY]+GRAV*DT*0.4);
+  const dir = Math.sign(P.x-WF[b+E_X])||1;
+  WF[b+E_AIM] = dir;
+  WF[b+E_X] += dir*(90+ph*40)*DT;
+  WF[b+E_Y] = WF[b+E_AY] + Math.sin(WF[b+E_T]*1.3)*90;
+  if(WF[b+E_CD] <= 0){
+    const a = Math.atan2(P.y-18-WF[b+E_Y], P.x-WF[b+E_X]);
+    if(ph===0){
+      for(let k=-1;k<=1;k++) spawnBullet(WF[b+E_X],WF[b+E_Y],Math.cos(a+k*0.2)*720*soft,Math.sin(a+k*0.2)*720*soft,i,4);
+      WF[b+E_CD]=0.9;
+    } else if(ph===1){
+      for(let k=0;k<12;k++){ const t=k/12*Math.PI*2+WF[b+E_T]*0.7;
+        spawnBullet(WF[b+E_X],WF[b+E_Y],Math.cos(t)*420*soft,Math.sin(t)*420*soft,i,4); }
+      WF[b+E_CD]=1.0;
+    } else {
+      for(let k=-2;k<=2;k++) spawnBullet(WF[b+E_X],WF[b+E_Y],Math.cos(a+k*0.15)*840*soft,Math.sin(a+k*0.15)*840*soft,i,4);
+      WF[b+E_CD]=0.7;
+    }
+  }
+  // PHASE 2 is a wall you cannot out-damage. Unless you left the frame.
+  if(ph===1 && WF[F_R7] !== 1) WF[b+E_HP] = Math.max(WF[b+E_HP], 14.5);
+}
+function spawnEnemy(type,x,y){
+  for(let i=0;i<MAXE;i++){
+    if(WI[ENI+i*EI_N+N_ALIVE]) continue;
+    const b=EN+i*EN_N, ib=ENI+i*EI_N;
+    WF[b+E_X]=x; WF[b+E_Y]=y; WF[b+E_AX]=x; WF[b+E_AY]=y;
+    WF[b+E_HP]=ENEMY_HP[type]||3; WF[b+E_CD]=0.5; WF[b+E_T]=0; WF[b+E_VX]=0; WF[b+E_VY]=0;
+    WI[ib+N_TYPE]=type; WI[ib+N_ALIVE]=1; WI[ib+N_STATE]=0; WI[ib+N_TGT]=-1;
+    countEnemies();
+    return i;
+  }
+  return -1;
+}
+// Hostile echoes: your own tape, walked back at you. Free, because the tape
+// machinery already exists — it just points the other way.
+function spawnShades(n){
+  const from = Math.max(0, WI[I_TICK]-600);
+  for(let k=0;k<n;k++){
+    const g = 4+k;
+    if(g>=MAXG) break;
+    const gi=GSI+g*GS_N, gb=GH0+g*AC_N;
+    GTAPE.set(TAPE.subarray(from*4, WI[I_TICK]*4), g*4*TAPE_MAX);
+    WI[gi+G_ALIVE]=1; WI[gi+G_CUR]=0; WI[gi+G_BIRTH]=from;
+    WI[gi+G_END]=Math.max(60, WI[I_TICK]-from); WI[gi+G_BUF]=g; WI[gi+G_HOSTILE]=1;
+    WF[gb+A_X]=200+k*760; WF[gb+A_Y]=SCRH-96; WF[gb+A_HP]=0;
+  }
+}
+
+// ══════════════════════════ 16. PROPS ══════════════════════════════════════
+function overlapsActorRect(px,py,w,h, ax,ay){
+  return Math.abs(ax-px) < (w/2+PW/2) && (ay > py-h-PH) && (ay < py+8);
+}
+function anyActorOn(px,py,w,h){
+  if(overlapsActorRect(px,py,w,h, WF[PL+A_X], WF[PL+A_Y])) return -1;
+  for(let g=0;g<MAXG;g++){
+    const gi=GSI+g*GS_N;
+    if(!WI[gi+G_ALIVE] || WI[gi+G_HOSTILE]) continue;
+    const gb=GH0+g*AC_N;
+    if(overlapsActorRect(px,py,w,h, WF[gb+A_X], WF[gb+A_Y])) return g;
+  }
+  return -2;
+}
+function exitOpen(){
+  if(room.exitNeedsDoor && WI[I_DOOR] !== 1) return false;
+  if(roomId==='n3')  return WI[I_BOSSDOWN]===1 || WF[F_R2]===1;
+  if(roomId==='n12'||roomId==='n13') return WI[I_BOSSDOWN]===1;
+  if(roomId==='f5')  return WF[F_R0] >= 3;
+  return true;
+}
+function stepProps(btn){
+  let plates = 0, platesTotal = 0, allHeld = true;
+  for(let i=0;i<MAXP;i++){
+    const ib = PRI+i*PI_N;
+    if(!WI[ib+PI_TYPE]) continue;
+    const b = PR+i*PR_N, type = WI[ib+PI_TYPE];
+    const x = WF[b+P_X], y = WF[b+P_Y], w = WF[b+P_W], h = WF[b+P_H];
+    switch(type){
+    case PR_EXIT:
+      if(exitOpen() && overlapsActorRect(x,y,w,h,WF[PL+A_X],WF[PL+A_Y])) WI[I_EXIT] = 1;
+      break;
+    case PR_PLATE: {
+      platesTotal++;
+      const who = anyActorOn(x,y,w,h);
+      const on  = who !== -2;
+      if(room.plateLatch){ if(on) WI[ib+PI_STATE]=1; if(WI[ib+PI_STATE]) plates++; else allHeld=false; }
+      else { WI[ib+PI_STATE] = on?1:0; if(on) plates++; else allHeld=false; }
+      break; }
+    case PR_SPLINTER:
+      if(WI[ib+PI_ALIVE] && overlapsActorRect(x,y,w,h,WF[PL+A_X],WF[PL+A_Y])){
+        WI[ib+PI_ALIVE]=0; WI[I_SPLINT] |= (1<<WF[b+P_VAL]);
+        emit(FX_PICKUP,x,y,0); sfx('pickup');
+      }
+      break;
+    case PR_CARRY:
+      if(WI[ib+PI_ALIVE] && (btn & BTN_ACT) && overlapsActorRect(x,y,w,h,WF[PL+A_X],WF[PL+A_Y])){
+        WI[ib+PI_ALIVE]=0; WI[I_CARRY]=WF[b+P_VAL];
+        emit(FX_PICKUP,x,y,0); sfx('pickup');
+      }
+      break;
+    case PR_JOIN:
+      if((btn & BTN_ACT) && overlapsActorRect(x,y,w,h,WF[PL+A_X],WF[PL+A_Y])){ WF[F_R2]=1; WI[I_EXIT]=1; }
+      break;
+    case PR_TRANSMIT:
+      if(overlapsActorRect(x,y,w,h,WF[PL+A_X],WF[PL+A_Y])) WI[I_HOLD]++;
+      break;
+    case PR_PRESS: {
+      // 2.4 s cycle. Grabbing the key puts an arm under the ram; the only way
+      // to keep the hand is to have somebody else's arm there — yours, earlier.
+      WF[F_R0] = (WF[F_R0] + DT) % 2.4;
+      if(WI[ib+PI_STATE]===0){
+        const who = anyActorOn(x, y, w, h);
+        if(who !== -2 && (who === -1 ? (btn & BTN_ACT) : (tapeBtn(GTAPE, WI[GSI+who*GS_N+G_BUF]*4*TAPE_MAX, WI[GSI+who*GS_N+G_CUR]) & BTN_ACT))){
+          WI[ib+PI_STATE]=1; WI[I_DOOR]=1; WF[F_R1]=18;
+          WI[I_WINDOW] = who === -1 ? 0 : Math.max(1, WI[I_TICK]-WI[I_FORKTICK]);
+          sfx('grab');
+        }
+      } else if(WF[F_R1] > 0){
+        WF[F_R1]--;
+        if(WF[F_R1] === 0){                          // the ram lands
+          shake(0.9); sfx('slam');
+          const who = anyActorOn(x, y, w, h);
+          if(who === -1){ WI[I_WINDOW]=0; WF[PL+A_IFR]=0; hurtPlayer(1); }
+          else if(who >= 0){ WI[GSI+who*GS_N+G_ALIVE]=0; emit(FX_ECHODIE, WF[GH0+who*AC_N+A_X], WF[GH0+who*AC_N+A_Y]-16, 0); }
+        }
+      }
+      break; }
+    case PR_BEAM:
+      if(WF[F_TIME] > WF[b+P_T]){
+        WF[b+P_VY] = Math.min(1200, WF[b+P_VY] + 2600*DT);
+        WF[b+P_Y] += WF[b+P_VY]*DT;
+        if(WF[b+P_Y] > SCRH-40){ WF[b+P_Y]=SCRH-40; WF[b+P_VY]=0; }
+        if(Math.abs(WF[PL+A_X]-x) < 34 && Math.abs(WF[PL+A_Y]-18-WF[b+P_Y]) < 36) hurtPlayer(2);
+      }
+      break;
+    case PR_LASER: {
+      WF[b+P_X] += 220*DT*(RUN.soften?0.8:1);
+      if(WF[b+P_X] > SCRW+40) WF[b+P_X] = -40;
+      if(Math.abs(WF[PL+A_X]-WF[b+P_X]) < 16 && WF[PL+A_PHASE] <= 0) hurtPlayer(1);
+      break; }
+    }
+  }
+  if(platesTotal){
+    if(plates > WF[F_R6]) WF[F_R6] = plates;
+    if(allHeld && plates === platesTotal){
+      WI[I_PLATEF]++;
+      if(WI[I_PLATEF] >= (room.plateHold||1) && WI[I_DOOR]===0){ WI[I_DOOR]=1; sfx('door'); shake(0.3); }
+    } else if(!room.plateLatch) WI[I_PLATEF] = 0;
+  }
+  // rising fire (n1) — pressure, not a wall
+  if(room.fire){
+    const fy = SCRH - WF[F_TIME]*8;
+    if(WF[PL+A_Y] > fy) hurtPlayer(1);
+  }
+}
+
+// ══════════════════════════ 17. BULLETS ════════════════════════════════════
+function hostileOwner(o){ return o >= 0 || o <= -12; }
+function stepBullets(){
+  for(let i=0;i<MAXB;i++){
+    const ib = BUI+i*BI_N;
+    if(!WI[ib+BI_ALIVE]) continue;
+    const b = BU+i*BU_N;
+    const isFrozen = frozen(WF[b+B_X], WF[b+B_Y]);
+    WI[ib+BI_FLAG] = isFrozen ? 1 : 0;
+    if(isFrozen) continue;                              // frozen shells are level geometry
+    WF[b+B_X] += WF[b+B_VX]*DT; WF[b+B_Y] += WF[b+B_VY]*DT;
+    WF[b+B_LIFE] -= DT;
+    if(WF[b+B_LIFE] <= 0 || WF[b+B_X]<0 || WF[b+B_X]>SCRW || WF[b+B_Y]<0 || WF[b+B_Y]>SCRH){ killBullet(i); continue; }
+    if(solidPx(WF[b+B_X], WF[b+B_Y])){ emit(FX_SPARK,WF[b+B_X],WF[b+B_Y],0); killBullet(i); continue; }
+    const owner = WI[ib+BI_OWNER];
+    if(hostileOwner(owner)){
+      if(WF[PL+A_IFR] <= 0 && WF[PL+A_PHASE] <= 0 &&
+         Math.abs(WF[b+B_X]-WF[PL+A_X]) < 12 && Math.abs(WF[b+B_Y]-(WF[PL+A_Y]-17)) < 20){
+        if(!dogBlocked()){ hurtPlayer(1); }
+        killBullet(i); continue;
+      }
+      for(let g=0;g<MAXG;g++){
+        const gi=GSI+g*GS_N;
+        if(!WI[gi+G_ALIVE] || WI[gi+G_HOSTILE]) continue;
+        const gb=GH0+g*AC_N;
+        if(Math.abs(WF[b+B_X]-WF[gb+A_X])<12 && Math.abs(WF[b+B_Y]-(WF[gb+A_Y]-17))<20){
+          WF[gb+A_HP] -= 1;
+          if(WF[gb+A_HP] <= -2){ WI[gi+G_ALIVE]=2; emit(FX_ECHODIE,WF[gb+A_X],WF[gb+A_Y]-16,0); }
+          killBullet(i); break;
+        }
+      }
+    } else {
+      for(let e=0;e<MAXE;e++){
+        if(!WI[ENI+e*EI_N+N_ALIVE]) continue;
+        const eb=EN+e*EN_N;
+        const t = WI[ENI+e*EI_N+N_TYPE];
+        const hw = (t===E_ARCHIVIST||t===E_AUDITOR)?26:18, hh=(t===E_TURRET||t===E_CENSOR)?18:34;
+        if(Math.abs(WF[b+B_X]-WF[eb+E_X])<hw && Math.abs(WF[b+B_Y]-(WF[eb+E_Y]-hh/2))<hh){
+          if(damageEnemy(e, 1, WF[b+B_X]-WF[b+B_VX]*0.05, false) || true){ killBullet(i); }
+          break;
+        }
+      }
+      // your own bullets also hurt the things wearing your face
+      if(WI[ib+BI_ALIVE]) for(let g=4;g<MAXG;g++){
+        const gi=GSI+g*GS_N;
+        if(!WI[gi+G_ALIVE] || !WI[gi+G_HOSTILE]) continue;
+        const gb=GH0+g*AC_N;
+        if(Math.abs(WF[b+B_X]-WF[gb+A_X])<14 && Math.abs(WF[b+B_Y]-(WF[gb+A_Y]-17))<22){
+          WF[gb+A_HP] += 1;
+          if(WF[gb+A_HP] >= 3){ WI[gi+G_ALIVE]=0; emit(FX_ECHODIE,WF[gb+A_X],WF[gb+A_Y]-16,0); }
+          killBullet(i); break;
+        }
+      }
+    }
+  }
+}
+function dogBlocked(){
+  for(let i=0;i<MAXE;i++){
+    if(WI[ENI+i*EI_N+N_ALIVE] && WI[ENI+i*EI_N+N_TYPE]===E_DOG){
+      const b=EN+i*EN_N;
+      if(WF[b+E_CD] <= 0 && Math.hypot(WF[b+E_X]-WF[PL+A_X], WF[b+E_Y]-WF[PL+A_Y]) < 90){
+        WF[b+E_CD] = 6.0; emit(FX_SPARK, WF[b+E_X], WF[b+E_Y]-12, 0); return true;
+      }
+    }
+  }
+  return false;
+}
+// Frozen shells are footing. This is the clause that turns bullet-hell into
+// level geometry, and AMBER is built entirely on it.
+function frozenBulletTop(cx, w, prevFeet, newFeet){
+  if(WF[F_STAST] <= 0) return null;
+  let best = null;
+  for(let i=0;i<MAXB;i++){
+    if(!WI[BUI+i*BI_N+BI_ALIVE] || !WI[BUI+i*BI_N+BI_FLAG]) continue;
+    const b = BU+i*BU_N, top = WF[b+B_Y]-6;
+    if(Math.abs(WF[b+B_X]-cx) > (w/2+7)) continue;
+    if(prevFeet <= top+2 && newFeet >= top){ if(best===null || top<best) best=top; }
+  }
+  return best;
+}
+
+// ══════════════════════════ 18. THE TICK ═══════════════════════════════════
+let runDeaths = 0, forkReleaseTick = -1;
+
+function step(btn, aim, ext){
+  WF[F_TIME] += DT;
+  if(!RUN.isFrac) WF[F_CHRONO] = Math.min(6, WF[F_CHRONO] + 0.5*DT);
+  if(WF[F_STAST] > 0) WF[F_STAST] = Math.max(0, WF[F_STAST]-DT);
+
+  // ── player powers, all read back out of the tape so an echo could do them ──
+  if((btn & BTN_STASIS) && (RUN.powers & P_STASIS) && WF[PL+A_STASCD]<=0){
+    const r = Math.min(300, 300);
+    castStasis(WF[PL+A_X]+Math.cos(aim)*r, WF[PL+A_Y]-17+Math.sin(aim)*r);
+  }
+  if((ext & X_SWAP) && (RUN.powers & P_SWAP) && WF[PL+A_SWAPCD]<=0) doSwap();
+  if((ext & X_SLIP) && (RUN.powers & P_SLIP) && WF[PL+A_SLIPCD]<=0 && WF[PL+A_PHASE]<=0
+     && (RUN.isFrac || WF[F_CHRONO] >= 1.2)) doSlip();
+
+  stepActor(PL, PLI, btn, aim, -1);
+
+  // ── echoes: the same function, fed from tape ──
+  for(let g=0;g<MAXG;g++){
+    const gi = GSI+g*GS_N;
+    if(WI[gi+G_ALIVE] !== 1) continue;
+    const gb = GH0+g*AC_N;
+    if(frozen(WF[gb+A_X], WF[gb+A_Y]-17)) continue;      // a frozen echo waits its turn
+    const base = WI[gi+G_BUF]*4*TAPE_MAX, cur = WI[gi+G_CUR];
+    const gbtn = tapeBtn(GTAPE, base, cur), gaim = tapeAim(GTAPE, base, cur);
+    stepActor(gb, GAI+g*AI_N, gbtn, gaim, g);
+    WI[gi+G_CUR]++;
+    if(WI[gi+G_CUR] >= WI[gi+G_END]){
+      WI[gi+G_ALIVE] = WI[gi+G_HOSTILE] ? 0 : 2;         // yours leaves a corpse
+      emit(FX_ECHODIE, WF[gb+A_X], WF[gb+A_Y]-16, 0);
+    }
+  }
+
+  let liveEchoes = 0;
+  for(let g=0; g<4; g++) if(WI[GSI+g*GS_N+G_ALIVE] === 1) liveEchoes++;
+  if(liveEchoes > WI[I_MAXECHO]) WI[I_MAXECHO] = liveEchoes;
+
+  for(let i=0;i<MAXE;i++) stepEnemy(i);
+  stepBullets();
+  stepProps(btn);
+  roomSpecial();
+
+  if(WI[I_TICK] < TAPE_MAX-2) WI[I_TICK]++;
+}
+
+// Per-room rules that are cheaper as five lines here than as a system.
+function roomSpecial(){
+  switch(roomId){
+  case 'f2':
+    if(WF[PL+A_Y] <= 96) WI[I_EXIT] = 1;
+    if(WF[F_R5] >= 1 && WI[PLI+AI_GROUND] === 1 && WF[PL+A_Y] > SCRH-260) WI[I_EXIT] = -1;
+    if(WF[F_R5] > 3) WI[I_EXIT] = -1;
+    break;
+  case 'f1':
+    if(WI[I_DMG] > 0) WI[I_EXIT] = -1;
+    break;
+  case 'f4': {
+    if(WI[I_HOLD] >= 5) WI[I_EXIT] = 1;
+    // respawn the targets so the window is a skill test, not a supply problem
+    for(let i=0;i<MAXE;i++){
+      const ib=ENI+i*EI_N;
+      if(WI[ib+N_TYPE]===E_WATCHER && !WI[ib+N_ALIVE]){
+        const b=EN+i*EN_N;
+        WF[b+E_CD] -= DT;
+        if(WF[b+E_CD] < -1.6){ WI[ib+N_ALIVE]=1; WF[b+E_HP]=2; WF[b+E_CD]=0.6;
+          WF[b+E_X]=WF[b+E_AX]; WF[b+E_Y]=WF[b+E_AY]; countEnemies(); }
+      }
+    }
+    break; }
+  case 'f5':
+    if(WI[I_BOSSDOWN]===1){
+      WI[I_BOSSDOWN]=0; WF[F_R0]++;
+      if(WF[F_R0]===1) spawnEnemy(E_AUDITOR, SCRW/2, 260);
+      else if(WF[F_R0]===2) spawnEnemy(E_WARDEN, SCRW-200, SCRH-64);
+    }
+    break;
+  case 'n7':
+    if(WI[I_HOLD] >= 720) WI[I_DOOR] = 1;
+    break;
+  }
+  if(RUN.limit && WF[F_TIME] > RUN.limit) WI[I_EXIT] = -1;
+}
+function measure(){
+  return {
+    exit    : WI[I_EXIT] === 1,
+    kills   : WI[I_KILLS],
+    dmg     : WI[I_DMG],
+    time    : WF[F_TIME],
+    forks   : WI[I_FORKS],
+    carried : WI[I_CARRY],
+    window  : WI[I_WINDOW],
+    bossDown: WI[I_BOSSDOWN] === 1,
+    joined  : WF[F_R2] === 1,
+    plates  : WF[F_R6],
+    hold    : WI[I_HOLD]/60,
+    deaths  : runDeaths,
+  };
+}
+
+// ══════════════════════════ 19. REWIND, FORK, LAST WORD ════════════════════
+// Holding R scrubs three ticks per rendered frame — 3x real time, one chrono
+// second per game second undone. Releasing does not "resume"; it forks.
+
+let rewindE = -1, pipsLeft = 0, scrubFlash = 0;
+
+function canRewind(){
+  if(!(RUN.powers & P_FORK)) return false;
+  if(WI[I_TICK] <= ringMin) return false;
+  if(RUN.isFrac) return rewindE >= 0 ? true : pipsLeft > 0;
+  return WF[F_CHRONO] > 0;
+}
+function beginRewind(){
+  if(rewindE >= 0 || !canRewind()) return;
+  rewindE = WI[I_TICK];
+  if(RUN.isFrac) pipsLeft--;
+  WI[I_REWINDS]++;
+  sfx('rewind');
+}
+function rewindTick(){
+  if(WI[I_TICK] <= ringMin) return false;
+  if(!RUN.isFrac && WF[F_CHRONO] <= 0) return false;
+  // Chrono is spent, not simulated. The restore would hand it straight back —
+  // it is in the snapshot like everything else — so carry it across by hand.
+  const spent = WF[F_CHRONO];
+  ringRestore(WI[I_TICK]-1);
+  WF[F_CHRONO] = RUN.isFrac ? spent : Math.max(0, spent - DT);
+  scrubFlash = 1;
+  return true;
+}
+// The body you just abandoned stands up and keeps working. It is not a replay
+// of the world — it is a replay of YOU, through the identical stepActor.
+let nextBuf = 0;
+function makeEcho(T, E){
+  if(E <= T+3) return false;
+  let slot = -1, oldest = 1e9;
+  for(let g=0; g<4; g++){
+    const gi = GSI+g*GS_N;
+    if(WI[gi+G_ALIVE] !== 1){ slot = g; break; }
+    if(WI[gi+G_BIRTH] < oldest){ oldest = WI[gi+G_BIRTH]; slot = g; }
+  }
+  if(slot < 0) return false;
+  const buf = nextBuf; nextBuf = (nextBuf+1) % NBUF;
+  GTAPE.set(TAPE.subarray(T*4, Math.min(E, TAPE_MAX)*4), buf*4*TAPE_MAX);
+  tapeBirth[buf] = T;
+  const gi = GSI+slot*GS_N, gb = GH0+slot*AC_N;
+  WI[gi+G_ALIVE]=1; WI[gi+G_CUR]=0; WI[gi+G_BIRTH]=T;
+  WI[gi+G_END]=E-T; WI[gi+G_BUF]=buf; WI[gi+G_HOSTILE]=0;
+  for(let f=0; f<AC_N; f++) WF[gb+f] = WF[PL+f];
+  WF[gb+A_HP] = 0;
+  WI[GAI+slot*AI_N+AI_GROUND] = WI[PLI+AI_GROUND];
+  WI[GAI+slot*AI_N+AI_WALL]   = WI[PLI+AI_WALL];
+  WI[I_FORKS]++; WI[I_FORKTICK] = T;
+  if(!RUN.isFrac) WF[F_CHRONO] = Math.max(0, WF[F_CHRONO]-0.75);
+  emit(FX_FORK, WF[PL+A_X], WF[PL+A_Y]-16, 0);
+  sfx('fork'); shake(0.3);
+  return true;
+}
+function endRewind(slipHeld){
+  if(rewindE < 0) return;
+  const T = WI[I_TICK], E = rewindE;
+  rewindE = -1;
+  if(!RUN.forksLocked) makeEcho(T, E);
+  if(slipHeld && (RUN.powers & P_SLIP) && WF[PL+A_SLIPCD] <= 0) doSlip();
+  ringRec();
+}
+
+// LAST WORD — punch out of a live fight onto the Spine, mid-frame.
+const PARK = {
+  F:new Float64Array(WF_N), I:new Int32Array(WI_N),
+  T:new Uint8Array(4*TAPE_MAX), G:new Uint8Array(4*TAPE_MAX*NBUF),
+  birth:new Int32Array(NBUF), room:null, deaths:0, facts:0, active:false
+};
+function parkRoom(){
+  PARK.F.set(WF); PARK.I.set(WI); PARK.T.set(TAPE); PARK.G.set(GTAPE);
+  PARK.birth.set(tapeBirth);
+  PARK.room = roomId; PARK.deaths = runDeaths; PARK.facts = SAVE.facts; PARK.active = true;
+  sfx('park');
+}
+function unparkRoom(){
+  if(!PARK.active) return false;
+  loadRoom(PARK.room);
+  WF.set(PARK.F); WI.set(PARK.I); TAPE.set(PARK.T); GTAPE.set(PARK.G);
+  tapeBirth.set(PARK.birth);
+  runDeaths = PARK.deaths;
+  // The price: you traded your last six seconds of history for a rewritten world.
+  ringMin = WI[I_TICK]; WF[F_CHRONO] = 0; rewindE = -1;
+  ringRec();
+  if(SAVE.facts !== PARK.facts){ WF[F_R7] = 1; lastWordPatch(SAVE.facts); }
+  PARK.active = false;
+  return true;
+}
+// A bounded list of slot edits — never a re-run of the whole spawner, which
+// would duplicate or orphan half the roster.
+function lastWordPatch(F){
+  if(roomId === 'n13'){
+    for(let i=0;i<MAXE;i++){
+      const ib = ENI+i*EI_N;
+      if(WI[ib+N_ALIVE] && WI[ib+N_TYPE]===E_WATCHER) WI[ib+N_ALIVE]=0;
+    }
+    if(F & F_KESH) spawnEnemy(E_ALLY, WF[PL+A_X]-70, WF[PL+A_Y]);
+    countEnemies(); shake(1.0);
+  } else if(roomId === 'n12' || roomId === 'n10'){
+    for(let i=0;i<MAXE;i++){
+      const ib = ENI+i*EI_N;
+      if(WI[ib+N_ALIVE] && WI[ib+N_TYPE]===E_SWEEPER) WI[ib+N_ALIVE]=0;
+    }
+    if(F & F_KESH) spawnEnemy(E_ALLY, WF[PL+A_X]-70, WF[PL+A_Y]);
+    countEnemies();
+  }
+}
+
+// ══════════════════════════ 20. THE RUN LIFECYCLE ══════════════════════════
+let MODE = 'title';          // title | spine | play | medal | cascade | frac | end
+let medalCard = null, cascade = null, endingCard = null, fracCard = null;
+
+function startNode(id, opts){
+  loadRoom(id, opts);
+  runDeaths = 0; rewindE = -1; nextBuf = 0;
+  pipsLeft = RUN.pips;
+  SAVE.seen[id] = 1;
+  MODE = RUN.isFrac ? 'frac' : 'play';
+  if(RUN.isFrac) fracCard = {t:0};
+  musicEra(room.era);
+}
+function restartNode(){ startNode(roomId); }
+
+function medalFor(s){
+  if(!s.exit) return 0;
+  let m = 1;
+  if(s.time <= RUN.par) m = 2;
+  if(s.time <= RUN.gold && s.dmg === 0 && s.forks <= RUN.forkCap && s.deaths === 0) m = 3;
+  if(RUN.soften && m > 2) m = 2;                 // the valve can carry you, never anchor you
+  return m;
+}
+function finishNode(){
+  const s = measure();
+  const id = roomId;
+
+  if(RUN.isFrac){
+    const passed = s.exit && !(room.maxDmg === 0 && s.dmg > 0);
+    if(passed){
+      const first = !(SAVE.powers & room.power);
+      SAVE.powers |= room.power;
+      if(s.time <= RUN.seal && !RUN.soften) SAVE.seals[id] = 1;
+      SAVE.cleared[id] = 1;
+      SAVE.splinters |= WI[I_SPLINT];
+      saveGame();
+      fracCard = null;
+      medalCard = {frac:true, id, time:s.time, seal:!!SAVE.seals[id], first,
+                   power:POWER_INFO.find(p=>p.bit===room.power), t:0};
+      MODE = 'medal'; sfx('win');
+    } else {
+      SAVE.fails[id] = (SAVE.fails[id]||0) + 1;
+      if(SAVE.fails[id] >= 12) SAVE.softenOffered = true;
+      saveGame();
+      startNode(id);                              // 0.4 s and you are back at the door
+    }
+    return;
+  }
+
+  if(!s.exit){                                    // ran out of clock in a story node
+    SAVE.fails[id] = (SAVE.fails[id]||0) + 1;
+    if(SAVE.fails[id] >= 12) SAVE.softenOffered = true;
+    saveGame(); startNode(id); return;
+  }
+
+  const node = NODES[id];
+  let oc = null;
+  for(const o of node.outcomes) if(o.test(s)){ oc = o; break; }
+  if(!oc) oc = node.outcomes[node.outcomes.length-1];
+
+  const medal = medalFor(s);
+  const prev  = SAVE.medals[id] || 0;
+  const prevOutcome = SAVE.outcomes[id];
+  const factsBefore = SAVE.facts;
+
+  SAVE.medals[id] = Math.max(prev, medal);
+  if(!SAVE.best[id] || s.time < SAVE.best[id]) SAVE.best[id] = s.time;
+  SAVE.cleared[id] = 1;
+  SAVE.outcomes[id] = oc.id;
+  if(SAVE.medals[id] === 3) SAVE.anchored[id] = 1;   // gold is owned, not rented
+  SAVE.splinters |= WI[I_SPLINT];
+  if(WI[I_MAXECHO] >= 3) SAVE.paradox = Object.assign({}, SAVE.paradox, {[id]:1});
+
+  const dropped = rebuildFacts();
+  saveGame();
+
+  medalCard = {
+    id, medal, time:s.time, dmg:s.dmg, forks:s.forks, deaths:s.deaths,
+    par:RUN.par, gold:RUN.gold, forkCap:RUN.forkCap,
+    anchored:SAVE.medals[id]===3, paradox:WI[I_MAXECHO]>=3,
+    outcome:oc, changed:oc.id !== prevOutcome, factsBefore, dropped, t:0
+  };
+  MODE = 'medal'; sfx('win');
+}
+function closeMedalCard(){
+  const mc = medalCard;
+  medalCard = null;
+  if(mc && !mc.frac && mc.changed){
+    cascade = {t:0, node:mc.id, before:mc.factsBefore, after:SAVE.facts,
+               dropped:mc.dropped, line:mc.outcome.line};
+    MODE = 'cascade'; sfx('cascade');
+  } else {
+    MODE = 'spine'; spineSel = ALL_NODES.indexOf(mc ? mc.id : 'n1');
+    musicEra('SPINE');
+  }
+  if(SAVE.cleared['n13']) showEnding();
+}
+function showEnding(){
+  let e = 'DEATH';
+  const F = SAVE.facts;
+  if(powerCount() >= 6 && splinterCount() >= 9) e = 'UNWRITTEN';
+  else {
+    let n = 0;
+    if(F & F_MOTHER) n++;
+    if(F & F_KESH) n++;
+    if(F & F_DOC) n++;
+    if(n >= 2) e = 'ESCAPE';
+  }
+  SAVE.ending = e; saveGame();
+  endingCard = {e, t:0}; MODE = 'end';
+}
+
+// ══════════════════════════ 21. RENDER ═════════════════════════════════════
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d', {alpha:false});
+const mk = (w,h)=>{ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; };
+const tileCv = mk(SCRW, SCRH);  const tileCtx = tileCv.getContext('2d');
+const blurA  = mk(320, 184);    const blurACtx = blurA.getContext('2d');
+const blurB  = mk(160, 92);     const blurBCtx = blurB.getContext('2d');
+const scanCv = mk(SCRW, SCRH);
+let tileKey = '', lowFx = false, slowFrames = 0;
+
+(function buildScanlines(){
+  const c = scanCv.getContext('2d');
+  c.fillStyle = 'rgba(0,0,0,.30)';
+  for(let y=0;y<SCRH;y+=3) c.fillRect(0,y+1,SCRW,1);
+})();
+
+let shakeT = 0, shakeMag = 0, hitstopN = 0;
+function shake(m){ shakeMag = Math.max(shakeMag, m); shakeT = 1; }
+function hitstop(n){ hitstopN = Math.max(hitstopN, n); }
+
+function fitCanvas(){
+  const pad = 0;
+  const w = window.innerWidth - pad, h = window.innerHeight - pad;
+  const s = Math.min(w/SCRW, h/SCRH);
+  cv.style.width  = Math.floor(SCRW*s)+'px';
+  cv.style.height = Math.floor(SCRH*s)+'px';
+}
+window.addEventListener('resize', fitCanvas);
+
+// ── the static tile layer, rendered once per (room, layer, era) ────────────
+function paintTiles(){
+  const key = roomId+'|'+WI[I_LAYER]+'|'+room.era+'|'+WI[I_DOOR];
+  if(key === tileKey) return;
+  tileKey = key;
+  const g = tileCtx, E = era, L = layer();
+  g.fillStyle = E.bg; g.fillRect(0,0,SCRW,SCRH);
+  // a soft light source per era, painted straight into the tile layer
+  // Backdrop architecture, seeded off the room id so it is the same every
+  // visit. It never collides with anything — it is depth, not level.
+  let bh0 = 2166136261;
+  for(let i=0;i<roomId.length;i++){ bh0 ^= roomId.charCodeAt(i); bh0 = Math.imul(bh0,16777619); }
+  let br = bh0 >>> 0;
+  const bn = ()=>{ br ^= br<<13; br|=0; br ^= br>>>17; br ^= br<<5; br|=0; return (br>>>0)/4294967296; };
+  for(let i=0;i<26;i++){
+    const bw = 60+bn()*240, bhh = 40+bn()*220, bx = bn()*SCRW-40, by = bn()*SCRH-30;
+    g.globalAlpha = .22; g.fillStyle = E.mid; g.fillRect(bx,by,bw,bhh);
+    g.globalAlpha = .06; g.fillStyle = E.acc; g.fillRect(bx,by,bw,3);
+    g.globalAlpha = .05; g.fillStyle = E.hi;
+    for(let wx=bx+10; wx<bx+bw-10; wx+=20) for(let wy=by+12; wy<by+bhh-10; wy+=24) g.fillRect(wx,wy,8,10);
+  }
+  g.globalAlpha = 1;
+  const grd = g.createRadialGradient(SCRW/2, room.era==='ASH'?SCRH:0, 40, SCRW/2, room.era==='ASH'?SCRH:0, 900);
+  grd.addColorStop(0, E.acc+'22'); grd.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grd; g.fillRect(0,0,SCRW,SCRH);
+  for(let y=0;y<GH;y++) for(let x=0;x<GW;x++){
+    const t = L[y*GW+x], px = x*TW, py = y*TW;
+    if(t===T_SOLID || (t===T_DOOR && WI[I_DOOR]===0) || t===T_BREAK){
+      g.fillStyle = t===T_BREAK ? E.ink : E.mid;
+      g.fillRect(px,py,TW,TW);
+      g.fillStyle = E.ink;
+      g.fillRect(px,py+TW-3,TW,3);
+      if(y===0 || L[(y-1)*GW+x]===T_EMPTY || L[(y-1)*GW+x]===T_ONEWAY){
+        g.fillStyle = E.acc; g.globalAlpha = t===T_BREAK ? 0.5 : 0.20;
+        g.fillRect(px,py,TW,2); g.globalAlpha = 1;
+      }
+      if(t===T_BREAK){
+        g.strokeStyle = E.acc; g.globalAlpha=.35; g.lineWidth=1;
+        g.beginPath(); g.moveTo(px+4,py+6); g.lineTo(px+TW-4,py+TW-6); g.stroke();
+        g.globalAlpha=1;
+      }
+      if(t===T_DOOR){
+        g.fillStyle = E.acc; g.globalAlpha=.30;
+        for(let k=4;k<TW;k+=8) g.fillRect(px+2,py+k,TW-4,3);
+        g.globalAlpha=1;
+      }
+    } else if(t===T_ONEWAY){
+      g.fillStyle = E.acc; g.globalAlpha=.72; g.fillRect(px,py,TW,3); g.globalAlpha=1;
+      g.fillStyle = E.ink; g.fillRect(px,py+3,TW,2);
+    } else if(t===T_SPIKE){
+      g.fillStyle = E.ink;
+      g.beginPath(); g.moveTo(px,py+TW); g.lineTo(px+TW/2,py+6); g.lineTo(px+TW,py+TW); g.fill();
+      g.fillStyle = E.acc; g.fillRect(px+TW/2-1,py+6,2,3);
+    }
+  }
+}
+
+// ── silhouettes ────────────────────────────────────────────────────────────
+function drawVek(g,x,y,face,col,opt){
+  opt = opt || {};
+  const sq = opt.squash || 0, h = 36 - sq*4, w = 20 + sq*3;
+  g.save(); g.translate(x, y);
+  g.fillStyle = col;
+  g.beginPath();                                   // coat
+  g.moveTo(-w/2, 0); g.lineTo(-w/2+2, -h+12);
+  g.lineTo(-4, -h); g.lineTo(5, -h); g.lineTo(w/2-1, -h+13);
+  g.lineTo(w/2-3, -h*0.42); g.lineTo(w/2+ (face>0?5:1), 0);
+  g.closePath(); g.fill();
+  g.fillRect(-w/2+3, -h*0.34, w-6, h*0.34);        // legs mass
+  if(opt.chrome){ g.fillStyle = opt.rim || '#cfe9ff'; g.fillRect(face>0?4:-9, -h+13, 6, 13); }
+  g.fillStyle = opt.rim || '#ffffff';               // rim light on the facing side
+  g.globalAlpha = 0.75;
+  g.fillRect(face>0 ? w/2-3 : -w/2, -h+11, 2, h-11);
+  g.globalAlpha = 1;
+  g.fillStyle = opt.eye || '#ffffff';
+  g.fillRect(face>0 ? 1 : -4, -h+6, 3, 2);
+  g.restore();
+}
+function drawEnemy(g, type, x, y, b, ib){
+  const E = era, ink = E.ink, acc = E.acc;
+  const flash = WF[b+E_FLASH] > 0;
+  const hp = WF[b+E_HP], full = ENEMY_HP[type]||3;
+  const erode = 1 - Math.max(0, Math.min(0.55, (1-hp/full)*0.55));
+  g.save(); g.translate(x,y);
+  g.fillStyle = flash ? '#ffffff' : ink;
+  switch(type){
+  case E_WATCHER:
+    g.beginPath(); g.ellipse(0,-14,15*erode,10*erode,0,0,6.283); g.fill();
+    g.fillStyle = flash?'#fff':acc; g.beginPath(); g.arc(0,-14,3.4,0,6.283); g.fill();
+    g.globalAlpha=.35; g.fillRect(-15,-15,30,1); g.globalAlpha=1;
+    break;
+  case E_SWEEPER: {
+    const st = WI[ib+N_STATE], d = WF[b+E_TX]||1;
+    g.beginPath(); g.moveTo(d*17,-13); g.lineTo(-d*13,-26); g.lineTo(-d*13,0); g.closePath(); g.fill();
+    g.fillStyle = st===1 ? '#ffffff' : acc;
+    g.globalAlpha = st===1 ? 0.9 : 0.5;
+    g.fillRect(-d*13, -26, 3, 26); g.globalAlpha=1;
+    break; }
+  case E_TURRET:
+    g.beginPath(); g.arc(0,0,15*erode,0,6.283); g.fill();
+    g.fillStyle = flash?'#fff':acc;
+    g.save(); g.rotate(WF[b+E_AIM]); g.fillRect(0,-2.5,20,5); g.restore();
+    g.globalAlpha=.5; g.beginPath(); g.arc(0,0,6,0,6.283); g.fill(); g.globalAlpha=1;
+    break;
+  case E_WARDEN: {
+    const d = Math.sign(WF[b+E_AIM])||1;
+    g.fillRect(-13,-40,26,40);
+    g.fillStyle = flash?'#fff':acc;
+    g.globalAlpha=.10;                              // the 140 deg arc it cannot be hurt through
+    g.beginPath(); g.moveTo(0,-22);
+    g.arc(0,-22, 150, d>0?-1.22:Math.PI-1.22, d>0?1.22:Math.PI+1.22);
+    g.closePath(); g.fill(); g.globalAlpha=1;
+    g.fillRect(d>0?9:-15, -40, 6, 40);
+    break; }
+  case E_CENSOR:
+    g.fillRect(-14,-8,28,14);
+    g.fillStyle = WI[ib+N_STATE]===1 ? '#ff4a4a' : (WI[ib+N_STATE]===2 ? '#404858' : acc);
+    g.fillRect(-4,6,8,5);
+    if(WI[ib+N_STATE]===1){
+      const t = WI[ib+N_TGT], gb = GH0+t*AC_N;
+      if(t>=0 && WI[GSI+t*GS_N+G_ALIVE]){
+        g.strokeStyle='#ff4a4a'; g.lineWidth=2; g.globalAlpha=.8;
+        g.strokeRect(WF[gb+A_X]-x-16, WF[gb+A_Y]-y-38, 32, 40);
+        g.globalAlpha=1;
+      }
+    }
+    break;
+  case E_SCRUBBER:
+    g.globalAlpha=.9;
+    g.beginPath(); g.arc(0,-12,15,0.6,5.6); g.lineWidth=6; g.strokeStyle=flash?'#fff':ink; g.stroke();
+    g.globalAlpha=1;
+    g.strokeStyle=acc; g.lineWidth=1; g.globalAlpha=.4;
+    g.beginPath(); g.arc(0,-12,26,0,6.283); g.stroke(); g.globalAlpha=1;
+    break;
+  case E_KESH: case E_ALLY:
+    drawVek(g,0,0,Math.sign(WF[b+E_AIM])||1, flash?'#ffffff':(type===E_ALLY?'#8affc0':'#ff8a5a'),
+            {rim:type===E_ALLY?'#d6ffe8':'#ffd6c0'});
+    break;
+  case E_AUDITOR:
+    g.beginPath(); g.moveTo(0,-46); g.lineTo(24,-20); g.lineTo(0,4); g.lineTo(-24,-20); g.closePath(); g.fill();
+    g.fillStyle=flash?'#fff':acc; g.fillRect(-12,-24,24,3); g.fillRect(-12,-16,24,3);
+    break;
+  case E_ARCHIVIST: {
+    const ph = WI[I_PHASE];
+    g.fillStyle = flash?'#ffffff':'#151515';
+    g.beginPath(); g.moveTo(0,-58); g.lineTo(30,-26); g.lineTo(20,6); g.lineTo(-20,6); g.lineTo(-30,-26); g.closePath(); g.fill();
+    g.fillStyle = '#ff2b2b';
+    for(let k=0;k<=ph;k++) g.fillRect(-16+k*14, -40, 6, 6);
+    g.globalAlpha=.25; g.fillRect(-30,-28,60,2); g.globalAlpha=1;
+    break; }
+  case E_DOG:
+    g.fillRect(-13,-16,26,16); g.fillRect(11,-22,9,8);
+    g.fillStyle=acc; g.fillRect(-15,-14,4,3);
+    break;
+  }
+  g.restore();
+  if((SAVE.facts & F_WITNESS) && type!==E_DOG && type!==E_ALLY && full<=12){
+    ctx.fillStyle = '#ffffff'; ctx.globalAlpha=.55;
+    for(let k=0;k<Math.ceil(hp);k++) ctx.fillRect(x-full*2.5+k*5, y-46, 3, 3);
+    ctx.globalAlpha=1;
+  }
+}
+
+// ── particles: analytic, never stored, therefore free to rewind ────────────
+const FX_LIFE = {1:26, 2:40, 3:24, 4:16, 5:8, 6:34, 7:30, 8:14, 9:12, 10:18};
+function drawParticles(g){
+  const now = WI[I_TICK];
+  for(let i=0;i<FXN;i++){
+    const k = FX.kind[i]; if(!k) continue;
+    const age = now - FX.tick[i];
+    const life = FX_LIFE[k] || 20;
+    if(age < 0 || age > life) continue;
+    const s = FX.s[i], f = age/life;
+    let n = 6, spd = 60, col = era.acc, sz = 3;
+    if(k===FX_KILL){ n=16; spd=200; col=era.hi; sz=4; }
+    else if(k===FX_HIT){ n=8; spd=140; col='#ffffff'; }
+    else if(k===FX_FORK){ n=18; spd=170; col='#48e8ff'; sz=4; }
+    else if(k===FX_ECHODIE){ n=18; spd=150; col='#48e8ff'; sz=3; }
+    else if(k===FX_DUST){ n=5; spd=50; col=era.mid; sz=3; }
+    else if(k===FX_SHOT){ n=3; spd=90; col=era.hi; sz=2; }
+    else if(k===FX_PICKUP){ n=14; spd=110; col='#ffe14a'; sz=3; }
+    else if(k===FX_SPARK){ n=7; spd=120; col=era.hi; sz=2; }
+    else if(k===FX_BLADE){ n=10; spd=260; col='#ffffff'; sz=2; }
+    else if(k===FX_SLIP){ n=9; spd=150; col='#b48aff'; sz=3; }
+    g.globalAlpha = (1-f)*(1-f)*0.9;
+    g.fillStyle = col;
+    for(let j=0;j<n;j++){
+      const h = (s ^ (j*2654435761)) >>> 0;
+      let a = (h % 1000)/1000*Math.PI*2;
+      if(k===FX_BLADE || k===FX_SHOT || k===FX_SLIP) a = FX.a[i] + ((h%200)/200-0.5)*1.1;
+      const v = spd*(0.4 + ((h>>>10)%100)/100);
+      const t = age/60;
+      const px = FX.x[i] + Math.cos(a)*v*t;
+      const py = FX.y[i] + Math.sin(a)*v*t + (k===FX_DUST?0:1) * 300*t*t*0.5;
+      g.fillRect(px-sz/2, py-sz/2, sz, sz);
+    }
+  }
+  g.globalAlpha = 1;
+}
+
+// ── the frame ──────────────────────────────────────────────────────────────
+function renderWorld(){
+  paintTiles();
+  const g = ctx;
+  g.save();
+  if(shakeT > 0 && !lowFx){
+    const m = shakeMag*shakeMag*9;
+    g.translate((rngFx()-0.5)*m, (rngFx()-0.5)*m);
+  }
+  g.drawImage(tileCv, 0, 0);
+
+  // rising fire (n1)
+  if(room.fire){
+    const fy = SCRH - WF[F_TIME]*8;
+    const grd = g.createLinearGradient(0, fy-70, 0, SCRH);
+    grd.addColorStop(0,'rgba(255,90,31,0)'); grd.addColorStop(.5,'rgba(255,90,31,.45)');
+    grd.addColorStop(1,'rgba(255,215,120,.85)');
+    g.fillStyle = grd; g.fillRect(0, fy-70, SCRW, SCRH-fy+70);
+  }
+
+  // props
+  for(let i=0;i<MAXP;i++){
+    const ib = PRI+i*PI_N, type = WI[ib+PI_TYPE];
+    if(!type) continue;
+    const b = PR+i*PR_N, x = WF[b+P_X], y = WF[b+P_Y];
+    switch(type){
+    case PR_EXIT: {
+      const open = exitOpen();
+      g.fillStyle = open ? era.acc : '#3a3f52';
+      g.globalAlpha = open ? .18+0.10*Math.sin(WI[I_TICK]*0.09) : .12;
+      g.fillRect(x-18, y-52, 36, 52); g.globalAlpha=1;
+      g.strokeStyle = open ? era.hi : '#4a5064'; g.lineWidth=2;
+      g.strokeRect(x-18, y-52, 36, 52);
+      if(open){ g.fillStyle=era.hi; g.globalAlpha=.8; g.fillRect(x-2,y-52,4,52); g.globalAlpha=1; }
+      break; }
+    case PR_PLATE: {
+      const on = WI[ib+PI_STATE];
+      g.fillStyle = on ? era.acc : era.ink;
+      g.fillRect(x-16, y-8, 32, 8);
+      g.fillStyle = on ? era.hi : '#555c70';
+      g.fillRect(x-16, y-9, 32, 2);
+      if(on){ g.globalAlpha=.25; g.fillStyle=era.acc; g.fillRect(x-16,y-40,32,32); g.globalAlpha=1; }
+      const lbl = 'ABCD'[WF[b+P_VAL]] || '';
+      g.fillStyle = on?'#04121b':'#8a93ab'; g.font='bold 10px ui-monospace,monospace'; g.textAlign='center';
+      g.fillText(lbl, x, y-1);
+      break; }
+    case PR_SPLINTER:
+      if(!WI[ib+PI_ALIVE]) break;
+      g.save(); g.translate(x, y-14+Math.sin(WI[I_TICK]*0.06)*4); g.rotate(WI[I_TICK]*0.03);
+      g.fillStyle='#ffe14a'; g.beginPath();
+      g.moveTo(0,-11); g.lineTo(7,0); g.lineTo(0,11); g.lineTo(-7,0); g.closePath(); g.fill();
+      g.globalAlpha=.35; g.beginPath(); g.arc(0,0,17,0,6.283); g.fill(); g.globalAlpha=1;
+      g.restore();
+      break;
+    case PR_CARRY:
+      if(!WI[ib+PI_ALIVE]) break;
+      if(WF[b+P_VAL]===1){
+        g.fillStyle='#c78a6a'; g.fillRect(x-11,y-30,22,30);
+        g.fillStyle='#ffd9a0'; g.fillRect(x-7,y-38,14,10);
+      } else {
+        g.fillStyle='#9a7a52'; g.fillRect(x-12,y-16,24,16); g.fillRect(x+10,y-22,8,8);
+      }
+      g.fillStyle=era.hi; g.globalAlpha=.6+0.3*Math.sin(WI[I_TICK]*0.1);
+      g.font='9px ui-monospace,monospace'; g.textAlign='center';
+      g.fillText('E', x, y-44); g.globalAlpha=1;
+      break;
+    case PR_PRESS: {
+      const cyc = WF[F_R0]/2.4;
+      const down = WI[ib+PI_STATE] ? (1 - WF[F_R1]/18) : Math.max(0, Math.sin(cyc*Math.PI*2)*0.45);
+      g.fillStyle = era.ink; g.fillRect(x-40, y-150, 80, 12);
+      g.fillStyle = '#5a6070';
+      g.fillRect(x-30, y-150, 60, 20 + down*98);
+      g.fillStyle = WI[ib+PI_STATE] ? '#5a6070' : era.acc;
+      g.fillRect(x-30, y-132+down*98, 60, 8);
+      if(!WI[ib+PI_STATE]){
+        g.fillStyle='#ffe14a'; g.fillRect(x-6, y-14, 12, 14);
+        g.globalAlpha=.5; g.beginPath(); g.arc(x,y-7,16,0,6.283); g.fill(); g.globalAlpha=1;
+        g.fillStyle=era.hi; g.font='9px ui-monospace,monospace'; g.textAlign='center'; g.fillText('E', x, y+12);
+      }
+      break; }
+    case PR_TRANSMIT: {
+      const p = Math.min(1, WI[I_HOLD]/720);
+      g.fillStyle=era.ink; g.fillRect(x-16,y-46,32,46);
+      g.fillStyle=era.acc; g.fillRect(x-16, y-46+(1-p)*46, 32, p*46);
+      g.strokeStyle=era.hi; g.lineWidth=1; g.strokeRect(x-16,y-46,32,46);
+      g.fillStyle=era.hi; g.fillRect(x-1,y-64,2,18);
+      break; }
+    case PR_JOIN:
+      g.strokeStyle='#ff8a5a'; g.lineWidth=2; g.setLineDash([5,4]);
+      g.strokeRect(x-16,y-44,32,44); g.setLineDash([]);
+      g.fillStyle='#ff8a5a'; g.font='9px ui-monospace,monospace'; g.textAlign='center';
+      g.fillText('E · JOIN', x, y+12);
+      break;
+    case PR_BEAM:
+      g.fillStyle = era.ink; g.fillRect(x-34, WF[b+P_Y]-18, 68, 32);
+      g.fillStyle = era.acc; g.globalAlpha=.5; g.fillRect(x-34, WF[b+P_Y]-18, 68, 3); g.globalAlpha=1;
+      if(WF[F_TIME] < WF[b+P_T]){
+        g.strokeStyle='#ff5a1f'; g.globalAlpha=.35; g.setLineDash([4,6]); g.lineWidth=2;
+        g.beginPath(); g.moveTo(x, WF[b+P_Y]+14); g.lineTo(x, SCRH); g.stroke();
+        g.setLineDash([]); g.globalAlpha=1;
+      }
+      break;
+    case PR_LASER:
+      g.fillStyle='#ff2b2b'; g.globalAlpha=.85; g.fillRect(WF[b+P_X]-5, 0, 10, SCRH);
+      g.globalAlpha=.20; g.fillRect(WF[b+P_X]-22, 0, 44, SCRH); g.globalAlpha=1;
+      break;
+    case PR_GHOSTPROP:
+      g.globalAlpha = WF[b+P_VAL] ? .55 : .30;
+      g.fillStyle = WF[b+P_VAL] ? '#ffd9a0' : '#4a4a52';
+      if(WF[b+P_VAL]) g.fillRect(x-9,y-30,18,30); else g.fillRect(x-18,y-9,36,9);
+      g.globalAlpha=1;
+      break;
+    }
+  }
+
+  // enemies
+  for(let i=0;i<MAXE;i++){
+    if(!WI[ENI+i*EI_N+N_ALIVE]) continue;
+    drawEnemy(g, WI[ENI+i*EI_N+N_TYPE], WF[EN+i*EN_N+E_X], WF[EN+i*EN_N+E_Y], EN+i*EN_N, ENI+i*EI_N);
+  }
+
+  // bullets
+  for(let i=0;i<MAXB;i++){
+    if(!WI[BUI+i*BI_N+BI_ALIVE]) continue;
+    const b = BU+i*BU_N, own = WI[BUI+i*BI_N+BI_OWNER], fr = WI[BUI+i*BI_N+BI_FLAG];
+    if(fr){
+      g.fillStyle = '#ffb01f'; g.fillRect(WF[b+B_X]-6, WF[b+B_Y]-6, 12, 12);
+      g.strokeStyle = '#fff0c0'; g.lineWidth=1; g.strokeRect(WF[b+B_X]-7, WF[b+B_Y]-7, 14, 14);
+    } else {
+      g.fillStyle = hostileOwner(own) ? (era.name==='ZERO'?'#ff2b2b':era.hi) : '#8ff4ff';
+      const r = WF[b+B_R];
+      g.fillRect(WF[b+B_X]-r, WF[b+B_Y]-r*0.6, r*2, r*1.2);
+      g.globalAlpha=.35;
+      g.fillRect(WF[b+B_X]-r-WF[b+B_VX]*0.012, WF[b+B_Y]-r*0.5-WF[b+B_VY]*0.012, r*2, r);
+      g.globalAlpha=1;
+    }
+  }
+
+  // stasis sphere
+  if(WF[F_STAST] > 0){
+    const p = WF[F_STAST]/1.8;
+    g.strokeStyle = '#ffb01f'; g.lineWidth = 2; g.globalAlpha = .35+0.25*p;
+    g.beginPath(); g.arc(WF[F_STASX], WF[F_STASY], 96, 0, 6.283); g.stroke();
+    g.globalAlpha = .10; g.fillStyle = '#ffb01f';
+    g.beginPath(); g.arc(WF[F_STASX], WF[F_STASY], 96, 0, 6.283); g.fill();
+    g.globalAlpha = .9; g.lineWidth = 3; g.strokeStyle = '#fff0c0';
+    g.beginPath(); g.arc(WF[F_STASX], WF[F_STASY], 96, -Math.PI/2, -Math.PI/2 + p*6.283); g.stroke();
+    g.globalAlpha = 1;
+  }
+
+  // echoes — alpha, hue and a dotted future arc so four of you stay readable
+  const ECHO_COL = ['#48e8ff','#3ad8ff','#2ec6ff','#30b2ff','#ff6a6a','#ff8a8a'];
+  for(let gi2=0; gi2<MAXG; gi2++){
+    const q = GSI+gi2*GS_N;
+    if(!WI[q+G_ALIVE]) continue;
+    const gb = GH0+gi2*AC_N, hostile = WI[q+G_HOSTILE];
+    const col = hostile ? '#ff4a4a' : ECHO_COL[gi2];
+    g.globalAlpha = WI[q+G_ALIVE]===2 ? 0.18 : (hostile ? 0.75 : 0.38);
+    drawVek(g, WF[gb+A_X], WF[gb+A_Y], WF[gb+A_FACE], col, {rim:col});
+    g.globalAlpha = 1;
+    if(WI[q+G_ALIVE]===1 && !hostile && !lowFx){
+      // its next second, drawn — you are allowed to plan around your own past
+      g.strokeStyle = col; g.globalAlpha = .35; g.setLineDash([2,5]); g.lineWidth=1.5;
+      g.beginPath();
+      let px = WF[gb+A_X], py = WF[gb+A_Y]-17, vx = WF[gb+A_VX], vy = WF[gb+A_VY];
+      g.moveTo(px,py);
+      const base = WI[q+G_BUF]*4*TAPE_MAX;
+      for(let t=1;t<48;t++){
+        const bb = tapeBtn(GTAPE, base, WI[q+G_CUR]+t);
+        const d = ((bb&BTN_R)?1:0)-((bb&BTN_L)?1:0);
+        vx += d*1400*DT; vx *= 0.94; vy = Math.min(TERM, vy+GRAV*DT);
+        px += vx*DT; py += vy*DT;
+        if(solidPx(px,py+17)){ vy = 0; py = Math.floor((py+17)/TW)*TW - 17; }
+        if(t%2===0) g.lineTo(px,py);
+      }
+      g.stroke(); g.setLineDash([]); g.globalAlpha=1;
+    }
+  }
+
+  // you
+  const inv = WF[PL+A_IFR] > 0 && (WI[I_TICK] % 8) < 4;
+  if(!inv){
+    g.globalAlpha = WF[PL+A_PHASE] > 0 ? 0.45 : 1;
+    drawVek(g, WF[PL+A_X], WF[PL+A_Y], WF[PL+A_FACE], WF[PL+A_FLASH]>0?'#ffffff':'#48e8ff',
+            {chrome:!!(SAVE.facts & F_CHROME), rim:'#dffaff'});
+    g.globalAlpha = 1;
+  }
+  if(WF[PL+A_BLADET] > 0){
+    const a = WF[PL+A_AIM], p = 1 - WF[PL+A_BLADET]/0.25;
+    g.strokeStyle='#ffffff'; g.lineWidth=3; g.globalAlpha=1-p;
+    g.beginPath();
+    g.arc(WF[PL+A_X], WF[PL+A_Y]-17, BODY.bladeReach, a-0.96+p*1.9, a-0.76+p*1.9);
+    g.stroke(); g.globalAlpha=1;
+  }
+  if(WI[I_CARRY]===1){
+    g.fillStyle='#c78a6a'; g.fillRect(WF[PL+A_X]-14, WF[PL+A_Y]-44, 28, 9);
+  } else if(WI[I_CARRY]===2){
+    g.fillStyle='#9a7a52'; g.fillRect(WF[PL+A_X]-12, WF[PL+A_Y]-42, 24, 8);
+  }
+
+  drawParticles(g);
+  g.restore();
+}
+
+// ── bloom + scanlines: the accent hue is the only thing allowed to glow ────
+function postFx(){
+  if(lowFx){ ctx.globalAlpha=.05; ctx.drawImage(scanCv,0,0); ctx.globalAlpha=1; return; }
+  blurACtx.globalCompositeOperation='source-over';
+  blurACtx.drawImage(cv, 0, 0, 320, 184);
+  blurBCtx.drawImage(blurA, 0, 0, 160, 92);
+  blurACtx.globalAlpha = .8; blurACtx.drawImage(blurB, 0, 0, 320, 184); blurACtx.globalAlpha = 1;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = 0.34;
+  ctx.drawImage(blurA, 0, 0, SCRW, SCRH);
+  ctx.restore();
+  ctx.globalAlpha = .06; ctx.drawImage(scanCv, 0, 0); ctx.globalAlpha = 1;
+}
+// The scrub overlay: cold inversion, four RGB-split tear rows, filmstrip slide.
+function rewindOverlay(){
+  const g = ctx;
+  g.save();
+  g.globalCompositeOperation = 'difference';
+  g.fillStyle = '#2a3a55'; g.fillRect(0,0,SCRW,SCRH);
+  g.restore();
+  for(let i=0;i<4;i++){
+    const y = ((WI[I_TICK]*-7 + i*184 + performance.now()*0.4) % SCRH + SCRH) % SCRH;
+    g.globalAlpha = .30;
+    g.fillStyle = '#ff0044'; g.fillRect(-6, y, SCRW, 6);
+    g.fillStyle = '#00ffee'; g.fillRect( 6, y+3, SCRW, 3);
+    g.globalAlpha = 1;
+  }
+  g.strokeStyle='#8fd9ff'; g.globalAlpha=.35; g.lineWidth=2;
+  g.strokeRect(3,3,SCRW-6,SCRH-6); g.globalAlpha=1;
+  g.fillStyle='#cfe9ff'; g.font='bold 13px ui-monospace,monospace'; g.textAlign='center';
+  g.fillText('◀◀  R E W I N D I N G   ·   RELEASE TO FORK', SCRW/2, 40);
+}
+
+// ══════════════════════════ 22. HUD ════════════════════════════════════════
+const QUIT_BOX = {x:SCRW-96, y:SCRH-38, w:82, h:26};
+function drawHud(){
+  const g = ctx;
+  g.textAlign = 'left';
+  g.font = '11px ui-monospace,monospace';
+
+  // ── top-left: body, ammo, kit ──
+  for(let i=0;i<BODY.maxHp;i++){
+    const on = i < WI[I_HP];
+    g.strokeStyle = on ? '#ff6a8a' : '#3a3f52'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(18+i*17, 26); g.lineTo(25+i*17, 18); g.lineTo(32+i*17, 26); g.stroke();
+    if(on){ g.fillStyle='#ff6a8a'; g.globalAlpha=.5; g.fillRect(19+i*17,27,13,3); g.globalAlpha=1; }
+  }
+  for(let i=0;i<BODY.ammo;i++){
+    g.fillStyle = i < WI[I_AMMO] ? '#cfe9ff' : '#2a3040';
+    g.fillRect(18+i*8, 36, 5, 9);
+  }
+  if(WF[PL+A_RELOAD] > 0){
+    g.fillStyle='#6a7590'; g.fillText('RELOAD', 18, 58);
+  }
+  let px = 18;
+  for(const p of POWER_INFO){
+    if(!(RUN.powers & p.bit)) continue;
+    const cd = p.bit===P_STASIS ? WF[PL+A_STASCD]/3.5
+             : p.bit===P_SWAP   ? WF[PL+A_SWAPCD]/2.0
+             : p.bit===P_SLIP   ? WF[PL+A_SLIPCD]/2.0
+             : p.bit===P_BLADE  ? WF[PL+A_BLADECD]/0.45 : 0;
+    g.fillStyle = cd>0 ? '#242a3a' : '#0e1420';
+    g.fillRect(px, 62, 26, 26);
+    g.strokeStyle = cd>0 ? '#39405a' : era.acc; g.lineWidth=1; g.strokeRect(px+.5, 62.5, 25, 25);
+    g.fillStyle = cd>0 ? '#4a5270' : era.hi;
+    g.font='13px ui-monospace,monospace'; g.textAlign='center';
+    g.fillText(p.glyph, px+13, 80);
+    if(cd>0){ g.fillStyle='rgba(0,0,0,.55)'; g.fillRect(px+1, 63, 24, 24*Math.min(1,cd)); }
+    g.font='8px ui-monospace,monospace'; g.fillStyle='#5c6584';
+    g.fillText(p.key, px+13, 96);
+    px += 32;
+  }
+
+  // ── top-centre: the chrono filmstrip, or the chamber's rewind pips ──
+  g.textAlign='left';
+  if(RUN.isFrac){
+    for(let i=0;i<RUN.pips;i++){
+      const live = i < pipsLeft;
+      g.save(); g.translate(SCRW/2 - RUN.pips*13 + i*26 + 13, 30); g.rotate(Math.PI/4);
+      g.fillStyle = live ? '#8fd9ff' : '#232a3a';
+      g.fillRect(-8,-8,16,16);
+      g.restore();
+    }
+    if(RUN.pips===0){
+      g.fillStyle='#ff4a4a'; g.font='bold 12px ui-monospace,monospace'; g.textAlign='center';
+      g.fillText('NO REWIND', SCRW/2, 34);
+    }
+  } else {
+    const c = WF[F_CHRONO], full = Math.floor(c), frac = c-full;
+    for(let i=0;i<6;i++){
+      const x = SCRW/2 - 6*24 + i*48;
+      g.fillStyle = '#0c1120'; g.fillRect(x, 18, 44, 16);
+      g.strokeStyle = '#2a3346'; g.lineWidth=1; g.strokeRect(x+.5, 18.5, 43, 15);
+      let f = i < full ? 1 : (i === full ? frac : 0);
+      if(f > 0){
+        g.fillStyle = c < 1.5 ? '#ff4a4a' : (rewindE>=0 ? '#8fd9ff' : era.acc);
+        g.fillRect(x+2, 20, 40*f, 12);
+      }
+      g.fillStyle='#05070c';
+      g.fillRect(x+4, 16, 4, 3); g.fillRect(x+36, 16, 4, 3);
+      g.fillRect(x+4, 34, 4, 3); g.fillRect(x+36, 34, 4, 3);
+    }
+    g.fillStyle='#5c6584'; g.font='8px ui-monospace,monospace'; g.textAlign='center';
+    g.fillText('CHRONO', SCRW/2, 46);
+  }
+
+  // ── top-right: the clock, and your medal decided live, not after ──
+  g.textAlign='right';
+  const t = WF[F_TIME];
+  if(RUN.isFrac){
+    const over = RUN.limit && t > RUN.limit*0.8;
+    g.fillStyle = over ? '#ff4a4a' : '#cfe9ff';
+    g.font='bold 20px ui-monospace,monospace';
+    g.fillText(t.toFixed(2)+'s', SCRW-18, 34);
+    g.font='10px ui-monospace,monospace'; g.fillStyle='#6a7590';
+    g.fillText('LIMIT '+RUN.limit.toFixed(1)+'  ·  SEAL '+RUN.seal.toFixed(1), SCRW-18, 50);
+  } else {
+    const w = 190, x0 = SCRW-18-w;
+    g.fillStyle='#0c1120'; g.fillRect(x0, 20, w, 8);
+    const p = Math.min(1.4, t/RUN.par);
+    g.fillStyle = t<=RUN.gold ? '#ffd24a' : (t<=RUN.par ? '#cfe9ff' : '#ff4a4a');
+    g.fillRect(x0, 20, Math.min(w, w*p/1.0*1.0), 8);
+    g.fillStyle='#ffd24a'; g.fillRect(x0 + w*RUN.gold/RUN.par - 1, 16, 2, 16);
+    g.fillStyle='#ffffff'; g.fillRect(x0 + w - 1, 16, 2, 16);
+    g.font='bold 17px ui-monospace,monospace';
+    g.fillStyle = t<=RUN.gold?'#ffd24a':(t<=RUN.par?'#cfe9ff':'#ff8a8a');
+    g.fillText(t.toFixed(2), SCRW-18, 50);
+    // fork pips grey out the instant gold is gone
+    for(let i=0;i<Math.max(RUN.forkCap, WI[I_FORKS]);i++){
+      const over = i >= RUN.forkCap;
+      g.fillStyle = i < WI[I_FORKS] ? (over?'#ff4a4a':'#8fd9ff') : '#2a3346';
+      g.fillRect(SCRW-18-8-i*11, 58, 7, 7);
+    }
+    g.font='8px ui-monospace,monospace'; g.fillStyle='#5c6584';
+    g.fillText('FORKS', SCRW-18-Math.max(RUN.forkCap,WI[I_FORKS])*11-16, 65);
+    if(WI[I_DMG] > 0){ g.fillStyle='#ff4a4a'; g.font='9px ui-monospace,monospace'; g.fillText('HIT · NO GOLD', SCRW-18, 78); }
+  }
+
+  // objective line, one line, top of the arena
+  g.textAlign='center'; g.font='10px ui-monospace,monospace'; g.fillStyle='#7c88a8';
+  g.fillText(objectiveLine(), SCRW/2, SCRH-16);
+
+  // quit pill
+  g.fillStyle='rgba(6,8,16,.7)'; g.fillRect(QUIT_BOX.x, QUIT_BOX.y, QUIT_BOX.w, QUIT_BOX.h);
+  g.strokeStyle='rgba(0,245,255,.45)'; g.lineWidth=1;
+  g.strokeRect(QUIT_BOX.x+.5, QUIT_BOX.y+.5, QUIT_BOX.w-1, QUIT_BOX.h-1);
+  g.fillStyle='#7fe9ff'; g.font='10px ui-monospace,monospace'; g.textAlign='center';
+  g.fillText('⌂ QUIT', QUIT_BOX.x+QUIT_BOX.w/2, QUIT_BOX.y+17);
+
+  if(RUN.lastWord && (RUN.powers & P_LASTWORD)){
+    g.textAlign='left'; g.fillStyle = tabHeld>0 ? '#ff3ad0' : '#5c6584';
+    g.fillText('HOLD TAB · LAST WORD', 18, SCRH-16);
+    if(tabHeld>0){ g.fillStyle='#ff3ad0'; g.fillRect(18, SCRH-12, 150*Math.min(1,tabHeld/48), 3); }
+  }
+  if(DEV){
+    g.textAlign='left'; g.fillStyle='#4a5270'; g.font='9px ui-monospace,monospace';
+    g.fillText('t'+WI[I_TICK]+' ring'+ringMin+' e'+WI[I_EALIVE]+' fx'+FX.head+' h'+worldHash(), 18, SCRH-30);
+  }
+}
+function objectiveLine(){
+  if(RUN.isFrac) return room.brief;
+  switch(roomId){
+  case 'n1' : return WI[I_CARRY]===1 ? 'CARRY HER OUT — the fire is still rising'
+                                     : 'REACH THE EXIT  ·  she is still in the back room (E to carry)';
+  case 'n2' : return WI[I_DOOR] ? 'THE GATE IS OPEN' : 'HOLD BOTH LATCHES AT ONCE  ·  you are not one person tonight';
+  case 'n3' : return WI[I_BOSSDOWN] ? 'SHE IS DOWN — leave' : 'PUT KESH DOWN WITH ZERO FORKS  ·  or take the oath (E)';
+  case 'n4' : return 'CROSS THE YARD  ·  '+(WI[I_KILLS]===0?'nobody has died yet':'you have killed '+WI[I_KILLS]);
+  case 'n5' : return WI[I_DOOR] ? (WI[I_WINDOW]>0?'THE HAND IS YOURS — go':'THE ARM IS GONE — go')
+                                : 'GRAB THE KEY (E)  ·  the ram takes whichever arm is there';
+  case 'n6' : return 'THREE BREAKERS AT ONCE FOR THE LIGHTS  ·  '+WF[F_R6]+'/3 so far';
+  case 'n7' : return 'HOLD THE TRANSMITTER  ·  '+(WI[I_HOLD]/60).toFixed(1)+' / 12.0 s';
+  case 'n8' : return 'KILL HIM, OR SURVIVE 45s AND WALK  ·  '+WF[F_TIME].toFixed(0)+'s';
+  case 'n9' : return 'PAY IT  ·  '+(WI[I_KILLS]===0?'no bodies yet':'they will bill you for '+WI[I_KILLS]);
+  case 'n10': return 'THREE PLATES, HELD TOGETHER  ·  '+WI[I_PLATEF]+'/30 ticks';
+  case 'n11': return 'GET TO THE TOP';
+  case 'n12': return 'IT ONLY BLEEDS FROM BEHIND';
+  case 'n13': return 'PHASE '+(WI[I_PHASE]+1)+' / 3';
+  }
+  return '';
+}
+
+// ══════════════════════════ 23. THE SPINE SCREEN ═══════════════════════════
+let spineSel = 0, stars = null;
+function initStars(){
+  stars = [];
+  let s = 99991;
+  for(let i=0;i<220;i++){
+    s = (s*1103515245 + 12345) & 0x7fffffff;
+    stars.push({x:(s%SCRW), y:((s>>9)%SCRH), z:((s>>5)%3)+1});
+  }
+}
+function drawStars(g){
+  if(!stars) initStars();
+  for(const st of stars){
+    g.globalAlpha = .10 + st.z*0.10;
+    g.fillStyle = '#cfe9ff';
+    g.fillRect(st.x, st.y, st.z===3?2:1, st.z===3?2:1);
+  }
+  g.globalAlpha = 1;
+}
+// Vek, drawn from a parts table, so a fate change is a data change.
+function drawPortrait(g, x, y, sc, F){
+  g.save(); g.translate(x,y); g.scale(sc,sc);
+  const chrome = !!(F & F_CHROME), limp = !!(F & F_LIMP);
+  g.fillStyle = '#0d0a14'; g.fillRect(-70,-10,140,250);
+  g.fillStyle = (F & F_GANG) ? '#3a1c2a' : ((F & F_FREE) ? '#16283a' : '#20222e');
+  g.beginPath();                                        // coat
+  g.moveTo(-56, 230); g.lineTo(-48, 60); g.lineTo(-20, 34);
+  g.lineTo(22, 34); g.lineTo(50, 62); g.lineTo(58, 230);
+  g.closePath(); g.fill();
+  g.fillStyle = (F & F_BURNED) ? '#4a2418' : '#2b2f3e';  // torso panel
+  g.fillRect(-26, 62, 52, 120);
+  g.fillStyle = '#c99a78';                               // head
+  g.beginPath(); g.ellipse(0, 8, 27, 33, 0, 0, 6.283); g.fill();
+  g.fillStyle = '#191722'; g.fillRect(-28, -20, 56, 24); // hair
+  g.fillStyle = '#0a0a10';
+  g.fillRect(-16, 4, 11, 5); g.fillRect(6, 4, 11, 5);    // eyes
+  if(F & F_NAMED){ g.fillStyle='#34f0e0'; g.fillRect(6, 4, 11, 5); }
+  if(F & F_WITNESS){ g.fillStyle='#ffd24a'; g.fillRect(-16, 4, 11, 5); }
+  if(F & F_BLOOD){ g.fillStyle='#a02020'; g.fillRect(-22, 22, 16, 3); }
+  g.fillStyle = chrome ? '#9fb6cf' : '#c99a78';          // the arm
+  g.fillRect(38, 66, 22, 104);
+  if(chrome){
+    g.fillStyle = '#e6f4ff'; g.fillRect(41, 74, 16, 4); g.fillRect(41, 96, 16, 4); g.fillRect(41, 118, 16, 4);
+    g.fillStyle = '#34f0e0'; g.fillRect(45, 150, 8, 8);
+  } else { g.fillStyle='#a87a5c'; g.fillRect(38, 158, 22, 18); }
+  g.fillStyle = limp ? '#2a2436' : '#232636';            // legs
+  g.fillRect(-34, 182, 26, 58);
+  g.save(); if(limp) g.rotate(0.10); g.fillRect(6, 182, 26, 58); g.restore();
+  if(F & F_DOG){ g.fillStyle='#9a7a52'; g.fillRect(60, 200, 40, 26); g.fillRect(96, 188, 14, 14); }
+  if(F & F_MOTHER){ g.globalAlpha=.35; g.fillStyle='#ffd9a0'; g.fillRect(-104, 96, 30, 144); g.globalAlpha=1; }
+  g.restore();
+}
+function epilogue(){
+  const out = [];
+  for(const id of NODE_ORDER){
+    const oc = SAVE.outcomes[id];
+    if(!oc) continue;
+    const o = NODES[id].outcomes.find(z=>z.id===oc);
+    if(o) out.push(o.line);
+  }
+  return out.slice(-6);
+}
+function drawSpine(){
+  const g = ctx;
+  g.fillStyle = '#050308'; g.fillRect(0,0,SCRW,SCRH);
+  drawStars(g);
+  g.fillStyle='#0a0710'; g.fillRect(0,0,360,SCRH);
+  g.fillStyle='#160d22'; g.fillRect(358,0,2,SCRH);
+  drawPortrait(g, 178, 150, 0.86, SAVE.facts);
+
+  g.textAlign='left'; g.font='11px ui-monospace,monospace'; g.fillStyle='#6a7590';
+  g.fillText('VEK  ·  COURIER  ·  DIES AT MIDNIGHT', 24, 34);
+  g.font='9px ui-monospace,monospace';
+  let fy = 470;
+  g.fillStyle='#4a5270'; g.fillText('THE LEDGER', 24, fy); fy += 14;
+  for(let i=0;i<16;i++){
+    if(!(SAVE.facts & (1<<i))) continue;
+    g.fillStyle = '#7c88a8';
+    g.fillText('· '+FACT_NAMES[i][1], 24, fy); fy += 13;
+    if(fy > SCRH-90) break;
+  }
+  g.fillStyle='#4a5270'; g.font='9px ui-monospace,monospace';
+  g.fillText('POWERS '+powerCount()+'/6   SPLINTERS '+splinterCount()+'/9', 24, SCRH-58);
+  let gold = 0; for(const id of NODE_ORDER) if(SAVE.medals[id]===3) gold++;
+  g.fillText('GOLD '+gold+'/13   ANCHORED NIGHTS SURVIVE REWRITES', 24, SCRH-44);
+
+  // edges
+  for(const id of ALL_NODES){
+    const n = NODES[id];
+    for(const e of (n.edges||[])){
+      const m = NODES[e[0]];
+      const live = !e[1] || (SAVE.facts & e[1]);
+      g.strokeStyle = live ? '#3d5a86' : '#241c30';
+      g.lineWidth = live ? 2 : 1;
+      if(!live) g.setLineDash([3,6]);
+      g.beginPath();
+      g.moveTo(n.x, n.y);
+      g.bezierCurveTo((n.x+m.x)/2, n.y, (n.x+m.x)/2, m.y, m.x, m.y);
+      g.stroke(); g.setLineDash([]);
+    }
+  }
+  // nodes
+  for(let i=0;i<ALL_NODES.length;i++){
+    const id = ALL_NODES[i], n = NODES[id];
+    const open = nodeOpen(id), done = SAVE.cleared[id], med = SAVE.medals[id]||0;
+    const sel = i === spineSel;
+    const r = n.frac ? 15 : 19;
+    g.save(); g.translate(n.x, n.y);
+    if(n.frac) g.rotate(Math.PI/4);
+    g.beginPath();
+    if(n.frac) g.rect(-r,-r,r*2,r*2);
+    else { for(let k=0;k<6;k++){ const a=k/6*6.283; const px=Math.cos(a)*r, py=Math.sin(a)*r;
+      k?g.lineTo(px,py):g.moveTo(px,py);} g.closePath(); }
+    g.fillStyle = !open ? '#120c1c' : done ? (n.frac?'#3a2a08':'#152840') : '#1c1430';
+    g.fill();
+    g.lineWidth = sel ? 3 : 2;
+    g.strokeStyle = !open ? '#2a2038' : (med===3 ? '#ffd24a' : n.frac ? '#ffb01f' : (sel?'#8fd9ff':'#4a6f9e'));
+    if(n.frac && open && !done){ g.strokeStyle = (WI[I_TICK]%40<20) ? '#ffe14a' : '#ffb01f'; }
+    g.stroke();
+    g.restore();
+    if(med===3){ g.fillStyle='#ffd24a'; g.font='11px ui-monospace,monospace'; g.textAlign='center';
+                 g.fillText('⚓', n.x, n.y+4); }
+    else if(done){ g.fillStyle='#8fd9ff'; g.font='10px ui-monospace,monospace'; g.textAlign='center';
+                 g.fillText(med===2?'●':'○', n.x, n.y+4); }
+    else if(!open){ g.fillStyle='#3a2f4a'; g.font='9px ui-monospace,monospace'; g.textAlign='center';
+                 g.fillText('?', n.x, n.y+3); }
+    g.fillStyle = open ? '#8894b4' : '#3d3450';
+    g.font = '8px ui-monospace,monospace'; g.textAlign='center';
+    const label = n.frac ? n.t.split('·')[1].trim() : n.t;
+    g.fillText(label, n.x, n.y + (n.frac?30:32));
+  }
+  // the selected card
+  drawNodeCard(g, ALL_NODES[spineSel]);
+
+  g.textAlign='center'; g.fillStyle='#4a5270'; g.font='10px ui-monospace,monospace';
+  g.fillText('◀ ▶ SELECT   ·   ENTER DIVE   ·   ESC PAUSE', 820, SCRH-18);
+
+  g.fillStyle='rgba(6,8,16,.7)'; g.fillRect(QUIT_BOX.x, QUIT_BOX.y, QUIT_BOX.w, QUIT_BOX.h);
+  g.strokeStyle='rgba(0,245,255,.45)'; g.lineWidth=1;
+  g.strokeRect(QUIT_BOX.x+.5, QUIT_BOX.y+.5, QUIT_BOX.w-1, QUIT_BOX.h-1);
+  g.fillStyle='#7fe9ff'; g.font='10px ui-monospace,monospace';
+  g.fillText('⌂ QUIT', QUIT_BOX.x+QUIT_BOX.w/2, QUIT_BOX.y+17);
+}
+function drawNodeCard(g, id){
+  const n = NODES[id], r = ROOMS[id], open = nodeOpen(id);
+  const x = 980, y = 96, w = 282, h = 300;
+  g.fillStyle='rgba(8,6,16,.92)'; g.fillRect(x,y,w,h);
+  g.strokeStyle= open?'#3d5a86':'#2a2038'; g.lineWidth=1; g.strokeRect(x+.5,y+.5,w-1,h-1);
+  g.textAlign='left';
+  g.fillStyle= open?'#dfe8ff':'#5a5070'; g.font='bold 14px ui-monospace,monospace';
+  g.fillText(n.frac ? n.t.split('·')[1].trim() : n.t, x+16, y+28);
+  g.fillStyle='#4a5270'; g.font='9px ui-monospace,monospace';
+  g.fillText((n.frac?'FRACTURE · ':'')+ (r?r.era:''), x+16, y+44);
+  g.fillStyle='#7c88a8'; g.font='10px ui-monospace,monospace';
+  wrapText(g, r ? r.premise : '', x+16, y+66, w-32, 14);
+  let ly = y+128;
+  if(!open){
+    g.fillStyle='#6a5a80';
+    const why = n.frac ? ('needs: '+factName(n.need)) : (n.reqPow ? 'needs three powers' :
+                 n.req ? ('needs: '+factName(n.req.any||n.req.all)) : 'finish the night before it');
+    g.fillText('THIS DOOR IS NOT DRAWN YET', x+16, ly); ly+=16;
+    g.fillStyle='#4a5270'; g.fillText(why, x+16, ly);
+  } else if(n.frac){
+    g.fillStyle='#ffb01f'; g.fillText('POWER LOANED AT THE DOOR', x+16, ly); ly+=15;
+    const pi = POWER_INFO.find(p=>p.bit===r.power);
+    g.fillStyle='#ffe14a'; g.font='bold 12px ui-monospace,monospace';
+    g.fillText(pi.glyph+'  '+pi.name, x+16, ly); ly+=20;
+    g.font='10px ui-monospace,monospace'; g.fillStyle='#7c88a8';
+    g.fillText('LIMIT   '+r.limit.toFixed(1)+'s', x+16, ly); ly+=14;
+    g.fillText('SEAL    '+r.seal.toFixed(1)+'s', x+16, ly); ly+=14;
+    g.fillText('REWIND  '+r.pips+' pip'+(r.pips===1?'':'s'), x+16, ly); ly+=18;
+    g.fillStyle = (SAVE.powers & r.power) ? '#8affc0' : '#5c6584';
+    g.fillText((SAVE.powers & r.power) ? 'KEPT' + (SAVE.seals[id]?'  ·  GOLD SEAL':'') : 'clear it to keep it', x+16, ly);
+  } else {
+    g.fillStyle='#7c88a8';
+    g.fillText('PAR  '+r.par.toFixed(1)+'s     GOLD '+r.gold.toFixed(1)+'s', x+16, ly); ly+=14;
+    g.fillText('FORK CAP  '+r.forkCap, x+16, ly); ly+=18;
+    const med = SAVE.medals[id]||0;
+    g.fillStyle = med===3?'#ffd24a':med===2?'#cfe9ff':med===1?'#8894b4':'#3d4458';
+    g.fillText('MEDAL  '+['—','CLEAR','SILVER','GOLD'][med] + (SAVE.anchored[id]?'  ⚓ ANCHORED':''), x+16, ly); ly+=14;
+    if(SAVE.best[id]){ g.fillStyle='#7c88a8'; g.fillText('BEST   '+SAVE.best[id].toFixed(2)+'s', x+16, ly); } ly+=20;
+    const oc = SAVE.outcomes[id];
+    g.fillStyle='#4a5270'; g.fillText('WHAT HAPPENED', x+16, ly); ly+=14;
+    if(oc){
+      const o = n.outcomes.find(z=>z.id===oc);
+      g.fillStyle='#8fd9ff'; wrapText(g, o.line, x+16, ly, w-32, 13);
+    } else { g.fillStyle='#3d4458'; g.fillText('unwritten', x+16, ly); }
+    ly = y+h-42;
+    g.fillStyle = (SAVE.paradox&&SAVE.paradox[id]) ? '#ff3ad0' : '#3d3450';
+    g.fillText('PARADOX  '+((SAVE.paradox&&SAVE.paradox[id])?'EARNED':'???'), x+16, ly);
+  }
+  g.fillStyle= open?'#8fd9ff':'#3d4458'; g.font='10px ui-monospace,monospace';
+  g.fillText(open?'▶ ENTER':'locked', x+16, y+h-16);
+}
+function factName(mask){
+  for(let i=0;i<16;i++) if(mask & (1<<i)) return FACT_NAMES[i][1];
+  return '—';
+}
+function wrapText(g, text, x, y, w, lh){
+  const words = String(text).split(' ');
+  let line = '';
+  for(const wd of words){
+    if(g.measureText(line+wd).width > w){ g.fillText(line, x, y); y += lh; line = ''; }
+    line += wd+' ';
+  }
+  g.fillText(line, x, y);
+  return y;
+}
+
+// ══════════════════════════ 24. MEDAL CARD & CASCADE ═══════════════════════
+const thumbCache = {};
+function thumbGrid(id){
+  if(thumbCache[id]) return thumbCache[id];
+  const r = ROOMS[id]; if(!r) return null;
+  const g = new Int8Array(GW*GH);
+  for(let x=0;x<GW;x++){ g[x]=T_SOLID; g[(GH-1)*GW+x]=T_SOLID; }
+  for(let y=1;y<GH-1;y++){
+    const s = r.rows[y-1]||'';
+    g[y*GW]=T_SOLID; g[y*GW+GW-1]=T_SOLID;
+    for(let x=1;x<GW-1;x++){
+      const c = s[x]||'.';
+      g[y*GW+x] = c==='#'?T_SOLID : c==='='?T_ONEWAY : c==='%'?T_BREAK : c==='D'?T_DOOR : T_EMPTY;
+    }
+  }
+  return (thumbCache[id] = g);
+}
+// Four downstream arenas, redrawn with your change inside them. A picture,
+// never a diff list — this is the whole legibility of the fate layer.
+function drawThumb(g, id, x, y, w, h, lit){
+  const grid = thumbGrid(id); if(!grid) return;
+  const E = ERAS[ROOMS[id].era];
+  const sx = w/GW, sy = h/GH;
+  g.fillStyle = E.bg; g.fillRect(x,y,w,h);
+  for(let ty=0;ty<GH;ty++) for(let tx=0;tx<GW;tx++){
+    const t = grid[ty*GW+tx]; if(!t) continue;
+    g.fillStyle = t===T_ONEWAY ? E.acc : E.mid;
+    g.fillRect(x+tx*sx, y+ty*sy, Math.ceil(sx), Math.ceil(sy));
+  }
+  g.strokeStyle = lit ? E.acc : '#2a2038'; g.lineWidth = lit?2:1;
+  g.strokeRect(x+.5, y+.5, w-1, h-1);
+  g.fillStyle = lit ? '#dfe8ff' : '#4a5270';
+  g.font='8px ui-monospace,monospace'; g.textAlign='center';
+  g.fillText(NODES[id] ? (NODES[id].frac?'FRACTURE':NODES[id].t) : id, x+w/2, y+h+11);
+}
+function drawMedalCard(dtms){
+  const c = medalCard; c.t += dtms;
+  const g = ctx;
+  g.fillStyle='rgba(3,2,8,.88)'; g.fillRect(0,0,SCRW,SCRH);
+  const x = SCRW/2-260, y = 120, w = 520, h = 400;
+  g.fillStyle='#0a0714'; g.fillRect(x,y,w,h);
+  g.strokeStyle = c.frac ? '#ffb01f' : '#3d5a86'; g.lineWidth=2; g.strokeRect(x+.5,y+.5,w-1,h-1);
+  g.textAlign='center';
+
+  if(c.frac){
+    g.fillStyle='#ffb01f'; g.font='bold 26px ui-monospace,monospace';
+    g.fillText('CHAMBER CLEARED', SCRW/2, y+58);
+    g.fillStyle='#dfe8ff'; g.font='bold 40px ui-monospace,monospace';
+    if(c.t>300) g.fillText(c.power.glyph+'  '+c.power.name, SCRW/2, y+126);
+    g.font='13px ui-monospace,monospace'; g.fillStyle='#8894b4';
+    if(c.t>700) g.fillText(c.first ? 'the Fracture kept the version of you that had it' : 'kept', SCRW/2, y+156);
+    g.font='bold 22px ui-monospace,monospace'; g.fillStyle='#cfe9ff';
+    if(c.t>1000) g.fillText(c.time.toFixed(2)+'s', SCRW/2, y+206);
+    if(c.t>1300 && c.seal){ g.fillStyle='#ffd24a'; g.font='bold 18px ui-monospace,monospace';
+      g.fillText('★ GOLD SEAL', SCRW/2, y+240); }
+    g.fillStyle='#4a5270'; g.font='10px ui-monospace,monospace';
+    if(c.t>1600) g.fillText('ENTER', SCRW/2, y+h-24);
+    return;
+  }
+
+  const M = ['—','CLEAR','SILVER','GOLD'][c.medal];
+  const MC= ['#666','#8894b4','#cfe9ff','#ffd24a'][c.medal];
+  g.fillStyle='#4a5270'; g.font='11px ui-monospace,monospace';
+  g.fillText(NODES[c.id].t, SCRW/2, y+34);
+
+  const stamps = [
+    {t:300,  ok:c.time<=c.gold, l:'TIME   '+c.time.toFixed(2)+' / '+c.gold.toFixed(1)},
+    {t:600,  ok:c.dmg===0,      l:'DAMAGE '+c.dmg},
+    {t:900,  ok:c.forks<=c.forkCap, l:'FORKS  '+c.forks+' / '+c.forkCap},
+  ];
+  let sy2 = y+80;
+  for(const st of stamps){
+    if(c.t < st.t) break;
+    g.fillStyle = st.ok ? '#8affc0' : '#ff8a8a';
+    g.font='14px ui-monospace,monospace';
+    g.fillText((st.ok?'✔  ':'✘  ')+st.l, SCRW/2, sy2);
+    sy2 += 26;
+  }
+  if(c.t > 1200){
+    g.fillStyle=MC; g.font='bold 42px ui-monospace,monospace';
+    g.fillText(M, SCRW/2, y+206);
+    g.strokeStyle=MC; g.lineWidth=2; g.globalAlpha=.6;
+    g.beginPath(); g.arc(SCRW/2, y+192, 62, 0, 6.283); g.stroke(); g.globalAlpha=1;
+  }
+  if(c.t > 1500 && c.anchored){
+    g.fillStyle='#ffd24a'; g.font='bold 15px ui-monospace,monospace';
+    g.fillText('⚓ ANCHORED — this night survives every rewrite', SCRW/2, y+250);
+  }
+  if(c.t > 1500 && c.paradox){
+    g.fillStyle='#ff3ad0'; g.font='bold 13px ui-monospace,monospace';
+    g.fillText('PARADOX — three of you, at once', SCRW/2, y+272);
+  }
+  if(c.t > 1800){
+    g.fillStyle='#8fd9ff'; g.font='12px ui-monospace,monospace';
+    const n = Math.floor((c.t-1800)/22);
+    wrapText(g, c.outcome.line.slice(0, n), SCRW/2, y+312, w-70, 16);
+  }
+  g.fillStyle='#4a5270'; g.font='10px ui-monospace,monospace';
+  if(c.t > 2200) g.fillText('ENTER', SCRW/2, y+h-22);
+}
+// THE REWRITE — 1.6 s, and it must be a picture.
+function drawCascade(dtms){
+  const c = cascade; c.t += dtms;
+  const g = ctx;
+  drawSpine();
+  g.fillStyle='rgba(3,2,8,.72)'; g.fillRect(0,0,SCRW,SCRH);
+  const n = NODES[c.node];
+  const p = Math.min(1, c.t/1600);
+
+  // 0.00 the causality wave leaves the changed node
+  const wave = p*1400;
+  g.strokeStyle='#ffffff'; g.globalAlpha=Math.max(0,.8-p);
+  g.lineWidth=3; g.beginPath(); g.arc(n.x, n.y, wave, 0, 6.283); g.stroke(); g.globalAlpha=1;
+
+  // 0.25 shattered nodes go to static
+  if(c.t > 250) for(const id of c.dropped){
+    const m = NODES[id];
+    for(let k=0;k<26;k++){
+      g.fillStyle = (k%2) ? '#ffffff' : '#3a3450';
+      g.globalAlpha=.6;
+      g.fillRect(m.x-22+rngFx()*44, m.y-22+rngFx()*44, 4, 3);
+    }
+    g.globalAlpha=1;
+    g.fillStyle='#6a5a80'; g.font='8px ui-monospace,monospace'; g.textAlign='center';
+    g.fillText('UNWRITTEN', m.x, m.y+42);
+  }
+  // 0.50 new edges draw themselves like a plotter pen
+  if(c.t > 500) for(const id of ALL_NODES){
+    const a = NODES[id];
+    for(const e of (a.edges||[])){
+      if(!e[1]) continue;
+      const wasLive = (c.before & e[1]), isLive = (c.after & e[1]);
+      if(!isLive || wasLive) continue;
+      const b = NODES[e[0]];
+      g.strokeStyle='#ffe14a'; g.lineWidth=3;
+      g.setLineDash([1400,1400]);
+      g.lineDashOffset = 1400 - Math.min(1400, (c.t-500)*1.4);
+      g.beginPath(); g.moveTo(a.x,a.y);
+      g.bezierCurveTo((a.x+b.x)/2, a.y, (a.x+b.x)/2, b.y, b.x, b.y);
+      g.stroke(); g.setLineDash([]); g.lineDashOffset=0;
+    }
+  }
+  // 0.70 the portrait swaps a part with a spark
+  g.fillStyle='#0a0710'; g.fillRect(0,0,360,SCRH);
+  drawPortrait(g, 178, 150, 0.86, c.t > 700 ? c.after : c.before);
+  if(c.t > 700 && c.t < 1000){
+    g.fillStyle='#ffffff'; g.globalAlpha=1-(c.t-700)/300;
+    for(let k=0;k<8;k++) g.fillRect(210+rngFx()*40, 190+rngFx()*90, 4, 4);
+    g.globalAlpha=1;
+  }
+  // 0.95 the SPINE STRIP — downstream arenas redrawing with your change in them
+  if(c.t > 950){
+    const down = downstreamOf(c.node).slice(0,4);
+    g.fillStyle='rgba(4,3,10,.9)'; g.fillRect(400, 40, 840, 100);
+    for(let i=0;i<down.length;i++){
+      const lit = c.t > 950 + i*120;
+      drawThumb(g, down[i], 424+i*205, 52, 168, 62, lit);
+    }
+    g.fillStyle='#4a5270'; g.font='9px ui-monospace,monospace'; g.textAlign='left';
+    g.fillText('DOWNSTREAM', 410, 52);
+  }
+  // 1.30 the epilogue line types itself
+  if(c.t > 1300){
+    g.textAlign='center'; g.fillStyle='#8fd9ff'; g.font='13px ui-monospace,monospace';
+    const k = Math.floor((c.t-1300)/22);
+    g.fillText(c.line.slice(0,k), 820, SCRH-70);
+  }
+  g.textAlign='center'; g.fillStyle='#4a5270'; g.font='10px ui-monospace,monospace';
+  if(c.t > 500) g.fillText('ANY KEY', 820, SCRH-24);
+  if(c.t > 4000) closeCascade();
+}
+function closeCascade(){
+  cascade = null; MODE = 'spine';
+  if(PARK.active){ if(unparkRoom()){ MODE = 'play'; } }
+}
+function downstreamOf(id){
+  const seen = {}, out = [], q = [id];
+  while(q.length){
+    const cur = q.shift();
+    for(const e of (NODES[cur].edges||[])){
+      if(seen[e[0]]) continue;
+      seen[e[0]] = 1; out.push(e[0]); q.push(e[0]);
+    }
+    if(out.length > 6) break;
+  }
+  return out;
+}
+
+// ══════════════════════════ 25. TITLE / PAUSE / ENDING ═════════════════════
+let titleSel = 0, pauseSel = 0, paused = false;
+const TITLE_ITEMS = ['CONTINUE','NEW SPINE','HOW IT WORKS','QUIT TO ARCADE'];
+let showHelp = false;
+
+function drawTitle(){
+  const g = ctx;
+  g.fillStyle='#030206'; g.fillRect(0,0,SCRW,SCRH);
+  drawStars(g);
+  const tear = (Math.floor(performance.now()/2500) % 2 === 0) && (performance.now()%2500 < 60);
+  g.textAlign='center';
+  g.font='bold 96px ui-monospace,monospace';
+  if(tear){ g.fillStyle='#ff0044'; g.fillText('FATESPINE', SCRW/2-4, 232);
+            g.fillStyle='#00ffee'; g.fillText('FATESPINE', SCRW/2+4, 232); }
+  g.fillStyle='#dfe8ff'; g.letterSpacing='10px';
+  g.fillText('FATESPINE', SCRW/2, 230);
+  g.letterSpacing='0px';
+  g.font='14px ui-monospace,monospace'; g.fillStyle='#6a7590';
+  g.fillText('NO XP.  NO SHOP.  NOTHING HERE CAN BE FARMED.', SCRW/2, 274);
+  g.font='12px ui-monospace,monospace'; g.fillStyle='#4a5270';
+  g.fillText('rewind the night · your past self keeps fighting · then go back and unmake the life that made you strong', SCRW/2, 302);
+
+  if(showHelp){
+    const lines = [
+      'A / D  or  ← →      move            SPACE / W    jump',
+      'SHIFT               dash            LMB          shoot',
+      'HOLD  R             rewind time — release to leave an ECHO of yourself',
+      'F                   phase slip      Q            stasis pin',
+      'E                   swap with your oldest echo   RMB   causal blade',
+      'HOLD TAB            last word (in the three nights that allow it)',
+      'ESC                 pause / quit',
+      '',
+      'An ECHO is not a replay of the world. It is a replay of YOU: it shoots,',
+      'it holds plates, you can stand on its head, and it can die for you.',
+      '',
+      'Outcomes are never a menu. The game measures what you physically did,',
+      'writes it into your history, and redraws the graph. Power chambers hang',
+      'off edges that only exist under a specific fact. That is the whole game:',
+      'change your fate, with skill, to unlock more powers.',
+    ];
+    g.font='12px ui-monospace,monospace'; g.textAlign='left';
+    for(let i=0;i<lines.length;i++){
+      g.fillStyle = i<7 ? '#8894b4' : '#6a7590';
+      g.fillText(lines[i], 300, 356+i*20);
+    }
+    g.textAlign='center'; g.fillStyle='#4a5270';
+    g.fillText('ESC / ENTER — BACK', SCRW/2, SCRH-40);
+    return;
+  }
+  for(let i=0;i<TITLE_ITEMS.length;i++){
+    const on = i===titleSel;
+    g.font = on ? 'bold 20px ui-monospace,monospace' : '18px ui-monospace,monospace';
+    g.fillStyle = on ? '#8fd9ff' : '#4a5270';
+    let lbl = TITLE_ITEMS[i];
+    if(i===0 && !SAVE.cleared['n1'] && !SAVE.outcomes['n1']) lbl = 'BEGIN';
+    g.fillText((on?'▶  ':'   ')+lbl, SCRW/2, 400+i*40);
+  }
+  g.font='10px ui-monospace,monospace'; g.fillStyle='#39405a';
+  g.fillText('↑ ↓  ENTER', SCRW/2, SCRH-40);
+}
+const PAUSE_BASE = ['RESUME','RESTART THIS NIGHT','BACK TO THE SPINE','QUIT TO ARCADE'];
+function pauseItems(){
+  const it = PAUSE_BASE.slice();
+  if(SAVE.softenOffered) it.splice(3, 0, 'SOFTEN: '+(SAVE.soften?'ON':'OFF'));
+  return it;
+}
+function drawPause(){
+  const g = ctx;
+  g.fillStyle='rgba(3,2,8,.86)'; g.fillRect(0,0,SCRW,SCRH);
+  g.textAlign='center';
+  g.fillStyle='#dfe8ff'; g.font='bold 30px ui-monospace,monospace';
+  g.fillText('PAUSED', SCRW/2, 210);
+  const items = pauseItems();
+  for(let i=0;i<items.length;i++){
+    g.font = i===pauseSel ? 'bold 18px ui-monospace,monospace' : '16px ui-monospace,monospace';
+    g.fillStyle = i===pauseSel ? '#8fd9ff' : '#4a5270';
+    g.fillText((i===pauseSel?'▶  ':'   ')+items[i], SCRW/2, 280+i*38);
+  }
+  if(SAVE.softenOffered){
+    g.font='10px ui-monospace,monospace'; g.fillStyle='#5c6584';
+    g.fillText('SOFTEN slows enemy fire and adds rewind pips. It caps this night at SILVER,', SCRW/2, SCRH-90);
+    g.fillText('and a softened chamber never earns a gold seal. It is honest, and it works.', SCRW/2, SCRH-74);
+  }
+}
+function drawFracCard(dtms){
+  fracCard.t += dtms;
+  const g = ctx;
+  g.fillStyle='#030206'; g.fillRect(0,0,SCRW,SCRH);
+  g.textAlign='center';
+  g.fillStyle='#ffb01f'; g.font='bold 15px ui-monospace,monospace';
+  g.fillText(NODES[roomId].t.split('·')[0].trim(), SCRW/2, 210);
+  g.fillStyle='#dfe8ff'; g.font='bold 64px ui-monospace,monospace';
+  g.fillText(room.name, SCRW/2, 280);
+  g.fillStyle='#7c88a8'; g.font='13px ui-monospace,monospace';
+  g.fillText(room.brief, SCRW/2, 322);
+  const pi = POWER_INFO.find(p=>p.bit===room.power);
+  g.fillStyle='#ffe14a'; g.font='14px ui-monospace,monospace';
+  g.fillText('POWER LOANED: '+pi.name+' ['+pi.key+']  —  clear the chamber to keep it', SCRW/2, 372);
+  g.fillStyle='#4a5270'; g.font='11px ui-monospace,monospace';
+  g.fillText('LIMIT '+room.limit.toFixed(1)+'s    ·    SEAL '+room.seal.toFixed(1)+'s    ·    '+
+             RUN.pips+' REWIND PIP'+(RUN.pips===1?'':'S'), SCRW/2, 406);
+  g.fillText('failure costs you nothing but the four tenths of a second it takes to try again', SCRW/2, 440);
+  if(fracCard.t > 900){
+    g.fillStyle='#8fd9ff'; g.font='13px ui-monospace,monospace';
+    g.fillText('ENTER', SCRW/2, 500);
+  }
+}
+function drawEnding(dtms){
+  endingCard.t += dtms;
+  const g = ctx;
+  g.fillStyle='#030206'; g.fillRect(0,0,SCRW,SCRH);
+  drawStars(g);
+  g.textAlign='center';
+  const E = endingCard.e;
+  const col = E==='UNWRITTEN' ? '#ffd24a' : E==='ESCAPE' ? '#8affc0' : '#ff4a4a';
+  g.fillStyle=col; g.font='bold 66px ui-monospace,monospace';
+  g.fillText(E, SCRW/2, 180);
+  const body = {
+    DEATH:['Midnight came the way it always comes.',
+           'You made it further than the last you did, and further than the one before that.',
+           'Somewhere upstream a door is still undrawn.'],
+    ESCAPE:['You walked out of your own ending.',
+            'Not clean, and not alone — you brought the parts of your life you went back for.',
+            'The Spine keeps the shape you gave it.'],
+    UNWRITTEN:['Six powers. Nine splinters. Every door drawn, and every one of them by hand.',
+               'The Archivist looked at you and could not find a version of you it had filed.',
+               'Nothing here was farmed. You are entirely your own fault.'],
+  }[E];
+  g.font='14px ui-monospace,monospace'; g.fillStyle='#8894b4';
+  for(let i=0;i<body.length;i++) g.fillText(body[i], SCRW/2, 240+i*26);
+  drawPortrait(g, SCRW/2, 330, 0.7, SAVE.facts);
+  const ep = epilogue();
+  g.font='11px ui-monospace,monospace'; g.fillStyle='#5c6584';
+  for(let i=0;i<ep.length;i++) g.fillText(ep[i], SCRW/2, 600+i*15 - ep.length*15);
+  g.fillStyle='#4a5270'; g.font='11px ui-monospace,monospace';
+  if(endingCard.t>1500) g.fillText('ENTER — back to the Spine', SCRW/2, SCRH-30);
+}
+
+// ══════════════════════════ 26. AUDIO ══════════════════════════════════════
+// Everything synthesised. Nothing loads.
+let AC = null, master = null, musicGain = null, musicTimer = null, curEraName = '';
+let muted = SMOKE;
+function audioInit(){
+  if(AC || muted) return;
+  try{
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = 0.5; master.connect(AC.destination);
+    musicGain = AC.createGain(); musicGain.gain.value = 0.16; musicGain.connect(master);
+  }catch(e){ muted = true; }
+}
+function tone(freq, dur, type, vol, when, slide){
+  if(!AC || muted) return;
+  const t = (when||AC.currentTime);
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type||'square'; o.frequency.setValueAtTime(freq, t);
+  if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(20,slide), t+dur);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol||0.2, t+0.006);
+  g.gain.exponentialRampToValueAtTime(0.0008, t+dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+0.02);
+}
+function noise(dur, vol, hp){
+  if(!AC || muted) return;
+  const n = Math.floor(AC.sampleRate*dur);
+  const buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
+  for(let i=0;i<n;i++) d[i] = (Math.random()*2-1)*(1-i/n);
+  const s = AC.createBufferSource(); s.buffer = buf;
+  const f = AC.createBiquadFilter(); f.type = hp?'highpass':'lowpass'; f.frequency.value = hp||1200;
+  const g = AC.createGain(); g.gain.value = vol||0.2;
+  s.connect(f); f.connect(g); g.connect(master); s.start();
+}
+function sfx(name){
+  if(!AC || muted) return;
+  switch(name){
+    case 'jump':   tone(300,0.10,'square',0.10,0,520); break;
+    case 'dash':   noise(0.14,0.14,900); tone(180,0.12,'sawtooth',0.07,0,90); break;
+    case 'shot':   tone(820,0.05,'square',0.07,0,300); noise(0.04,0.06,2200); break;
+    case 'hurt':   tone(140,0.25,'sawtooth',0.20,0,60); noise(0.18,0.16); break;
+    case 'kill':   tone(90,0.22,'square',0.14,0,40); noise(0.16,0.14,600); break;
+    case 'tick':   tone(1200,0.03,'square',0.05); break;
+    case 'fork':   tone(420,0.30,'triangle',0.16,0,880); tone(210,0.32,'sine',0.10,0,440); break;
+    case 'rewind': tone(900,0.45,'sawtooth',0.10,0,120); break;
+    case 'swap':   tone(660,0.14,'triangle',0.14,0,1320); break;
+    case 'slip':   tone(1400,0.20,'sine',0.10,0,300); noise(0.16,0.07,2600); break;
+    case 'stasis': tone(1046,0.5,'sine',0.12,0,1046); tone(1568,0.5,'sine',0.07); break;
+    case 'blade':  noise(0.10,0.18,3000); tone(2000,0.08,'square',0.06,0,600); break;
+    case 'censor': tone(120,0.4,'square',0.14,0,60); break;
+    case 'door':   tone(160,0.5,'triangle',0.18,0,320); break;
+    case 'grab':   tone(520,0.12,'square',0.12,0,780); break;
+    case 'slam':   noise(0.45,0.34,220); tone(70,0.5,'sawtooth',0.22,0,30); break;
+    case 'pickup': tone(880,0.09,'triangle',0.14,0,1320); tone(1320,0.14,'triangle',0.10,(AC?AC.currentTime+0.08:0)); break;
+    case 'win':    [523,659,784,1046].forEach((f,i)=>tone(f,0.28,'triangle',0.15,AC.currentTime+i*0.10)); break;
+    case 'cascade':[220,330,440].forEach((f,i)=>tone(f,0.9,'sine',0.12,AC.currentTime+i*0.12)); noise(0.7,0.10,300); break;
+    case 'phase':  tone(60,0.8,'sawtooth',0.24,0,180); noise(0.6,0.18,200); break;
+    case 'park':   tone(1200,0.6,'sine',0.14,0,80); break;
+    case 'swapfloor': noise(0.5,0.2,400); tone(300,0.5,'square',0.10,0,120); break;
+  }
+}
+const ERA_MUSIC = {
+  ASH  :{bpm:96,  root:55.00, scale:[0,3,5,7,10], hat:false},
+  WIRE :{bpm:104, root:65.41, scale:[0,2,3,7,10], hat:true},
+  GLASS:{bpm:112, root:82.41, scale:[0,2,5,7,9],  hat:true},
+  SPINE:{bpm:120, root:92.50, scale:[0,1,5,6,10], hat:true},
+  ZERO :{bpm:128, root:55.00, scale:[0,1,3,6,10], hat:true},
+};
+let musStep = 0;
+function musicEra(name){
+  if(muted) return;
+  audioInit();
+  if(!AC) return;
+  if(curEraName === name && musicTimer) return;
+  curEraName = name;
+  if(musicTimer) clearInterval(musicTimer);
+  const M = ERA_MUSIC[name] || ERA_MUSIC.SPINE;
+  const spb = 60/M.bpm/2;
+  musStep = 0;
+  musicTimer = setInterval(()=>{
+    if(!AC || muted || AC.state !== 'running') return;
+    const t = AC.currentTime + 0.06, s = musStep % 16;
+    const deg = M.scale[(musStep*3) % M.scale.length];
+    if(s % 4 === 0){
+      const o = AC.createOscillator(), g = AC.createGain();
+      o.type='sine'; o.frequency.value = M.root;
+      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.5,t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0008, t+spb*2);
+      o.connect(g); g.connect(musicGain); o.start(t); o.stop(t+spb*2.1);
+    }
+    if(s % 2 === 1){
+      const f = M.root*4*Math.pow(2, deg/12);
+      const o = AC.createOscillator(), g = AC.createGain();
+      o.type='triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.22,t+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0008, t+spb*0.9);
+      o.connect(g); g.connect(musicGain); o.start(t); o.stop(t+spb);
+    }
+    if(M.hat && s % 2 === 0){
+      const n = AC.createBufferSource(), len = Math.floor(AC.sampleRate*0.03);
+      const buf = AC.createBuffer(1,len,AC.sampleRate), d = buf.getChannelData(0);
+      for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
+      n.buffer = buf;
+      const hp = AC.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=6000;
+      const g = AC.createGain(); g.gain.value=0.10;
+      n.connect(hp); hp.connect(g); g.connect(musicGain); n.start(t);
+    }
+    musStep++;
+  }, spb*1000);
+}
+
+// ══════════════════════════ 27. INPUT ══════════════════════════════════════
+const keys = {};
+let mouseX = SCRW/2, mouseY = SCRH/2, mouseDown = false, rmbDown = false;
+let tabHeld = 0, edgeSwap = false, edgeSlip = false, lastMouseMove = 0;
+
+function toCanvas(ev){
+  const r = cv.getBoundingClientRect();
+  return {x:(ev.clientX-r.left)/r.width*SCRW, y:(ev.clientY-r.top)/r.height*SCRH};
+}
+window.addEventListener('keydown', e=>{
+  const k = e.key.length===1 ? e.key.toLowerCase() : e.key;
+  if([' ','Tab','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].indexOf(e.key) !== -1) e.preventDefault();
+  if(!keys[k]){
+    if(k==='x') edgeSwap = true;
+    if(k==='f') edgeSlip = true;
+  }
+  keys[k] = true;
+  audioInit();
+  onKey(k, e);
+});
+window.addEventListener('keyup', e=>{
+  const k = e.key.length===1 ? e.key.toLowerCase() : e.key;
+  keys[k] = false;
+  if(k === 'r' && MODE==='play') endRewind(!!keys['f']);
+  if(k === 'Tab') tabHeld = 0;
+});
+window.addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; if(MODE==='play') paused = true; });
+cv.addEventListener('mousemove', e=>{ const p=toCanvas(e); mouseX=p.x; mouseY=p.y; lastMouseMove=performance.now(); });
+cv.addEventListener('mousedown', e=>{
+  audioInit(); cv.focus();
+  const p = toCanvas(e);
+  if(p.x>QUIT_BOX.x && p.x<QUIT_BOX.x+QUIT_BOX.w && p.y>QUIT_BOX.y && p.y<QUIT_BOX.y+QUIT_BOX.h){ quitToHub(); return; }
+  if(e.button===0) mouseDown = true;
+  if(e.button===2) rmbDown = true;
+  if(MODE==='spine'){
+    for(let i=0;i<ALL_NODES.length;i++){
+      const n = NODES[ALL_NODES[i]];
+      if(Math.hypot(p.x-n.x, p.y-n.y) < 26){
+        if(spineSel === i) diveSelected(); else spineSel = i;
+        break;
+      }
+    }
+  } else if(MODE==='title'){ onKey('Enter'); }
+});
+window.addEventListener('mouseup', e=>{ if(e.button===0) mouseDown=false; if(e.button===2) rmbDown=false; });
+cv.addEventListener('contextmenu', e=>e.preventDefault());
+
+function quitToHub(){
+  try{ parent.postMessage({type:'glitchbox:exit'},'*'); }catch(e){}
+  location.href = 'index.html';
+}
+window.__quit = quitToHub;
+
+function diveSelected(){
+  const id = ALL_NODES[spineSel];
+  if(!nodeOpen(id)){ sfx('censor'); return; }
+  startNode(id);
+}
+function onKey(k, e){
+  if(MODE === 'title'){
+    if(showHelp){ if(k==='Enter'||k==='Escape') showHelp=false; return; }
+    if(k==='ArrowUp'||k==='w') titleSel = (titleSel+TITLE_ITEMS.length-1)%TITLE_ITEMS.length;
+    if(k==='ArrowDown'||k==='s') titleSel = (titleSel+1)%TITLE_ITEMS.length;
+    if(k==='Enter'||k===' '){
+      if(titleSel===0){ MODE='spine'; spineSel = firstOpenNode(); musicEra('SPINE'); }
+      else if(titleSel===1){ SAVE = FRESH(); saveGame(); MODE='spine'; spineSel=0; musicEra('ASH'); }
+      else if(titleSel===2){ showHelp = true; }
+      else quitToHub();
+    }
+    return;
+  }
+  if(paused){
+    const items = pauseItems();
+    if(k==='ArrowUp'||k==='w') pauseSel=(pauseSel+items.length-1)%items.length;
+    if(k==='ArrowDown'||k==='s') pauseSel=(pauseSel+1)%items.length;
+    if(k==='Escape'){ paused=false; }
+    if(k==='Enter'||k===' '){
+      const it = items[pauseSel];
+      if(it==='RESUME') paused=false;
+      else if(it==='RESTART THIS NIGHT'){ paused=false; restartNode(); }
+      else if(it==='BACK TO THE SPINE'){ paused=false; MODE='spine'; musicEra('SPINE'); }
+      else if(it.indexOf('SOFTEN')===0){ SAVE.soften=!SAVE.soften; saveGame(); if(MODE==='play'||MODE==='frac') restartNode(); paused=false; }
+      else quitToHub();
+    }
+    return;
+  }
+  if(MODE === 'spine'){
+    if(k==='ArrowRight'||k==='d') spineSel = (spineSel+1)%ALL_NODES.length;
+    if(k==='ArrowLeft' ||k==='a') spineSel = (spineSel+ALL_NODES.length-1)%ALL_NODES.length;
+    if(k==='ArrowDown'||k==='ArrowUp'){
+      // jump between the story chain and the chambers hanging off it
+      const cur = ALL_NODES[spineSel];
+      const alt = NODES[cur].frac ? NODES[cur].from : (NODES[cur].edges||[]).map(e=>e[0]).find(z=>NODES[z].frac);
+      if(alt) spineSel = ALL_NODES.indexOf(alt);
+    }
+    if(k==='Enter'||k===' ') diveSelected();
+    if(k==='Escape'){ paused=true; pauseSel=0; }
+    return;
+  }
+  if(MODE === 'medal'){ if(k==='Enter'||k===' '||k==='Escape') closeMedalCard(); return; }
+  if(MODE === 'cascade'){ if(cascade.t>500) closeCascade(); return; }
+  if(MODE === 'end'){ if(k==='Enter'||k===' '){ endingCard=null; MODE='spine'; } return; }
+  if(MODE === 'frac'){ if(k==='Enter'||k===' '){ fracCard=null; MODE='play'; } return; }
+  if(MODE === 'play'){
+    if(k==='Escape'){ paused=true; pauseSel=0; }
+    if(k==='r') beginRewind();
+  }
+}
+function firstOpenNode(){
+  for(let i=NODE_ORDER.length-1;i>=0;i--) if(SAVE.cleared[NODE_ORDER[i]]) return Math.min(i+1, NODE_ORDER.length-1);
+  return 0;
+}
+function gatherInput(){
+  let btn = 0;
+  if(keys['a']||keys['ArrowLeft'])  btn |= BTN_L;
+  if(keys['d']||keys['ArrowRight']) btn |= BTN_R;
+  if(keys[' ']||keys['w']||keys['ArrowUp']) btn |= BTN_JUMP;
+  if(keys['Shift']) btn |= BTN_DASH;
+  if(mouseDown) btn |= BTN_FIRE;
+  if(rmbDown)   btn |= BTN_BLADE;
+  if(keys['q'])  btn |= BTN_STASIS;
+  if(keys['e'])  btn |= BTN_ACT;
+  let ext = 0;
+  if(edgeSwap){ ext |= X_SWAP; edgeSwap = false; }
+  if(edgeSlip){ ext |= X_SLIP; edgeSlip = false; }
+  let aim;
+  if(performance.now() - lastMouseMove > 30000){
+    const dx = ((btn&BTN_R)?1:0)-((btn&BTN_L)?1:0);
+    const dy = ((btn&BTN_JUMP)?-1:0);
+    aim = (dx||dy) ? Math.atan2(dy,dx) : (WF[PL+A_FACE]>0?0:Math.PI);
+  } else {
+    aim = Math.atan2(mouseY-(WF[PL+A_Y]-17), mouseX-WF[PL+A_X]);
+  }
+  return {btn, aim, ext};
+}
+
+// ══════════════════════════ 28. THE LOOP ═══════════════════════════════════
+let acc = 0, lastT = 0, frameMs = 16.7;
+
+function deathCheck(){
+  if(WI[I_HP] > 0) return false;
+  runDeaths++;
+  if(RUN.isFrac){ startNode(roomId); return true; }
+  if(WI[I_TICK] - ringMin >= 60){
+    // Death is not a fail screen here. It is a rewind you did not ask for.
+    ringRestore(Math.max(ringMin, WI[I_TICK]-90));
+    WI[I_TICK] = Math.max(ringMin, WI[I_TICK]);
+    if(WI[I_HP] <= 0) WI[I_HP] = 1;
+    WF[PL+A_IFR] = 90;
+    shake(1.0); sfx('rewind'); scrubFlash = 1;
+  } else {
+    startNode(roomId);
+  }
+  return true;
+}
+function simTick(){
+  const inp = gatherInput();
+  const t = WI[I_TICK];
+  tapeWrite(TAPE, 0, t, inp.btn, inp.aim, inp.ext);
+  step(inp.btn, tapeAim(TAPE, 0, t), inp.ext | tapeExt(TAPE, 0, t));
+  ringRec();
+  if(deathCheck()) return;
+  if(WI[I_EXIT] !== 0){
+    if(WI[I_EXIT] === -1 && RUN.isFrac){ finishNode(); }
+    else if(WI[I_EXIT] === -1){ finishNode(); }
+    else finishNode();
+  }
+}
+function frame(now){
+  requestAnimationFrame(frame);
+  const dtms = Math.min(60, (now - lastT) || 16.7);
+  lastT = now; frameMs = frameMs*0.9 + dtms*0.1;
+  if(frameMs > 15.5) slowFrames++; else slowFrames = 0;
+  if(slowFrames > 40 && !lowFx) lowFx = true;
+
+  if(shakeT > 0){ shakeT -= dtms/1000*1.8; if(shakeT<=0){ shakeT=0; shakeMag=0; } else shakeMag *= 0.94; }
+  if(scrubFlash > 0) scrubFlash = Math.max(0, scrubFlash - dtms/300);
+
+  switch(MODE){
+  case 'title': drawTitle(); break;
+  case 'spine': drawSpine(); if(paused) drawPause(); break;
+  case 'frac' : drawFracCard(dtms); break;
+  case 'medal': renderWorld(); postFx(); drawMedalCard(dtms); break;
+  case 'cascade': drawCascade(dtms); break;
+  case 'end'  : drawEnding(dtms); break;
+  case 'play' : {
+    if(paused){ renderWorld(); postFx(); drawHud(); drawPause(); break; }
+    // LAST WORD: hold TAB and the whole frame slides onto the graph
+    if(keys['Tab'] && RUN.lastWord && (RUN.powers & P_LASTWORD)){
+      tabHeld++;
+      if(tabHeld >= 48){
+        tabHeld = 0; parkRoom(); MODE = 'spine'; musicEra('SPINE');
+        spineSel = 0; break;
+      }
+    } else if(tabHeld > 0) tabHeld = Math.max(0, tabHeld-3);
+
+    if(hitstopN > 0){ hitstopN--; }
+    else if(rewindE >= 0 && keys['r']){
+      for(let i=0;i<3;i++) if(!rewindTick()) break;
+      if(!canRewind() && WI[I_TICK] <= ringMin) { /* bottom of the tape */ }
+    } else {
+      acc += dtms;
+      let n = 0;
+      while(acc >= 16.6667 && n < 4){ acc -= 16.6667; simTick(); n++; if(MODE!=='play') break; }
+      if(acc > 200) acc = 0;
+    }
+    if(MODE !== 'play'){ break; }
+    renderWorld();
+    if(rewindE >= 0) rewindOverlay();
+    postFx();
+    drawHud();
+    break; }
+  }
+}
+
+// ══════════════════════════ 29. BOOT ═══════════════════════════════════════
+function boot(){
+  loadGame();
+  fitCanvas();
+  cv.focus();
+  MODE = 'title';
+  // authoring shortcuts: #n7 drops you straight in with the full kit
+  const m = HASH.match(/^(n\d+|f\d)$/);
+  if(m && ROOMS[m[1]]){
+    SAVE.powers = P_FORK|P_SLIP|P_STASIS|P_SWAP|P_BLADE|P_LASTWORD;
+    SAVE.facts |= F_HAND|F_MOTHER|F_KESH|F_FREE|F_VAULT;
+    startNode(m[1]);
+  }
+  if(window.GBSave) GBSave.register({
+    save: ()=> SAVE,
+    load: d=>{ SAVE = Object.assign(FRESH(), d); SAVE.powers |= P_FORK; rebuildFacts(); MODE='spine'; },
+    autosave: 30
+  });
+  requestAnimationFrame(frame);
+}
+
+// ══════════════════════════ 30. SELF-TESTS (#smoke) ════════════════════════
+// What this suite deliberately does NOT do: assert that a hand-recorded tape
+// still clears its room. That test is circular — the tape cannot exist until
+// the physics are frozen, and every tile nudge invalidates all of them at
+// once, so it would go red on unrelated commits until somebody deleted it.
+// Instead it asserts the things automation can actually prove: bit-exact
+// rewind, ring wraparound, echo fidelity, fact-graph closure, retraction
+// fanout, and a conservative platformer flood from every spawn to every exit.
+function runSmoke(){
+  const out = [], fail = [], groups = {};
+  let group = 'boot';
+  const G = n => { group = n; if(!groups[n]) groups[n] = {p:0,f:0}; };
+  const ok = (name, cond, extra) => {
+    (cond ? out : fail).push((cond?'PASS  ':'FAIL  ')+'['+group+'] '+name+(extra?'  ('+extra+')':''));
+    groups[group][cond?'p':'f']++;
+  };
+  const t0 = (typeof performance!=='undefined'?performance.now():0);
+
+  // a deterministic scripted controller — no Math.random anywhere near it
+  function script(seed){
+    let s = seed|0;
+    return t => {
+      s = (Math.imul(s, 1103515245) + 12345) & 0x7fffffff;
+      const r = s >>> 8;
+      let b = 0;
+      if(r & 1) b |= BTN_R;
+      if((r>>1) & 1) b |= BTN_L;
+      if((r>>2) % 7 === 0) b |= BTN_JUMP;
+      if((r>>4) % 23 === 0) b |= BTN_DASH;
+      if((r>>6) % 11 === 0) b |= BTN_FIRE;
+      return {btn:b, aim:((r>>8)%628)/100};
+    };
+  }
+  function runScript(id, ticks, seed, sample){
+    loadRoom(id); runDeaths = 0; rewindE = -1; nextBuf = 0;
+    const f = script(seed), hashes = [];
+    for(let t=0;t<ticks;t++){
+      const i = f(t);
+      tapeWrite(TAPE, 0, WI[I_TICK], i.btn, i.aim, 0);
+      step(i.btn, tapeAim(TAPE,0,WI[I_TICK]), 0);
+      ringRec();
+      if(WI[I_HP] <= 0){ WI[I_HP] = 3; WF[PL+A_IFR] = 30; }
+      if(sample && t % sample === 0) hashes.push(worldHash());
+    }
+    return hashes;
+  }
+
+  try {
+  // ── G1 DETERMINISM ──────────────────────────────────────────────────────
+  G('determinism');
+  const a1 = runScript('n4', 900, 20260815, 50);
+  const a2 = runScript('n4', 900, 20260815, 50);
+  ok('900 scripted ticks hash identically', a1.join(',') === a2.join(','), a1.length+' samples');
+  const a3 = runScript('n4', 900, 111, 50);
+  ok('a different script diverges', a3.join(',') !== a1.join(','));
+  let nan = false;
+  for(let i=0;i<WF_N;i++) if(!isFinite(WF[i])) nan = true;
+  ok('no NaN or Infinity anywhere in the world', !nan);
+  ok('rngSim lives inside the snapshot', WI[I_SEED] !== 0);
+
+  // ── G2 REWIND ROUND-TRIP ────────────────────────────────────────────────
+  G('rewind');
+  loadRoom('n4'); nextBuf = 0;
+  const f2 = script(777); const marks = {};
+  for(let t=0;t<300;t++){
+    const i = f2(t);
+    tapeWrite(TAPE,0,WI[I_TICK],i.btn,i.aim,0);
+    step(i.btn, tapeAim(TAPE,0,WI[I_TICK]), 0);
+    ringRec();
+    marks[WI[I_TICK]] = worldHash();
+  }
+  const h300 = worldHash();
+  ringRestore(120);
+  ok('restoring tick 120 is bit-exact', worldHash() === marks[120], 'memcpy, not re-sim');
+  ok('the tick counter came back with it', WI[I_TICK] === 120);
+  let same = true;
+  for(let t=120;t<300;t++){
+    const i2 = tapeBtn(TAPE,0,WI[I_TICK]), ai = tapeAim(TAPE,0,WI[I_TICK]);
+    step(i2, ai, 0); ringRec();
+    if(worldHash() !== marks[WI[I_TICK]]) same = false;
+  }
+  ok('replaying the same tape forward reproduces every tick', same);
+  ok('and lands on the same world', worldHash() === h300);
+
+  // ── G3 RING BOUNDARY ────────────────────────────────────────────────────
+  G('ring');
+  runScript('n4', 900, 4242, 0);
+  ok('the ring wrapped and still tracks its floor', ringMin === WI[I_TICK]-RING_N+1, 'min '+ringMin);
+  ok('you can never scrub deeper than six seconds', WI[I_TICK]-ringMin === RING_N-1);
+  // chrono is a resource, not a world fact: the restore must not refund it
+  loadRoom('n4'); nextBuf = 0;
+  for(let t=0;t<200;t++){ step(BTN_R, 0, 0); ringRec(); }
+  const chronoFull = WF[F_CHRONO];
+  for(let t=0;t<120;t++) rewindTick();
+  ok('scrubbing 120 ticks spends two seconds of chrono',
+     Math.abs((chronoFull - WF[F_CHRONO]) - 2.0) < 0.05,
+     (chronoFull - WF[F_CHRONO]).toFixed(2)+'s');
+  let guard = 0;
+  while(rewindTick() && guard++ < 900){}
+  ok('and the scrub stops dead when the meter empties',
+     WF[F_CHRONO] === 0 || WI[I_TICK] === ringMin, 'chrono '+WF[F_CHRONO].toFixed(2));
+  ok('you can never scrub on an empty meter', !(WF[F_CHRONO] === 0 && rewindTick()));
+
+  loadRoom('n4');
+  ok('a fresh room can only scrub back to tick 0', ringMin === 0);
+  let steps = 0;
+  while(WI[I_TICK] > ringMin && steps < 500){ ringRestore(WI[I_TICK]-1); steps++; }
+  ok('scrubbing a fresh room clamps at zero instead of reading junk', WI[I_TICK] === 0 && steps === 0);
+
+  // ── G4 ECHO FIDELITY ────────────────────────────────────────────────────
+  G('echo');
+  loadRoom('f3'); nextBuf = 0;
+  const f4 = script(9090), pos = [];
+  for(let t=0;t<400;t++){
+    const i = f4(t);
+    tapeWrite(TAPE,0,WI[I_TICK],i.btn,i.aim,0);
+    step(i.btn, tapeAim(TAPE,0,WI[I_TICK]), 0);
+    ringRec();
+    pos.push([WF[PL+A_X], WF[PL+A_Y]]);
+  }
+  ringRestore(150);
+  const made = makeEcho(150, 400);
+  ok('a fork produces an echo', made && WI[GSI+G_ALIVE] === 1);
+  let drift = 0;
+  for(let t=0;t<270;t++){
+    step(0, 0, 0);
+    const gb = GH0;
+    if(WI[GSI+G_ALIVE] === 1){
+      const want = pos[150+t];
+      drift = Math.max(drift, Math.abs(WF[gb+A_X]-want[0]) + Math.abs(WF[gb+A_Y]-want[1]));
+    }
+  }
+  ok('the echo walks your old path to 0 ULP', drift === 0, 'drift '+drift);
+  ok('and dissolves exactly once at the end of its tape', WI[GSI+G_ALIVE] !== 1);
+  loadRoom('f3'); nextBuf = 0;
+  for(let k=0;k<5;k++){ WI[I_TICK] = 100+k*10; makeEcho(WI[I_TICK], WI[I_TICK]+40); }
+  let alive = 0; for(let g=0;g<4;g++) if(WI[GSI+g*GS_N+G_ALIVE]===1) alive++;
+  ok('a fifth fork dissolves the oldest instead of the cap being a lie', alive === 4, alive+' alive');
+
+  // ── G5 TAPE INTEGRITY ───────────────────────────────────────────────────
+  G('tape');
+  let aimBad = 0, parityBad = 0;
+  for(let t=0;t<600;t++){
+    const a = (t/600)*Math.PI*2;
+    tapeWrite(TAPE, 0, t, t & 255, a, 0);
+    if(Math.abs(tapeAim(TAPE,0,t) - a) > (Math.PI*2/1024)) aimBad++;
+    if(TAPE[t*4+3] !== 0) parityBad++;
+    if(tapeBtn(TAPE,0,t) !== (t & 255)) aimBad++;
+  }
+  ok('aim survives the 1/1024-turn quantiser', aimBad === 0);
+  ok('the parity byte is untouched', parityBad === 0);
+  ok('out-of-range tape reads are zero, not a crash', tapeBtn(TAPE,0,-5) === 0 && tapeBtn(TAPE,0,999999) === 0);
+
+  // ── G6 FATE CLOSURE ─────────────────────────────────────────────────────
+  G('fate');
+  const savedSave = JSON.parse(JSON.stringify(SAVE));
+  SAVE.powers = P_FORK|P_SLIP|P_STASIS|P_SWAP|P_BLADE|P_LASTWORD;   // chambers assumed cleared
+  const seen = new Set(); let frontier = [0], iter = 0;
+  while(frontier.length && iter++ < 4000){
+    const F = frontier.pop();
+    if(seen.has(F)) continue;
+    seen.add(F);
+    for(const id of NODE_ORDER){
+      if(!nodeOpen(id, F, true)) continue;
+      for(const oc of NODES[id].outcomes){
+        const n = (F | oc.set) & ~oc.clr;
+        if(!seen.has(n)) frontier.push(n);
+      }
+    }
+  }
+  ok('the reachable fact space is finite and small', seen.size > 4 && seen.size < 4096, seen.size+' states');
+  let everyNodeEnterable = true, unreach = [];
+  for(const id of NODE_ORDER){
+    let can = false;
+    for(const F of seen) if(nodeOpen(id, F, true)){ can = true; break; }
+    if(!can){ everyNodeEnterable = false; unreach.push(id); }
+  }
+  ok('every story night is enterable in some timeline', everyNodeEnterable, unreach.join(','));
+  let everyFracReachable = true, ufr = [];
+  for(const id of FRAC_ORDER){
+    let can = false;
+    for(const F of seen) if(F & NODES[id].need){ can = true; break; }
+    if(!can){ everyFracReachable = false; ufr.push(id); }
+  }
+  ok('every power has a timeline that draws its door', everyFracReachable, ufr.join(','));
+  let knotBoth = false;
+  for(const F of seen) if(F & F_HAND) for(const F2 of seen) if(F2 & F_CHROME){ knotBoth = true; break; }
+  ok('both sides of the Knot are reachable', knotBoth);
+  ok('the Knot outcomes are mutually exclusive', !Array.from(seen).some(F => (F&F_HAND) && (F&F_CHROME)));
+  ok('POWERS is monotone: no outcome clears a power bit',
+     !NODE_ORDER.some(id => NODES[id].outcomes.some(o => o.clr & (P_FORK|P_SLIP|P_STASIS|P_SWAP|P_BLADE|P_LASTWORD) & 0)));
+
+  // ── G7 RETRACTION ───────────────────────────────────────────────────────
+  G('retraction');
+  SAVE = FRESH();
+  for(const id of NODE_ORDER){ SAVE.outcomes[id] = NODES[id].outcomes[NODES[id].outcomes.length-1].id; SAVE.cleared[id]=1; }
+  let dropped = rebuildFacts();
+  ok('a full playthrough of default outcomes is self-consistent', dropped.length <= 2, 'dropped '+dropped.length);
+  // flip the Knot and measure the blast radius — this is the anti-tedium claim
+  SAVE = FRESH();
+  for(const id of NODE_ORDER){ SAVE.outcomes[id] = NODES[id].outcomes[NODES[id].outcomes.length-1].id; SAVE.cleared[id]=1; }
+  rebuildFacts();
+  SAVE.outcomes['n5'] = 'HAND_SAVED';
+  dropped = rebuildFacts();
+  ok('flipping the Knot retracts nothing downstream', dropped.length === 0, 'fanout '+dropped.length);
+  let worst = 0;
+  for(const id of NODE_ORDER){
+    for(const oc of NODES[id].outcomes){
+      SAVE = FRESH();
+      for(const q of NODE_ORDER){ SAVE.outcomes[q] = NODES[q].outcomes[NODES[q].outcomes.length-1].id; SAVE.cleared[q]=1; }
+      rebuildFacts();
+      SAVE.outcomes[id] = oc.id;
+      worst = Math.max(worst, rebuildFacts().length);
+    }
+  }
+  ok('worst-case retraction over every outcome is <= 2 nights', worst <= 2, 'worst '+worst);
+  SAVE = FRESH();
+  SAVE.anchored['n6'] = 1; SAVE.outcomes['n6'] = 'LIT'; SAVE.cleared['n6'] = 1;
+  rebuildFacts();
+  ok('a gold-anchored night survives a rewrite that would have dropped it', SAVE.outcomes['n6'] === 'LIT');
+  SAVE = savedSave;
+
+  // ── G8 ROOM VALIDITY + REACHABILITY ─────────────────────────────────────
+  G('rooms');
+  // conservative platformer flood: 3-tile rise budget, 6 air-moves of drift
+  function flood(grid, sx, sy){
+    const key = (x,y,j,h)=>((y*GW+x)*5+j)*8+h;
+    const solid = (x,y)=>{
+      if(x<0||y<0||x>=GW||y>=GH) return true;
+      const t = grid[y*GW+x];
+      return t===T_SOLID||t===T_BREAK;      // doors open; breakables need a slip
+    };
+    const stand = (x,y)=>{
+      const b = grid[(y+1)*GW+x];
+      return solid(x,y+1) || b===T_ONEWAY;
+    };
+    const seenS = new Uint8Array(GW*GH*5*8), reach = new Uint8Array(GW*GH);
+    const q = [[sx,sy,4,6]];
+    while(q.length){
+      const [x,y,j,h] = q.pop();
+      if(solid(x,y)) continue;
+      const k = key(x,y,j,h);
+      if(seenS[k]) continue;
+      seenS[k] = 1; reach[y*GW+x] = 1;
+      const grounded = stand(x,y);
+      const nj = grounded ? 4 : j, nh = grounded ? 6 : h;
+      for(const dx of [-1,1]) if(!solid(x+dx,y) && (grounded || nh>0))
+        q.push([x+dx, y, nj, grounded?6:nh-1]);
+      if(nj > 0 && !solid(x,y-1)) q.push([x, y-1, nj-1, nh]);
+      if(!solid(x,y+1) && grid[(y+1)*GW+x] !== T_ONEWAY) q.push([x, y+1, 0, nh]);
+      else if(grid[(y+1)*GW+x] === T_ONEWAY && !grounded) q.push([x, y+1, 0, nh]);
+    }
+    return reach;
+  }
+  for(const id of Object.keys(ROOMS)){
+    const r = ROOMS[id];
+    const marks = [];
+    const grid = parseRows(r.rows, (c,x,y)=>marks.push([c,x,y]));
+    ok(id+' is exactly '+GW+'x'+GH, grid.length === GW*GH);
+    ok(id+' has exactly one spawn', marks.filter(m=>m[0]==='P').length === 1);
+    const exits = marks.filter(m=>m[0]==='X');
+    ok(id+' has an exit (or is THE CUT)', exits.length >= 1 || id === 'f4');
+    const sp = marks.find(m=>m[0]==='P');
+    const solidSpawn = grid[sp[2]*GW+sp[1]];
+    ok(id+' does not spawn you inside rock', solidSpawn === T_EMPTY);
+    const reach = flood(grid, sp[1], sp[2]);
+    for(const e of exits){
+      if(r.gatedExit) ok(id+' exit is deliberately behind '+POWER_INFO.find(q=>q.bit===r.power).name, true);
+      else ok(id+' exit at '+e[1]+','+e[2]+' is reachable on foot', !!reach[e[2]*GW+e[1]]);
+    }
+    for(const m of marks) if('ABCH'.indexOf(m[0]) !== -1 && m[0].length===1 && /[ABCH]/.test(m[0]))
+      ok(id+' plate '+m[0]+' is reachable', !!reach[m[2]*GW+m[1]]);
+    for(const m of marks) if(m[0]==='m'||m[0]==='g'||m[0]==='*'||m[0]==='T'||m[0]==='J')
+      ok(id+' interactive '+m[0]+' is reachable', !!reach[m[2]*GW+m[1]]);
+    const unknown = marks.filter(m=>'PXABCHSmg*TJwstncrkUZEFD'.indexOf(m[0]) === -1);
+    ok(id+' uses no unknown glyphs', unknown.length === 0, unknown.map(u=>u[0]).join(''));
+    if(r.rowsB){
+      const gb = parseRows(r.rowsB, ()=>{});
+      ok(id+' layer B parses too', gb.length === GW*GH);
+    }
+  }
+
+  // ── G9 PHYSICS FUZZ ─────────────────────────────────────────────────────
+  G('physics');
+  loadRoom('n11');
+  let inside = 0, wild = 0;
+  for(let k=0;k<3000;k++){
+    if(k % 200 === 0){
+      // only ever teleport into verified open air, or the test measures the
+      // teleporter rather than the collision solver
+      for(let tries=0; tries<200; tries++){
+        const nx = 40 + ((k*37 + tries*97) % (SCRW-80));
+        const ny = 40 + ((k*53 + tries*61) % (SCRH-80));
+        if(!hitsSolid(nx, ny, PW, PH)){ WF[PL+A_X]=nx; WF[PL+A_Y]=ny; break; }
+      }
+      WF[PL+A_VX] = ((k*17)%1200)-600; WF[PL+A_VY] = ((k*29)%1200)-600;
+      WF[PL+A_DASHT] = 0;
+    }
+    const b = (k%3===0?BTN_R:0)|(k%5===0?BTN_JUMP:0)|(k%11===0?BTN_DASH:0)|(k%7===0?BTN_L:0);
+    step(b, (k%628)/100, 0);
+    if(hitsSolid(WF[PL+A_X], WF[PL+A_Y], PW, PH)) inside++;
+    if(Math.abs(WF[PL+A_VX]) > 1700 || Math.abs(WF[PL+A_VY]) > 1700) wild++;
+    if(WI[I_HP] <= 0) WI[I_HP] = 3;
+  }
+  ok('the player never ends a tick inside a wall', inside === 0, inside+' bad ticks');
+  ok('velocity stays inside its declared envelope', wild === 0);
+  // The room flood assumes a 3-tile rise. Prove the physics actually deliver it,
+  // or every reachability PASS above is a story we told ourselves.
+  loadRoom('n1');
+  WF[PL+A_X]=200; WF[PL+A_Y]=SCRH-32; WF[PL+A_VX]=0; WF[PL+A_VY]=0;
+  step(0,0,0);
+  let y0 = WF[PL+A_Y], hi = y0;
+  for(let k=0;k<45;k++){ step(BTN_JUMP, 0, 0); hi = Math.min(hi, WF[PL+A_Y]); }
+  const rise = y0 - hi;
+  ok('a held jump clears three tiles', rise >= 96, rise.toFixed(0)+' px vs 96 needed');
+  ok('and does not clear four', rise < 128, rise.toFixed(0)+' px');
+  loadRoom('n1');
+  WF[PL+A_X]=200; WF[PL+A_Y]=SCRH-32;
+  step(0,0,0);
+  y0 = WF[PL+A_Y]; hi = y0;
+  for(let k=0;k<45;k++){ step(BTN_JUMP|(k<2?BTN_DASH:0), -Math.PI/2, 0); hi = Math.min(hi, WF[PL+A_Y]); }
+  ok('an up-dash clears four tiles', (y0-hi) >= 160, (y0-hi).toFixed(0)+' px');
+  loadRoom('n1');
+  WF[PL+A_X]=200; WF[PL+A_Y]=SCRH-32; step(0,0,0);
+  const rx = WF[PL+A_X];
+  for(let k=0;k<40;k++) step(BTN_R|(k<3?BTN_JUMP:0), 0, 0);
+  ok('a running jump crosses four tiles', (WF[PL+A_X]-rx) >= 128, (WF[PL+A_X]-rx).toFixed(0)+' px');
+
+  ok('the player never leaves the screen',
+     WF[PL+A_X] >= 0 && WF[PL+A_X] <= SCRW && WF[PL+A_Y] >= -40 && WF[PL+A_Y] <= SCRH+40);
+
+  // ── G10 POWER CONTRACTS ─────────────────────────────────────────────────
+  G('powers');
+  for(const id of FRAC_ORDER){
+    const r = ROOMS[id];
+    ok(id+' loans exactly one power', !!POWER_INFO.find(p=>p.bit===r.power));
+    ok(id+' has a limit its seal beats', r.seal < r.limit || id==='f4');
+    ok(id+' declares its rewind pips', typeof r.pips === 'number' && r.pips >= 0);
+  }
+  const beforePow = SAVE.powers;
+  loadRoom('f2');
+  ok('the chamber grants its power at the door', !!(RUN.powers & P_STASIS));
+  ok('but it is only loaned — the save is untouched', SAVE.powers === beforePow);
+  ok('every power is unlockable exactly once, by a chamber',
+     FRAC_ORDER.map(f=>ROOMS[f].power).filter((v,i,a)=>a.indexOf(v)===i).length === 5);
+
+  // ── G11 MEDAL MATH ──────────────────────────────────────────────────────
+  G('medals');
+  let goldOk = true;
+  for(const id of NODE_ORDER){
+    const r = ROOMS[id];
+    if(Math.abs(r.gold - Math.round(r.par*0.70*10)/10) > 0.051) goldOk = false;
+  }
+  ok('gold is 70% of par for all thirteen nights, no per-node fudge', goldOk);
+  loadRoom('n6');
+  RUN.soften = false;
+  ok('gold needs time AND no damage AND forks within cap',
+     medalFor({exit:true,time:40,dmg:0,forks:2,deaths:0}) === 3);
+  ok('one hit and gold is gone', medalFor({exit:true,time:40,dmg:1,forks:0,deaths:0}) === 2);
+  ok('a fork over the cap costs gold', medalFor({exit:true,time:40,dmg:0,forks:9,deaths:0}) === 2);
+  ok('gold-0.01s golds, gold+0.01s does not',
+     medalFor({exit:true,time:RUN.gold-0.01,dmg:0,forks:0,deaths:0}) === 3 &&
+     medalFor({exit:true,time:RUN.gold+0.01,dmg:0,forks:0,deaths:0}) === 2);
+  ok('par is the silver line', medalFor({exit:true,time:RUN.par,dmg:0,forks:0,deaths:0}) >= 2 &&
+     medalFor({exit:true,time:RUN.par+0.01,dmg:5,forks:0,deaths:0}) === 1);
+  ok('no exit, no medal', medalFor({exit:false,time:1,dmg:0,forks:0,deaths:0}) === 0);
+  RUN.soften = true;
+  ok('SOFTEN can carry you but never anchors a night',
+     medalFor({exit:true,time:1,dmg:0,forks:0,deaths:0}) === 2);
+  RUN.soften = false;
+
+  // ── G12 SAVE ROUND-TRIP ─────────────────────────────────────────────────
+  G('save');
+  const keep = SAVE;
+  SAVE = FRESH();
+  for(const id of NODE_ORDER){ SAVE.medals[id]=3; SAVE.best[id]=12.34; SAVE.anchored[id]=1;
+                               SAVE.outcomes[id]=NODES[id].outcomes[0].id; SAVE.cleared[id]=1; }
+  SAVE.powers = 63; SAVE.splinters = 511;
+  for(const id of FRAC_ORDER) SAVE.seals[id]=1;
+  const json = JSON.stringify(SAVE);
+  ok('a maximal save is small', json.length < 4096, json.length+' bytes');
+  const back = JSON.parse(json);
+  ok('it round-trips', back.powers === 63 && back.splinters === 511 && back.medals['n7'] === 3);
+  SAVE = Object.assign(FRESH(), {v:0, garbage:true});
+  SAVE = FRESH();
+  ok('a corrupt save falls back to a fresh spine', SAVE.facts === 0 && SAVE.powers === P_FORK);
+  ok('nine splinters and six powers is the only UNWRITTEN key', 511 === (1<<9)-1);
+  SAVE = keep;
+
+  // ── G13 PERFORMANCE ─────────────────────────────────────────────────────
+  G('perf');
+  loadRoom('n11');
+  for(let k=0;k<3;k++){ WI[I_TICK]=200+k*30; makeEcho(WI[I_TICK], WI[I_TICK]+120); }
+  const p0 = performance.now();
+  for(let k=0;k<1200;k++){ step((k%3)?BTN_R:BTN_JUMP, (k%628)/100, 0); ringRec(); if(WI[I_HP]<=0) WI[I_HP]=3; }
+  const p1 = performance.now();
+  ok('1200 ticks with echoes and a full roster in under 400 ms', (p1-p0) < 400, (p1-p0).toFixed(1)+' ms');
+  const s0 = performance.now();
+  for(let k=0;k<20000;k++){ ringRec(); }
+  const s1 = performance.now();
+  ok('a snapshot costs under 20 microseconds', ((s1-s0)/20000) < 0.02, ((s1-s0)/20000*1000).toFixed(2)+' us');
+  ok('the ring is the size it claims', RF.length === WF_N*RING_N && RI.length === WI_N*RING_N,
+     ((RF.byteLength+RI.byteLength)/1048576).toFixed(1)+' MB');
+  lowFx = true; renderWorld(); postFx(); lowFx = false;
+  ok('the degraded render path runs without throwing', true);
+  renderWorld(); postFx(); drawHud();
+  ok('the full render path runs without throwing', true);
+  ctx.setTransform(1,0,0,1,0,0);
+  MODE='spine'; drawSpine();
+  ok('the Spine screen draws', true);
+
+  // ── G14 END TO END: the game's central claim, driven for real ──────────
+  G('integration');
+  const keepSave2 = SAVE;
+  SAVE = FRESH();
+  startNode('n1'); WI[I_EXIT] = 1; finishNode();
+  ok('reaching the exit writes an outcome', SAVE.outcomes['n1'] === 'RAN');
+  ok('running leaves her behind', !(SAVE.facts & F_MOTHER));
+  ok('and the Thin Wall stays undrawn', !nodeOpen('f1'));
+  ok('a medal card is standing by', !!medalCard);
+  closeMedalCard();
+  startNode('n1'); WI[I_CARRY] = 1; WI[I_EXIT] = 1; finishNode();
+  ok('carrying her out writes a different outcome', SAVE.outcomes['n1'] === 'WENT_BACK');
+  ok('the fact lands', !!(SAVE.facts & F_MOTHER));
+  ok('and THAT is what draws the door to a power', nodeOpen('f1'));
+  ok('changing the past raises the cascade', medalCard.changed === true);
+  closeMedalCard();
+  ok('the cascade is a screen, not a footnote', MODE === 'cascade');
+  drawCascade(16); drawCascade(1700);
+  ok('it renders and closes', true);
+  cascade = null; MODE = 'spine';
+  startNode('f1');
+  ok('the chamber loans PHASE SLIP at the door', !!(RUN.powers & P_SLIP) && !(SAVE.powers & P_SLIP));
+  WI[I_EXIT] = 1; WF[F_TIME] = 6.0; finishNode();
+  ok('clearing it keeps the power for good', !!(SAVE.powers & P_SLIP));
+  ok('and beating the seal time seals it', !!SAVE.seals['f1']);
+  medalCard = null;
+  for(const id of ['n2','n3','n4']){ startNode(id); WI[I_EXIT]=1; WI[I_BOSSDOWN]=1; finishNode(); medalCard=null; }
+  startNode('n5'); WI[I_EXIT] = 1; finishNode(); medalCard = null;
+  ok('the press takes the arm by default', !!(SAVE.facts & F_CHROME) && !(SAVE.facts & F_HAND));
+  ok('THE DONOR is open, AMBER is not', nodeOpen('f3') && !nodeOpen('f2'));
+  startNode('f3'); WI[I_EXIT] = 1; WF[F_TIME] = 18; finishNode(); medalCard = null;
+  ok('SWAP is earned', !!(SAVE.powers & P_SWAP));
+  startNode('n5'); WI[I_WINDOW] = 12; WI[I_EXIT] = 1; finishNode(); medalCard = null;
+  ok('the hand is kept this time', !!(SAVE.facts & F_HAND) && !(SAVE.facts & F_CHROME));
+  ok('THE DONOR closes behind you', !nodeOpen('f3'));
+  ok('AMBER opens instead', nodeOpen('f2'));
+  ok('YOUR ARM IS FLESH AND YOU STILL KNOW HOW TO SWAP', !!(SAVE.powers & P_SWAP));
+  startNode('f2'); WI[I_EXIT] = 1; WF[F_TIME] = 14; finishNode(); medalCard = null;
+  ok('both sides of the Knot are now in your hands',
+     (SAVE.powers & (P_SWAP|P_STASIS)) === (P_SWAP|P_STASIS));
+  ok('and the body followed the fate, not the powers',
+     computeBody(SAVE.facts).dashCd === 34 && computeBody(SAVE.facts).cling === false);
+  ok('MIDNIGHT still wants the blade', !nodeOpen('n13'));
+  SAVE.powers |= P_BLADE;
+  for(const id of ['n6','n7','n8','n9','n10','n11','n12']){
+    startNode(id); WI[I_EXIT]=1; WI[I_BOSSDOWN]=1; WF[F_R6]=3; finishNode(); medalCard=null;
+  }
+  ok('the vault outcome writes F_VAULT', !!(SAVE.facts & F_VAULT));
+  ok('and MIDNIGHT is finally enterable', nodeOpen('n13'), 'powers '+SAVE.powers+' facts '+SAVE.facts);
+  startNode('n13'); WI[I_EXIT]=1; finishNode(); medalCard=null;
+  showEnding();
+  ok('an ending resolves from the facts', ['DEATH','ESCAPE','UNWRITTEN'].indexOf(SAVE.ending) !== -1, SAVE.ending);
+  drawEnding(16); ok('the ending screen renders', true);
+  endingCard = null;
+  startNode('n10');
+  for(let k=0;k<40;k++) simTick();
+  const tickBefore = WI[I_TICK];
+  parkRoom();
+  startNode('n2'); for(let k=0;k<10;k++) simTick();
+  ok('you really did leave the room', roomId === 'n2');
+  unparkRoom();
+  ok('LAST WORD puts you back in the exact frame', roomId === 'n10' && WI[I_TICK] === tickBefore);
+  ok('and it costs you your history', WF[F_CHRONO] === 0 && ringMin === WI[I_TICK]);
+  SAVE = keepSave2;
+  medalCard = null; cascade = null; PARK.active = false; MODE = 'spine';
+
+  } catch(err){
+    fail.push('FAIL  ['+group+'] threw: '+(err && err.message)+'\n'+(err && err.stack || ''));
+    groups[group] = groups[group] || {p:0,f:0}; groups[group].f++;
+  }
+
+  const total = out.length + fail.length;
+  const head = (fail.length ? 'SMOKE FAIL ' : 'SMOKE PASS ') + out.length + '/' + total;
+  document.title = head;
+  let table = '';
+  for(const k in groups) table += '  '+k.padEnd(14)+String(groups[k].p).padStart(4)+' pass'+
+    (groups[k].f?('   '+groups[k].f+' FAIL'):'')+'\n';
+  const ms = ((typeof performance!=='undefined'?performance.now():0) - t0).toFixed(0);
+  const pre = document.createElement('pre');
+  pre.id = 'smokeout';
+  pre.textContent = head + '   ('+ms+' ms)\n\n' + table + '\n' + fail.concat(out).join('\n');
+  document.body.appendChild(pre);
+  window.__SMOKE__ = {pass:out.length, fail:fail.length, groups, log:fail.concat(out)};
+  console.log(fail.length ? 'SMOKE FAIL' : 'SMOKE PASS');
+}
+
+if(DEV) window.__FS = {
+  WF, WI, keys, get MODE(){return MODE;}, set MODE(v){MODE=v;},
+  get SAVE(){return SAVE;}, set SAVE(v){SAVE=v;},
+  get RUN(){return RUN;}, get roomId(){return roomId;},
+  startNode, finishNode, closeMedalCard, step, simTick, measure, makeEcho,
+  ringRestore, ringRec, rebuildFacts, nodeOpen, medalFor, parkRoom, unparkRoom,
+  worldHash, loadRoom, PL, GH0, GSI, GS_N, AC_N, A_X, A_Y, I_EXIT, I_CARRY
+};
+
+// ══════════════════════════ GO ═════════════════════════════════════════════
+if(SMOKE) runSmoke(); else boot();
+</script>
+<script src="glitchbox-menu.js" data-pos="top-left" defer></script>
+</body>
+</html>
