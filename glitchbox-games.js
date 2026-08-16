@@ -3,6 +3,7 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
+  {name:'Seven Liars',         file:'seven-liars.html',            emoji:'🕶️',color:['#06080b','#101a24'],category:'puzzle',     tags:['new','hot']},
   {name:'Fatespine',           file:'fatespine.html',              emoji:'\u23f3',color:['#0a0410','#24103a'],category:'action',     tags:['new','hot']},
   {name:'Blast Radius',        file:'blast-radius.html',            emoji:'💥',color:['#03040c','#141d44'],category:'multiplayer',tags:['new','hot','mp']},
   {name:'Neon Frag',           file:'neon-frag.html',              emoji:'🔫',color:['#05070e','#101b33'],category:'multiplayer',tags:['new','hot','mp']},
@@ -49,6 +50,36 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
+
+'seven-liars':(c)=>{
+  _GV(c,0,0,320,200,'#06080b','#0b131b','#101a24');
+  // the bulb over the table, and the cone of light everything else sits in
+  _L(c,160,0,160,17,'#1e2a36',2);
+  c.save();c.shadowColor='rgba(255,220,160,.55)';c.shadowBlur=16;_C(c,160,23,7,'#ffe6a8');c.restore();
+  const cone=c.createLinearGradient(160,26,160,200);
+  cone.addColorStop(0,'rgba(255,224,166,.16)');cone.addColorStop(1,'rgba(255,224,166,0)');
+  c.fillStyle=cone;c.beginPath();c.moveTo(160,26);c.lineTo(292,200);c.lineTo(28,200);c.closePath();c.fill();
+  // seven statements, four hours each — green agrees, red is denied, one is proof
+  const st=[[1,1,1,1],[1,0,1,1],[1,1,3,0],[0,1,1,1],[1,1,2,1],[1,0,1,0],[1,1,3,1]];
+  const col=['#111a23','#0d2117','#08222b','#26101a'];
+  const bd =['#26333f','#1f5236','#2a6d80','#5a2530'];
+  for(let r=0;r<7;r++)for(let h=0;h<4;h++){
+    const x=76+h*44,y=52+r*19,v=st[r][h];
+    _F(c,x,y,38,14,col[v]);
+    c.strokeStyle=bd[v];c.lineWidth=1;c.strokeRect(x+.5,y+.5,37,13);
+    if(v===3){c.save();c.shadowColor='rgba(255,77,94,.8)';c.shadowBlur=6;c.strokeRect(x+.5,y+.5,37,13);c.restore();}
+    if(v===2){c.save();c.shadowColor='rgba(111,211,236,.7)';c.shadowBlur=6;c.strokeRect(x+.5,y+.5,37,13);c.restore();}
+  }
+  // the seven of them down the left, one already crossed off
+  for(let r=0;r<7;r++){
+    const y=52+r*19;
+    _C(c,44,y+7,5,r===2?'#5a2530':'#2b3a49');
+    _F(c,54,y+5,16,4,r===2?'#ff4d5e':'#3d4b58');
+  }
+  // the hour it happened
+  _F(c,164,42,38,3,'#ff4d5e');
+  _SC(c);
+},
 
 'fatespine':(c)=>{
   _GV(c,0,0,320,200,'#050308','#12061f','#24103a');
