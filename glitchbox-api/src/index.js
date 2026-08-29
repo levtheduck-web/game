@@ -12,6 +12,7 @@ const SESSION_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const CODE_LEN = 6;
 const ROOM_LEN = 4;              // game-room codes are shorter — typed by hand mid-session
+const ROOM_MAX_PLAYERS = 8;      // party games seat up to eight; 1v1 games ask for 2
 const INVITE_TTL = 10 * 60 * 1000; // a game invite goes stale after 10 minutes
 const ONLINE_WINDOW = 90 * 1000;   // "online" = seen within 90s (hub polls every ~20s)
 const SAVE_MAX_BYTES = 512 * 1024; // per game-save cap — a colony snapshot is a few KB
@@ -576,7 +577,17 @@ export class Room extends DurableObject {
   // Everyone in the room except the sender.
   others(ws) { return this.ctx.getWebSockets().filter((s) => s !== ws); }
 
-  webSocketMessage(ws, raw) {
+  // How many players this room holds. Two-player games never send `max`, so the
+  // default keeps their "that game is full" behaviour exactly as it was; party
+  // games (3-8 players) declare a bigger room when the host creates it.
+  async roomMax() {
+    if (this._max) return this._max;
+    const v = await this.ctx.storage.get("max");
+    this._max = Math.max(2, Math.min(ROOM_MAX_PLAYERS, v || 2));
+    return this._max;
+  }
+
+  async webSocketMessage(ws, raw) {
     let m;
     try { m = JSON.parse(raw); } catch { return; }
 
@@ -586,7 +597,10 @@ export class Room extends DurableObject {
         this.send(ws, { t: "error", msg: "That code is already in use — try again." });
         return;
       }
-      this.send(ws, { t: "created", code: m.code || "", color: "blue" });
+      const max = Math.max(2, Math.min(ROOM_MAX_PLAYERS, (m.max | 0) || 2));
+      this._max = max;
+      await this.ctx.storage.put("max", max);   // survives hibernation + code reuse
+      this.send(ws, { t: "created", code: m.code || "", color: "blue", max });
       return;
     }
 
@@ -595,11 +609,13 @@ export class Room extends DurableObject {
         this.send(ws, { t: "error", msg: "No game with that code." });
         return;
       }
-      if (this.guests().length > 1) {
+      const max = await this.roomMax();
+      // The joining socket is already counted here: host + guests must fit in `max`.
+      if (this.guests().length + 1 > max) {
         this.send(ws, { t: "error", msg: "That game is full." });
         return;
       }
-      this.send(ws, { t: "joined", color: "red" });
+      this.send(ws, { t: "joined", color: "red", max, seat: this.guests().length });
       for (const s of this.ctx.getWebSockets()) this.send(s, { t: "start" });
       return;
     }

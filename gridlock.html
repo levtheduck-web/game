@@ -1,0 +1,1432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>GRIDLOCK — 3-8 Player Light Cycles</title>
+<script src="glitchbox-config.js"></script>
+<style>
+  :root{ --cyan:#00f5ff; --pink:#ff0080; --yellow:#ffe600; --green:#00ff88; --red:#ff3355;
+         --bg:#04060e; --bg2:#080d1a; --panel:rgba(6,10,20,.95); --muted:#5a6690; --text:#d6e2ff; }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; overflow:hidden; background:var(--bg); color:var(--text);
+    font-family:'Rajdhani',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-user-select:none; user-select:none; }
+  canvas#view{ position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .hidden{ display:none !important; }
+  b{ color:var(--cyan); }
+
+  /* ── HUD ── */
+  #hud{ position:fixed; inset:0; pointer-events:none; z-index:5; }
+  #board{ position:absolute; top:10px; left:50%; transform:translateX(-50%); display:flex; gap:6px;
+    flex-wrap:wrap; justify-content:center; max-width:96vw; }
+  .pchip{ display:flex; align-items:center; gap:7px; padding:5px 11px 5px 8px; background:rgba(4,7,16,.82);
+    border:1px solid rgba(255,255,255,.09); font-size:13px; font-weight:700; letter-spacing:.5px;
+    clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%); }
+  .pchip .dot{ width:9px; height:9px; }
+  .pchip .nm{ max-width:96px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pchip .sc{ font-family:'Press Start 2P',monospace; font-size:10px; }
+  .pchip.out{ opacity:.35; }
+  .pchip.me{ border-color:rgba(255,255,255,.35); }
+  #banner{ position:absolute; left:50%; top:44%; transform:translate(-50%,-50%); text-align:center; }
+  #btitle{ font-family:'Press Start 2P',monospace; font-size:min(7vw,42px); letter-spacing:2px;
+    text-shadow:0 0 24px currentColor; }
+  #bsub{ margin-top:12px; font-size:16px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+  #toast{ position:absolute; left:50%; bottom:64px; transform:translateX(-50%); font-size:14px;
+    font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:var(--cyan); text-shadow:0 0 12px var(--cyan); }
+  #netstat{ position:absolute; right:12px; bottom:10px; font-size:11px; font-weight:700; letter-spacing:1px;
+    text-transform:uppercase; color:var(--muted); }
+
+  /* ── PANELS ── */
+  #ui{ position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at 50% 40%,rgba(6,12,28,.86),rgba(2,3,8,.97)); padding:16px; overflow:auto; }
+  .panel{ width:min(560px,94vw); background:var(--panel); border:1px solid rgba(0,245,255,.18);
+    box-shadow:0 0 60px rgba(0,0,0,.7),0 0 34px rgba(0,245,255,.07); padding:22px 22px 20px;
+    clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px)); }
+  h1{ font-family:'Press Start 2P',monospace; font-size:26px; letter-spacing:2px; color:#fff;
+    text-shadow:0 0 18px var(--cyan); margin-bottom:6px; }
+  h1 .sm{ color:var(--pink); text-shadow:0 0 18px var(--pink); }
+  .tag{ font-size:13px; font-weight:700; letter-spacing:2.4px; text-transform:uppercase; color:var(--muted); margin-bottom:18px; }
+  h2{ font-family:'Press Start 2P',monospace; font-size:13px; color:var(--pink); text-shadow:0 0 12px var(--pink);
+    letter-spacing:1.5px; margin-bottom:12px; }
+  .btn{ display:block; width:100%; margin-bottom:9px; padding:13px 16px; cursor:pointer; text-align:left;
+    background:transparent; border:1px solid rgba(0,245,255,.22); color:var(--text);
+    font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase;
+    transition:all .14s; clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%); }
+  .btn:hover{ border-color:var(--cyan); color:var(--cyan); box-shadow:0 0 16px rgba(0,245,255,.16); }
+  .btn .k{ float:right; font-size:12px; color:var(--muted); letter-spacing:1px; }
+  .btn.pri{ background:var(--cyan); border-color:var(--cyan); color:#001014; }
+  .btn.pri:hover{ color:#001014; box-shadow:0 0 26px rgba(0,245,255,.4); }
+  .btn.pink{ border-color:rgba(255,0,128,.3); }
+  .btn.pink:hover{ border-color:var(--pink); color:var(--pink); box-shadow:0 0 16px rgba(255,0,128,.2); }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; }
+  .row{ display:flex; gap:9px; }
+  .row .btn{ flex:1; }
+  .note{ font-size:13px; font-weight:600; color:var(--muted); line-height:1.6; margin-top:6px; }
+  .note.warn{ color:var(--yellow); }
+  .err{ color:var(--red)!important; }
+  input.code{ width:100%; padding:12px; background:#05080f; border:1px solid rgba(0,245,255,.22); color:var(--cyan);
+    font-family:'Press Start 2P',monospace; font-size:20px; letter-spacing:8px; text-align:center; text-transform:uppercase; }
+  input.nm{ width:100%; padding:10px 12px; background:#05080f; border:1px solid rgba(0,245,255,.18); color:var(--text);
+    font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:700; letter-spacing:1px; }
+  label.fl{ display:block; font-size:11px; font-weight:700; letter-spacing:1.6px; text-transform:uppercase;
+    color:var(--muted); margin:12px 0 6px; }
+  .code-big{ font-family:'Press Start 2P',monospace; font-size:38px; letter-spacing:12px; color:var(--yellow);
+    text-shadow:0 0 22px var(--yellow); text-align:center; padding:14px 0 6px; }
+
+  /* lobby roster */
+  .lob{ display:flex; flex-direction:column; gap:6px; margin:8px 0 14px; }
+  .lrow{ display:flex; align-items:center; gap:10px; padding:8px 11px; background:rgba(255,255,255,.03);
+    border-left:3px solid var(--muted); font-size:14px; font-weight:700; letter-spacing:.6px; }
+  .lrow .who{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lrow .badge{ font-size:10px; letter-spacing:1.4px; text-transform:uppercase; color:var(--muted); }
+  .lrow .x{ cursor:pointer; color:var(--muted); font-size:15px; padding:0 3px; }
+  .lrow .x:hover{ color:var(--red); }
+  .empty{ padding:8px 11px; font-size:13px; font-weight:600; color:var(--muted); border-left:3px solid rgba(255,255,255,.06); }
+
+  /* seat / control cards for the one-keyboard party mode */
+  .seats{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin:6px 0 14px; }
+  .seat{ padding:9px 11px; background:rgba(255,255,255,.03); border-left:3px solid var(--muted); cursor:pointer; }
+  .seat .st{ font-size:12px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; }
+  .seat .sk{ font-size:11px; font-weight:600; color:var(--muted); letter-spacing:.8px; margin-top:3px; }
+  .seat.off{ opacity:.34; }
+
+  .steps{ font-size:14px; font-weight:600; line-height:1.75; color:#aab6d8; }
+  .steps li{ margin-left:18px; margin-bottom:5px; }
+  .pu{ display:inline-block; padding:1px 7px; margin-right:5px; font-size:11px; font-weight:800;
+    letter-spacing:1px; text-transform:uppercase; }
+  .pu.b{ background:rgba(255,230,0,.14); color:var(--yellow); }
+  .pu.g{ background:rgba(0,245,255,.14); color:var(--cyan); }
+  .pu.w{ background:rgba(255,0,128,.14); color:var(--pink); }
+
+  /* final scoreboard */
+  .final{ display:flex; flex-direction:column; gap:5px; margin:10px 0 16px; }
+  .frow{ display:flex; align-items:center; gap:10px; padding:8px 12px; background:rgba(255,255,255,.03);
+    border-left:3px solid var(--muted); font-size:15px; font-weight:700; }
+  .frow .pos{ font-family:'Press Start 2P',monospace; font-size:11px; color:var(--muted); width:26px; }
+  .frow .pts{ margin-left:auto; font-family:'Press Start 2P',monospace; font-size:12px; }
+
+  /* invite friends from the hub */
+  .wi-row{ display:flex; align-items:center; gap:9px; padding:6px 0; font-size:14px; font-weight:700; }
+  .wi-dot{ width:8px; height:8px; background:var(--muted); border-radius:50%; }
+  .wi-dot.on{ background:var(--green); box-shadow:0 0 8px var(--green); }
+  .wi-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .wi-btn{ padding:5px 11px; background:transparent; border:1px solid rgba(0,245,255,.28); color:var(--cyan);
+    font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; }
+  .wi-btn:hover{ box-shadow:0 0 12px rgba(0,245,255,.2); }
+  .wi-btn:disabled{ opacity:.5; cursor:default; }
+
+  /* touch steering */
+  #touch{ position:fixed; inset:0; z-index:8; }
+  #smokeout{ position:fixed; left:0; top:0; z-index:99; background:#000; color:#0f0; font:12px/1.5 monospace;
+    padding:10px; max-height:100%; overflow:auto; white-space:pre-wrap; }
+  @media (max-width:640px){ h1{ font-size:19px; } .seats{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="touch" class="hidden"></div>
+
+<div id="hud" class="hidden">
+  <div id="board"></div>
+  <div id="banner" class="hidden"><div id="btitle"></div><div id="bsub"></div></div>
+  <div id="toast"></div>
+  <div id="netstat"></div>
+</div>
+
+<div id="ui">
+  <!-- ── HOME ── -->
+  <div class="panel" id="panel-home">
+    <h1>GRID<span class="sm">LOCK</span></h1>
+    <div class="tag">3-8 riders · one grid · last trail standing</div>
+    <button class="btn pri" onclick="openParty()">One keyboard party <span class="k">2-4 humans + bots</span></button>
+    <button class="btn" onclick="openOnline()">Online room <span class="k">up to 8 players</span></button>
+    <button class="btn" onclick="startSolo()">Solo vs bots <span class="k">practice</span></button>
+    <button class="btn pink" onclick="showPanel('panel-howto')">How to play</button>
+    <div class="note">Everyone rides a light cycle that never stops and leaves a solid wall behind it.
+      Turn, trap, survive. Ride into <i>any</i> wall and you're out for the round.</div>
+  </div>
+
+  <!-- ── LOCAL PARTY SETUP ── -->
+  <div class="panel hidden" id="panel-party">
+    <h2>ONE KEYBOARD, ONE GRID</h2>
+    <div class="note">Tap a seat to switch it between a human and a bot. Three or more riders is where
+      this gets nasty.</div>
+    <div class="seats" id="seat-grid"></div>
+    <label class="fl">Bots to fill the grid</label>
+    <div class="row">
+      <button class="btn" onclick="bumpBots(-1)">−</button>
+      <button class="btn" style="text-align:center" id="botcount" disabled>2 bots</button>
+      <button class="btn" onclick="bumpBots(1)">+</button>
+    </div>
+    <button class="btn pri" onclick="startParty()">Start the match</button>
+    <button class="btn" onclick="showPanel('panel-home')">Back</button>
+  </div>
+
+  <!-- ── ONLINE ── -->
+  <div class="panel hidden" id="panel-online">
+    <h2>ONLINE ROOM</h2>
+    <label class="fl">Your rider name</label>
+    <input class="nm" id="myname" maxlength="12" placeholder="Rider" />
+    <button class="btn pri" onclick="hostRoom()">Create a room <span class="k">you host, up to 8</span></button>
+    <label class="fl">Or join with a code</label>
+    <input class="code" id="joincode" maxlength="4" placeholder="CODE" autocomplete="off" />
+    <button class="btn" onclick="joinRoom()">Join the room</button>
+    <div class="note" id="online-status"></div>
+    <button class="btn" onclick="leaveToHome()">Back</button>
+  </div>
+
+  <!-- ── LOBBY (host + guests) ── -->
+  <div class="panel hidden" id="panel-lobby">
+    <h2>THE GRID IS FILLING</h2>
+    <div class="code-big" id="lobby-code">····</div>
+    <div class="note" style="text-align:center">Share this code — anyone can join until the grid holds eight.</div>
+    <div class="lob" id="lobby-list"></div>
+    <div id="host-controls" class="hidden">
+      <div class="row">
+        <button class="btn" onclick="lobbyBot(1)">+ Bot</button>
+        <button class="btn" onclick="lobbyBot(-1)">− Bot</button>
+      </div>
+      <button class="btn pri" id="lobby-start" onclick="hostStartMatch()">Start the match</button>
+    </div>
+    <div id="guest-wait" class="note hidden">Waiting for the host to drop the grid…</div>
+    <div id="lobby-invite" class="hidden">
+      <label class="fl">Invite a friend</label>
+      <div id="lobby-friends"></div>
+    </div>
+    <button class="btn" onclick="leaveToHome()">Leave</button>
+  </div>
+
+  <!-- ── HOW TO ── -->
+  <div class="panel hidden" id="panel-howto">
+    <h2>HOW TO PLAY</h2>
+    <ul class="steps">
+      <li>Your cycle moves forward on its own. You only ever steer left or right.</li>
+      <li>Every cycle paints a solid wall behind it. Touch any wall — yours, theirs, the arena edge — and your round is over.</li>
+      <li>Outlive someone and you score. The last rider alive takes the round bonus.</li>
+      <li>The arena closes in after twenty seconds, so camping in a corner won't save you.</li>
+    </ul>
+    <label class="fl">Pickups on the grid</label>
+    <div class="steps">
+      <div><span class="pu b">Boost</span> double speed for three seconds — great for cutting someone off.</div>
+      <div><span class="pu g">Ghost</span> ride straight through walls for two and a half seconds.</div>
+      <div><span class="pu w">Wipe</span> deletes your own wall from the grid. A fresh start mid-round.</div>
+    </div>
+    <label class="fl">Controls</label>
+    <div class="steps">
+      <div>Rider 1 <b>Arrow keys</b> · Rider 2 <b>W A S D</b> · Rider 3 <b>I J K L</b> · Rider 4 <b>Numpad 8 4 5 6</b></div>
+      <div>Online, arrows and WASD both steer your own cycle. On a phone, swipe.</div>
+    </div>
+    <button class="btn" style="margin-top:14px" onclick="showPanel('panel-home')">Back</button>
+  </div>
+
+  <!-- ── MATCH OVER ── -->
+  <div class="panel hidden" id="panel-over">
+    <h2 id="over-title">MATCH OVER</h2>
+    <div class="final" id="final-list"></div>
+    <button class="btn pri" id="again-btn" onclick="playAgain()">Play again</button>
+    <div id="again-wait" class="note hidden">Waiting for the host to restart…</div>
+    <button class="btn" onclick="leaveToHome()">Back to the menu</button>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const SMOKE = location.hash.indexOf('smoke') !== -1;
+const clamp = (v,a,b) => v<a?a:v>b?b:v;
+
+// ══════════════ THE GRID ══════════════
+const GW = 96, GH = 58;                 // cells
+const TICK = 78;                        // ms per cell of travel
+const BOOST_MS = 3000, GHOST_MS = 2600;
+const SHRINK_AT = 20000, SHRINK_EVERY = 2400;   // when the arena starts closing in
+const UP_MAX = 4, UP_EVERY = 2600;              // pickups on the grid at once / spawn rate
+const ROUND_BONUS = 2;                          // extra points for being the last one riding
+const MAX_PLAYERS = 8;
+
+const DX = [1,0,-1,0], DY = [0,1,0,-1];         // 0 right, 1 down, 2 left, 3 up
+const opp = d => (d+2) & 3;
+
+const COLORS = [
+  {n:'CYAN',   c:'#00f5ff'}, {n:'PINK',  c:'#ff0080'}, {n:'GREEN', c:'#00ff88'},
+  {n:'AMBER',  c:'#ffb300'}, {n:'VIOLET',c:'#a45cff'}, {n:'RED',   c:'#ff3355'},
+  {n:'LIME',   c:'#b6ff2e'}, {n:'ICE',   c:'#eaf6ff'},
+];
+const KINDS = [
+  {k:'boost', c:'#ffe600', g:'⚡'},
+  {k:'ghost', c:'#00f5ff', g:'◇'},
+  {k:'wipe',  c:'#ff0080', g:'✕'},
+];
+
+// Eight starting berths, spread around the arena and pointed somewhere survivable.
+const BERTHS = [
+  [0.14,0.50,0],[0.86,0.50,2],[0.50,0.12,1],[0.50,0.88,3],
+  [0.20,0.18,1],[0.80,0.82,3],[0.80,0.18,2],[0.20,0.82,0],
+];
+
+// The one shared render/sim state. The host mutates it through the simulation;
+// a guest mutates it from the host's packets. Either way the renderer just reads.
+const R = {
+  grid: new Int8Array(GW*GH),
+  players: [],
+  ups: [],
+  b: {l:0,t:0,r:GW-1,b:GH-1},
+  tick: 0,
+  phase: 'menu',        // menu | count | play | roundover | over
+  roundStart: 0,
+  nextShrink: 0,
+  nextUp: 0,
+  round: 0,
+  target: 12,
+  seedState: 1,
+};
+
+// Seeded RNG so a host and its guests agree on every pickup the grid spits out.
+function srand(){ R.seedState = (R.seedState*1664525 + 1013904223) >>> 0; return R.seedState/4294967296; }
+function seed(s){ R.seedState = (s>>>0) || 1; }
+
+function newPlayer(seat, name, opts){
+  return { seat, name:name || ('Rider '+(seat+1)), ci:seat % COLORS.length,
+    bot: !!(opts && opts.bot), local: !!(opts && opts.local), keys: (opts && opts.keys) || null,
+    cid: (opts && opts.cid) || '', seen: 0,
+    x:0, y:0, dir:0, want:null, alive:true, ghostT:0, boostT:0,
+    score:0, trail:[], deadAt:0, cause:'' };
+}
+
+function cellFree(x,y){
+  return x >= R.b.l && x <= R.b.r && y >= R.b.t && y <= R.b.b && !R.grid[y*GW+x];
+}
+function paint(p,x,y){ R.grid[y*GW+x] = p.seat+1; p.trail.push(y*GW+x); }
+// A wipe deletes your wall but not the square you are standing on — leaving the
+// head painted keeps the host and its guests looking at the same grid.
+function wipeTrail(p){
+  for(const i of p.trail) if(R.grid[i] === p.seat+1) R.grid[i] = 0;
+  p.trail.length = 0;
+  paint(p, p.x, p.y);
+}
+
+// ── round setup ──
+function layoutRound(){
+  R.grid.fill(0);
+  R.ups.length = 0;
+  R.b = {l:0,t:0,r:GW-1,b:GH-1};
+  R.tick = 0;
+  R.round++;
+  const n = R.players.length;
+  R.players.forEach((p,i) => {
+    const bh = BERTHS[i % BERTHS.length];
+    p.x = Math.round(bh[0]*(GW-1)); p.y = Math.round(bh[1]*(GH-1));
+    p.dir = bh[2]; p.want = null;
+    p.alive = true; p.ghostT = 0; p.boostT = 0; p.trail = []; p.deadAt = 0; p.cause = '';
+    paint(p, p.x, p.y);
+  });
+  R.roundStart = now();
+  R.nextShrink = SHRINK_AT;
+  R.nextUp = 900;
+  return n;
+}
+
+function now(){ return performance.now(); }
+function aliveList(){ return R.players.filter(p => p.alive); }
+
+// ── one tick of the world ──
+// Boosted riders cover two cells, so movement runs in sub-steps: everybody who
+// still has a cell left this tick moves one square, then collisions resolve. That
+// keeps head-ons honest no matter who is going fast.
+function simTick(){
+  R.tick++;
+  for(const p of R.players){
+    p.cells = [];                        // cells covered this tick, for the net packet
+    if(!p.alive) continue;
+    if(p.bot) p.want = botDir(p);
+    if(p.want != null && p.want !== opp(p.dir)) p.dir = p.want;
+    p.want = null;
+    p.boostT = Math.max(0, p.boostT - TICK);
+    p.ghostT = Math.max(0, p.ghostT - TICK);
+  }
+  const passes = R.players.some(p => p.alive && p.boostT > 0) ? 2 : 1;
+  for(let s=0; s<passes; s++){
+    const movers = R.players.filter(p => p.alive && (s === 0 || p.boostT > 0));
+    if(movers.length) subStep(movers);
+  }
+  // The closing arena kills anything it catches.
+  const el = now() - R.roundStart;
+  while(el > R.nextShrink && R.b.r - R.b.l > 8 && R.b.b - R.b.t > 6){
+    R.b.l++; R.b.r--; R.b.t++; R.b.b--;
+    R.nextShrink += SHRINK_EVERY;
+    for(const p of R.players){
+      if(p.alive && (p.x < R.b.l || p.x > R.b.r || p.y < R.b.t || p.y > R.b.b)) kill(p,'wall');
+    }
+  }
+  if(el > R.nextUp && R.ups.length < UP_MAX){ spawnUp(); R.nextUp = el + UP_EVERY; }
+}
+
+function subStep(movers){
+  const next = movers.map(p => ({ p, x:p.x+DX[p.dir], y:p.y+DY[p.dir], die:'' }));
+  for(const n of next){
+    if(n.x < R.b.l || n.x > R.b.r || n.y < R.b.t || n.y > R.b.b){ n.die = 'wall'; continue; }
+    if(R.grid[n.y*GW+n.x] && n.p.ghostT <= 0) n.die = 'trail';
+  }
+  // Two heads into the same square, or two heads swapping squares, take each other out.
+  const seen = new Map();
+  for(const n of next){
+    const k = n.y*GW + n.x, o = seen.get(k);
+    if(o){ n.die = n.die || 'crash'; o.die = o.die || 'crash'; } else seen.set(k, n);
+  }
+  for(let i=0;i<next.length;i++) for(let j=i+1;j<next.length;j++){
+    const a = next[i], b = next[j];
+    if(a.x === b.p.x && a.y === b.p.y && b.x === a.p.x && b.y === a.p.y){
+      a.die = a.die || 'crash'; b.die = b.die || 'crash';
+    }
+  }
+  for(const n of next){
+    if(n.die){ kill(n.p, n.die); continue; }
+    n.p.x = n.x; n.p.y = n.y;
+    // A ghosting rider is riding through the grid, not writing to it.
+    if(n.p.ghostT <= 0) paint(n.p, n.x, n.y);
+    n.p.cells.push(n.x, n.y);
+    takeUp(n.p);
+  }
+}
+
+function takeUp(p){
+  for(let i=0;i<R.ups.length;i++){
+    const u = R.ups[i];
+    if(u.x !== p.x || u.y !== p.y) continue;
+    R.ups.splice(i,1);
+    if(u.k === 'boost') p.boostT = BOOST_MS;
+    else if(u.k === 'ghost') p.ghostT = GHOST_MS;
+    else if(u.k === 'wipe') wipeTrail(p);
+    events.push({ e:'up', seat:p.seat, k:u.k, x:u.x, y:u.y });
+    return;
+  }
+}
+
+function spawnUp(){
+  for(let tries=0; tries<40; tries++){
+    const x = R.b.l + 2 + Math.floor(srand()*(R.b.r - R.b.l - 3));
+    const y = R.b.t + 2 + Math.floor(srand()*(R.b.b - R.b.t - 3));
+    if(!cellFree(x,y)) continue;
+    if(R.ups.some(u => Math.abs(u.x-x) + Math.abs(u.y-y) < 6)) continue;
+    R.ups.push({ x, y, k: KINDS[Math.floor(srand()*KINDS.length)].k });
+    return true;
+  }
+  return false;
+}
+
+// Dying pays everyone still riding — outlive the room and the points pile up.
+function kill(p, cause){
+  if(!p.alive) return;
+  p.alive = false; p.deadAt = now(); p.cause = cause;
+  for(const q of R.players) if(q.alive && q !== p) q.score++;
+  events.push({ e:'die', seat:p.seat, x:p.x, y:p.y });
+}
+
+let events = [];
+
+// ══════════════ BOTS ══════════════
+// A bot picks the direction that leaves it the most room to keep riding. The room
+// is measured with a small flood fill, which is cheap and enough to make them cut
+// corners, chase pickups and stop driving into their own wall.
+const FLOOD_CAP = 190;
+const _seen = new Int32Array(GW*GH);
+let _mark = 0;
+function openSpace(x,y,capOwner){
+  _mark++;
+  const q = [y*GW+x];
+  _seen[y*GW+x] = _mark;
+  let count = 0;
+  while(q.length && count < FLOOD_CAP){
+    const i = q.pop(); count++;
+    const cx = i % GW, cy = (i / GW) | 0;
+    for(let d=0; d<4; d++){
+      const nx = cx+DX[d], ny = cy+DY[d];
+      if(nx < R.b.l || nx > R.b.r || ny < R.b.t || ny > R.b.b) continue;
+      const j = ny*GW+nx;
+      if(_seen[j] === _mark) continue;
+      if(R.grid[j] && R.grid[j] !== capOwner) { _seen[j] = _mark; continue; }
+      if(R.grid[j]) { _seen[j] = _mark; continue; }
+      _seen[j] = _mark; q.push(j);
+    }
+  }
+  return count;
+}
+function botDir(p){
+  const options = [];
+  for(let d=0; d<4; d++){
+    if(d === opp(p.dir)) continue;
+    const nx = p.x+DX[d], ny = p.y+DY[d];
+    if(nx < R.b.l || nx > R.b.r || ny < R.b.t || ny > R.b.b) continue;
+    if(R.grid[ny*GW+nx] && p.ghostT <= 0) continue;
+    let sc = openSpace(nx, ny, p.seat+1);
+    if(d === p.dir) sc += 6;                                     // stay committed
+    // Riding straight at another head is how bots trade themselves away — dodge it.
+    for(const q of R.players){
+      if(q === p || !q.alive) continue;
+      const dist = Math.abs(q.x-nx) + Math.abs(q.y-ny);
+      if(dist <= 2) sc -= 26;
+      // ...but a pickup two squares off is worth the detour.
+    }
+    for(const u of R.ups){
+      const dist = Math.abs(u.x-nx) + Math.abs(u.y-ny);
+      if(dist < 14) sc += (14 - dist) * 1.6;
+    }
+    sc += srand() * 4;
+    options.push({ d, sc });
+  }
+  if(!options.length) return p.dir;                              // boxed in: ride it out
+  options.sort((a,b) => b.sc - a.sc);
+  return options[0].d;
+}
+
+// ══════════════ SOUND ══════════════
+const Sound = (function(){
+  let ac = null, on = false;
+  function ctx(){ if(!ac){ try { ac = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){ return null; } } return ac; }
+  function blip(f, dur, type, vol){
+    if(!on) return; const a = ctx(); if(!a) return;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type || 'square'; o.frequency.value = f;
+    g.gain.setValueAtTime(vol || 0.06, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+    o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + dur);
+  }
+  return {
+    enable(){ on = true; const a = ctx(); if(a && a.state === 'suspended') a.resume(); },
+    off(){ on = false; },
+    count(hi){ blip(hi ? 880 : 440, 0.12, 'square', 0.05); },
+    turn(){ blip(300, 0.03, 'square', 0.02); },
+    pick(){ blip(1200, 0.09, 'triangle', 0.06); blip(1600, 0.09, 'triangle', 0.04); },
+    die(){ if(!on) return; const a = ctx(); if(!a) return;
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(320, a.currentTime);
+      o.frequency.exponentialRampToValueAtTime(40, a.currentTime + 0.42);
+      g.gain.setValueAtTime(0.09, a.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.45);
+      o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + 0.45); },
+    win(){ [523,659,784,1047].forEach((f,i) => setTimeout(() => blip(f, 0.16, 'triangle', 0.07), i*95)); },
+  };
+})();
+
+// ══════════════ RENDER ══════════════
+const view = $('view'), ctx = view.getContext('2d');
+let VW = 0, VH = 0, CS = 8, OX = 0, OY = 0;
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  VW = window.innerWidth; VH = window.innerHeight;
+  view.width = Math.floor(VW*dpr); view.height = Math.floor(VH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  CS = Math.max(4, Math.floor(Math.min((VW-24)/GW, (VH-96)/GH)));
+  OX = Math.floor((VW - CS*GW)/2);
+  OY = Math.floor((VH - CS*GH)/2) + 16;
+}
+window.addEventListener('resize', resize);
+resize();
+
+const parts = [];
+function burst(x,y,col){
+  for(let i=0;i<26;i++){
+    const a = Math.random()*Math.PI*2, sp = 0.6 + Math.random()*3.4;
+    parts.push({ x, y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life:1, col });
+  }
+}
+
+function draw(dt){
+  ctx.clearRect(0,0,VW,VH);
+  ctx.fillStyle = '#04060e'; ctx.fillRect(0,0,VW,VH);
+  const bx = OX + R.b.l*CS, by = OY + R.b.t*CS;
+  const bw = (R.b.r - R.b.l + 1)*CS, bh = (R.b.b - R.b.t + 1)*CS;
+
+  // the floor grid, dimmer outside the live arena
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(0,245,255,0.05)';
+  ctx.beginPath();
+  for(let x=0;x<=GW;x+=2){ ctx.moveTo(OX+x*CS, OY); ctx.lineTo(OX+x*CS, OY+GH*CS); }
+  for(let y=0;y<=GH;y+=2){ ctx.moveTo(OX, OY+y*CS); ctx.lineTo(OX+GW*CS, OY+y*CS); }
+  ctx.stroke();
+
+  // dead zone the shrinking arena has already eaten
+  if(R.b.l > 0){
+    ctx.fillStyle = 'rgba(255,0,64,0.07)';
+    ctx.fillRect(OX, OY, GW*CS, GH*CS);
+    ctx.clearRect(bx, by, bw, bh);
+    ctx.fillStyle = '#04060e'; ctx.fillRect(bx, by, bw, bh);
+    ctx.strokeStyle = 'rgba(0,245,255,0.05)';
+    ctx.beginPath();
+    for(let x=R.b.l;x<=R.b.r+1;x+=2){ ctx.moveTo(OX+x*CS, by); ctx.lineTo(OX+x*CS, by+bh); }
+    for(let y=R.b.t;y<=R.b.b+1;y+=2){ ctx.moveTo(bx, OY+y*CS); ctx.lineTo(bx+bw, OY+y*CS); }
+    ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(0,245,255,0.5)'; ctx.lineWidth = 2;
+  ctx.strokeRect(bx-1, by-1, bw+2, bh+2);
+
+  // walls
+  for(let y=R.b.t; y<=R.b.b; y++){
+    for(let x=R.b.l; x<=R.b.r; x++){
+      const v = R.grid[y*GW+x];
+      if(!v) continue;
+      const col = COLORS[(R.players[v-1] ? R.players[v-1].ci : (v-1)) % COLORS.length].c;
+      ctx.fillStyle = col; ctx.globalAlpha = 0.85;
+      ctx.fillRect(OX+x*CS, OY+y*CS, CS, CS);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // pickups
+  const pulse = 0.6 + 0.4*Math.sin(now()/220);
+  for(const u of R.ups){
+    const k = KINDS.find(z => z.k === u.k) || KINDS[0];
+    const cx = OX + u.x*CS + CS/2, cy = OY + u.y*CS + CS/2, rr = CS*1.5;
+    ctx.globalAlpha = pulse;
+    ctx.strokeStyle = k.c; ctx.lineWidth = 2;
+    ctx.strokeRect(cx-rr/2, cy-rr/2, rr, rr);
+    ctx.fillStyle = k.c; ctx.globalAlpha = pulse*0.35;
+    ctx.fillRect(cx-rr/2, cy-rr/2, rr, rr);
+    ctx.globalAlpha = 1;
+  }
+
+  // riders
+  for(const p of R.players){
+    if(!p.alive) continue;
+    const col = COLORS[p.ci].c;
+    const cx = OX + p.x*CS, cy = OY + p.y*CS;
+    ctx.save();
+    ctx.shadowColor = col; ctx.shadowBlur = 14;
+    ctx.fillStyle = p.ghostT > 0 ? 'rgba(255,255,255,0.75)' : col;
+    ctx.fillRect(cx - CS*0.35, cy - CS*0.35, CS*1.7, CS*1.7);
+    ctx.restore();
+    if(p.boostT > 0){
+      ctx.strokeStyle = '#ffe600'; ctx.lineWidth = 2;
+      ctx.strokeRect(cx - CS*1.1, cy - CS*1.1, CS*3.2, CS*3.2);
+    }
+    if(p === me()){
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.5 + 0.5*Math.sin(now()/160);
+      ctx.beginPath(); ctx.arc(cx+CS/2, cy+CS/2, CS*2.6, 0, Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // particles
+  for(let i=parts.length-1;i>=0;i--){
+    const q = parts[i];
+    q.x += q.vx; q.y += q.vy; q.vx *= 0.94; q.vy *= 0.94; q.life -= dt/620;
+    if(q.life <= 0){ parts.splice(i,1); continue; }
+    ctx.globalAlpha = Math.max(0, q.life);
+    ctx.fillStyle = q.col;
+    ctx.fillRect(OX + q.x*CS, OY + q.y*CS, CS, CS);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ══════════════ HUD ══════════════
+let toastT = 0;
+function toast(t){ $('toast').textContent = t; toastT = now(); }
+function banner(title, sub, col){
+  const b = $('banner');
+  if(!title){ b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  $('btitle').textContent = title;
+  $('btitle').style.color = col || '#fff';
+  $('bsub').textContent = sub || '';
+}
+let boardSig = '';
+function paintBoard(){
+  const sig = R.players.map(p => p.seat+':'+p.score+':'+(p.alive?1:0)+':'+p.name).join('|');
+  if(sig === boardSig) return;
+  boardSig = sig;
+  $('board').innerHTML = R.players.map(p =>
+    '<div class="pchip'+(p.alive?'':' out')+(p === me()?' me':'')+'">' +
+    '<span class="dot" style="background:'+COLORS[p.ci].c+';box-shadow:0 0 8px '+COLORS[p.ci].c+'"></span>' +
+    '<span class="nm">'+esc(p.name)+'</span><span class="sc" style="color:'+COLORS[p.ci].c+'">'+p.score+'</span></div>'
+  ).join('');
+}
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ══════════════ INPUT ══════════════
+// Four seats share the keyboard. Online, the arrows and WASD both drive your own
+// cycle, because nobody wants to learn a second layout to play with strangers.
+const KEYMAPS = [
+  { r:'ArrowRight', l:'ArrowLeft', u:'ArrowUp',  d:'ArrowDown' },
+  { r:'d',          l:'a',         u:'w',        d:'s' },
+  { r:'l',          l:'j',         u:'i',        d:'k' },
+  { r:'Numpad6',    l:'Numpad4',   u:'Numpad8',  d:'Numpad5' },
+];
+const SEAT_LABEL = ['Arrow keys','W A S D','I J K L','Numpad 8 4 5 6'];
+function keyId(e){
+  if(e.code && e.code.indexOf('Numpad') === 0) return e.code;
+  return e.key && e.key.length === 1 ? e.key.toLowerCase() : e.key;
+}
+function dirFromMap(map, id){
+  if(id === map.r) return 0;
+  if(id === map.d) return 1;
+  if(id === map.l) return 2;
+  if(id === map.u) return 3;
+  return -1;
+}
+function steer(p, d){
+  if(!p || !p.alive || d < 0) return false;
+  if(d === opp(p.dir)) return false;            // no instant U-turns
+  if(MODE === 'guest'){ net.send({ t:'in', cid:MY_CID, d }); Sound.turn(); return true; }
+  p.want = d; Sound.turn();
+  return true;
+}
+document.addEventListener('keydown', e => {
+  if(R.phase === 'menu' || R.phase === 'over') return;
+  const id = keyId(e);
+  let used = false;
+  if(MODE === 'local'){
+    for(const p of R.players){
+      if(!p.local || !p.keys) continue;
+      const d = dirFromMap(KEYMAPS[p.keys], id);
+      if(d >= 0){ steer(p, d); used = true; }
+    }
+  } else {
+    const p = me();
+    for(let s=0; s<2 && p; s++){
+      const d = dirFromMap(KEYMAPS[s], id);
+      if(d >= 0){ steer(p, d); used = true; break; }
+    }
+  }
+  if(used) e.preventDefault();
+});
+
+// Swipe steering for phones — one finger, one turn.
+let tsx = 0, tsy = 0;
+const touchEl = $('touch');
+touchEl.addEventListener('touchstart', e => { const t = e.changedTouches[0]; tsx = t.clientX; tsy = t.clientY; }, {passive:true});
+touchEl.addEventListener('touchend', e => {
+  const t = e.changedTouches[0], dx = t.clientX - tsx, dy = t.clientY - tsy;
+  if(Math.abs(dx) < 24 && Math.abs(dy) < 24) return;
+  const d = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 0 : 2) : (dy > 0 ? 1 : 3);
+  const p = MODE === 'local' ? R.players.find(x => x.local) : me();
+  steer(p, d);
+}, {passive:true});
+
+// ══════════════ NET ══════════════
+const CODE_A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function code4(){
+  let s = ''; const r = new Uint8Array(4);
+  (crypto.getRandomValues ? crypto.getRandomValues(r) : r.fill(7));
+  for(const b of r) s += CODE_A[b % CODE_A.length];
+  return s;
+}
+function wsURL(room, role){
+  const base = window.GLITCHBOX_WS && !/PLACEHOLDER/i.test(window.GLITCHBOX_WS)
+    ? window.GLITCHBOX_WS
+    : (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws';
+  return base + '?room=' + encodeURIComponent(room) + '&role=' + role;
+}
+const MY_CID = (function(){ let s=''; const r=new Uint8Array(6);
+  (crypto.getRandomValues ? crypto.getRandomValues(r) : r.fill(3));
+  for(const b of r) s += CODE_A[b % CODE_A.length]; return s; })();
+
+let MODE = 'local';          // local | host | guest
+function myName(){
+  const v = ($('myname').value || '').trim().slice(0,12);
+  return v || 'Rider';
+}
+function me(){
+  if(MODE === 'local'){ const l = R.players.filter(p => p.local); return l.length === 1 ? l[0] : null; }
+  return R.players.find(p => p.cid === MY_CID) || null;
+}
+function setStatus(t, err){ const s = $('online-status'); if(!s) return; s.textContent = t || ''; s.classList.toggle('err', !!err); }
+
+const net = {
+  ws:null, role:null, code:'', online:false,
+  connect(room, role, onOpen){
+    this.close(); this.code = room; this.role = role; this.online = true;
+    setStatus('Connecting…');
+    let ws;
+    try { ws = new WebSocket(wsURL(room, role)); }
+    catch(e){ setStatus('Couldn’t reach the game server.', true); this.online = false; return; }
+    this.ws = ws;
+    ws.onopen = () => onOpen && onOpen();
+    ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch(e){ return; } handleNet(m); };
+    ws.onerror = () => setStatus('Couldn’t reach the game server. Check your connection.', true);
+    ws.onclose = () => {
+      if(!this.online) return;                   // we closed it on purpose
+      this.online = false;
+      if(MODE === 'guest' && R.phase !== 'menu') dropToMenu('Lost the connection.');
+      else setStatus('Lost the connection to the game server — try again.', true);
+    };
+  },
+  send(o){ if(this.online && this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(o)); },
+  close(){ this.online = false; if(this.ws){ this.ws.onclose = null; try { this.ws.close(); } catch(e){} this.ws = null; } },
+};
+
+// ── host → everyone ──
+function bcRoster(){
+  net.send({ t:'ros', target:R.target, ps: R.players.map(p =>
+    [p.seat, p.name, p.ci, p.bot ? 1 : 0, p.cid, p.score]) });
+}
+function packState(){
+  const ps = [];
+  for(const p of R.players){
+    const flags = (p.alive ? 1 : 0) | (p.ghostT > 0 ? 2 : 0) | (p.boostT > 0 ? 4 : 0);
+    ps.push([p.seat, p.dir, flags].concat(p.cells || []));
+  }
+  const msg = { t:'st', k:R.tick, b:[R.b.l,R.b.t,R.b.r,R.b.b], p:ps,
+                u:R.ups.map(u => [u.x, u.y, u.k]) };
+  if(events.length) msg.e = events.slice();
+  return msg;
+}
+function applyState(m){
+  R.b = { l:m.b[0], t:m.b[1], r:m.b[2], b:m.b[3] };
+  R.tick = m.k;
+  for(const row of m.p){
+    const p = R.players.find(x => x.seat === row[0]);
+    if(!p) continue;
+    const flags = row[2];
+    const wasAlive = p.alive;
+    p.dir = row[1];
+    p.alive = !!(flags & 1); p.ghostT = (flags & 2) ? 1 : 0; p.boostT = (flags & 4) ? 1 : 0;
+    for(let i=3; i+1 < row.length; i += 2){
+      const x = row[i], y = row[i+1];
+      if(!p.ghostT) R.grid[y*GW+x] = p.seat+1;
+      p.x = x; p.y = y;
+    }
+    if(wasAlive && !p.alive) p.deadAt = now();
+  }
+  R.ups = m.u.map(u => ({ x:u[0], y:u[1], k:u[2] }));
+  if(m.e) for(const ev of m.e) playEvent(ev);
+  if(window.__GL) window.__GL.snap();
+}
+function playEvent(ev){
+  const p = R.players.find(x => x.seat === ev.seat);
+  const col = p ? COLORS[p.ci].c : '#fff';
+  if(ev.e === 'die'){ burst(ev.x, ev.y, col); Sound.die(); }
+  else if(ev.e === 'up'){
+    Sound.pick();
+    if(ev.k === 'wipe'){
+      // Guests keep no trail bookkeeping — just sweep this rider's colour off the
+      // grid, then put back the square they wiped on and the one they are on now.
+      const v = ev.seat + 1;
+      for(let i=0;i<R.grid.length;i++) if(R.grid[i] === v) R.grid[i] = 0;
+      R.grid[ev.y*GW+ev.x] = v;
+      if(p) R.grid[p.y*GW+p.x] = v;
+    }
+  }
+}
+
+// ══════════════ MATCH FLOW ══════════════
+// The host (or a local game) owns the clock. `phase` drives everything:
+//   count → the 3-2-1 before a round, play → ticking, roundover → the scoreboard beat.
+const COUNT_MS = 2600, ROUNDOVER_MS = 2800;
+let phaseAt = 0, lastCount = -1;
+
+function targetFor(n){ return Math.max(4, (n-1) * 4); }
+
+function showPanel(id){
+  ['panel-home','panel-party','panel-online','panel-lobby','panel-howto','panel-over']
+    .forEach(p => $(p).classList.toggle('hidden', p !== id));
+  $('ui').classList.remove('hidden');
+  $('hud').classList.add('hidden');
+  $('touch').classList.add('hidden');
+}
+function hidePanels(){
+  $('ui').classList.add('hidden');
+  $('hud').classList.remove('hidden');
+  $('touch').classList.toggle('hidden', !('ontouchstart' in window));
+}
+
+function beginRound(){
+  layoutRound();
+  R.phase = 'count'; phaseAt = now(); lastCount = -1;
+  boardSig = ''; paintBoard();
+  hidePanels();
+  banner('3', 'Round ' + R.round, '#00f5ff');
+}
+function startMatch(){
+  R.round = 0;
+  R.target = targetFor(R.players.length);
+  R.players.forEach(p => p.score = 0);
+  if(MODE === 'host'){ bcRoster(); net.send({ t:'go', seed:R.seedState, round:0, target:R.target }); }
+  beginRound();
+  Sound.enable();
+}
+function endRound(){
+  R.phase = 'roundover'; phaseAt = now();
+  const left = aliveList();
+  if(left.length === 1){ left[0].score += ROUND_BONUS; banner(left[0].name.toUpperCase(), 'takes the round', COLORS[left[0].ci].c); Sound.win(); }
+  else banner('WIPEOUT', 'nobody made it out', '#ff3355');
+  boardSig = ''; paintBoard();
+  if(MODE === 'host') net.send({ t:'ro', sc:R.players.map(p => [p.seat, p.score]), win:left.length === 1 ? left[0].seat : -1 });
+}
+function endMatch(){
+  R.phase = 'over';
+  const rank = R.players.slice().sort((a,b) => b.score - a.score);
+  $('over-title').textContent = rank[0] ? rank[0].name.toUpperCase() + ' WINS' : 'MATCH OVER';
+  $('final-list').innerHTML = rank.map((p,i) =>
+    '<div class="frow" style="border-left-color:'+COLORS[p.ci].c+'">' +
+    '<span class="pos">#'+(i+1)+'</span><span>'+esc(p.name)+'</span>' +
+    '<span class="pts" style="color:'+COLORS[p.ci].c+'">'+p.score+'</span></div>').join('');
+  const hostSide = MODE !== 'guest';
+  $('again-btn').classList.toggle('hidden', !hostSide);
+  $('again-wait').classList.toggle('hidden', hostSide);
+  showPanel('panel-over');
+  banner('');
+  if(MODE === 'host') net.send({ t:'mo', sc:R.players.map(p => [p.seat, p.score]) });
+}
+function playAgain(){
+  if(MODE === 'guest') return;
+  startMatch();
+}
+function dropToMenu(msg){
+  net.close(); MODE = 'local'; R.phase = 'menu'; R.players = [];
+  banner(''); showPanel('panel-home');
+  if(msg) setStatus(msg, true);
+}
+function leaveToHome(){
+  net.close(); MODE = 'local'; R.phase = 'menu'; R.players = [];
+  banner(''); setStatus(''); showPanel('panel-home');
+}
+
+// ── the loop ──
+let acc = 0, last = 0;
+function frame(t){
+  const dt = Math.min(50, t - (last || t)); last = t;
+  if(R.phase === 'count'){
+    const left = COUNT_MS - (now() - phaseAt);
+    const n = Math.ceil(left/800);
+    if(n !== lastCount && n > 0){ lastCount = n; banner(String(n), 'Round ' + R.round, '#00f5ff'); Sound.count(false); }
+    if(left <= 0){ R.phase = 'play'; phaseAt = now(); R.roundStart = now(); banner('GO', '', '#00ff88'); Sound.count(true); acc = 0;
+      setTimeout(() => { if(R.phase === 'play') banner(''); }, 500); }
+  } else if(R.phase === 'play' && MODE !== 'guest'){
+    acc += dt;
+    while(acc >= TICK){
+      acc -= TICK;
+      events = [];
+      simTick();
+      if(window.__GL) window.__GL.snap();
+      if(MODE === 'host') net.send(packState());
+      for(const ev of events) playEvent(ev);
+      paintBoard();
+      if(aliveList().length <= 1){ endRound(); break; }
+    }
+  } else if(R.phase === 'roundover' && MODE !== 'guest'){
+    if(now() - phaseAt > ROUNDOVER_MS){
+      const done = R.players.some(p => p.score >= R.target);
+      if(done) endMatch();
+      else { if(MODE === 'host') net.send({ t:'go', seed:R.seedState, round:R.round, target:R.target }); beginRound(); }
+    }
+  }
+  if(R.phase !== 'menu' && R.phase !== 'over'){
+    draw(dt);
+    paintBoard();
+    if(toastT && now() - toastT > 2400){ $('toast').textContent = ''; toastT = 0; }
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ══════════════ LOCAL PARTY ══════════════
+let seatsOn = [true, true, false, false];   // which keyboard seats have a human
+let botCount = 2;
+function paintSeats(){
+  $('seat-grid').innerHTML = seatsOn.map((on,i) =>
+    '<div class="seat'+(on?'':' off')+'" data-i="'+i+'" style="border-left-color:'+(on?COLORS[i].c:'#333a52')+'">' +
+    '<div class="st" style="color:'+(on?COLORS[i].c:'#5a6690')+'">Rider '+(i+1)+(on?'':' — off')+'</div>' +
+    '<div class="sk">'+SEAT_LABEL[i]+'</div></div>').join('');
+  $('seat-grid').querySelectorAll('.seat').forEach(el => el.onclick = () => {
+    const i = +el.dataset.i;
+    seatsOn[i] = !seatsOn[i];
+    if(!seatsOn.some(Boolean)) seatsOn[0] = true;             // somebody has to play
+    botCount = clamp(botCount, 0, MAX_PLAYERS - seatsOn.filter(Boolean).length);
+    paintSeats();
+  });
+  $('botcount').textContent = botCount + (botCount === 1 ? ' bot' : ' bots');
+}
+function bumpBots(d){
+  const humans = seatsOn.filter(Boolean).length;
+  botCount = clamp(botCount + d, 0, MAX_PLAYERS - humans);
+  paintSeats();
+}
+function openParty(){ showPanel('panel-party'); paintSeats(); }
+function startParty(){
+  MODE = 'local';
+  R.players = [];
+  let seat = 0;
+  seatsOn.forEach((on,i) => { if(on) R.players.push(newPlayer(seat++, 'Rider ' + (i+1), { local:true, keys:i })); });
+  for(let i=0;i<botCount;i++) R.players.push(newPlayer(seat++, 'Bot ' + (i+1), { bot:true }));
+  if(R.players.length < 2) R.players.push(newPlayer(seat++, 'Bot 1', { bot:true }));
+  seed((Math.random()*1e9)|0);
+  startMatch();
+}
+function startSolo(){
+  MODE = 'local';
+  R.players = [ newPlayer(0, 'You', { local:true, keys:0 }) ];
+  for(let i=0;i<3;i++) R.players.push(newPlayer(i+1, 'Bot ' + (i+1), { bot:true }));
+  seed((Math.random()*1e9)|0);
+  startMatch();
+}
+
+// ══════════════ ONLINE ══════════════
+// Host-authoritative: the host runs the only simulation and ships the grid to
+// everyone every tick. Guests send turns and draw what they are told. With eight
+// cycles that is a few hundred bytes a tick — small enough to stay honest.
+let hbTimer = 0, lastPacket = 0;
+
+function openOnline(){
+  showPanel('panel-online');
+  setStatus('');
+  if(!$('myname').value){
+    let n = '';
+    try { n = localStorage.getItem('glitchbox.rider') || ''; } catch(e){}
+    $('myname').value = n;
+  }
+  loadHubName();
+}
+async function loadHubName(){
+  if($('myname').value) return;
+  try {
+    const st = await hubApi('/api/me');
+    if(st && st.profile && st.profile.name) $('myname').value = String(st.profile.name).slice(0,12);
+  } catch(e){}
+}
+function rememberName(){ try { localStorage.setItem('glitchbox.rider', myName()); } catch(e){} }
+
+function hostRoom(){
+  rememberName();
+  MODE = 'host';
+  R.players = [ newPlayer(0, myName(), { local:true, keys:0, cid:MY_CID }) ];
+  R.target = targetFor(2);
+  const room = code4();
+  net.connect(room, 'host', () => net.send({ t:'create', code:room, max:MAX_PLAYERS }));
+}
+function joinRoom(){
+  const room = ($('joincode').value || '').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);
+  if(room.length !== 4){ setStatus('That code is four characters.', true); return; }
+  rememberName();
+  MODE = 'guest';
+  R.players = [];
+  net.connect(room, 'guest', () => net.send({ t:'join', code:room }));
+}
+function startHeartbeat(){
+  clearInterval(hbTimer);
+  hbTimer = setInterval(() => {
+    if(MODE === 'guest') net.send({ t:'hi', cid:MY_CID, name:myName() });
+    if(MODE === 'host') pruneGuests();
+  }, 2000);
+}
+function pruneGuests(){
+  if(R.phase !== 'menu' && R.phase !== 'over') return;      // never re-seat mid-match
+  const t = now(), before = R.players.length;
+  R.players = R.players.filter(p => p.bot || p.local || (t - p.seen) < 9000);
+  if(R.players.length !== before){
+    R.players.forEach((p,i) => { p.seat = i; p.ci = i % COLORS.length; });
+    R.target = targetFor(Math.max(2, R.players.length));
+    bcRoster(); paintLobby();
+  }
+}
+function hostAddGuest(cid, name){
+  let p = R.players.find(x => x.cid === cid);
+  if(p){ p.seen = now(); if(name && p.name !== name.slice(0,12)){ p.name = name.slice(0,12); bcRoster(); paintLobby(); } return; }
+  if(R.phase !== 'menu' && R.phase !== 'over') return;      // the grid is live — wait it out
+  if(R.players.length >= MAX_PLAYERS) return;
+  const seat = R.players.length;
+  p = newPlayer(seat, (name || 'Rider').slice(0,12), { cid });
+  p.seen = now();
+  R.players.push(p);
+  R.target = targetFor(R.players.length);
+  bcRoster(); paintLobby();
+  toast(p.name + ' joined');
+}
+function lobbyBot(d){
+  if(MODE !== 'host') return;
+  if(d > 0){
+    if(R.players.length >= MAX_PLAYERS) return;
+    R.players.push(newPlayer(R.players.length, 'Bot ' + (R.players.filter(p => p.bot).length + 1), { bot:true }));
+  } else {
+    for(let i=R.players.length-1;i>=0;i--) if(R.players[i].bot){ R.players.splice(i,1); break; }
+    R.players.forEach((p,i) => { p.seat = i; p.ci = i % COLORS.length; });
+  }
+  R.target = targetFor(Math.max(2, R.players.length));
+  bcRoster(); paintLobby();
+}
+function hostStartMatch(){
+  if(MODE !== 'host') return;
+  if(R.players.length < 2){ toast('You need at least one more rider'); return; }
+  seed((Math.random()*1e9)|0);
+  startMatch();
+}
+function paintLobby(){
+  $('lobby-code').textContent = net.code || '····';
+  const list = $('lobby-list');
+  list.innerHTML = R.players.length ? R.players.map(p =>
+    '<div class="lrow" style="border-left-color:'+COLORS[p.ci].c+'">' +
+    '<span class="who">'+esc(p.name)+'</span>' +
+    '<span class="badge">'+(p.bot ? 'bot' : (p.cid === MY_CID ? 'you' : 'online'))+'</span></div>').join('')
+    : '<div class="empty">Nobody on the grid yet…</div>';
+  const isHost = MODE === 'host';
+  $('host-controls').classList.toggle('hidden', !isHost);
+  $('guest-wait').classList.toggle('hidden', isHost);
+  const btn = $('lobby-start');
+  if(btn) btn.textContent = 'Start the match — ' + R.players.length + (R.players.length === 1 ? ' rider' : ' riders');
+}
+
+function handleNet(m){
+  switch(m.t){
+    case 'created':
+      setStatus('');
+      showPanel('panel-lobby'); paintLobby(); startHeartbeat(); loadLobbyFriends();
+      break;
+    case 'joined':
+      setStatus('');
+      net.send({ t:'hi', cid:MY_CID, name:myName() });
+      showPanel('panel-lobby'); paintLobby(); startHeartbeat();
+      break;
+    case 'error':
+      setStatus(m.msg || 'That didn’t work.', true);
+      net.close(); MODE = 'local'; showPanel('panel-online');
+      break;
+    case 'start':
+      // Somebody new is on the wire — say hello again so the host has our name.
+      if(MODE === 'guest') net.send({ t:'hi', cid:MY_CID, name:myName() });
+      break;
+    case 'hi':
+      if(MODE === 'host') hostAddGuest(m.cid, m.name);
+      break;
+    case 'in': {
+      if(MODE !== 'host') break;
+      const p = R.players.find(x => x.cid === m.cid);
+      if(p && p.alive && m.d !== opp(p.dir)) p.want = m.d | 0;
+      break;
+    }
+    case 'ros': {
+      if(MODE !== 'guest') break;
+      R.target = m.target || R.target;
+      const old = R.players;
+      R.players = m.ps.map(row => {
+        const p = old.find(x => x.cid === row[4] && row[4]) || newPlayer(row[0], row[1], { cid:row[4] });
+        p.seat = row[0]; p.name = row[1]; p.ci = row[2]; p.bot = !!row[3]; p.cid = row[4]; p.score = row[5]|0;
+        p.local = p.cid === MY_CID;
+        return p;
+      });
+      boardSig = ''; paintLobby();
+      break;
+    }
+    case 'go':
+      if(MODE !== 'guest') break;
+      seed(m.seed);
+      R.round = m.round | 0;
+      R.target = m.target || R.target;
+      if(R.round === 0) R.players.forEach(p => p.score = 0);
+      beginRound();
+      Sound.enable();
+      break;
+    case 'st':
+      if(MODE !== 'guest') break;
+      lastPacket = now();
+      if(R.phase === 'count'){ R.phase = 'play'; banner(''); }
+      applyState(m);
+      paintBoard();
+      break;
+    case 'ro': {
+      if(MODE !== 'guest') break;
+      for(const row of m.sc){ const p = R.players.find(x => x.seat === row[0]); if(p) p.score = row[1]; }
+      R.phase = 'roundover'; phaseAt = now();
+      const w = R.players.find(x => x.seat === m.win);
+      if(w){ banner(w.name.toUpperCase(), 'takes the round', COLORS[w.ci].c); Sound.win(); }
+      else banner('WIPEOUT', 'nobody made it out', '#ff3355');
+      boardSig = ''; paintBoard();
+      break;
+    }
+    case 'mo':
+      if(MODE !== 'guest') break;
+      for(const row of m.sc){ const p = R.players.find(x => x.seat === row[0]); if(p) p.score = row[1]; }
+      endMatch();
+      break;
+    case 'left':
+      if(MODE === 'host') toast('A rider dropped out');
+      break;
+  }
+}
+
+// ── hub account plumbing: friend invites straight from the lobby ──
+async function hubApi(path, body){
+  const base = window.GLITCHBOX_API;
+  if(!base || !window.GLITCHBOX_BACKEND_READY) throw new Error('no backend');
+  let tok = '';
+  try { tok = localStorage.getItem('glitchbox_session') || ''; } catch(e){}
+  if(!tok) throw new Error('signed out');
+  const res = await fetch(base + path, {
+    method: body ? 'POST' : 'GET',
+    headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + tok },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if(!res.ok) throw new Error('http ' + res.status);
+  return res.json();
+}
+async function loadLobbyFriends(){
+  const wrap = $('lobby-invite'), box = $('lobby-friends');
+  let st;
+  try { st = await hubApi('/api/me'); } catch(e){ wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  const list = st.friends || [];
+  if(!list.length){ box.innerHTML = '<div class="note">No friends yet — add some from the GLITCHBOX menu.</div>'; return; }
+  box.innerHTML = list.map(f =>
+    '<div class="wi-row"><span class="wi-dot'+(f.online ? ' on' : '')+'"></span>' +
+    '<span class="wi-name">'+esc(f.name)+'</span>' +
+    '<button class="wi-btn" data-sub="'+esc(f.sub)+'">Invite</button></div>').join('');
+  box.querySelectorAll('.wi-btn').forEach(b => b.onclick = async () => {
+    b.disabled = true; b.textContent = 'Sending…';
+    try {
+      await hubApi('/api/invite', { sub:b.dataset.sub, game:'gridlock.html', room:net.code });
+      b.textContent = 'Invited';
+    } catch(e){ b.textContent = 'Failed'; b.disabled = false; }
+  });
+}
+
+// Arrived from a hub invite? The hash says which room, and which side we are.
+function autoRoom(){
+  const h = new URLSearchParams(location.hash.replace(/^#/,''));
+  const room = (h.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(!room) return false;
+  showPanel('panel-online');
+  rememberName();
+  if(h.get('host') === '1'){
+    MODE = 'host';
+    R.players = [ newPlayer(0, myName(), { local:true, keys:0, cid:MY_CID }) ];
+    net.connect(room, 'host', () => net.send({ t:'create', code:room, max:MAX_PLAYERS }));
+  } else {
+    MODE = 'guest'; R.players = [];
+    net.connect(room, 'guest', () => net.send({ t:'join', code:room }));
+  }
+  return true;
+}
+
+// ── expose the controls the markup calls ──
+Object.assign(window, { openParty, startParty, bumpBots, openOnline, hostRoom, joinRoom,
+  lobbyBot, hostStartMatch, startSolo, showPanel, playAgain, leaveToHome });
+
+// ══════════════ SELF-TESTS (#smoke) ══════════════
+// Everything below runs the real simulation — no mocks — so a rule change that
+// breaks the grid shows up here before it shows up in a match.
+function runSmoke(){
+  const out = [];
+  let pass = 0, fail = 0;
+  const ok = (name, cond) => { cond ? pass++ : fail++; out.push((cond ? 'ok   ' : 'FAIL ') + name); };
+  const mk = (n, opts) => {
+    R.players = [];
+    for(let i=0;i<n;i++) R.players.push(newPlayer(i, 'P'+i, (opts && opts[i]) || {}));
+    seed(12345);
+    layoutRound();
+    R.phase = 'menu';
+  };
+  const reset = () => { R.grid.fill(0); R.players.forEach(q => { q.trail = []; }); };
+  const put = (p,x,y,d) => { p.trail = []; p.x=x; p.y=y; p.dir=d; p.alive=true; paint(p,x,y); };
+
+  // ── geometry ──
+  ok('grid is 96x58', GW === 96 && GH === 58 && R.grid.length === GW*GH);
+  ok('opp() flips every direction', [0,1,2,3].every(d => opp(opp(d)) === d && opp(d) !== d));
+  ok('DX/DY are unit steps', DX.every((v,i) => Math.abs(v) + Math.abs(DY[i]) === 1));
+
+  mk(8);
+  ok('eight riders all start inside the arena',
+     R.players.every(p => p.x >= 0 && p.x < GW && p.y >= 0 && p.y < GH));
+  ok('eight riders start on eight different squares',
+     new Set(R.players.map(p => p.y*GW+p.x)).size === 8);
+  ok('every rider starts painted onto the grid',
+     R.players.every(p => R.grid[p.y*GW+p.x] === p.seat+1));
+  ok('a fresh round has an empty pickup field and full bounds',
+     R.ups.length === 0 && R.b.l === 0 && R.b.r === GW-1);
+
+  // ── movement ──
+  mk(2);
+  let a = R.players[0], b = R.players[1];
+  reset(); put(a, 10, 10, 0); put(b, 60, 40, 2);
+  const ax = a.x;
+  simTick();
+  ok('a rider moves exactly one cell a tick', a.x === ax+1 && a.y === 10);
+  ok('the cell behind becomes wall', R.grid[10*GW + ax] === a.seat+1 && R.grid[10*GW + a.x] === a.seat+1);
+  ok('the tick packet carries the cells covered', a.cells.length === 2);
+
+  a.want = 2; simTick();
+  ok('a rider cannot U-turn into their own wall', a.dir === 0 && a.alive);
+  a.want = 1; simTick();
+  ok('a rider can turn ninety degrees', a.dir === 1);
+
+  // ── crashes ──
+  mk(2); a = R.players[0]; b = R.players[1];
+  reset(); put(a, 20, 20, 0); put(b, 60, 40, 2);
+  R.grid[20*GW + 21] = 9;
+  simTick();
+  ok('riding into a wall is fatal', !a.alive && a.cause === 'trail');
+
+  mk(2); a = R.players[0]; b = R.players[1];
+  reset(); put(a, 1, 20, 2); put(b, 60, 40, 0);
+  simTick(); simTick();
+  ok('riding off the arena edge is fatal', !a.alive && a.cause === 'wall');
+
+  mk(2); a = R.players[0]; b = R.players[1];
+  reset(); put(a, 20, 20, 0); put(b, 22, 20, 2);
+  simTick();
+  ok('two heads into the same square take each other out', !a.alive && !b.alive);
+
+  mk(2); a = R.players[0]; b = R.players[1];
+  reset(); put(a, 20, 20, 0); put(b, 21, 20, 2);
+  simTick();
+  ok('two heads swapping squares take each other out', !a.alive && !b.alive);
+
+  // ── pickups ──
+  mk(2); a = R.players[0]; b = R.players[1];
+  reset(); put(a, 20, 20, 0); put(b, 60, 40, 2);
+  R.ups = [{ x:21, y:20, k:'boost' }];
+  simTick();
+  ok('boost is collected off the grid', R.ups.length === 0 && a.boostT > 0);
+  const bx = a.x;
+  simTick();
+  ok('a boosted rider covers two cells a tick', a.x === bx + 2);
+  ok('both boosted cells become wall', R.grid[20*GW + bx + 1] === a.seat+1 && R.grid[20*GW + bx + 2] === a.seat+1);
+
+  mk(2); a = R.players[0]; b = R.players[1];
+  reset(); put(a, 20, 20, 0); put(b, 60, 40, 2);
+  R.ups = [{ x:21, y:20, k:'ghost' }];
+  R.grid[20*GW + 23] = 9;
+  simTick(); simTick(); simTick();
+  ok('a ghosting rider rides straight through wall', a.alive && a.x === 23);
+  ok('a ghosting rider lays no wall of their own', R.grid[20*GW + 22] === 0);
+  a.ghostT = GHOST_MS; put(a, 2, 20, 2); a.ghostT = GHOST_MS;
+  simTick(); simTick(); simTick();
+  ok('ghosting still ends at the arena edge', !a.alive && a.cause === 'wall');
+
+  mk(2); a = R.players[0]; b = R.players[1];
+  reset(); put(a, 20, 20, 0); put(b, 40, 40, 2);
+  for(let i=0;i<5;i++) simTick();
+  const bWall = R.grid[b.y*GW + b.x];
+  R.ups = [{ x:a.x+1, y:a.y, k:'wipe' }];
+  simTick();
+  ok('a wipe clears the rider’s own wall', a.trail.length === 1);
+  ok('a wipe leaves the square under the rider', R.grid[a.y*GW + a.x] === a.seat+1);
+  ok('a wipe does not touch anyone else’s wall', R.grid[b.y*GW + b.x] === bWall);
+
+  // ── scoring ──
+  mk(4);
+  R.players.forEach(p => p.score = 0);
+  kill(R.players[0], 'test');
+  ok('a death pays every rider still going', R.players.slice(1).every(p => p.score === 1) && R.players[0].score === 0);
+  kill(R.players[1], 'test');
+  ok('the payout shrinks as the grid empties', R.players[2].score === 2 && R.players[0].score === 0);
+  ok('the match target scales with the field', targetFor(4) === 12 && targetFor(8) === 28 && targetFor(2) === 4);
+
+  // ── the closing arena ──
+  mk(2); a = R.players[0]; b = R.players[1];
+  reset(); put(a, 0, 29, 3); put(b, 50, 29, 2);
+  R.roundStart = now() - (SHRINK_AT + 10);
+  R.nextShrink = SHRINK_AT;
+  simTick();
+  ok('the arena closes in after twenty seconds', R.b.l === 1 && R.b.r === GW-2);
+  ok('the closing arena catches anyone it passes', !a.alive && a.cause === 'wall');
+
+  // ── bots ──
+  mk(4, { 0:{bot:true}, 1:{bot:true}, 2:{bot:true}, 3:{bot:true} });
+  let ticks = 0;
+  while(ticks < 90 && aliveList().length > 1){ simTick(); ticks++; }
+  ok('four bots survive a while instead of driving into the nearest wall', ticks >= 45);
+
+  mk(2, { 0:{bot:true} }); a = R.players[0]; b = R.players[1];
+  reset(); put(a, 20, 20, 0); put(b, 60, 40, 2);
+  R.grid[20*GW + 21] = 9;                        // straight ahead is a wall
+  const bd = botDir(a);
+  ok('a bot steers away from a wall it can see', bd !== 0 && bd !== opp(a.dir));
+  reset(); put(a, 20, 20, 0); put(b, 60, 40, 2);
+  ok('a bot never asks for a U-turn', botDir(a) !== opp(a.dir));
+
+  // ── pickups spawn legally ──
+  mk(3); R.ups = [];
+  let spawned = 0;
+  for(let i=0;i<10;i++) if(spawnUp()) spawned++;
+  ok('pickups spawn on free squares inside the arena',
+     spawned > 0 && R.ups.every(u => u.x > R.b.l && u.x < R.b.r && u.y > R.b.t && u.y < R.b.b));
+  ok('pickups are one of the three kinds', R.ups.every(u => KINDS.some(k => k.k === u.k)));
+
+  // ── host → guest: the packet has to rebuild the same grid ──
+  mk(4, { 1:{bot:true}, 2:{bot:true}, 3:{bot:true} });
+  seed(777);
+  const packets = [];
+  for(let i=0;i<70;i++){
+    events = [];
+    if(i === 5) R.ups.push({ x:R.players[0].x + 1, y:R.players[0].y, k:'boost' });
+    if(i === 20) R.ups.push({ x:R.players[0].x + 1, y:R.players[0].y, k:'wipe' });
+    if(i === 40) R.ups.push({ x:R.players[0].x + 1, y:R.players[0].y, k:'ghost' });
+    R.players[0].want = (i % 17 === 0) ? (R.players[0].dir + 1) & 3 : null;
+    simTick();
+    packets.push(JSON.parse(JSON.stringify(packState())));
+    if(aliveList().length <= 1) break;
+  }
+  const hostGrid = Int8Array.from(R.grid);
+  const hostHeads = R.players.map(p => [p.x, p.y, p.alive ? 1 : 0]);
+  // Replay those packets into a fresh world exactly the way a guest would.
+  const keepMode = MODE; MODE = 'guest';
+  R.players.forEach(p => { p.bot = false; });
+  seed(777); layoutRound(); R.phase = 'menu';
+  for(const pk of packets) applyState(pk);
+  MODE = keepMode;
+  let diff = 0;
+  for(let i=0;i<R.grid.length;i++) if(R.grid[i] !== hostGrid[i]) diff++;
+  ok('a guest rebuilds the host’s grid cell for cell (diff ' + diff + ')', diff === 0);
+  ok('a guest ends up with the heads in the same places',
+     R.players.every((p,i) => p.x === hostHeads[i][0] && p.y === hostHeads[i][1] && (p.alive?1:0) === hostHeads[i][2]));
+
+  // ── controls ──
+  ok('four seats map to four different key sets',
+     new Set(KEYMAPS.map(k => k.u)).size === 4);
+  ok('arrows steer seat one', dirFromMap(KEYMAPS[0], 'ArrowUp') === 3 && dirFromMap(KEYMAPS[0], 'ArrowRight') === 0);
+  ok('wasd steers seat two', dirFromMap(KEYMAPS[1], 'a') === 2 && dirFromMap(KEYMAPS[1], 's') === 1);
+  ok('ijkl steers seat three', dirFromMap(KEYMAPS[2], 'j') === 2 && dirFromMap(KEYMAPS[2], 'i') === 3);
+  ok('the numpad steers seat four', dirFromMap(KEYMAPS[3], 'Numpad4') === 2 && dirFromMap(KEYMAPS[3], 'Numpad8') === 3);
+  ok('an unrelated key steers nobody', KEYMAPS.every(k => dirFromMap(k, 'q') === -1));
+
+  // ── party setup ──
+  seatsOn = [true,true,true,true]; botCount = 9; bumpBots(0);
+  ok('bots can never overfill the grid', botCount === MAX_PLAYERS - 4);
+  seatsOn = [true,false,false,false]; botCount = 0; bumpBots(3);
+  ok('a solo human can fill the rest with bots', botCount === 3);
+
+  // ── the wire ──
+  ok('room codes are four legible characters', /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/.test(code4()));
+  const u = wsURL('AB12', 'host');
+  ok('the relay URL carries the room and the role', /room=AB12/.test(u) && /role=host/.test(u));
+  ok('and it points at a websocket', /^wss?:\/\//.test(u));
+  ok('the room asks the relay for eight seats', MAX_PLAYERS === 8);
+  ok('player ids are unique per browser', MY_CID.length === 6);
+  ok('names are escaped before they hit the DOM', esc('<b>x</b>') === '&lt;b&gt;x&lt;/b&gt;');
+
+  R.players = []; R.phase = 'menu'; R.grid.fill(0); R.ups = [];
+  const pre = document.createElement('pre');
+  pre.id = 'smokeout';
+  pre.textContent = out.join('\n') + '\n\n' + (fail ? 'SMOKE FAIL ' : 'SMOKE PASS ') + pass + '/' + (pass+fail);
+  document.body.appendChild(pre);
+  document.title = (fail ? 'SMOKE FAIL ' : 'SMOKE PASS ') + pass + '/' + (pass+fail);
+}
+
+// A headless-test hook: two browsers can be driven over CDP to prove the host and
+// its guests really do end up looking at the same grid. Only with #debug.
+if(location.hash.indexOf('debug') !== -1){
+  window.__GL = {
+    R, net, simTick, hostRoom, joinRoom, hostStartMatch, lobbyBot, startSolo, me,
+    get MODE(){ return MODE; },
+    code(){ return net.code; },
+    sum(){ let h = 0; for(let i=0;i<R.grid.length;i++) if(R.grid[i]) h = (h*31 + i*7 + R.grid[i]) >>> 0; return h; },
+    turn(d){ const p = me(); if(p) steer(p, d); },
+    hist: [],
+    snap(){ this.hist.push([R.tick, this.sum()]); if(this.hist.length > 600) this.hist.shift(); },
+  };
+}
+
+// ══════════════ BOOT ══════════════
+$('joincode').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4); });
+$('joincode').addEventListener('keydown', e => { if(e.key === 'Enter') joinRoom(); });
+$('myname').addEventListener('keydown', e => { if(e.key === 'Enter') hostRoom(); });
+paintSeats();
+
+if(SMOKE){ $('ui').classList.add('hidden'); runSmoke(); }
+else if(location.hash.indexOf('solo') !== -1){ startSolo(); }     // straight into a bot match
+else if(!autoRoom()) showPanel('panel-home');
+})();
+</script>
+<script src="glitchbox-menu.js" data-pos="top-left" defer></script>
+</body>
+</html>

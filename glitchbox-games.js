@@ -3,6 +3,7 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
+  {name:'Gridlock',           file:'gridlock.html',               emoji:'\u26a1',color:['#04060e','#0a1a34'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Three to eight light cycles, one grid, nobody stops'},
   {name:'Patch Notes',        file:'patch-notes.html',            emoji:'🩹',color:['#07090c','#121922'],category:'strategy',   tags:['new','hot']},
   {name:'Seven Liars',         file:'seven-liars.html',            emoji:'🕶️',color:['#06080b','#101a24'],category:'puzzle',     tags:['new','hot']},
   {name:'Fatespine',           file:'fatespine.html',              emoji:'\u23f3',color:['#0a0410','#24103a'],category:'action',     tags:['new','hot']},
@@ -51,6 +52,32 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
+
+'gridlock':(c)=>{
+  _GV(c,0,0,320,200,'#04060e','#060c18','#0a1a34');
+  // the arena floor
+  c.strokeStyle='rgba(0,245,255,0.07)';c.lineWidth=1;c.beginPath();
+  for(let x=0;x<=320;x+=16){c.moveTo(x+.5,0);c.lineTo(x+.5,200);}
+  for(let y=0;y<=200;y+=16){c.moveTo(0,y+.5);c.lineTo(320,y+.5);}
+  c.stroke();
+  c.strokeStyle='rgba(0,245,255,0.45)';c.lineWidth=2;c.strokeRect(9,9,302,182);
+  // three cycles, each boxing the next one in
+  const ride=(pts,col)=>{
+    c.strokeStyle=col;c.lineWidth=5;c.lineCap='butt';c.lineJoin='miter';
+    c.beginPath();c.moveTo(pts[0],pts[1]);
+    for(let i=2;i<pts.length;i+=2)c.lineTo(pts[i],pts[i+1]);
+    c.stroke();
+    c.save();c.shadowColor=col;c.shadowBlur=12;
+    _F(c,pts[pts.length-2]-5,pts[pts.length-1]-5,10,10,col);c.restore();
+  };
+  ride([26,40,150,40,150,120,84,120,84,74],'#00f5ff');
+  ride([292,160,190,160,190,64,246,64,246,112],'#ff0080');
+  ride([120,182,120,146,232,146,232,182],'#00ff88');
+  // a pickup waiting to be taken
+  c.strokeStyle='#ffe600';c.lineWidth=2;c.strokeRect(58,158,12,12);
+  c.fillStyle='rgba(255,230,0,0.35)';c.fillRect(58,158,12,12);
+  _SC(c);
+},
 
 'patch-notes':(c)=>{
   _GV(c,0,0,320,200,'#07090c','#0b0f14','#121922');

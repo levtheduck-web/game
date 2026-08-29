@@ -75,6 +75,36 @@ body::before {
 .stage:-webkit-full-screen .frame-box { aspect-ratio:auto; width:100vw; height:100vh; }
 .stage:-webkit-full-screen .toolbar { display:none; }
 
+/* ── EXPANDED: the game window swallows the whole browser window ──
+   Native fullscreen leaves the browser chrome behind and some games fight it,
+   so "expand" is our own maximise: the stage goes fixed, everything else on the
+   page steps aside, and a small floating bar brings it back down. */
+body.expanded { overflow:hidden; }
+body.expanded .topbar { display:none; }
+body.expanded .wrap { max-width:none; padding:0; }
+body.expanded .stage { position:fixed; inset:0; z-index:60; clip-path:none; border:0; box-shadow:none; }
+body.expanded .frame-box { aspect-ratio:auto; width:100%; height:100%; min-height:0; }
+body.expanded .toolbar { display:none; }
+/* recommendations only exist in the small window — see the note in the JS */
+body.expanded .info-strip, body.expanded .blurb, body.expanded .section, body.expanded .foot { display:none; }
+
+.float-bar { display:none; }
+body.expanded .float-bar {
+  position:fixed; top:10px; right:12px; z-index:70; display:flex; gap:6px;
+  opacity:0.2; transition:opacity 0.18s;
+}
+body.expanded .float-bar:hover { opacity:1; }
+.float-bar .tool { background:rgba(8,11,20,0.92); backdrop-filter:blur(6px); }
+.expand-hint {
+  position:fixed; top:56px; right:12px; z-index:70; display:none;
+  background:rgba(8,11,20,0.94); border:1px solid rgba(0,245,255,0.3); color:var(--cyan);
+  padding:9px 14px; font-size:12px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase;
+  box-shadow:0 0 20px rgba(0,245,255,0.15); pointer-events:none;
+  clip-path:polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
+}
+.expand-hint.show { display:block; animation:hintIn 0.25s ease-out; }
+@keyframes hintIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+
 /* click-to-play veil: the first click hands the keyboard to the game */
 .veil {
   position:absolute; inset:0; z-index:5; display:flex; flex-direction:column;
@@ -212,7 +242,8 @@ body::before {
       </div>
     </div>
     <div class="toolbar">
-      <button class="tool primary" onclick="goFullscreen()"><span class="t-i">⛶</span>Fullscreen</button>
+      <button class="tool primary" onclick="toggleExpand()"><span class="t-i">⛶</span>Expand</button>
+      <button class="tool" onclick="goFullscreen()"><span class="t-i">▣</span>Fullscreen</button>
       <button class="tool" onclick="restart()"><span class="t-i">⟳</span>Restart</button>
       <button class="tool star" id="fav-tool" onclick="toggleFav()"><span class="t-i" id="fav-icon">☆</span><span id="fav-text">Favorite</span></button>
       <a class="tool" id="raw-link" href="#" target="_blank" rel="noopener" title="Open the game on its own page"><span class="t-i">↗</span>New tab</a>
@@ -222,6 +253,13 @@ body::before {
       <a class="tool quit right" href="index.html"><span class="t-i">✕</span>Quit</a>
     </div>
   </div>
+
+  <div class="float-bar" id="float-bar">
+    <button class="tool primary" onclick="toggleExpand()"><span class="t-i">◱</span>Minimize</button>
+    <button class="tool" onclick="goFullscreen()"><span class="t-i">▣</span>Fullscreen</button>
+    <a class="tool quit" href="index.html"><span class="t-i">✕</span>Quit</a>
+  </div>
+  <div class="expand-hint" id="expand-hint">◱ Minimize — top right — for more games</div>
 
   <div class="info-strip">
     <h1 id="game-title">GAME</h1>
@@ -333,6 +371,43 @@ function goFullscreen(){
 document.addEventListener('fullscreenchange', () => {
   if(document.fullscreenElement){ try{ frame.contentWindow.focus(); }catch(e){} }
 });
+
+// ══════════════════ EXPAND / MINIMIZE ══════════════════
+// Expanded, the frame fills the browser window and the page underneath is hidden.
+// Minimized, the game sits in its window and the recommendation grids below it
+// come back — that's the whole point of this page.
+const EXPAND_KEY='glitchbox.expand';
+let hintTimer=0;
+function isExpanded(){ return document.body.classList.contains('expanded'); }
+function setExpanded(on){
+  document.body.classList.toggle('expanded',!!on);
+  try{ localStorage.setItem(EXPAND_KEY,on?'1':'0'); }catch(e){}
+  const hint=document.getElementById('expand-hint');
+  clearTimeout(hintTimer);
+  if(on){
+    hint.classList.add('show');
+    hintTimer=setTimeout(()=>hint.classList.remove('show'),2600);
+    startGame();
+  } else {
+    hint.classList.remove('show');
+    // Coming back down, put the game window (and the grids under it) in view.
+    window.scrollTo({top:0,behavior:'auto'});
+  }
+  try{ frame.contentWindow.focus(); }catch(e){}
+}
+function toggleExpand(){ setExpanded(!isExpanded()); }
+// Esc is the universal "get me out" — but the keystroke lands inside the game's
+// own document, so listen there too once the frame is same-origin loaded.
+document.addEventListener('keydown', e => { if(e.key==='Escape' && isExpanded() && !document.fullscreenElement) setExpanded(false); });
+frame.addEventListener('load', () => {
+  try {
+    frame.contentDocument.addEventListener('keydown', e => {
+      // Shift+Esc, so a plain Esc still reaches games that use it to pause.
+      if(e.key==='Escape' && e.shiftKey && isExpanded()) setExpanded(false);
+    });
+  } catch(e){}
+});
+try { if(localStorage.getItem(EXPAND_KEY)==='1') setExpanded(true); } catch(e){}
 
 // ══════════════════ "ALWAYS FULLSCREEN" PREFERENCE ══════════════════
 // Shared with the hub's FRAMED/FULL switch — tick it here and the arcade stops
