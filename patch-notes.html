@@ -1,0 +1,1479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PATCH NOTES</title>
+<script src="glitchbox-save.js" data-pos="bottom-left"></script>
+<style>
+/* ═══════════════════════ PATCH NOTES — changelog palette ═══════════════════
+   The whole game is dressed as a game's own dev changelog: monospace, version
+   badges, and the red/green of a diff. Buffs are additions, nerfs are
+   deletions, and the five card tags each own one accent colour.
+   ========================================================================= */
+:root{
+  --bg:#07090c; --bg2:#0b0f14;
+  --panel:#0d1117; --panel2:#121922; --raise:#18212c;
+  --line:#1e2733; --line2:#2c3947;
+  --ink:#d5dde5; --dim:#8592a0; --dimmer:#5a6672;
+  --green:#3fb950; --red:#f85149; --blue:#58a6ff; --amber:#d29922; --violet:#bc8cff;
+  --FIRE:#f85149; --STEEL:#58a6ff; --VOID:#bc8cff; --BEAST:#d29922; --TECH:#3fb950;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  background:radial-gradient(1200px 700px at 50% -10%,#101822 0%,var(--bg) 62%);
+  color:var(--ink); font-family:var(--mono); font-size:14px; overflow:hidden;
+  user-select:none; -webkit-user-select:none;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+.hidden{display:none !important}
+s{color:var(--dimmer);text-decoration-color:var(--red)}
+
+/* ── shell ── */
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+#topbar{
+  flex:0 0 auto;display:flex;align-items:center;gap:12px;
+  padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel);
+  font-size:12px;letter-spacing:.06em;
+}
+.brand{font-weight:700;letter-spacing:.16em;color:var(--ink)}
+.brand span{color:var(--green)}
+.badge{
+  padding:2px 8px;border:1px solid var(--line2);border-radius:4px;
+  color:var(--dim);background:var(--panel2);white-space:nowrap;
+}
+#verbadge{color:var(--green);border-color:#1c3a24;background:#0d1a11}
+#topbar .grow{flex:1}
+#logbtn{padding:3px 10px;border:1px solid var(--line2);border-radius:4px;color:var(--dim)}
+#logbtn:hover{color:var(--ink);border-color:var(--blue)}
+#logbtn b{color:var(--amber)}
+
+.screen{flex:1;min-height:0;overflow:auto;display:none;flex-direction:column}
+.screen.on{display:flex}
+.wrap{max-width:1080px;width:100%;margin:0 auto;padding:18px 16px 28px}
+
+h2{font-size:13px;letter-spacing:.18em;color:var(--dim);font-weight:600;margin-bottom:10px}
+.sub{color:var(--dim);font-size:12px;line-height:1.65}
+.k{color:var(--ink)}
+.gr{color:var(--green)} .rd{color:var(--red)} .bl{color:var(--blue)} .am{color:var(--amber)} .vi{color:var(--violet)}
+
+/* ── title ── */
+#s-title .wrap{max-width:700px;padding-top:6vh;text-align:center}
+.logo{font-size:clamp(34px,9vw,64px);font-weight:700;letter-spacing:.1em;line-height:1.05}
+.logo .a{color:var(--ink)} .logo .b{color:var(--green)}
+.tagline{margin:18px auto 26px;max-width:520px;color:var(--dim);font-size:13px;line-height:1.8}
+.tagline em{color:var(--ink);font-style:normal}
+.btn{
+  display:inline-block;padding:11px 26px;border:1px solid var(--line2);border-radius:6px;
+  background:var(--panel2);color:var(--ink);letter-spacing:.12em;font-size:13px;
+}
+.btn:hover{border-color:var(--green);background:#0f1a12;color:var(--green)}
+.btn.ghost{background:none;color:var(--dim)}
+.btn.ghost:hover{color:var(--ink);border-color:var(--line2);background:var(--panel2)}
+.btn[disabled]{opacity:.35;cursor:not-allowed;border-color:var(--line);background:var(--panel)}
+.btn[disabled]:hover{color:var(--ink);border-color:var(--line);background:var(--panel)}
+.btnrow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+.rules{
+  text-align:left;margin:26px auto 0;max-width:560px;border:1px solid var(--line);
+  border-radius:8px;background:var(--panel);padding:14px 16px;
+}
+.rules div{padding:4px 0;color:var(--dim);font-size:12px;line-height:1.6}
+.rules b{color:var(--ink);font-weight:600}
+
+/* ── battle ── */
+#s-battle{justify-content:center}
+#s-battle .wrap{max-width:1180px;padding:12px 14px 8px;display:flex;flex-direction:column;gap:10px;margin:auto}
+.fighter{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:10px 12px}
+.fighter.foe{border-color:#2a1d1d}
+.fline{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fname{font-weight:700;letter-spacing:.08em}
+.hpbar{flex:1;min-width:140px;height:14px;border:1px solid var(--line2);border-radius:3px;background:#0a0d11;position:relative;overflow:hidden}
+.hpfill{position:absolute;inset:0;width:100%;transform-origin:left;background:linear-gradient(90deg,#8f2a2a,#f85149);transition:transform .28s}
+.fighter.you .hpfill{background:linear-gradient(90deg,#1f6f34,#3fb950)}
+.hptext{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;letter-spacing:.08em;color:#fff;text-shadow:0 1px 2px #000}
+.pip{padding:2px 7px;border-radius:4px;border:1px solid var(--line2);font-size:11px;color:var(--dim);white-space:nowrap}
+.pip.blk{color:var(--blue);border-color:#1b3char}
+.pip.blk{color:var(--blue);border-color:#1b3350;background:#0b1420}
+.pip.nrg{color:var(--amber);border-color:#3a2f13;background:#171208}
+.pip.zero{opacity:.4}
+
+.minihand{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.mini{
+  border:1px solid var(--line2);border-radius:5px;background:var(--panel2);
+  padding:4px 7px;font-size:10.5px;color:var(--dim);line-height:1.35;min-width:96px;
+}
+.mini b{display:block;color:var(--ink);font-size:11px;font-weight:600}
+.mini .c{float:right;color:var(--amber)}
+
+#battle-mid{flex:0 0 auto;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;overflow:hidden}
+#log{font-size:11.5px;line-height:1.7;color:var(--dim);height:118px;overflow:auto;
+  border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:8px 12px}
+#log div{padding:1px 0}
+#log .hit{color:var(--red)} #log .def{color:var(--blue)} #log .good{color:var(--green)} #log .sys{color:var(--violet)}
+#log b{color:var(--ink);font-weight:600}
+
+#hand{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;min-height:150px;align-items:flex-end}
+.card{
+  width:132px;border:1px solid var(--line2);border-radius:8px;background:linear-gradient(180deg,var(--panel2),var(--panel));
+  padding:8px 9px 9px;cursor:pointer;position:relative;transition:transform .12s,border-color .12s,box-shadow .12s;
+}
+.card:hover{transform:translateY(-6px);border-color:var(--tagc,var(--blue));box-shadow:0 6px 20px rgba(0,0,0,.6)}
+.card.dead{opacity:.42;cursor:not-allowed}
+.card.dead:hover{transform:none;border-color:var(--line2);box-shadow:none}
+.card .cost{
+  position:absolute;top:-8px;left:-8px;width:22px;height:22px;border-radius:50%;
+  border:1px solid var(--amber);background:#171208;color:var(--amber);
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;
+}
+.card .cost.mod{border-color:var(--green);color:var(--green);background:#0d1a11}
+.card .nm{font-size:11.5px;font-weight:700;letter-spacing:.03em;margin-bottom:3px;padding-left:14px}
+.card .tg{font-size:9px;letter-spacing:.14em;color:var(--tagc);margin-bottom:6px}
+.card .tx{font-size:10.5px;line-height:1.55;color:var(--dim);min-height:44px}
+.card .tx b{color:var(--ink);font-weight:600}
+.card.sel{border-color:var(--green);box-shadow:0 0 0 1px var(--green)}
+.bar{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;padding-bottom:4px}
+
+/* ── draft ── */
+.matchup{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:12px 14px;margin-bottom:16px}
+.decklist{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.chip{font-size:10.5px;padding:2px 7px;border-radius:4px;border:1px solid var(--line2);background:var(--panel2);color:var(--dim)}
+.chip i{font-style:normal;color:var(--tagc)}
+.patchgrid{display:grid;grid-template-columns:1fr;gap:10px}
+.patch{
+  border:1px solid var(--line2);border-left:3px solid var(--dimmer);border-radius:7px;
+  background:var(--panel);padding:11px 13px;cursor:pointer;transition:border-color .12s,background .12s;
+}
+.patch:hover{background:var(--panel2)}
+.patch.buff{border-left-color:var(--green)} .patch.nerf{border-left-color:var(--red)} .patch.chaos{border-left-color:var(--violet)}
+.patch .sig{font-size:10px;letter-spacing:.14em;color:var(--dim);margin-bottom:6px}
+.patch.buff .sig{color:var(--green)} .patch.nerf .sig{color:var(--red)} .patch.chaos .sig{color:var(--violet)}
+.patch .body{font-size:12.5px;line-height:1.6;color:var(--ink)}
+.patch .est{display:flex;gap:14px;margin-top:9px;font-size:10.5px;color:var(--dim);border-top:1px solid var(--line);padding-top:7px}
+.patch.pick{border-color:var(--green);background:#0d1a11}
+.patch.theirs{cursor:default;opacity:.9}
+.patch.theirs:hover{background:var(--panel)}
+.patch.took{border-color:var(--red);background:#180f10}
+.patch.faded{opacity:.3}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:820px){.cols{grid-template-columns:1fr}}
+
+/* ── rebuild ── */
+.deckgrid{display:flex;gap:8px;flex-wrap:wrap}
+.swapinfo{margin:6px 0 14px;font-size:12px;color:var(--dim)}
+
+/* ── changelog drawer ── */
+#changelog{
+  position:fixed;top:0;right:0;bottom:0;width:min(420px,88vw);z-index:40;
+  background:var(--panel);border-left:1px solid var(--line2);
+  transform:translateX(102%);transition:transform .22s;display:flex;flex-direction:column;
+}
+#changelog.on{transform:none}
+#changelog .hd{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+#changelog .bd{flex:1;overflow:auto;padding:10px 14px 22px}
+.centry{border-bottom:1px solid var(--line);padding:8px 0;font-size:12px;line-height:1.6}
+.centry .v{font-size:10px;color:var(--dim);letter-spacing:.1em}
+.centry .l{display:flex;gap:8px;margin-top:3px}
+.centry .s{font-weight:700;flex:0 0 auto}
+.centry.buff .s{color:var(--green)} .centry.nerf .s{color:var(--red)} .centry.chaos .s{color:var(--violet)}
+.centry .who{font-size:9.5px;letter-spacing:.12em;color:var(--dimmer);margin-top:4px}
+
+/* ── end ── */
+#s-end .wrap{max-width:640px;padding-top:8vh;text-align:center}
+
+/* ── float text ── */
+#floats{position:fixed;inset:0;pointer-events:none;z-index:30;overflow:hidden}
+.ft{position:absolute;font-size:20px;font-weight:700;text-shadow:0 2px 6px #000;animation:fly 1s ease-out forwards}
+@keyframes fly{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-46px)}}
+
+/* ── smoke ── */
+#smokeout{position:fixed;inset:0;z-index:999;background:#000;color:#5f5;font:12px/1.5 var(--mono);padding:14px;overflow:auto;white-space:pre-wrap}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header id="topbar">
+    <div class="brand">PATCH<span>NOTES</span></div>
+    <div class="badge" id="verbadge">v0.1.0</div>
+    <div class="badge" id="stagebadge">MAIN MENU</div>
+    <div class="grow"></div>
+    <button id="logbtn">CHANGELOG <b id="logcount">0</b></button>
+  </header>
+
+  <!-- ══ TITLE ══ -->
+  <section class="screen on" id="s-title"><div class="wrap">
+    <div class="logo"><span class="a">PATCH</span> <span class="b">NOTES</span></div>
+    <div class="tagline">
+      A card battler where you never buy cards.<br>
+      You buy <em>balance changes</em> — and they apply to <em>both decks</em>.
+    </div>
+    <div class="btnrow">
+      <button class="btn" id="btn-start">START RUN</button>
+      <button class="btn ghost" id="btn-continue">CONTINUE</button>
+    </div>
+    <div class="rules">
+      <div><b>1.</b> Fight an opponent. Both sides play from a 10-card deck under identical rules.</div>
+      <div><b>2.</b> Win, and the game <b>patches</b>. You take one balance change. Your next opponent takes one too.</div>
+      <div><b>3.</b> Patches are global and permanent. Nerfing FIRE nerfs <b>your</b> FIRE.</div>
+      <div><b>4.</b> Then you rebuild — swap up to 2 cards to exploit the rules you just wrote.</div>
+      <div><b>5.</b> Survive 9 opponents and the build ships as <b>v1.0</b>.</div>
+    </div>
+  </div></section>
+
+  <!-- ══ BATTLE ══ -->
+  <section class="screen" id="s-battle"><div class="wrap">
+    <div class="fighter foe" id="foe-box">
+      <div class="fline">
+        <div class="fname" id="foe-name">—</div>
+        <div class="hpbar"><div class="hpfill" id="foe-hpfill"></div><div class="hptext" id="foe-hptext"></div></div>
+        <div class="pip blk" id="foe-blk">⛨ 0</div>
+        <div class="pip nrg" id="foe-nrg">⚡ 0</div>
+        <div class="pip" id="foe-pile">🂠 0</div>
+      </div>
+      <div class="minihand" id="foe-hand"></div>
+    </div>
+
+    <div id="battle-mid"><div id="log"></div></div>
+
+    <div class="fighter you">
+      <div class="fline">
+        <div class="fname">YOU</div>
+        <div class="hpbar"><div class="hpfill" id="you-hpfill"></div><div class="hptext" id="you-hptext"></div></div>
+        <div class="pip blk" id="you-blk">⛨ 0</div>
+        <div class="pip nrg" id="you-nrg">⚡ 0</div>
+        <div class="pip" id="you-pile">🂠 0</div>
+      </div>
+    </div>
+
+    <div id="hand"></div>
+    <div class="bar">
+      <button class="btn" id="btn-endturn">END TURN</button>
+      <span class="sub" id="turnnote"></span>
+    </div>
+  </div></section>
+
+  <!-- ══ PATCH DRAFT ══ -->
+  <section class="screen" id="s-draft"><div class="wrap">
+    <div class="matchup" id="draft-matchup"></div>
+    <div class="cols">
+      <div>
+        <h2>YOUR PATCH — PICK ONE</h2>
+        <div class="patchgrid" id="draft-mine"></div>
+      </div>
+      <div>
+        <h2 id="theirs-title">THEIR OPTIONS — THEY TAKE ONE</h2>
+        <div class="patchgrid" id="draft-theirs"></div>
+      </div>
+    </div>
+    <div class="btnrow" style="margin-top:20px"><button class="btn hidden" id="btn-todeck">REBUILD DECK →</button></div>
+  </div></section>
+
+  <!-- ══ REBUILD ══ -->
+  <section class="screen" id="s-rebuild"><div class="wrap">
+    <h2>YOUR DECK — UNDER THE NEW RULES</h2>
+    <div class="swapinfo" id="swapinfo"></div>
+    <div class="deckgrid" id="rb-deck"></div>
+    <h2 style="margin-top:22px">FREE AGENTS — CLICK A DECK CARD, THEN ONE OF THESE</h2>
+    <div class="deckgrid" id="rb-pool"></div>
+    <div class="btnrow" style="margin-top:22px"><button class="btn" id="btn-fight">NEXT OPPONENT →</button></div>
+  </div></section>
+
+  <!-- ══ END ══ -->
+  <section class="screen" id="s-end"><div class="wrap">
+    <div class="logo" id="end-title"></div>
+    <div class="tagline" id="end-body"></div>
+    <div class="btnrow"><button class="btn" id="btn-again">NEW RUN</button></div>
+  </div></section>
+</div>
+
+<aside id="changelog">
+  <div class="hd"><div class="brand">CHANGELOG</div><div class="grow" style="flex:1"></div><button class="btn ghost" id="logclose" style="padding:4px 12px">CLOSE</button></div>
+  <div class="bd" id="logbody"></div>
+</aside>
+
+<div id="floats"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   PATCH NOTES
+   --------------------------------------------------------------------------
+   Two decks, one rulebook. Every card resolves through the same modifier
+   pipeline, so a patch the player takes to break an opponent breaks their own
+   deck by exactly the same maths. That symmetry is the entire game, so it is
+   enforced in one place: eff*() below. Nothing bypasses it.
+   ══════════════════════════════════════════════════════════════════════════ */
+const HASH  = location.hash || '';
+const SMOKE = HASH.indexOf('smoke') !== -1;
+const $ = id => document.getElementById(id);
+
+/* ── seeded RNG so #smoke is deterministic ─────────────────────────────── */
+let _seed = 1;
+function seed(n){ _seed = (n >>> 0) || 1; }
+function rnd(){ _seed ^= _seed << 13; _seed >>>= 0; _seed ^= _seed >> 17; _seed ^= _seed << 5; _seed >>>= 0; return _seed / 4294967296; }
+function pick(a){ return a[Math.floor(rnd() * a.length)]; }
+function shuffle(a){ for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+/* ══════════════════════════ CARDS ═══════════════════════════════════════
+   Every card is data over a tiny set of primitives — dmg / hits / block /
+   heal / draw / energy / self / strip — because patches hook the primitives,
+   not the cards. Adding a card can never miss a patch, and vice versa.
+   ====================================================================== */
+const CARDS = {
+  /* FIRE — raw damage, thin defence */
+  ember:    {n:'Ember Strike', tag:'FIRE',  cost:1, dmg:7},
+  firebolt: {n:'Firebolt',     tag:'FIRE',  cost:2, dmg:13},
+  cinder:   {n:'Cinder Rain',  tag:'FIRE',  cost:2, dmg:4, hits:3},
+  immolate: {n:'Immolate',     tag:'FIRE',  cost:3, dmg:20, self:3},
+  backdraft:{n:'Backdraft',    tag:'FIRE',  cost:1, dmg:4, perTurnTag:'FIRE', per:4},
+
+  /* STEEL — block, and turning block into tempo */
+  tempered: {n:'Tempered',     tag:'STEEL', cost:0, block:4},
+  bulwark:  {n:'Bulwark',      tag:'STEEL', cost:1, block:5},
+  riposte:  {n:'Riposte',      tag:'STEEL', cost:1, block:3, dmg:5},
+  ironwall: {n:'Iron Wall',    tag:'STEEL', cost:2, block:10},
+  anvil:    {n:'Anvil',        tag:'STEEL', cost:2, block:7, discount:1},
+  plating:  {n:'Plating',      tag:'STEEL', cost:3, block:16},
+
+  /* VOID — cards, and stripping what the enemy built */
+  glimpse:  {n:'Glimpse',      tag:'VOID',  cost:0, draw:2},
+  rift:     {n:'Rift',         tag:'VOID',  cost:1, dmg:5, draw:1},
+  erase:    {n:'Erase',        tag:'VOID',  cost:2, dmg:6, strip:9},
+  nullfield:{n:'Null Field',   tag:'VOID',  cost:2, block:6, draw:1},
+  collapse: {n:'Collapse',     tag:'VOID',  cost:3, dmg:9, perHand:3},
+
+  /* BEAST — scales off its own kind */
+  claw:     {n:'Claw',         tag:'BEAST', cost:1, dmg:6},
+  feed:     {n:'Feed',         tag:'BEAST', cost:2, heal:9},
+  rend:     {n:'Rend',         tag:'BEAST', cost:2, dmg:9, heal:3},
+  pack:     {n:'Pack Tactics', tag:'BEAST', cost:1, dmg:2, perFightTag:'BEAST', per:2},
+  frenzy:   {n:'Frenzy',       tag:'BEAST', cost:3, dmg:7, hits:2},
+
+  /* TECH — engine: energy, draw, pierce */
+  overclock:{n:'Overclock',    tag:'TECH',  cost:0, energy:2, self:2},
+  nanobots: {n:'Nanobots',     tag:'TECH',  cost:1, block:5, heal:3},
+  recompile:{n:'Recompile',    tag:'TECH',  cost:1, draw:2, self:1},
+  uplink:   {n:'Uplink',       tag:'TECH',  cost:2, dmg:9, draw:1},
+  railgun:  {n:'Railgun',      tag:'TECH',  cost:3, dmg:16, pierce:true},
+};
+Object.keys(CARDS).forEach(id => CARDS[id].id = id);
+const CARD_IDS = Object.keys(CARDS);
+
+/* ══════════════════════════ PATCHES ═════════════════════════════════════
+   `tagVal` / `cardVal` / `flat` feed one shared estimator, patchVal(). The
+   opponent AI picks with it, and the player sees its output on every patch —
+   the same numbers, honestly wrong for both of us.
+   ====================================================================== */
+const PATCHES = [
+  {id:'fire-nerf', k:'nerf', t:'FIRE damage reduced by 30%.',
+   dmg:(d,c)=> c.tag==='FIRE' ? d*0.7 : d, tagVal:{FIRE:-2.4}},
+  {id:'fire-buff', k:'buff', t:'FIRE cards deal +3 damage.',
+   dmg:(d,c)=> c.tag==='FIRE'&&c.dmg ? d+3 : d, tagVal:{FIRE:2.4}},
+  {id:'steel-cheap', k:'buff', t:'STEEL cards cost 1 less.',
+   cost:(v,c)=> c.tag==='STEEL' ? v-1 : v, tagVal:{STEEL:2.2}},
+  {id:'steel-nerf', k:'nerf', t:'STEEL cards grant 30% less block.',
+   block:(b,c)=> c.tag==='STEEL' ? b*0.7 : b, tagVal:{STEEL:-2.2}},
+  {id:'void-tax', k:'nerf', t:'VOID cards cost 1 more.',
+   cost:(v,c)=> c.tag==='VOID' ? v+1 : v, tagVal:{VOID:-2.6}},
+  {id:'void-echo', k:'buff', t:'VOID cards draw 1 extra card.',
+   draw:(n,c)=> c.tag==='VOID' ? n+1 : n, tagVal:{VOID:2.4}},
+  {id:'beast-swarm', k:'buff', t:'BEAST cards deal +2 damage for each BEAST already played this turn.',
+   dmg:(d,c,s)=> c.tag==='BEAST'&&c.dmg ? d + 2*turnTagCount(s,'BEAST') : d, tagVal:{BEAST:2.2}},
+  {id:'beast-tax', k:'nerf', t:'BEAST cards deal 2 damage to their owner.',
+   onPlay:(c,s)=>{ if (c.tag==='BEAST') hurt(s,2,true); }, tagVal:{BEAST:-2.2}},
+  {id:'tech-overheat', k:'nerf', t:'TECH cards deal 3 damage to their owner.',
+   onPlay:(c,s)=>{ if (c.tag==='TECH') hurt(s,3,true); }, tagVal:{TECH:-2.6}},
+  {id:'tech-boost', k:'buff', t:'TECH cards deal +4 damage.',
+   dmg:(d,c)=> c.tag==='TECH'&&c.dmg ? d+4 : d, tagVal:{TECH:2.4}},
+
+  {id:'heavy', k:'buff', t:'Cards costing 3 or more deal +7 damage.',
+   dmg:(d,c)=> c.cost>=3&&c.dmg ? d+7 : d, cardVal:c=> c.cost>=3&&c.dmg ? 3 : 0},
+  {id:'cheap', k:'buff', t:'Cards costing 1 or less deal +3 damage.',
+   dmg:(d,c)=> c.cost<=1&&c.dmg ? d+3 : d, cardVal:c=> c.cost<=1&&c.dmg ? 2 : 0},
+  {id:'tax-heavy', k:'nerf', t:'Cards costing 3 or more cost 1 more.',
+   cost:(v,c)=> c.cost>=3 ? v+1 : v, cardVal:c=> c.cost>=3 ? -3 : 0},
+
+  {id:'block-persist', k:'buff', t:'Block no longer expires at the start of your turn.',
+   persist:true, cardVal:c=> c.block ? 2 : 0},
+  {id:'block-half', k:'nerf', t:'Block is halved at the start of your turn instead of cleared.',
+   half:true, cardVal:c=> c.block ? 1 : 0},
+  {id:'pierce', k:'chaos', t:'All damage ignores 4 block.',
+   pierce:4, cardVal:c=> (c.dmg?1.2:0) + (c.block?-1.6:0)},
+  {id:'glass', k:'chaos', t:'All damage +50%. All block −50%.',
+   dmg:d=>d*1.5, block:b=>b*0.5, cardVal:c=> (c.dmg?2.2:0) + (c.block?-2.2:0)},
+
+  {id:'papercuts', k:'nerf', t:'Drawing a card deals 1 damage to its owner.',
+   onDraw:s=>hurt(s,1,true), cardVal:c=> c.draw ? -1.6 : 0, flat:-4},
+  {id:'free-opener', k:'buff', t:'The first card you play each turn costs 0.',
+   firstFree:true, flat:6},
+  {id:'energy-up', k:'buff', t:'Max energy increased by 1.',
+   energy:1, cardVal:c=> c.cost*0.7},
+  {id:'energy-down', k:'nerf', t:'Max energy reduced by 1.',
+   energy:-1, cardVal:c=> -c.cost*0.7},
+  {id:'hand-up', k:'buff', t:'Draw 1 extra card each turn.',
+   hand:1, flat:5},
+  {id:'hand-down', k:'nerf', t:'Draw 1 fewer card each turn.',
+   hand:-1, flat:-5},
+
+  {id:'heal-cap', k:'nerf', t:'Healing is capped at 4 per card.',
+   heal:h=>Math.min(h,4), cardVal:c=> c.heal>4 ? -2.4 : 0},
+  {id:'no-heal', k:'nerf', t:'Healing does nothing.',
+   heal:()=>0, cardVal:c=> c.heal ? -3.4 : 0},
+  {id:'multi-up', k:'buff', t:'Multi-hit cards gain 1 hit.',
+   hits:(h,c)=> c.hits>1 ? h+1 : h, cardVal:c=> c.hits>1 ? 3.4 : 0},
+  {id:'multi-down', k:'nerf', t:'Multi-hit cards lose 1 hit.',
+   hits:(h,c)=> c.hits>1 ? Math.max(1,h-1) : h, cardVal:c=> c.hits>1 ? -3.4 : 0},
+  {id:'attrition', k:'chaos', t:'Both fighters lose 3 HP at the start of their turn.',
+   turnStart:s=>hurt(s,3,true), cardVal:c=> c.dmg ? 0.5 : -0.5},
+  {id:'reinforce', k:'buff', t:'Gain 3 block at the start of your turn.',
+   turnStart:s=>{ B[s].block += 3; }, flat:4},
+  {id:'zero-bleed', k:'nerf', t:'Playing a 0-cost card costs 2 HP.',
+   onPlay:(c,s)=>{ if (c.cost===0) hurt(s,2,true); }, cardVal:c=> c.cost===0 ? -2.6 : 0},
+  {id:'draw-sting', k:'chaos', t:'Cards that draw also deal 3 damage.',
+   onPlay:(c,s)=>{ if (effDraw(c,s) > 0) hurt(other(s),3,false); }, cardVal:c=> c.draw ? 2.4 : 0},
+  {id:'thorns', k:'chaos', t:'Taking unblocked damage reflects 2 back.',
+   thorns:2, cardVal:c=> c.block ? 1.2 : -0.6},
+];
+const PATCH_BY_ID = Object.fromEntries(PATCHES.map(p => [p.id, p]));
+
+/* ══════════════════════════ OPPONENTS ═══════════════════════════════════ */
+const FOES = [
+  {n:'TUTORIALBOT',  hp:42,  blurb:'Ships with the demo. Has never read a patch note.',
+   deck:['ember','ember','ember','bulwark','bulwark','bulwark','firebolt','firebolt','riposte','riposte']},
+  {n:'ASHMONGER',    hp:52,  blurb:'All FIRE, no brakes. Nerf the tag or race it.',
+   deck:['ember','ember','ember','firebolt','firebolt','firebolt','cinder','cinder','backdraft','backdraft']},
+  {n:'THE TURTLE',   hp:60,  blurb:'Wins by not losing. Block is its whole win condition.',
+   deck:['ironwall','ironwall','ironwall','bulwark','plating','riposte','riposte','riposte','riposte','anvil']},
+  {n:'NULLPOINTER',  hp:68,  blurb:'Draws its whole deck, then draws it again.',
+   deck:['glimpse','glimpse','rift','rift','rift','erase','erase','nullfield','nullfield','collapse']},
+  {n:'HEXAPOD',      hp:72,  blurb:'Six legs, ten claws. Snowballs if the fight runs long.',
+   deck:['claw','claw','claw','claw','claw','pack','pack','rend','rend','frenzy']},
+  {n:'MAINFRAME',    hp:84,  blurb:'Turns energy into cards into railgun slugs.',
+   deck:['overclock','overclock','nanobots','nanobots','uplink','uplink','uplink','recompile','railgun','railgun']},
+  {n:'BALANCE TEAM', hp:92, blurb:'They wrote half these patches. One card of everything.',
+   deck:['ember','bulwark','glimpse','claw','nanobots','firebolt','ironwall','rift','rend','uplink']},
+  {n:'THE WHALE',    hp:104, blurb:'Nothing under 3 cost. Starves if energy gets nerfed.',
+   deck:['immolate','immolate','plating','plating','collapse','collapse','frenzy','frenzy','railgun','railgun']},
+  {n:'v1.0',         hp:120, blurb:'The release build. Every card in it survived every patch.',
+   deck:['firebolt','firebolt','ironwall','ironwall','railgun','railgun','uplink','uplink','feed','rend']},
+];
+
+const START_DECK = ['ember','ember','ember','bulwark','bulwark','riposte','riposte','firebolt','glimpse','feed'];
+const BASE_HP = 80, BASE_ENERGY = 3, BASE_HAND = 5, DECK_SIZE = 10, SWAPS = 2;
+/* Two block decks under the right patches can stall forever, so the game ships
+   its own anti-stalemate hotfix: from turn 11 both fighters bleed, escalating. */
+const OVERTIME_AT = 10;
+/* Attrition between fights is the run's real difficulty dial. */
+/* Recovery between fights is the run's difficulty dial: enough that a bad fight
+   is not a death sentence, little enough that attrition still decides runs. */
+const HEAL_PCT = 0.6;
+/* Each shipped patch also hardens the build — this is the player's scaling axis. */
+const HP_PER_WIN = 6;
+const SAVE_KEY = 'patchnotes.run.v1';
+
+/* ══════════════════════════ RUN + BATTLE STATE ══════════════════════════ */
+let S = null;   // run:    {hp, deck, stage, patches[{id,who}], pool[], build}
+let B = null;   // battle: {p:{...}, e:{...}, turn, played[], fight[], over, log[]}
+let UI = { drafted:false, swapsLeft:0, selDeck:-1, silent:false };
+
+function other(s){ return s === 'p' ? 'e' : 'p'; }
+function activePatches(){ return S ? S.patches.map(x => PATCH_BY_ID[x.id]) : []; }
+
+/* ══════════════════════ THE MODIFIER PIPELINE ═══════════════════════════
+   One funnel. `side` is whose card it is, so patches that care about the
+   owner ("their owner", "your turn") stay unambiguous.
+   ====================================================================== */
+function flags(){
+  const f = { persist:false, half:false, pierce:0, firstFree:false, energy:0, hand:0, thorns:0 };
+  for (const p of activePatches()){
+    if (p.persist){ f.persist = true;  f.half = false; }   // later patch wins
+    if (p.half)   { f.half = true;     f.persist = false; }
+    if (p.pierce)  f.pierce += p.pierce;
+    if (p.firstFree) f.firstFree = true;
+    if (p.energy)  f.energy += p.energy;
+    if (p.hand)    f.hand   += p.hand;
+    if (p.thorns)  f.thorns += p.thorns;
+  }
+  return f;
+}
+function turnTagCount(side, tag){
+  if (!B) return 0;
+  return B.played.filter(x => x.side === side && CARDS[x.id].tag === tag).length;
+}
+function fightTagCount(side, tag){
+  if (!B) return 0;
+  return B.fight.filter(x => x.side === side && CARDS[x.id].tag === tag).length;
+}
+
+function effCost(c, side){
+  let v = c.cost;
+  for (const p of activePatches()) if (p.cost) v = p.cost(v, c, side);
+  if (B && B[side] && B[side].discount) v -= B[side].discount;
+  if (flags().firstFree && B && B[side] && B[side].playedThisTurn === 0) v = 0;
+  return Math.max(0, Math.round(v));
+}
+function effDmg(c, side){
+  let d = c.dmg || 0;
+  if (c.perTurnTag)  d += (c.per||0) * turnTagCount(side, c.perTurnTag);
+  if (c.perFightTag) d += (c.per||0) * (fightTagCount(side, c.perFightTag) + 1);  // counts itself
+  if (c.perHand && B && B[side]) d += c.perHand * Math.max(0, B[side].hand.length - 1);
+  for (const p of activePatches()) if (p.dmg) d = p.dmg(d, c, side);
+  return Math.max(0, Math.round(d));
+}
+function effHits(c, side){
+  let h = c.hits || 1;
+  for (const p of activePatches()) if (p.hits) h = p.hits(h, c, side);
+  return Math.max(1, Math.round(h));
+}
+function effBlock(c, side){
+  let b = c.block || 0;
+  for (const p of activePatches()) if (p.block) b = p.block(b, c, side);
+  return Math.max(0, Math.round(b));
+}
+function effHeal(c, side){
+  let h = c.heal || 0;
+  for (const p of activePatches()) if (p.heal) h = p.heal(h, c, side);
+  return Math.max(0, Math.round(h));
+}
+function effDraw(c, side){
+  let n = c.draw || 0;
+  for (const p of activePatches()) if (p.draw) n = p.draw(n, c, side);
+  return Math.max(0, Math.round(n));
+}
+function maxEnergy(){ return Math.max(1, BASE_ENERGY + flags().energy); }
+function handSize(){ return Math.max(1, BASE_HAND + flags().hand); }
+
+/* Did a patch move this number? Drives the strikethrough on every card. */
+function baseOf(c, key){
+  if (key === 'dmg')   return c.dmg || 0;
+  if (key === 'hits')  return c.hits || 1;
+  if (key === 'block') return c.block || 0;
+  if (key === 'heal')  return c.heal || 0;
+  if (key === 'draw')  return c.draw || 0;
+  if (key === 'cost')  return c.cost;
+  return 0;
+}
+
+/* ══════════════════════════ COMBAT ══════════════════════════════════════ */
+function newSide(deckIds, hp, maxHp){
+  return {
+    hp, maxHp, block:0, energy:0, discount:0, playedThisTurn:0,
+    deck: deckIds.slice(),
+    draw: shuffle(deckIds.slice()),
+    discard: [], hand: [],
+  };
+}
+function log(msg, cls){
+  if (!B) return;
+  B.log.push({ msg, cls });
+  if (B.log.length > 60) B.log.shift();
+}
+function float(txt, col, top){
+  if (UI.silent || SMOKE) return;
+  const el = document.createElement('div');
+  el.className = 'ft'; el.textContent = txt; el.style.color = col;
+  el.style.left = (30 + Math.random() * 40) + '%';
+  el.style.top  = top + '%';
+  $('floats').appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+function hurt(side, amt, unblockable){
+  const t = B[side];
+  let n = Math.max(0, Math.round(amt));
+  if (!unblockable){
+    const leak = Math.min(n, flags().pierce);     // this much ignores block outright
+    let rest = n - leak;
+    const absorbed = Math.min(t.block, rest);
+    t.block -= absorbed;
+    n = leak + (rest - absorbed);
+  }
+  if (n > 0){
+    t.hp -= n;
+    const th = flags().thorns;
+    if (th > 0 && !unblockable && B[other(side)].hp > 0) B[other(side)].hp -= th;
+  }
+  if (t.hp <= 0){ t.hp = 0; endBattle(side === 'p' ? 'lose' : 'win'); }
+  return n;
+}
+function gainBlock(side, amt){ B[side].block += Math.max(0, Math.round(amt)); }
+function healSide(side, amt){
+  const t = B[side];
+  t.hp = Math.min(t.maxHp, t.hp + Math.max(0, Math.round(amt)));
+}
+function drawCards(side, n){
+  const t = B[side];
+  for (let i = 0; i < n; i++){
+    if (!t.draw.length){
+      if (!t.discard.length) return;
+      t.draw = shuffle(t.discard.slice()); t.discard = [];
+    }
+    t.hand.push(t.draw.pop());
+    for (const p of activePatches()) if (p.onDraw) p.onDraw(side);
+    if (B.over) return;
+  }
+}
+
+/* Resolve one card fully. Every number here comes from eff*(). */
+function resolveCard(id, side){
+  const c = CARDS[id];
+  const foe = other(side);
+  const hits = effHits(c, side);
+  const dmg  = effDmg(c, side);
+  const blk  = effBlock(c, side);
+  const hl   = effHeal(c, side);
+  const dw   = effDraw(c, side);
+
+  if (c.strip){ B[foe].block = Math.max(0, B[foe].block - c.strip); }
+  if (dmg > 0){
+    let total = 0;
+    for (let i = 0; i < hits && !B.over; i++) total += hurt(foe, dmg, false);
+    if (total > 0) log(`<b>${side==='p'?'You':B.e.name}</b> hit for <b>${total}</b>`, 'hit');
+    if (side === 'p') float('-' + total, '#f85149', 18); else float('-' + total, '#f85149', 62);
+  }
+  if (blk > 0){ gainBlock(side, blk); log(`<b>${side==='p'?'You':B.e.name}</b> gained ${blk} block`, 'def'); }
+  if (hl  > 0){ healSide(side, hl);   log(`<b>${side==='p'?'You':B.e.name}</b> healed ${hl}`, 'good'); }
+  if (c.energy) B[side].energy += c.energy;
+  if (c.discount) B[side].discount += c.discount;
+  if (dw > 0) drawCards(side, dw);
+  if (c.self) hurt(side, c.self, true);
+
+  for (const p of activePatches()) if (p.onPlay) p.onPlay(c, side);
+}
+
+function canPlay(id, side){
+  return B && !B.over && B[side].energy >= effCost(CARDS[id], side);
+}
+function playCard(handIdx, side){
+  if (!B || B.over) return false;
+  const t = B[side];
+  const id = t.hand[handIdx];
+  if (id === undefined) return false;
+  const cost = effCost(CARDS[id], side);
+  if (t.energy < cost) return false;
+
+  t.energy -= cost;
+  t.hand.splice(handIdx, 1);
+  t.discard.push(id);
+  t.playedThisTurn++;
+  B.played.push({ side, id });
+  B.fight.push({ side, id });
+  const hadDiscount = t.discount;
+  resolveCard(id, side);
+  if (hadDiscount && t.discount === hadDiscount) t.discount = 0;   // consumed by this card
+  render();
+  return true;
+}
+
+function startTurn(side){
+  const t = B[side], f = flags();
+  B.turn = side;
+  B.played = [];                            // "this turn" resets for both
+  t.playedThisTurn = 0;
+  t.discount = 0;
+  if (f.persist)      { /* keep block */ }
+  else if (f.half)    { t.block = Math.floor(t.block / 2); }
+  else                { t.block = 0; }
+  t.energy = maxEnergy();
+  for (const p of activePatches()) if (p.turnStart) p.turnStart(side);
+  if (B.over) return;
+  const ot = B.turnNum - OVERTIME_AT;
+  if (ot > 0){
+    if (!B.otSaid){ B.otSaid = true; log('<b>HOTFIX</b> — overtime: both fighters now bleed each turn.', 'sys'); }
+    hurt(side, ot, true);
+    if (B.over) return;
+  }
+  drawCards(side, handSize());
+  if (B.over) return;
+  if (side === 'p') log(`— your turn ${B.turnNum} —`, 'sys');
+}
+function endTurn(side){
+  const t = B[side];
+  t.discard.push(...t.hand);
+  t.hand = [];
+}
+
+function playerEndTurn(){
+  if (!B || B.over || B.turn !== 'p') return;
+  endTurn('p');
+  render();
+  if (UI.silent || SMOKE){ aiTurn(); return; }
+  setTimeout(aiTurn, 260);
+}
+
+/* ── opponent AI ────────────────────────────────────────────────────────
+   Greedy but rule-aware: it scores through the same eff*() the player sees,
+   so a patch that quietly ruins its deck actually changes how it plays.     */
+function cardScore(id, side){
+  const c = CARDS[id], foe = other(side);
+  const dmg = effDmg(c, side) * effHits(c, side);
+  if (dmg >= B[foe].hp + (flags().pierce ? Math.max(0, B[foe].block - flags().pierce) : B[foe].block)) return 9999;
+  const pressure = 0.5 + (1 - B[side].hp / B[side].maxHp) * 1.3;   // block matters when hurt, not when healthy
+  const glut = B[side].block > 18 ? 0.25 : 1;                      // stop stacking armour nobody will hit
+  let s = dmg * 1.0
+        + effBlock(c, side) * 0.6 * pressure * glut
+        + effHeal(c, side) * 0.85 * pressure
+        + effDraw(c, side) * 3.2
+        + (c.energy || 0) * 4.0
+        + (c.strip ? Math.min(c.strip, B[foe].block) * 0.6 : 0)
+        - (c.self || 0) * 1.2;
+  return s / Math.max(0.6, effCost(c, side));
+}
+function aiTurn(){
+  if (!B || B.over) return;
+  startTurn('e');
+  if (B.over) return;
+  for (let guard = 0; guard < 24 && !B.over; guard++){
+    let best = -1, bestS = 0.01;
+    for (let i = 0; i < B.e.hand.length; i++){
+      if (!canPlay(B.e.hand[i], 'e')) continue;
+      const s = cardScore(B.e.hand[i], 'e');
+      if (s > bestS){ bestS = s; best = i; }
+    }
+    if (best < 0) break;
+    playCard(best, 'e');
+  }
+  if (B.over) return;
+  endTurn('e');
+  B.turnNum++;
+  startTurn('p');
+  render();
+}
+
+function startBattle(){
+  const foe = FOES[S.stage];
+  B = {
+    p: newSide(S.deck, S.hp, S.maxHp),
+    e: newSide(foe.deck, foe.hp, foe.hp),
+    turn:'p', turnNum:1, played:[], fight:[], over:false, log:[], result:null,
+  };
+  B.e.name = foe.n;
+  log(`<b>${foe.n}</b> — ${foe.blurb}`, 'sys');
+  startTurn('p');
+  show('s-battle');
+  render();
+}
+function endBattle(result){
+  if (B.over) return;
+  B.over = true; B.result = result;
+  if (result === 'win'){
+    S.maxHp += HP_PER_WIN;                                   // the build hardens
+    S.hp = Math.min(S.maxHp, B.p.hp + Math.round(S.maxHp * HEAL_PCT));
+    S.stage++;
+    saveRun();
+    if (UI.silent || SMOKE) return;
+    setTimeout(() => { S.stage >= FOES.length ? finish('win') : openDraft(); }, 700);
+  } else {
+    S.hp = 0;
+    clearRun();
+    if (UI.silent || SMOKE) return;
+    setTimeout(() => finish('lose'), 700);
+  }
+}
+
+/* ══════════════════════════ PATCH DRAFT ═════════════════════════════════ */
+function patchVal(p, deckIds){
+  let v = p.flat || 0;
+  for (const id of deckIds){
+    const c = CARDS[id];
+    if (p.tagVal && p.tagVal[c.tag]) v += p.tagVal[c.tag];
+    if (p.cardVal) v += p.cardVal(c);
+  }
+  return Math.round(v);
+}
+function dealPatches(){
+  // A run only ever consumes 2 patches per intermission, so the pool cannot run
+  // dry today — but refill rather than deal `undefined` if that ever changes.
+  let avail = S.pool.slice();
+  if (avail.length < 6) avail = PATCHES.map(p => p.id).filter(id => !S.patches.some(x => x.id === id));
+  if (avail.length < 6) avail = PATCHES.map(p => p.id);
+  shuffle(avail);
+  const six = avail.slice(0, 6);
+  return { mine: six.slice(0, 3), theirs: six.slice(3, 6) };
+}
+function aiPickPatch(options, theirDeck, myDeck){
+  let best = options[0], bestS = -1e9;
+  for (const id of options){
+    const p = PATCH_BY_ID[id];
+    const s = patchVal(p, theirDeck) - patchVal(p, myDeck);
+    if (s > bestS){ bestS = s; best = id; }
+  }
+  return best;
+}
+function takePatch(id, who){
+  S.patches.push({ id, who, build: S.patches.length + 1 });
+  S.pool = S.pool.filter(x => x !== id);
+}
+
+let DRAFT = null;
+function openDraft(){
+  const foe = FOES[S.stage];
+  DRAFT = dealPatches();
+  DRAFT.foe = foe;
+  UI.drafted = false;
+  renderDraft();
+  show('s-draft');
+}
+function chooseMine(id){
+  if (UI.drafted) return;
+  UI.drafted = true;
+  takePatch(id, 'YOU');
+  const foe = FOES[S.stage];
+  DRAFT.took = aiPickPatch(DRAFT.theirs, foe.deck, S.deck);
+  takePatch(DRAFT.took, foe.n);
+  saveRun();
+  renderDraft();
+  renderLog();
+  renderTop();
+}
+
+/* ══════════════════════════ REBUILD ═════════════════════════════════════ */
+function openRebuild(){
+  UI.swapsLeft = SWAPS; UI.selDeck = -1;
+  renderRebuild();
+  show('s-rebuild');
+}
+function doSwap(deckIdx, poolId){
+  if (UI.swapsLeft <= 0 || deckIdx < 0) return false;
+  if (S.deck[deckIdx] === poolId) return false;
+  S.deck[deckIdx] = poolId;
+  UI.swapsLeft--; UI.selDeck = -1;
+  saveRun();
+  renderRebuild();
+  return true;
+}
+
+/* ══════════════════════════ RUN LIFECYCLE ═══════════════════════════════ */
+function newRun(sd){
+  seed(sd !== undefined ? sd : (SMOKE ? 12345 : (Date.now() & 0x7fffffff)));
+  S = { hp: BASE_HP, maxHp: BASE_HP, deck: START_DECK.slice(), stage: 0,
+        patches: [], pool: PATCHES.map(p => p.id) };
+  UI.drafted = false;
+  saveRun();
+}
+function finish(kind){
+  const t = $('end-title'), b = $('end-body');
+  if (kind === 'win'){
+    t.innerHTML = '<span class="a">SHIPPED</span> <span class="b">v1.0</span>';
+    b.innerHTML = `You survived all nine opponents across <em>${S.patches.length}</em> balance changes.<br><br>` +
+                  `Final rulebook:<br>` + S.patches.map(x => `<span class="${PATCH_BY_ID[x.id].k==='nerf'?'rd':PATCH_BY_ID[x.id].k==='buff'?'gr':'vi'}">${PATCH_BY_ID[x.id].t}</span>`).join('<br>');
+  } else {
+    t.innerHTML = '<span class="a">BUILD</span> <span class="b" style="color:var(--red)">FAILED</span>';
+    const foe = FOES[Math.min(S.stage, FOES.length - 1)];
+    b.innerHTML = `<em>${foe.n}</em> closed the build at patch ${S.patches.length}.<br><br>` +
+                  `The rules you helped write outlived you.`;
+  }
+  clearRun();
+  show('s-end');
+}
+
+function saveRun(){
+  if (!S || SMOKE) return;
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ hp:S.hp, maxHp:S.maxHp, deck:S.deck, stage:S.stage, patches:S.patches, pool:S.pool })); } catch(e){}
+}
+function loadRun(){
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+    if (!d || !d.deck || d.stage >= FOES.length) return false;
+    S = { hp:d.hp, maxHp:d.maxHp || BASE_HP, deck:d.deck, stage:d.stage, patches:d.patches || [], pool:d.pool || PATCHES.map(p=>p.id) };
+    seed(Date.now() & 0x7fffffff);
+    return true;
+  } catch(e){ return false; }
+}
+function clearRun(){ try { localStorage.removeItem(SAVE_KEY); } catch(e){} }
+
+/* ══════════════════════════ RENDER ══════════════════════════════════════ */
+function show(id){
+  if (UI.silent) return;
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id));
+}
+function verStr(){ return S ? `v0.1.${S.patches.length}` : 'v0.1.0'; }
+
+function renderTop(){
+  if (UI.silent) return;
+  $('verbadge').textContent = verStr();
+  $('logcount').textContent = S ? S.patches.length : 0;
+  const b = $('stagebadge');
+  if (!S) b.textContent = 'MAIN MENU';
+  else if (S.stage >= FOES.length) b.textContent = 'RELEASE';
+  else b.textContent = `OPPONENT ${S.stage + 1} / ${FOES.length} · ${FOES[S.stage].n}`;
+}
+
+/* Card face. Text is generated from effective numbers, and anything a patch
+   moved is shown as `base → new` so the rules stay readable at a glance. */
+function cardText(c, side){
+  const bits = [];
+  const num = (eff, base, colour) =>
+    eff === base ? `<b>${eff}</b>` : `<s>${base}</s> <b style="color:${colour}">${eff}</b>`;
+
+  const d = effDmg(c, side), h = effHits(c, side), bd = baseOf(c,'dmg'), bh = baseOf(c,'hits');
+  if (d > 0 || bd > 0){
+    const up = d >= bd ? 'var(--green)' : 'var(--red)';
+    let s = `Deal ${num(d, bd, up)} damage`;
+    if (h > 1 || bh > 1) s += ` ${num(h, bh, h >= bh ? 'var(--green)' : 'var(--red)')} times`;
+    if (c.pierce) s += `, ignoring block`;
+    bits.push(s + '.');
+  }
+  const b = effBlock(c, side), bb = baseOf(c,'block');
+  if (b > 0 || bb > 0) bits.push(`Gain ${num(b, bb, b >= bb ? 'var(--green)' : 'var(--red)')} block.`);
+  const hl = effHeal(c, side), bhl = baseOf(c,'heal');
+  if (hl > 0 || bhl > 0) bits.push(`Heal ${num(hl, bhl, hl >= bhl ? 'var(--green)' : 'var(--red)')}.`);
+  const dw = effDraw(c, side), bdw = baseOf(c,'draw');
+  if (dw > 0 || bdw > 0) bits.push(`Draw ${num(dw, bdw, dw >= bdw ? 'var(--green)' : 'var(--red)')}.`);
+  if (c.energy) bits.push(`Gain <b>${c.energy}</b> energy.`);
+  if (c.strip)  bits.push(`Strip <b>${c.strip}</b> enemy block.`);
+  if (c.discount) bits.push(`Next card costs <b>${c.discount}</b> less.`);
+  if (c.self)   bits.push(`Lose <b>${c.self}</b> HP.`);
+  if (c.perTurnTag)  bits.push(`+${c.per} per ${c.perTurnTag} already played this turn.`);
+  if (c.perFightTag) bits.push(`+${c.per} per ${c.perFightTag} played this fight.`);
+  if (c.perHand)     bits.push(`+${c.perHand} per other card in hand.`);
+  return bits.join(' ');
+}
+function cardHTML(id, side, extraCls, idx){
+  const c = CARDS[id];
+  const cost = effCost(c, side), base = c.cost;
+  const modc = cost !== base ? ' mod' : '';
+  const dead = (extraCls || '').indexOf('dead') !== -1;
+  return `<div class="card ${extraCls||''}" style="--tagc:var(--${c.tag})" data-idx="${idx}" data-id="${id}">
+      <div class="cost${modc}">${cost}</div>
+      <div class="nm">${c.n}</div>
+      <div class="tg">${c.tag}</div>
+      <div class="tx">${cardText(c, side)}</div>
+    </div>`;
+}
+
+function render(){
+  if (UI.silent || !B) return;
+  renderTop();
+  const f = flags();
+  const setHP = (pre, o) => {
+    $(pre + '-hpfill').style.transform = `scaleX(${Math.max(0, o.hp / o.maxHp)})`;
+    $(pre + '-hptext').textContent = `${o.hp} / ${o.maxHp}`;
+  };
+  setHP('you', B.p); setHP('foe', B.e);
+  $('foe-name').textContent = B.e.name;
+  const pip = (id, val, icon) => { const el = $(id); el.textContent = `${icon} ${val}`; el.classList.toggle('zero', !val); };
+  pip('you-blk', B.p.block, '⛨'); pip('foe-blk', B.e.block, '⛨');
+  pip('you-nrg', B.p.energy, '⚡'); pip('foe-nrg', B.e.energy, '⚡');
+  $('you-pile').textContent = `🂠 ${B.p.draw.length}+${B.p.discard.length}`;
+  $('foe-pile').textContent = `🂠 ${B.e.draw.length}+${B.e.discard.length}`;
+
+  $('foe-hand').innerHTML = B.e.hand.map(id => {
+    const c = CARDS[id];
+    return `<div class="mini" style="--tagc:var(--${c.tag})"><span class="c">${effCost(c,'e')}</span><b>${c.n}</b>${
+      effDmg(c,'e') ? `${effDmg(c,'e')}${effHits(c,'e')>1?'×'+effHits(c,'e'):''} dmg ` : ''}${
+      effBlock(c,'e') ? `${effBlock(c,'e')} blk` : ''}</div>`;
+  }).join('') || '<div class="mini">draws at the start of its turn</div>';
+
+  $('hand').innerHTML = B.p.hand.map((id, i) =>
+    cardHTML(id, 'p', canPlay(id, 'p') ? '' : 'dead', i)).join('');
+  $('hand').querySelectorAll('.card').forEach(el => {
+    el.onclick = () => { if (!el.classList.contains('dead')) playCard(+el.dataset.idx, 'p'); };
+  });
+
+  $('log').innerHTML = B.log.map(l => `<div class="${l.cls||''}">${l.msg}</div>`).join('');
+  $('log').scrollTop = 1e6;
+  $('turnnote').innerHTML = `energy <span class="am">${B.p.energy}/${maxEnergy()}</span> · hand size ${handSize()}` +
+    (f.persist ? ' · <span class="bl">block persists</span>' : f.half ? ' · <span class="bl">block halves</span>' : '') +
+    (f.pierce ? ` · <span class="rd">pierce ${f.pierce}</span>` : '') +
+    (B.turnNum > OVERTIME_AT ? ` · <span class="rd">OVERTIME −${B.turnNum - OVERTIME_AT}/turn</span>` : '');
+  $('btn-endturn').disabled = B.over;
+}
+
+function renderDraft(){
+  if (UI.silent) return;
+  renderTop();
+  const foe = DRAFT.foe;
+  const counts = {};
+  foe.deck.forEach(id => counts[id] = (counts[id] || 0) + 1);
+  $('draft-matchup').innerHTML =
+    `<h2>PATCH ${S.patches.length + (UI.drafted ? -1 : 1)} · NEXT OPPONENT</h2>
+     <div class="fline"><div class="fname" style="font-size:17px">${foe.n}</div>
+       <div class="badge">${foe.hp} HP</div></div>
+     <div class="sub" style="margin-top:6px">${foe.blurb}</div>
+     <div class="decklist">${Object.keys(counts).map(id => {
+        const c = CARDS[id];
+        return `<span class="chip" style="--tagc:var(--${c.tag})"><i>${c.tag[0]}</i> ${c.n}${counts[id]>1?' ×'+counts[id]:''}</span>`;
+      }).join('')}</div>`;
+
+  const est = id => {
+    const p = PATCH_BY_ID[id];
+    const you = patchVal(p, S.deck), them = patchVal(p, foe.deck);
+    const fmt = v => `<span class="${v>0?'gr':v<0?'rd':''}">${v>0?'+':''}${v}</span>`;
+    return `<div class="est"><div>YOUR DECK ${fmt(you)}</div><div>THEIR DECK ${fmt(them)}</div></div>`;
+  };
+  const sig = k => k === 'buff' ? '+ BUFF' : k === 'nerf' ? '− NERF' : '± CHANGE';
+
+  $('draft-mine').innerHTML = DRAFT.mine.map(id => {
+    const p = PATCH_BY_ID[id];
+    const mine = UI.drafted && S.patches.some(x => x.id === id && x.who === 'YOU');
+    const cls = UI.drafted ? (mine ? 'pick' : 'faded') : '';
+    return `<div class="patch ${p.k} ${cls}" data-id="${id}">
+        <div class="sig">${sig(p.k)}</div><div class="body">${p.t}</div>${est(id)}</div>`;
+  }).join('');
+  if (!UI.drafted){
+    $('draft-mine').querySelectorAll('.patch').forEach(el => el.onclick = () => chooseMine(el.dataset.id));
+  }
+
+  $('theirs-title').textContent = UI.drafted ? 'THEY TOOK' : 'THEIR OPTIONS — THEY TAKE ONE';
+  $('draft-theirs').innerHTML = DRAFT.theirs.map(id => {
+    const p = PATCH_BY_ID[id];
+    const cls = !UI.drafted ? 'theirs' : (DRAFT.took === id ? 'theirs took' : 'theirs faded');
+    return `<div class="patch ${p.k} ${cls}">
+        <div class="sig">${sig(p.k)}</div><div class="body">${p.t}</div>${est(id)}</div>`;
+  }).join('');
+
+  $('btn-todeck').classList.toggle('hidden', !UI.drafted);
+}
+
+function renderRebuild(){
+  if (UI.silent) return;
+  renderTop();
+  $('swapinfo').innerHTML = `Swaps left: <span class="${UI.swapsLeft?'gr':'rd'}">${UI.swapsLeft}</span> of ${SWAPS}` +
+    (UI.selDeck >= 0 ? ` · replacing <span class="am">${CARDS[S.deck[UI.selDeck]].n}</span> — pick a free agent below` : '') +
+    ` · <span class="sub">numbers shown are after all ${S.patches.length} patches</span>`;
+
+  $('rb-deck').innerHTML = S.deck.map((id, i) =>
+    cardHTML(id, 'p', i === UI.selDeck ? 'sel' : '', i)).join('');
+  $('rb-deck').querySelectorAll('.card').forEach(el => {
+    el.onclick = () => { UI.selDeck = UI.selDeck === +el.dataset.idx ? -1 : +el.dataset.idx; renderRebuild(); };
+  });
+
+  $('rb-pool').innerHTML = CARD_IDS.map(id =>
+    cardHTML(id, 'p', UI.selDeck < 0 || UI.swapsLeft <= 0 ? 'dead' : '', -1)).join('');
+  $('rb-pool').querySelectorAll('.card').forEach(el => {
+    el.onclick = () => { if (!el.classList.contains('dead')) doSwap(UI.selDeck, el.dataset.id); };
+  });
+}
+
+function renderLog(){
+  if (UI.silent) return;
+  $('logbody').innerHTML = !S || !S.patches.length
+    ? '<div class="sub">No balance changes yet. The game is still fair.</div>'
+    : S.patches.map(x => {
+        const p = PATCH_BY_ID[x.id];
+        return `<div class="centry ${p.k}">
+          <div class="v">v0.1.${x.build}</div>
+          <div class="l"><span class="s">${p.k==='nerf'?'−':p.k==='buff'?'+':'±'}</span><span>${p.t}</span></div>
+          <div class="who">TAKEN BY ${x.who}</div></div>`;
+      }).reverse().join('');
+}
+
+/* ══════════════════════════ WIRING ══════════════════════════════════════ */
+$('btn-start').onclick    = () => { newRun(); renderLog(); startBattle(); };
+$('btn-continue').onclick = () => { if (loadRun()){ renderLog(); startBattle(); } else { newRun(); renderLog(); startBattle(); } };
+$('btn-endturn').onclick  = playerEndTurn;
+$('btn-todeck').onclick   = openRebuild;
+$('btn-fight').onclick    = startBattle;
+$('btn-again').onclick    = () => { newRun(); renderLog(); startBattle(); };
+$('logbtn').onclick       = () => { renderLog(); $('changelog').classList.toggle('on'); };
+$('logclose').onclick     = () => $('changelog').classList.remove('on');
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') $('changelog').classList.remove('on');
+  if (e.key === ' ' && B && !B.over && $('s-battle').classList.contains('on')){ e.preventDefault(); playerEndTurn(); }
+  if (/^[1-9]$/.test(e.key) && B && !B.over && $('s-battle').classList.contains('on')){
+    const i = +e.key - 1;
+    if (B.p.hand[i] !== undefined && canPlay(B.p.hand[i], 'p')) playCard(i, 'p');
+  }
+});
+$('btn-continue').style.display = (function(){
+  try { return localStorage.getItem(SAVE_KEY) ? '' : 'none'; } catch(e){ return 'none'; }
+})();
+
+/* GLITCHBOX save hook — a run is deck + patches + progress, nothing else. */
+if (window.GBSave){
+  GBSave.register({
+    save(){ return S && S.stage < FOES.length ? { hp:S.hp, maxHp:S.maxHp, deck:S.deck, stage:S.stage, patches:S.patches, pool:S.pool } : null; },
+    load(d){ if (!d) return; S = { hp:d.hp, maxHp:d.maxHp||BASE_HP, deck:d.deck, stage:d.stage, patches:d.patches||[], pool:d.pool||PATCHES.map(p=>p.id) };
+             seed(Date.now() & 0x7fffffff); renderLog(); startBattle(); },
+    autosave: 45,
+  });
+}
+renderTop();
+
+/* ══════════════════════════ SELF-TESTS (#smoke) ═══════════════════════════
+   Load patch-notes.html#smoke. The pipeline is the game, so most of these
+   assert that a patch changes BOTH decks by the same rule, that the version
+   maths holds, and that a full run can actually be played to completion.
+   ======================================================================== */
+if (SMOKE) setTimeout(runSmoke, 30);
+function runSmoke(){
+  const lines = []; let pass = 0, fail = 0, head = '';
+  const H = t => { head = t; lines.push(''); lines.push('── ' + t + ' ──'); };
+  const T = (name, fn) => {
+    let r; try { r = fn(); } catch (e){ r = 'threw: ' + (e && e.message || e); }
+    if (r === true || r === undefined){ pass++; lines.push('  ok   ' + name); }
+    else { fail++; lines.push('  FAIL ' + name + '  → ' + r); }
+  };
+  const eq = (a, b, what) => a === b || `${what}: expected ${b}, got ${a}`;
+
+  // A bare run + battle so eff*() has a context to read.
+  function fresh(patchIds){
+    UI.silent = true;
+    newRun(999);
+    S.patches = (patchIds || []).map((id, i) => ({ id, who:'TEST', build:i+1 }));
+    S.pool = PATCHES.map(p => p.id).filter(id => !(patchIds||[]).includes(id));
+    B = { p:newSide(S.deck, S.maxHp, S.maxHp), e:newSide(FOES[0].deck, 60, 60),
+          turn:'p', turnNum:1, played:[], fight:[], over:false, log:[], result:null };
+    B.e.name = 'TESTFOE';
+    startTurn('p');
+  }
+
+  H('data integrity');
+  T('every card has a name, tag and cost', () => {
+    for (const id of CARD_IDS){
+      const c = CARDS[id];
+      if (!c.n || !c.tag || typeof c.cost !== 'number') return id + ' is malformed';
+      if (!['FIRE','STEEL','VOID','BEAST','TECH'].includes(c.tag)) return id + ' has tag ' + c.tag;
+    }
+  });
+  T('every card does something', () =>
+    CARD_IDS.every(id => { const c = CARDS[id];
+      return c.dmg || c.block || c.heal || c.draw || c.energy || c.strip || c.discount || c.perFightTag; })
+      || 'a card has no effect at all');
+  T('every patch has a unique id and a sentence', () => {
+    const seen = new Set();
+    for (const p of PATCHES){
+      if (seen.has(p.id)) return 'duplicate patch id ' + p.id;
+      seen.add(p.id);
+      if (!p.t || !/\.$/.test(p.t)) return p.id + ' has no full-sentence text';
+      if (!['buff','nerf','chaos'].includes(p.k)) return p.id + ' has kind ' + p.k;
+    }
+  });
+  T('every foe deck is exactly 10 real cards', () => {
+    for (const f of FOES){
+      if (f.deck.length !== DECK_SIZE) return f.n + ' has ' + f.deck.length + ' cards';
+      for (const id of f.deck) if (!CARDS[id]) return f.n + ' references unknown card ' + id;
+    }
+  });
+  T('starting deck is 10 real cards', () =>
+    eq(START_DECK.length, DECK_SIZE, 'size') === true &&
+    (START_DECK.every(id => CARDS[id]) || 'unknown card in starting deck'));
+  T('the patch pool outlasts a full run', () => {
+    // 8 intermissions consume 2 patches each; the pool must never run dry.
+    return PATCHES.length >= (FOES.length - 1) * 2 || 'only ' + PATCHES.length + ' patches for ' + ((FOES.length-1)*2) + ' picks';
+  });
+  T('a draft can always deal 6 distinct options', () => {
+    fresh([]);
+    for (let i = 0; i < FOES.length - 1; i++){
+      if (S.pool.length < 6) return 'pool ran dry at intermission ' + i;
+      const d = dealPatches();
+      if (new Set([...d.mine, ...d.theirs]).size !== 6) return 'dealt duplicates';
+      takePatch(d.mine[0], 'YOU'); takePatch(d.theirs[0], 'FOE');
+    }
+  });
+
+  H('the modifier pipeline');
+  T('unpatched cards read their base numbers', () => {
+    fresh([]);
+    return eq(effDmg(CARDS.firebolt,'p'), 13, 'firebolt dmg') === true &&
+           eq(effCost(CARDS.firebolt,'p'), 2, 'firebolt cost') === true &&
+           eq(effBlock(CARDS.ironwall,'p'), 10, 'ironwall block');
+  });
+  T('a FIRE nerf hits FIRE and nothing else', () => {
+    fresh(['fire-nerf']);
+    return eq(effDmg(CARDS.firebolt,'p'), 9, 'firebolt') === true &&   // 13*0.7 = 9.1 → 9
+           eq(effDmg(CARDS.claw,'p'), 6, 'claw untouched');
+  });
+  T('a patch applies identically to both decks', () => {
+    fresh(['fire-nerf']);
+    return eq(effDmg(CARDS.firebolt,'p'), effDmg(CARDS.firebolt,'e'), 'symmetry');
+  });
+  T('cost patches stack and never go below zero', () => {
+    fresh(['steel-cheap','steel-cheap']);
+    return eq(effCost(CARDS.bulwark,'p'), 0, 'bulwark') === true &&
+           eq(effCost(CARDS.tempered,'p'), 0, 'tempered floor');
+  });
+  T('opposing patches compose in order', () => {
+    fresh(['fire-nerf','fire-buff']);
+    return eq(effDmg(CARDS.firebolt,'p'), 12, 'nerf then buff') === true;  // 13*.7=9.1 +3 = 12.1 → 12
+  });
+  T('multi-hit patches only touch multi-hit cards', () => {
+    fresh(['multi-up']);
+    return eq(effHits(CARDS.cinder,'p'), 4, 'cinder') === true &&
+           eq(effHits(CARDS.ember,'p'), 1, 'ember stays single');
+  });
+  T('multi-hit never drops below one hit', () => {
+    fresh(['multi-down','multi-down','multi-down','multi-down']);
+    return eq(effHits(CARDS.cinder,'p'), 1, 'cinder floor');
+  });
+  T('healing patches clamp correctly', () => {
+    fresh(['heal-cap']);
+    const a = eq(effHeal(CARDS.feed,'p'), 4, 'capped');
+    fresh(['no-heal']);
+    return a === true && eq(effHeal(CARDS.feed,'p'), 0, 'zeroed');
+  });
+  T('max energy and hand size follow their patches', () => {
+    fresh(['energy-up','energy-up','hand-down']);
+    return eq(maxEnergy(), 5, 'energy') === true && eq(handSize(), 4, 'hand');
+  });
+  T('max energy never drops below 1', () => {
+    fresh(['energy-down','energy-down','energy-down','energy-down']);
+    return eq(maxEnergy(), 1, 'energy floor');
+  });
+  T('block persistence and halving are mutually exclusive', () => {
+    fresh(['block-persist','block-half']);
+    const f1 = flags();
+    if (f1.persist || !f1.half) return 'later patch did not win';
+    fresh(['block-half','block-persist']);
+    const f2 = flags();
+    return (!f2.half && f2.persist) || 'order not respected';
+  });
+  T('context damage scales with what was played this turn', () => {
+    fresh([]);
+    const before = effDmg(CARDS.backdraft,'p');
+    B.played.push({ side:'p', id:'ember' }, { side:'p', id:'ember' });
+    const after = effDmg(CARDS.backdraft,'p');
+    return eq(before, 4, 'base') === true && eq(after, 12, 'after two FIRE');
+  });
+  T('per-fight scaling counts the card itself', () => {
+    fresh([]);
+    return eq(effDmg(CARDS.pack,'p'), 4, 'first Pack Tactics');
+  });
+
+  H('combat');
+  T('block absorbs damage before HP', () => {
+    fresh([]);
+    B.e.block = 10; B.e.hp = 60;
+    hurt('e', 6, false);
+    return eq(B.e.block, 4, 'block') === true && eq(B.e.hp, 60, 'hp untouched');
+  });
+  T('pierce leaks damage through block', () => {
+    fresh(['pierce']);
+    B.e.block = 10; B.e.hp = 60;
+    hurt('e', 6, false);
+    return eq(B.e.hp, 56, 'hp took 4');
+  });
+  T('unblockable self-damage ignores block', () => {
+    fresh([]);
+    B.p.block = 20; const hp = B.p.hp;
+    hurt('p', 5, true);
+    return eq(B.p.block, 20, 'block kept') === true && eq(B.p.hp, hp - 5, 'hp fell');
+  });
+  T('healing cannot exceed max HP', () => {
+    fresh([]);
+    B.p.hp = B.p.maxHp - 2; healSide('p', 50);
+    return eq(B.p.hp, B.p.maxHp, 'clamped');
+  });
+  T('playing a card spends energy and moves it to the discard', () => {
+    fresh([]);
+    B.p.hand = ['firebolt']; B.p.energy = 3;
+    const ok = playCard(0, 'p');
+    return (ok === true || 'play rejected') === true &&
+           eq(B.p.energy, 1, 'energy') === true &&
+           eq(B.p.hand.length, 0, 'hand') === true &&
+           eq(B.p.discard[B.p.discard.length-1], 'firebolt', 'discard');
+  });
+  T('a card you cannot afford is refused', () => {
+    fresh([]);
+    B.p.hand = ['immolate']; B.p.energy = 1;
+    return (playCard(0, 'p') === false || 'played anyway') === true && eq(B.p.hand.length, 1, 'hand kept');
+  });
+  T('the free-opener patch only frees the first card', () => {
+    fresh(['free-opener']);
+    B.p.hand = ['immolate','immolate']; B.p.energy = 3;
+    playCard(0, 'p');
+    if (B.p.energy !== 3) return 'first card was not free';
+    return eq(effCost(CARDS.immolate,'p'), 3, 'second card full price');
+  });
+  T('Anvil discounts exactly one following card', () => {
+    fresh([]);
+    B.p.hand = ['anvil','firebolt','firebolt']; B.p.energy = 6;
+    playCard(0, 'p');
+    if (effCost(CARDS.firebolt,'p') !== 1) return 'discount did not apply';
+    playCard(0, 'p');
+    return eq(effCost(CARDS.firebolt,'p'), 2, 'discount should be spent');
+  });
+  T('drawing reshuffles the discard when the draw pile empties', () => {
+    fresh([]);
+    B.p.draw = []; B.p.discard = ['ember','claw','rift']; B.p.hand = [];
+    drawCards('p', 3);
+    return eq(B.p.hand.length, 3, 'drew 3') === true && eq(B.p.discard.length, 0, 'discard consumed');
+  });
+  T('drawing from a truly empty deck does not hang', () => {
+    fresh([]);
+    B.p.draw = []; B.p.discard = []; B.p.hand = [];
+    drawCards('p', 5);
+    return eq(B.p.hand.length, 0, 'drew nothing');
+  });
+  T('start of turn refills energy and clears block by default', () => {
+    fresh([]);
+    B.p.block = 12; B.p.energy = 0;
+    startTurn('p');
+    return eq(B.p.block, 0, 'block cleared') === true && eq(B.p.energy, maxEnergy(), 'energy');
+  });
+  T('block persistence actually keeps block across turns', () => {
+    fresh(['block-persist']);
+    B.p.block = 12; startTurn('p');
+    return eq(B.p.block, 12, 'kept');
+  });
+  T('overtime bleeds both fighters once the clock runs out', () => {
+    fresh([]);
+    B.turnNum = OVERTIME_AT + 3;
+    const hp = B.p.hp; B.p.block = 40;
+    startTurn('p');
+    return eq(B.p.hp, hp - 3, 'overtime ignored block or did not fire');
+  });
+  T('overtime does not fire before its turn', () => {
+    fresh([]);
+    B.turnNum = OVERTIME_AT;
+    const hp = B.p.hp;
+    startTurn('p');
+    return eq(B.p.hp, hp, 'bled early');
+  });
+  T('lethal damage ends the battle as a win', () => {
+    fresh([]);
+    B.e.hp = 3; B.e.block = 0;
+    hurt('e', 99, false);
+    return (B.over === true || 'battle did not end') === true && eq(B.result, 'win', 'result');
+  });
+  T('dying ends the battle as a loss', () => {
+    fresh([]);
+    B.p.hp = 2;
+    hurt('p', 99, false);
+    return eq(B.result, 'lose', 'result');
+  });
+
+  H('opponent AI');
+  T('the AI plays cards when it can', () => {
+    fresh([]);
+    B.e.hp = 60; const hp0 = B.p.hp;
+    aiTurn();
+    return (B.p.hp < hp0 || B.p.block > 0 || B.e.block > 0) || 'AI did nothing at all';
+  });
+  T('the AI takes lethal when it is available', () => {
+    fresh([]);
+    B.p.hp = 5; B.p.block = 0;
+    B.e.hand = ['firebolt']; B.e.energy = 3; B.e.draw = []; B.e.discard = [];
+    for (let g = 0; g < 3; g++){
+      let best = -1, bs = 0.01;
+      for (let i = 0; i < B.e.hand.length; i++){ const s = cardScore(B.e.hand[i],'e'); if (canPlay(B.e.hand[i],'e') && s > bs){ bs = s; best = i; } }
+      if (best < 0) break;
+      playCard(best, 'e');
+    }
+    return eq(B.result, 'lose', 'player should be dead');
+  });
+  T('the AI drafts the patch that favours it most', () => {
+    fresh([]);
+    // Its deck is all FIRE; the player has none. It must take the FIRE buff.
+    const foeDeck = ['firebolt','firebolt','ember','ember','cinder','cinder','backdraft','backdraft','ember','firebolt'];
+    const myDeck  = ['claw','claw','rend','feed','pack','claw','frenzy','rend','claw','feed'];
+    return eq(aiPickPatch(['fire-buff','void-echo','steel-cheap'], foeDeck, myDeck), 'fire-buff', 'pick');
+  });
+  T('the AI avoids a patch that hurts it more than the player', () => {
+    const foeDeck = Array(10).fill('firebolt');
+    const myDeck  = Array(10).fill('claw');
+    return (aiPickPatch(['fire-nerf','beast-tax'], foeDeck, myDeck) === 'beast-tax') || 'took the self-nerf';
+  });
+
+  H('draft, rebuild and the run');
+  T('taking a patch removes it from the pool and bumps the version', () => {
+    fresh([]);
+    const n0 = S.patches.length, p0 = S.pool.length;
+    takePatch('fire-nerf', 'YOU');
+    return eq(S.patches.length, n0 + 1, 'patch count') === true &&
+           eq(S.pool.length, p0 - 1, 'pool') === true &&
+           eq(S.pool.includes('fire-nerf'), false, 'still in pool') === true &&
+           eq(verStr(), 'v0.1.1', 'version');
+  });
+  T('the impact estimate reads opposite signs for opposite decks', () => {
+    const fireDeck  = Array(10).fill('firebolt');
+    const beastDeck = Array(10).fill('claw');
+    const p = PATCH_BY_ID['fire-nerf'];
+    return (patchVal(p, fireDeck) < 0 && patchVal(p, beastDeck) === 0) || 'estimate is not tag-sensitive';
+  });
+  T('a swap replaces one card and costs one swap', () => {
+    fresh([]);
+    UI.swapsLeft = SWAPS;
+    const ok = doSwap(0, 'railgun');
+    return (ok === true || 'swap refused') === true &&
+           eq(S.deck[0], 'railgun', 'card') === true &&
+           eq(S.deck.length, DECK_SIZE, 'deck size') === true &&
+           eq(UI.swapsLeft, SWAPS - 1, 'swaps');
+  });
+  T('swaps are capped', () => {
+    fresh([]);
+    UI.swapsLeft = SWAPS;
+    for (let i = 0; i < SWAPS; i++) doSwap(i, 'railgun');
+    return (doSwap(5, 'railgun') === false || 'swapped past the cap') === true &&
+           eq(UI.swapsLeft, 0, 'swaps left');
+  });
+  T('winning advances the stage and heals a little', () => {
+    fresh([]);
+    S.stage = 0; B.p.hp = 30;
+    endBattle('win');
+    const cap = BASE_HP + HP_PER_WIN;
+    return eq(S.stage, 1, 'stage') === true &&
+           eq(S.hp, Math.min(cap, 30 + Math.round(cap * HEAL_PCT)), 'carried HP') === true &&
+           eq(S.maxHp, cap, 'max HP grew');
+  });
+  T('carried HP never exceeds the (grown) maximum', () => {
+    fresh([]);
+    B.p.hp = BASE_HP; endBattle('win');
+    return eq(S.hp, BASE_HP + HP_PER_WIN, 'clamped to the new cap');
+  });
+  T('a whole run can be played to the last opponent', () => {
+    fresh([]);
+    let guard = 0;
+    while (S.stage < FOES.length && guard++ < 400){
+      B = { p:newSide(S.deck, S.hp, S.maxHp), e:newSide(FOES[S.stage].deck, FOES[S.stage].hp, FOES[S.stage].hp),
+            turn:'p', turnNum:1, played:[], fight:[], over:false, log:[], result:null };
+      B.e.name = FOES[S.stage].n;
+      startTurn('p');
+      // Play greedily for the player too, so the sim is a real fight.
+      let t = 0;
+      while (!B.over && t++ < 120){
+        for (let g = 0; g < 20 && !B.over; g++){
+          let best = -1, bs = 0.01;
+          for (let i = 0; i < B.p.hand.length; i++){ if (!canPlay(B.p.hand[i],'p')) continue;
+            const s = cardScore(B.p.hand[i],'p'); if (s > bs){ bs = s; best = i; } }
+          if (best < 0) break;
+          playCard(best, 'p');
+        }
+        if (B.over) break;
+        endTurn('p'); aiTurn();
+      }
+      if (!B.over) return 'fight ' + S.stage + ' never resolved in 120 turns';
+      // endBattle() has already carried HP and advanced the stage — do not repeat it here.
+      if (B.result === 'lose'){ S.hp = S.maxHp; S.stage++; continue; }   // keep marching for coverage
+      // intermission
+      if (S.stage < FOES.length && S.pool.length >= 6){
+        const d = dealPatches();
+        takePatch(d.mine[0], 'YOU');
+        takePatch(aiPickPatch(d.theirs, FOES[Math.min(S.stage,FOES.length-1)].deck, S.deck), 'FOE');
+      }
+    }
+    if (guard >= 400) return 'run never terminated';
+    return eq(S.stage, FOES.length, 'reached the end');
+  });
+  T('every card still renders text after a stack of patches', () => {
+    fresh(PATCHES.map(p => p.id));
+    for (const id of CARD_IDS){
+      const t = cardText(CARDS[id], 'p');
+      if (typeof t !== 'string') return id + ' produced no text';
+      if (/NaN|undefined/.test(t)) return id + ' rendered "' + t + '"';
+    }
+  });
+  T('card costs stay non-negative integers under every patch', () => {
+    fresh(PATCHES.map(p => p.id));
+    for (const id of CARD_IDS){
+      const c = effCost(CARDS[id],'p');
+      if (!Number.isInteger(c) || c < 0) return id + ' cost ' + c;
+    }
+  });
+
+  UI.silent = false;
+  lines.push('');
+  lines.push((fail ? 'SMOKE FAIL ' : 'SMOKE PASS ') + pass + '/' + (pass + fail));
+  document.title = (fail ? 'SMOKE FAIL ' : 'SMOKE PASS ') + pass + '/' + (pass + fail);
+  try { localStorage.removeItem(SAVE_KEY); } catch(e){}
+  const pre = document.createElement('pre');
+  pre.id = 'smokeout';
+  pre.textContent = lines.join('\n');
+  document.body.appendChild(pre);
+}
+</script>
+<script src="glitchbox-menu.js" data-pos="bottom-left" defer></script>
+</body>
+</html>

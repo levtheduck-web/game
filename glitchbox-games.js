@@ -3,6 +3,7 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
+  {name:'Patch Notes',        file:'patch-notes.html',            emoji:'🩹',color:['#07090c','#121922'],category:'strategy',   tags:['new','hot']},
   {name:'Seven Liars',         file:'seven-liars.html',            emoji:'🕶️',color:['#06080b','#101a24'],category:'puzzle',     tags:['new','hot']},
   {name:'Fatespine',           file:'fatespine.html',              emoji:'\u23f3',color:['#0a0410','#24103a'],category:'action',     tags:['new','hot']},
   {name:'Blast Radius',        file:'blast-radius.html',            emoji:'💥',color:['#03040c','#141d44'],category:'multiplayer',tags:['new','hot','mp']},
@@ -50,6 +51,43 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
+
+'patch-notes':(c)=>{
+  _GV(c,0,0,320,200,'#07090c','#0b0f14','#121922');
+  // the changelog itself: buff and nerf lines in diff green and red
+  const rows=[[1,74],[0,96],[1,58],[0,84],[1,66]];
+  c.textAlign='left';c.textBaseline='middle';
+  rows.forEach(([buff,w],i)=>{
+    const y=30+i*24;
+    _F(c,12,y-10,176,20,buff?'rgba(63,185,80,0.10)':'rgba(248,81,73,0.10)');
+    _F(c,12,y-10,2,20,buff?'#3fb950':'#f85149');
+    c.fillStyle=buff?'#3fb950':'#f85149';c.font='10px monospace';c.fillText(buff?'+':'−',21,y);
+    _F(c,32,y-3,w,2,'rgba(213,221,229,0.5)');
+    _F(c,32,y+3,w*0.55,2,'rgba(213,221,229,0.2)');
+  });
+  _F(c,12,4,58,14,'#0d1a11');c.strokeStyle='#1c3a24';c.lineWidth=1;c.strokeRect(12.5,4.5,57,13);
+  c.fillStyle='#3fb950';c.font='9px monospace';c.fillText('v0.1.14',17,11.5);
+
+  // one card taking the hit, with a sibling behind it for depth
+  c.save();c.translate(238,104);c.rotate(0.07);
+  _F(c,-34,-52,68,104,'#0d1117');c.strokeStyle='#2c3947';c.lineWidth=1;c.strokeRect(-34.5,-52.5,69,105);
+  c.restore();
+  c.save();c.translate(258,100);c.rotate(-0.05);
+  _F(c,-38,-56,76,112,'#121922');
+  c.strokeStyle='#f85149';c.lineWidth=1.5;c.strokeRect(-38.5,-56.5,77,113);
+  _F(c,-27,-42,46,2,'rgba(213,221,229,0.6)');           // title rule
+  c.fillStyle='#f85149';c.font='7px monospace';c.textAlign='left';c.fillText('FIRE',-27,-31);
+  // the patched number: base struck through, new value in green
+  c.fillStyle='#5a6672';c.font='15px monospace';c.fillText('9',-25,4);
+  c.strokeStyle='#f85149';c.lineWidth=1.4;c.beginPath();c.moveTo(-28,3);c.lineTo(-15,3);c.stroke();
+  c.fillStyle='#3fb950';c.font='bold 20px monospace';c.fillText('14',-8,4);
+  _F(c,-27,26,52,2,'rgba(213,221,229,0.22)');
+  _F(c,-27,34,36,2,'rgba(213,221,229,0.22)');
+  _C(c,-38,-56,11,'#171208');c.strokeStyle='#d29922';c.lineWidth=1.5;c.beginPath();c.arc(-38,-56,11,0,6.28);c.stroke();
+  c.fillStyle='#d29922';c.font='bold 12px monospace';c.textAlign='center';c.fillText('2',-38,-51.5);
+  c.restore();
+  _SC(c);
+},
 
 'seven-liars':(c)=>{
   _GV(c,0,0,320,200,'#06080b','#0b131b','#101a24');
