@@ -1274,8 +1274,7 @@ function renderGames(){
     });
     grid.appendChild(a);
     const canvas=a.querySelector('.thumb-canvas'),ctx=canvas.getContext('2d');
-    const gid=g.file.replace('.html','');
-    (DRAW[gid]||DRAW.fallback)(ctx,g);
+    drawThumb(ctx,g);
     const star=a.querySelector('.fav-btn');
     const hit=ev=>{
       // stop the card's <a> from launching the game, and stop the grid's

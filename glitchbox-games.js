@@ -743,3 +743,22 @@ fallback:(c,g)=>{
   c.fillText(g.emoji,160,100);_SC(c);
 },
 };
+
+// ── AI-painted thumbnails ──
+// thumbs/<gid>.png (from gen-thumbs.js) overlays the canvas art the moment it
+// loads; missing files cost one 404 and the hand-drawn art simply stays.
+const THUMB_IMGS = {};
+function drawThumb(ctx, g){
+  const gid = g.file.replace('.html','');
+  (DRAW[gid] || DRAW.fallback)(ctx, g);
+  let img = THUMB_IMGS[gid];
+  if (img === null) return;                    // known missing — canvas art it is
+  if (!img){
+    img = THUMB_IMGS[gid] = new Image();
+    img.onerror = () => { THUMB_IMGS[gid] = null; };
+    img.src = 'thumbs/' + gid + '.png';
+  }
+  const paint = () => { ctx.drawImage(img, 0, 0, 320, 200); };
+  if (img.complete && img.naturalWidth) paint();
+  else img.addEventListener('load', paint, { once:true });
+}

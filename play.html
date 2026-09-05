@@ -492,7 +492,7 @@ function card(g){
     '<div class="game-info"><div class="game-name">'+g.name+'</div>'+
     '<div class="game-meta"><span class="game-tag cat">'+g.category.toUpperCase()+'</span>'+badges+'</div></div>';
   const ctx=a.querySelector('.thumb-canvas').getContext('2d');
-  (DRAW[g.file.replace('.html','')]||DRAW.fallback)(ctx,g);
+  drawThumb(ctx,g);
   return a;
 }
 function renderGrids(){
