@@ -499,23 +499,51 @@
   function close() { if (built) { $('gbc-wrap').classList.remove('show'); shown = false; } }
   function toggle() { if (shown) close(); else open(); }
 
-  // The server decides who the owner is; until /api/me says so, the hotkey does
-  // nothing at all — no console, no hint that there is one.
+  // The server decides who the owner is; until /api/me says so, the console won't
+  // open. A stray backtick still reveals nothing, but the deliberate Ctrl+Shift+K
+  // chord says why it refused — a hotkey that does *literally* nothing reads as a
+  // bug, and the first person to hit it is the owner wondering what broke.
   setInterval(() => { isOwner = ownerNow(); }, 1500);
   isOwner = ownerNow();
+
+  // Self-contained so the console keeps working if the hub never loads.
+  function refused() {
+    let t = $('gbc-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'gbc-toast';
+      t.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:13000;' +
+        'max-width:min(460px,92vw);padding:12px 16px;background:#080b14;border:1px solid rgba(255,0,128,.45);' +
+        "box-shadow:0 0 26px rgba(255,0,128,.2);font-family:'Rajdhani',sans-serif;font-weight:600;font-size:13px;" +
+        'color:#e8eefc;line-height:1.45;transition:opacity .25s;';
+      document.body.appendChild(t);
+    }
+    const signedIn = typeof currentUser !== 'undefined' && !!currentUser;
+    t.innerHTML = signedIn
+      ? '<b style="color:#ff0080">OWNER CONSOLE LOCKED</b><br>Signed in as ' +
+        esc((currentUser.email || currentUser.name)) + ', which the server does not recognise as the owner.'
+      : '<b style="color:#ff0080">OWNER CONSOLE LOCKED</b><br>Sign in first — the console follows the account, not the browser.';
+    t.style.opacity = '1';
+    clearTimeout(window.__gbcToastT);
+    window.__gbcToastT = setTimeout(() => { t.style.opacity = '0'; }, 3200);
+  }
+
+  // Caller already swallowed the event (Ctrl+Shift+K is Firefox's web console).
+  function hotkey() {
+    if (!ownerNow() && !shown) { refused(); return; }
+    toggle();
+  }
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && shown) { close(); return; }
     const typing = e.target && (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable);
     const ours = e.target && e.target.id === 'gbc-in';
     if (e.key === '`' && (!typing || ours)) {
+      // Backtick is easy to hit by accident, so a non-owner gets silence, not a hint.
       if (!ownerNow() && !shown) return;
       e.preventDefault(); toggle(); return;
     }
-    if (e.ctrlKey && e.shiftKey && (e.key === 'K' || e.key === 'k')) {
-      if (!ownerNow() && !shown) return;
-      e.preventDefault(); toggle();
-    }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'K' || e.key === 'k')) { e.preventDefault(); hotkey(); }
   });
 
   window.glitchCmd = { open, close, toggle, run, CMDS, _parse: parse, _findGame: findGame, _out: OUT };
