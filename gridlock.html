@@ -261,8 +261,11 @@ const KINDS = [
 ];
 
 // Eight starting berths, spread around the arena and pointed somewhere survivable.
+// Opposing berths ride offset lanes: everyone still converges on the centre,
+// but riders who hold course pass in a near miss instead of a guaranteed
+// mutual head-on three seconds into the round.
 const BERTHS = [
-  [0.14,0.50,0],[0.86,0.50,2],[0.50,0.12,1],[0.50,0.88,3],
+  [0.14,0.46,0],[0.86,0.54,2],[0.54,0.12,1],[0.46,0.88,3],
   [0.20,0.18,1],[0.80,0.82,3],[0.80,0.18,2],[0.20,0.82,0],
 ];
 

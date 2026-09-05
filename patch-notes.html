@@ -696,6 +696,7 @@ function endTurn(side){
 
 function playerEndTurn(){
   if (!B || B.over || B.turn !== 'p') return;
+  B.turn = 'e';           // hand over immediately — a double-click must not queue a second foe turn
   endTurn('p');
   render();
   if (UI.silent || SMOKE){ aiTurn(); return; }

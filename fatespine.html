@@ -2905,9 +2905,16 @@ function drawHud(){
     if(WI[I_DMG] > 0){ g.fillStyle='#ff4a4a'; g.font='9px ui-monospace,monospace'; g.fillText('HIT · NO GOLD', SCRW-18, 78); }
   }
 
-  // objective line, one line, top of the arena
-  g.textAlign='center'; g.font='10px ui-monospace,monospace'; g.fillStyle='#7c88a8';
-  g.fillText(objectiveLine(), SCRW/2, SCRH-16);
+  // objective line, one line, on a dark pill so the fire levels can't swallow it
+  g.textAlign='center'; g.font='10px ui-monospace,monospace';
+  {
+    const objTxt = objectiveLine();
+    const objW = g.measureText(objTxt).width;
+    g.fillStyle='rgba(6,8,16,.72)';
+    g.fillRect(SCRW/2-objW/2-10, SCRH-28, objW+20, 17);
+    g.fillStyle='#aab6d4';
+    g.fillText(objTxt, SCRW/2, SCRH-16);
+  }
 
   // quit pill
   g.fillStyle='rgba(6,8,16,.7)'; g.fillRect(QUIT_BOX.x, QUIT_BOX.y, QUIT_BOX.w, QUIT_BOX.h);
