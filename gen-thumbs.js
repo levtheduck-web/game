@@ -1,21 +1,45 @@
 #!/usr/bin/env node
-// gen-thumbs.js — generate AI thumbnail art for every GLITCHBOX game via OpenAI.
+// gen-thumbs.js — generate AI thumbnail art for every GLITCHBOX game.
 //
-//   OPENAI_API_KEY=sk-...  node gen-thumbs.js            all games missing a thumb
-//   OPENAI_API_KEY=sk-...  node gen-thumbs.js gridlock   just one game (force redo)
+// Works with either provider; whichever key it finds wins (Gemini first).
 //
-// Key can also live in ~/.openai-key (chmod 600).
-// Writes thumbs/<gid>.png (640x400). The hub falls back to canvas art when absent.
+//   node gen-thumbs.js --probe        check the key and list usable image models
+//   node gen-thumbs.js                every game that has no thumb yet
+//   node gen-thumbs.js gridlock       just one game (redoes it even if present)
+//   node gen-thumbs.js --provider openai
+//
+// Keys, in order of preference:
+//   Gemini  $GEMINI_API_KEY  or  ~/.gemini-key
+//   OpenAI  $OPENAI_API_KEY  or  ~/.openai-key
+//
+// Writes thumbs/<gid>.png (640x400). The hub falls back to its canvas art
+// whenever a file is missing, so a partial run is always safe to ship.
 
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const KEY = process.env.OPENAI_API_KEY ||
-  (fs.existsSync(path.join(os.homedir(), '.openai-key'))
-    ? fs.readFileSync(path.join(os.homedir(), '.openai-key'), 'utf8').trim() : '');
-if (!KEY) { console.error('No OpenAI key. Put it in $OPENAI_API_KEY or ~/.openai-key'); process.exit(1); }
+const argv = process.argv.slice(2);
+const flag = n => { const i = argv.indexOf('--' + n); return i === -1 ? null : (argv[i + 1] || true); };
+const PROBE = argv.includes('--probe');
+
+function readKey(env, file) {
+  if (process.env[env]) return process.env[env].trim();
+  const p = path.join(os.homedir(), file);
+  try { return fs.existsSync(p) ? fs.readFileSync(p, 'utf8').trim() : ''; } catch (e) { return ''; }
+}
+const GEM_KEY = readKey('GEMINI_API_KEY', '.gemini-key');
+const OAI_KEY = readKey('OPENAI_API_KEY', '.openai-key');
+
+let PROVIDER = flag('provider') || (GEM_KEY ? 'gemini' : OAI_KEY ? 'openai' : '');
+const KEY = PROVIDER === 'gemini' ? GEM_KEY : OAI_KEY;
+if (!KEY) {
+  console.error('No API key found. Add one of these and re-run:\n' +
+    "  echo 'AIza…' > ~/.gemini-key && chmod 600 ~/.gemini-key      (Gemini)\n" +
+    "  echo 'sk-…'  > ~/.openai-key && chmod 600 ~/.openai-key      (OpenAI)");
+  process.exit(1);
+}
 
 const STYLE = 'Moody dark retro-arcade key art, glowing neon on near-black, subtle CRT scanlines and bloom, ' +
   'cinematic lighting, crisp vector-like shapes, no text, no words, no letters, no logos, no UI, no watermark. ' +
@@ -65,27 +89,95 @@ const SCENES = {
 const gamesSrc = fs.readFileSync(path.join(__dirname, 'glitchbox-games.js'), 'utf8');
 const ids = [...gamesSrc.matchAll(/file:'([^']+)\.html'/g)].map(m => m[1]);
 
-const only = process.argv[2];
+const only = argv.find(a => a[0] !== '-' && argv[argv.indexOf(a) - 1] !== '--provider');
 const outDir = path.join(__dirname, 'thumbs');
 fs.mkdirSync(outDir, { recursive: true });
 
+const GEM = 'https://generativelanguage.googleapis.com/v1beta';
+
+// ── providers ──────────────────────────────────────────────────────────────
+// Each returns raw image bytes for one prompt. Model names move around, so the
+// Gemini path asks the API what this key can actually use instead of guessing.
+let gemModel = flag('model') || null;
+
+async function gemImageModels() {
+  const r = await fetch(`${GEM}/models?key=${KEY}&pageSize=200`);
+  if (!r.ok) throw new Error('models list: ' + r.status + ' ' + (await r.text()).slice(0, 200));
+  const all = (await r.json()).models || [];
+  // Anything that can return an image: the flash-image line via generateContent,
+  // or an Imagen model via :predict.
+  return all.filter(m => /image/i.test(m.name) && !/embed/i.test(m.name))
+            .map(m => ({ name: m.name.replace(/^models\//, ''),
+                         methods: m.supportedGenerationMethods || [] }));
+}
+
+async function pickGemModel() {
+  if (gemModel) return gemModel;
+  const models = await gemImageModels();
+  if (!models.length) throw new Error('this key has no image-capable models');
+  // Prefer the cheap conversational image model, then Imagen, then anything.
+  const pref = models.find(m => /gemini.*flash.*image/.test(m.name) && m.methods.includes('generateContent'))
+            || models.find(m => /imagen/.test(m.name) && m.methods.includes('predict'))
+            || models[0];
+  gemModel = pref.name;
+  console.log('using Gemini model: ' + gemModel);
+  return gemModel;
+}
+
+async function genGemini(prompt) {
+  const model = await pickGemModel();
+  // Imagen models speak :predict; the gemini-*-image line speaks :generateContent.
+  if (/imagen/.test(model)) {
+    const r = await fetch(`${GEM}/models/${model}:predict?key=${KEY}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instances: [{ prompt }],
+                             parameters: { sampleCount: 1, aspectRatio: '16:9' } }),
+    });
+    if (!r.ok) throw new Error(r.status + ' ' + (await r.text()).slice(0, 300));
+    const p = (await r.json()).predictions || [];
+    if (!p[0] || !p[0].bytesBase64Encoded) throw new Error('no image in response');
+    return Buffer.from(p[0].bytesBase64Encoded, 'base64');
+  }
+  const r = await fetch(`${GEM}/models/${model}:generateContent?key=${KEY}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+  });
+  if (!r.ok) throw new Error(r.status + ' ' + (await r.text()).slice(0, 300));
+  const j = await r.json();
+  const parts = (((j.candidates || [])[0] || {}).content || {}).parts || [];
+  const img = parts.find(p => p.inlineData && p.inlineData.data);
+  if (!img) {
+    const why = (j.promptFeedback && j.promptFeedback.blockReason) ||
+                parts.map(p => p.text).filter(Boolean).join(' ').slice(0, 160) || 'no image in response';
+    throw new Error(why);
+  }
+  return Buffer.from(img.inlineData.data, 'base64');
+}
+
+async function genOpenAI(prompt) {
+  const r = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: flag('model') || 'gpt-image-1', prompt,
+                           size: '1536x1024', quality: 'medium', n: 1 }),
+  });
+  if (!r.ok) throw new Error(r.status + ' ' + (await r.text()).slice(0, 300));
+  return Buffer.from((await r.json()).data[0].b64_json, 'base64');
+}
+
+const generate = p => (PROVIDER === 'gemini' ? genGemini(p) : genOpenAI(p));
+
+// ── one game ───────────────────────────────────────────────────────────────
 async function gen(gid) {
   const scene = SCENES[gid];
   if (!scene) { console.log(`skip ${gid} (no scene direction — add one to SCENES)`); return; }
   const out = path.join(outDir, gid + '.png');
   if (!only && fs.existsSync(out)) { console.log(`have ${gid}`); return; }
   process.stdout.write(`gen  ${gid} … `);
-  const r = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'gpt-image-1', prompt: scene + '. ' + STYLE,
-                           size: '1536x1024', quality: 'medium', n: 1 }),
-  });
-  if (!r.ok) { console.log('FAILED ' + r.status + ' ' + (await r.text()).slice(0, 300)); return; }
-  const j = await r.json();
+  const bytes = await generate(scene + '. ' + STYLE);
   const raw = out + '.raw.png';
-  fs.writeFileSync(raw, Buffer.from(j.data[0].b64_json, 'base64'));
-  // 1536x1024 → 640x427 → center-crop 640x400 (the hub's 8:5 card)
+  fs.writeFileSync(raw, bytes);
+  // Whatever came back → 640 wide → center-crop to the hub's 8:5 card.
   execFileSync('sips', ['--resampleWidth', '640', raw], { stdio: 'ignore' });
   execFileSync('sips', ['--cropToHeightWidth', '400', '640', raw], { stdio: 'ignore' });
   fs.renameSync(raw, out);
@@ -93,8 +185,32 @@ async function gen(gid) {
 }
 
 (async () => {
-  const todo = only ? [only] : ids;
-  for (const gid of todo) {
-    try { await gen(gid); } catch (e) { console.log(`FAILED ${gid}: ${e.message}`); }
+  console.log('provider: ' + PROVIDER);
+  if (PROBE) {
+    if (PROVIDER !== 'gemini') {
+      const r = await fetch('https://api.openai.com/v1/models', { headers: { Authorization: 'Bearer ' + KEY } });
+      console.log(r.ok ? 'key works' : 'key rejected: ' + r.status + ' ' + (await r.text()).slice(0, 200));
+      return;
+    }
+    const models = await gemImageModels();
+    if (!models.length) { console.log('key works, but no image-capable models are visible to it'); return; }
+    console.log('image-capable models on this key:');
+    models.forEach(m => console.log('  ' + m.name + '   [' + m.methods.join(', ') + ']'));
+    return;
   }
-})();
+  const todo = only ? [only] : ids;
+  let made = 0, failed = 0;
+  for (const gid of todo) {
+    try { await gen(gid); made++; }
+    catch (e) { failed++; console.log(`FAILED ${gid}: ${e.message}`); }
+  }
+  console.log(`\ndone — ${made} handled, ${failed} failed`);
+})().catch(e => {
+  // A bad key or a dead network shouldn't land as a stack trace.
+  const m = String(e.message || e);
+  if (/API key not valid|API_KEY_INVALID|\b400\b/.test(m)) console.error('That key was rejected by the provider.');
+  else if (/PERMISSION_DENIED|\b403\b/.test(m)) console.error('The key is valid but not allowed to use this API — enable it in the console.');
+  else if (/fetch failed|ENOTFOUND|ETIMEDOUT/.test(m)) console.error('Could not reach the provider — check the network.');
+  else console.error(m.split('\n')[0]);
+  process.exit(1);
+});
