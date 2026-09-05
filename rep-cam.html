@@ -200,7 +200,7 @@ const EX={
     joints:[11,23,25,12,24,26], focus:[23,24], countAt:'lo', lo:85, hi:125,
     measure:lm=>(angleDeg(lm[11],lm[23],lm[25])+angleDeg(lm[12],lm[24],lm[26]))/2 },
   jack:{ name:'Jumping Jacks', emoji:'⭐', kcal:0.2, unit:'reps', type:'jack',
-    how:'Face the camera, whole body in frame.', joints:[11,12,15,16,27,28], focus:[15,16] },
+    how:'Face the camera. Hands over your head = one rep.', joints:[0,11,12,15,16], focus:[15,16] },
   curl:{ name:'Bicep Curls', emoji:'🏋️', kcal:0.15, unit:'reps', type:'rep',
     how:'Face the camera. Curl both arms together.',
     joints:[11,13,15,12,14,16], focus:[13,14], countAt:'lo', lo:62, hi:150,
@@ -256,14 +256,21 @@ class RepEngine{
     }
   }
   feedJack(lm,t){
+    // Arms drive the count — webcams often cut the legs off, so legs are only
+    // ever a bonus form check, never a requirement.
     const shW=Math.abs(lm[11].x-lm[12].x)||0.01;
-    const wristY=(lm[15].y+lm[16].y)/2, shoY=(lm[11].y+lm[12].y)/2;
-    const spread=Math.abs(lm[27].x-lm[28].x);
-    const open = wristY<shoY-0.02 && spread>shW*1.5;
-    const closed = wristY>shoY+0.12 && spread<shW*1.2;
-    this.progress=open?1:closed?0:this.progress;
-    if(open && !this.jackOpen && t-this.lastCount>MIN_REP_MS){ this.jackOpen=true; this.count(t); }
-    else if(closed) this.jackOpen=false;
+    const shoY=(lm[11].y+lm[12].y)/2, headY=lm[0].y;
+    const wr=[15,16].filter(i=>(lm[i].visibility??1)>.4);
+    if(!wr.length){ this.tip='Show me your hands!'; return; }
+    const wristY=wr.reduce((a,i)=>a+lm[i].y,0)/wr.length;
+    const armsUp=wristY<headY, armsDown=wristY>shoY+0.06;
+    const legs=[[27,28],[25,26]].find(p=>p.every(i=>(lm[i].visibility??1)>.5));
+    const spread=legs?Math.abs(lm[legs[0]].x-lm[legs[1]].x):null;
+    this.progress=armsUp?1:armsDown?0:this.progress;
+    if(armsUp && !this.jackOpen && t-this.lastCount>MIN_REP_MS){
+      this.jackOpen=true; this.count(t);
+      if(spread!==null && spread<shW*1.1) this.tip='Jump those feet apart too!';
+    }else if(armsDown) this.jackOpen=false;
   }
   feedStep(lm,t){
     const hipY=(lm[23].y+lm[24].y)/2;
@@ -467,7 +474,7 @@ async function startWorkout(id){
     else say(String(n));
     if(!goalHit && n>=settings.goal){ goalHit=true; fanfare(); say('Goal crushed! Keep going!'); }
   };
-  goalHit=false; pausedTotal=0; paused=false;
+  goalHit=false; pausedTotal=0; paused=false; frameOk=demoRun?1:0; wasInFrame=demoRun;
   $('hudEx').textContent=`${EX[id].emoji} ${EX[id].name.toUpperCase()}`;
   $('repLbl').textContent=EX[id].unit.toUpperCase();
   $('repNum').textContent='0'; $('hudTime').textContent='0:00'; $('hudKcal').textContent='0';
@@ -527,7 +534,7 @@ function finishWorkout(){
 const view=$('view'), vctx=view.getContext('2d');
 function sizeCanvas(){ view.width=innerWidth*devicePixelRatio; view.height=innerHeight*devicePixelRatio; }
 addEventListener('resize',sizeCanvas);
-let demoT0=0;
+let demoT0=0, frameOk=0, wasInFrame=false; // frameOk: smoothed "your body is in frame" 0..1
 function loop(ts){
   if(!tracking) return;
   if(paused){ requestAnimationFrame(loop); return; }
@@ -545,7 +552,16 @@ function loop(ts){
   }
   if(lm){
     lastLm=lm;
-    engine.feed(lm.map(p=>({x:p.x*aspect,y:p.y,visibility:p.visibility})),ts);
+    const slm=lm.map(p=>({x:p.x*aspect,y:p.y,visibility:p.visibility}));
+    engine.feed(slm,ts);
+    frameOk+=((vis(slm,EX[exId].joints)>=0.55?1:0)-frameOk)*0.12;
+  }else{
+    frameOk+=(0-frameOk)*0.12;
+  }
+  if(!demoRun){
+    const nowOk=frameOk>=0.55;
+    if(nowOk&&!wasInFrame){ beep(1046,.15,'triangle'); say('I can see you — go!'); }
+    wasInFrame=nowOk;
   }
   draw(lm);
   updateHUD();
@@ -579,23 +595,61 @@ function draw(lm){
       vctx.restore();
     }
   }
+  if(!demoRun && frameOk<0.55) drawGuide();
   if(!lm) return;
+  drawBody(lm,h);
+}
+function drawBody(lm,h){
   const col=engine&&engine.armed?'#ffe600':(engine&&(engine.holdOk||engine.progress>0.9)?'#00ff88':'#00f5ff');
-  vctx.lineWidth=Math.max(2,h*0.006); vctx.strokeStyle=col; vctx.shadowColor=col; vctx.shadowBlur=12;
+  const P=i=>toCanvas(lm[i]), ok=i=>(lm[i].visibility??1)>=.4;
+  // torso as a filled shape, not just sticks
+  if(ok(11)&&ok(12)&&ok(23)&&ok(24)){
+    const a=P(11),b=P(12),c=P(24),d=P(23);
+    vctx.globalAlpha=.16; vctx.fillStyle=col;
+    vctx.beginPath(); vctx.moveTo(a[0],a[1]); vctx.lineTo(b[0],b[1]); vctx.lineTo(c[0],c[1]); vctx.lineTo(d[0],d[1]); vctx.closePath(); vctx.fill();
+    vctx.globalAlpha=1;
+  }
+  vctx.lineWidth=Math.max(3,h*0.008); vctx.lineCap='round';
+  vctx.strokeStyle=col; vctx.shadowColor=col; vctx.shadowBlur=14;
   for(const [a,b] of BONES){
-    if((lm[a].visibility??1)<.4||(lm[b].visibility??1)<.4) continue;
-    const [x1,y1]=toCanvas(lm[a]), [x2,y2]=toCanvas(lm[b]);
+    if(a===0) continue; // head is drawn as a circle below
+    if(!ok(a)||!ok(b)) continue;
+    const [x1,y1]=P(a), [x2,y2]=P(b);
     vctx.beginPath(); vctx.moveTo(x1,y1); vctx.lineTo(x2,y2); vctx.stroke();
+  }
+  if(ok(0)&&ok(11)&&ok(12)){
+    const n=P(0),s1=P(11),s2=P(12);
+    const r=Math.max(8,Math.hypot(s1[0]-s2[0],s1[1]-s2[1])*0.32);
+    vctx.beginPath(); vctx.arc(n[0],n[1],r,0,6.28); vctx.stroke();
+    vctx.globalAlpha=.12; vctx.fillStyle=col; vctx.fill(); vctx.globalAlpha=1;
   }
   vctx.shadowBlur=0;
   const focus=EX[exId].focus||[];
-  for(const i of [0,11,12,13,14,15,16,23,24,25,26,27,28]){
-    if((lm[i].visibility??1)<.4) continue;
-    const [x,y]=toCanvas(lm[i]);
+  for(const i of [11,12,13,14,15,16,23,24,25,26,27,28]){
+    if(!ok(i)) continue;
+    const [x,y]=P(i);
     const hot=focus.includes(i);
     vctx.fillStyle=hot?'#ff0080':'#ffffff';
     vctx.beginPath(); vctx.arc(x,y,hot?Math.max(5,h*.008):Math.max(3,h*.005),0,6.28); vctx.fill();
   }
+}
+// Dashed ghost outline in the exercise's start pose — stand inside it so the AI
+// can lock on. Shown until enough of your body is steadily visible.
+function drawGuide(){
+  const w=view.width,h=view.height,g=synthPose(exId,0);
+  vctx.save();
+  const pulse=.35+.2*Math.sin(performance.now()/300);
+  vctx.setLineDash([14,10]); vctx.lineWidth=Math.max(3,h*.006);
+  vctx.strokeStyle=`rgba(255,255,255,${pulse})`; vctx.shadowColor='#00f5ff'; vctx.shadowBlur=8;
+  for(const [a,b] of BONES){
+    if(a===0) continue;
+    vctx.beginPath(); vctx.moveTo(g[a].x*w,g[a].y*h); vctx.lineTo(g[b].x*w,g[b].y*h); vctx.stroke();
+  }
+  vctx.beginPath(); vctx.arc(g[0].x*w,g[0].y*h,h*.045,0,6.28); vctx.stroke();
+  vctx.setLineDash([]); vctx.shadowBlur=0;
+  vctx.fillStyle='rgba(255,255,255,.85)'; vctx.font=`bold ${Math.round(h*.028)}px monospace`; vctx.textAlign='center';
+  vctx.fillText('MATCH THE GHOST — FIT YOUR BODY IN FRAME',w/2,h*.12);
+  vctx.restore();
 }
 const ring=$('repRing'), rctx=ring.getContext('2d');
 function updateHUD(){
@@ -708,6 +762,28 @@ if(location.hash.includes('smoke')){(function(){
     T(`${id}: rest = 0 reps`, runCycles(id,0).reps===0);
   }
   T('pushup kcal accumulates', near(runCycles('pushup',5).kcal, EX.pushup.kcal*5, .01));
+  // jacks must count even when the webcam cuts the legs off
+  (function(){
+    const e=new RepEngine('jack'); let t=0;
+    for(let c=0;c<3;c++) for(let i=0;i<=20;i++){
+      t+=50; const p=synthPose('jack',c+i/20);
+      [25,26,27,28].forEach(j=>p[j].visibility=0.1);
+      e.feed(p,t);
+    }
+    T('jack: counts with legs out of frame', e.reps===3);
+  })();
+  // arms up but feet together → still counts, but coaches the legs
+  (function(){
+    const e=new RepEngine('jack'); let t=0, saw=false;
+    for(let i=0;i<=40;i++){
+      t+=50; const p=synthPose('jack',i/40);
+      p[25].x=.47; p[26].x=.53; p[27].x=.47; p[28].x=.53;
+      e.feed(p,t); if(e.tip&&/feet apart/.test(e.tip)) saw=true;
+    }
+    T('jack: lazy legs still count + get a form tip', e.reps===1&&saw);
+  })();
+  // in-frame ghost guide exists and renders the exercise start pose
+  T('ghost guide function present', typeof drawGuide==='function');
   // shallow push-up triggers form tip
   (function(){
     const e=new RepEngine('pushup'); let t=0, sawTip=false;
