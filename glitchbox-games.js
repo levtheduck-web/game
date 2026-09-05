@@ -3,7 +3,6 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
-  {name:'Rep Cam',            file:'rep-cam.html',                emoji:'💪',color:['#05070e','#0c1a2e'],category:'other',      tags:['new','hot'],blurb:'Your camera counts your reps — push-ups, pull-ups, squats, the AI sees all'},
   {name:'Gridlock',           file:'gridlock.html',               emoji:'\u26a1',color:['#04060e','#0a1a34'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Three to eight light cycles, one grid, nobody stops'},
   {name:'Patch Notes',        file:'patch-notes.html',            emoji:'🩹',color:['#07090c','#121922'],category:'strategy',   tags:['new','hot']},
   {name:'Seven Liars',         file:'seven-liars.html',            emoji:'🕶️',color:['#06080b','#101a24'],category:'puzzle',     tags:['new','hot']},
@@ -53,30 +52,6 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
-'rep-cam':(c)=>{
-  _GV(c,0,0,320,200,'#05070e','#081020','#0c1a2e');
-  // camera viewfinder brackets
-  c.strokeStyle='#00f5ff';c.lineWidth=2;
-  [[14,14,1,1],[306,14,-1,1],[14,186,1,-1],[306,186,-1,-1]].forEach(([x,y,dx,dy])=>{
-    c.beginPath();c.moveTo(x+18*dx,y);c.lineTo(x,y);c.lineTo(x,y+18*dy);c.stroke();
-  });
-  _C(c,30,30,4,'#ff3355');c.fillStyle='#ff3355';c.font='9px monospace';c.textAlign='left';c.fillText('REC',40,33);
-  // neon athlete mid push-up, tracked joints glowing
-  c.shadowColor='#00ff88';c.shadowBlur=8;
-  const B=[[70,120,130,118],[130,118,150,150],[130,118,190,112],[190,112,250,118],[250,118,262,150]];
-  B.forEach(([x1,y1,x2,y2])=>_L(c,x1,y1,x2,y2,'#00ff88',3));
-  _L(c,70,120,64,150,'#00ff88',3); // forearm to the floor
-  c.shadowBlur=0;
-  _C(c,60,106,8,'#00ff88'); // head
-  [[70,120],[130,118],[190,112],[250,118]].forEach(([x,y])=>_C(c,x,y,4,'#ff0080'));
-  _F(c,40,156,240,2,'rgba(0,245,255,0.25)'); // floor line
-  // rep counter ring
-  c.strokeStyle='rgba(0,245,255,0.25)';c.lineWidth=5;c.beginPath();c.arc(262,58,26,0,6.28);c.stroke();
-  c.strokeStyle='#00f5ff';c.lineCap='round';c.beginPath();c.arc(262,58,26,-1.57,2.6);c.stroke();
-  c.fillStyle='#fff';c.font='bold 22px monospace';c.textAlign='center';c.fillText('12',262,66);
-  c.fillStyle='#5a6690';c.font='8px monospace';c.fillText('REPS',262,96);
-  _SC(c);
-},
 
 'gridlock':(c)=>{
   _GV(c,0,0,320,200,'#04060e','#060c18','#0a1a34');
