@@ -61,6 +61,13 @@ function constantEq(a, b) {
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
 }
+// The arcade answers to exactly ONE account. Set it once with
+//   npx wrangler secret put OWNER_EMAIL
+// and that Google address is the owner on every request, forever. It lives in a
+// secret rather than this (public) repo, and while it is set the claim code is
+// dead — nobody else can take ownership, whatever they know.
+function ownerPin(env) { return String((env && env.OWNER_EMAIL) || "").toLowerCase(); }
+
 // An avatar chosen from the hub's icon grid, stored in `picture` as "icon:<id>".
 function isIcon(p) { return /^icon:[a-z0-9-]{1,24}$/.test(String(p || "")); }
 // Public view of another user — never leaks email.
@@ -108,6 +115,8 @@ export class Hub extends DurableObject {
       // …and the moderation columns, for a DO that predates the admin console.
       try { this.sql.exec("ALTER TABLE users ADD COLUMN banned INTEGER"); } catch (e) { /* already there */ }
       try { this.sql.exec("ALTER TABLE users ADD COLUMN ban_reason TEXT"); } catch (e) { /* already there */ }
+      // Google tells us whether it vouches for the address; the owner pin insists on it.
+      try { this.sql.exec("ALTER TABLE users ADD COLUMN email_verified INTEGER"); } catch (e) { /* already there */ }
       this.sql.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_code ON users(code)");
       // Ensure a signing secret exists.
       const row = this.sql.exec("SELECT v FROM meta WHERE k='secret'").toArray()[0];
@@ -152,7 +161,7 @@ export class Hub extends DurableObject {
 
   userOf(sub) {
     return this.sql.exec(
-      "SELECT sub, email, name, picture, code, created, banned, ban_reason FROM users WHERE sub = ?",
+      "SELECT sub, email, name, picture, code, created, banned, ban_reason, email_verified FROM users WHERE sub = ?",
       sub).toArray()[0] || null;
   }
 
@@ -164,9 +173,41 @@ export class Hub extends DurableObject {
     this.sql.exec("INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v", k, v);
   }
   ownerSub() { return this.metaGet("owner"); }
+  // Single source of truth for "is this account the owner", used by both the
+  // /api/me verdict and every admin endpoint. With OWNER_EMAIL set, the answer is
+  // recomputed from the pinned address on every call — a stale `meta.owner` row,
+  // a leaked claim code or a hand-edited client can't survive this check.
+  // email_verified is only trusted to *reject*: NULL means "signed in before this
+  // column existed", which must not lock the real owner out of their own arcade.
+  isOwnerSub(sub) {
+    if (!sub) return false;
+    const pin = ownerPin(this.env);
+    if (!pin) return !!this.ownerSub() && this.ownerSub() === sub;
+    const u = this.userOf(sub);
+    return !!u && String(u.email || "").toLowerCase() === pin && u.email_verified !== 0;
+  }
+  // Public health, deliberately a boolean and nothing more: the pinned address
+  // itself never leaves the Worker. The same flag already ships to every signed-in
+  // client via /api/me — having it here is what makes "did OWNER_EMAIL actually
+  // reach the Durable Object?" answerable without an owner session, which is the
+  // one question a locked-out owner cannot otherwise ask.
+  health() { return { ok: true, service: "glitchbox-api", ownerPinned: !!ownerPin(this.env) }; }
+
+  // Diagnostic companion to isOwnerSub: same two conditions, reported separately.
+  ownerCheck(sub) {
+    if (!ownerPin(this.env)) return null;
+    const u = this.userOf(sub);
+    if (!u) return { emailMatches: false, emailVerified: false, email: "" };
+    return { emailMatches: String(u.email || "").toLowerCase() === ownerPin(this.env),
+             emailVerified: u.email_verified !== 0,
+             // The server's copy of the caller's own address — which is the one the pin
+             // is compared against, and can drift from the client's cached currentUser.
+             email: String(u.email || "") };
+  }
+
   async requireOwner(token) {
     const me = await this.verifySession(token);
-    if (!this.ownerSub() || this.ownerSub() !== me) throw new HttpError(403, "not the owner");
+    if (!this.isOwnerSub(me)) throw new HttpError(403, "not the owner");
     return me;
   }
   // Assign a unique friend code if the user doesn't have one yet.
@@ -263,11 +304,14 @@ export class Hub extends DurableObject {
       info.sub, info.email || "", info.name || info.email || "Player",
       picture, now, now);
     if (!existing) this.sql.exec("UPDATE users SET created = ? WHERE sub = ?", now, info.sub);
-    // Optional zero-setup path: set OWNER_EMAIL as a Worker secret and that Google
-    // account becomes owner the next time it signs in. Otherwise use the claim code.
-    const ownerEmail = String((this.env && this.env.OWNER_EMAIL) || "").toLowerCase();
-    if (ownerEmail && !this.ownerSub() && String(info.email || "").toLowerCase() === ownerEmail) {
-      this.metaSet("owner", info.sub);
+    this.sql.exec("UPDATE users SET email_verified = ? WHERE sub = ?",
+      String(info.email_verified) === "false" ? 0 : 1, info.sub);
+    // With OWNER_EMAIL pinned, that account is the owner the moment it signs in —
+    // and re-pointing (not just filling a blank) means a previous claim-code owner
+    // is demoted rather than left sitting in the row.
+    const pin = ownerPin(this.env);
+    if (pin && String(info.email || "").toLowerCase() === pin && String(info.email_verified) !== "false") {
+      if (this.ownerSub() !== info.sub) this.metaSet("owner", info.sub);
     }
     this.ensureCode(info.sub);
     const session = await this.makeSession(info.sub);
@@ -304,7 +348,13 @@ export class Hub extends DurableObject {
       `SELECT i.game, i.room, i.created, u.sub, u.name, u.picture FROM invites i
        JOIN users u ON u.sub = i.to_sub WHERE i.from_sub = ? ORDER BY i.created DESC`, me).toArray();
     return { profile, friends, incoming, outgoing, blocked, invitesIn, invitesOut,
-             isOwner: this.ownerSub() === me };
+             // `ownerPinned` lets the console explain *why* a non-owner can't claim.
+             // The address itself is never sent — knowing it isn't the client's business.
+             isOwner: this.isOwnerSub(me), ownerPinned: !!ownerPin(this.env),
+             // Why the pin rejected *this* caller. Both facts are about the caller's own
+             // row and neither reveals the pinned address, but together they turn a
+             // locked-out owner's "it just doesn't work" into one readable line.
+             ownerCheck: this.ownerCheck(me) };
   }
 
   // ══ ADMIN ══ Everything below answers only to the owner account.
@@ -313,6 +363,7 @@ export class Hub extends DurableObject {
   // it never ships in the page, and the claim can only ever fire once.
   async adminClaim(token, code) {
     const me = await this.verifySession(token);
+    if (ownerPin(this.env)) throw new HttpError(403, "this arcade is pinned to an owner account");
     if (this.ownerSub() === me) return { ok: true, already: true };
     if (this.ownerSub()) throw new HttpError(403, "owner already claimed");
     const secret = String((this.env && this.env.ADMIN_CLAIM) || "");
@@ -653,7 +704,7 @@ export default {
     const auth = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
 
     try {
-      if (path === "/" || path === "/api/health") return json({ ok: true, service: "glitchbox-api" }, 200, origin);
+      if (path === "/" || path === "/api/health") return json(await stub.health(), 200, origin);
 
       if (path === "/api/login" && request.method === "POST") {
         const body = await request.json().catch(() => ({}));

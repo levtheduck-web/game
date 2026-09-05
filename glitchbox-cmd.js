@@ -518,11 +518,32 @@
         'color:#e8eefc;line-height:1.45;transition:opacity .25s;';
       document.body.appendChild(t);
     }
+    const st = (typeof lastState !== 'undefined' && lastState) ? lastState : null;
     const signedIn = typeof currentUser !== 'undefined' && !!currentUser;
-    t.innerHTML = signedIn
-      ? '<b style="color:#ff0080">OWNER CONSOLE LOCKED</b><br>Signed in as ' +
-        esc((currentUser.email || currentUser.name)) + ', which the server does not recognise as the owner.'
-      : '<b style="color:#ff0080">OWNER CONSOLE LOCKED</b><br>Sign in first — the console follows the account, not the browser.';
+    let why;
+    if (!signedIn) {
+      why = 'Sign in first — the console follows the account, not the browser.';
+    } else if (!st || !st.profile) {
+      // /api/me hasn't landed yet (or failed). Silently refusing here is what made
+      // this look broken: the answer simply wasn't back at the moment of the keypress.
+      why = 'Still talking to the server — the owner check hasn\'t come back yet. Try again in a moment.';
+    } else if (!st.ownerPinned) {
+      why = 'No owner is configured on the server. Set the OWNER_EMAIL secret on the Worker.';
+    } else {
+      // The pin compares against the server's copy of the address, which can differ
+      // from the one cached in this browser — so report both when they disagree.
+      const c = st.ownerCheck || {};
+      const srv = c.email || '';
+      const local = String((currentUser && currentUser.email) || '');
+      if (c.emailMatches && !c.emailVerified)
+        why = 'Your address matches the owner, but Google has it marked unverified, so the server rejects it.';
+      else if (srv && local && srv.toLowerCase() !== local.toLowerCase())
+        why = 'This browser thinks you are <b>' + esc(local) + '</b>, but the server has <b>' + esc(srv) +
+              '</b> on your account — and the owner check uses the server\'s copy. Sign out and back in.';
+      else
+        why = 'Signed in as <b>' + esc(srv || local) + '</b>, which is not the address the arcade is pinned to.';
+    }
+    t.innerHTML = '<b style="color:#ff0080">OWNER CONSOLE LOCKED</b><br>' + why;
     t.style.opacity = '1';
     clearTimeout(window.__gbcToastT);
     window.__gbcToastT = setTimeout(() => { t.style.opacity = '0'; }, 3200);
