@@ -95,6 +95,20 @@ fs.mkdirSync(outDir, { recursive: true });
 
 const GEM = 'https://generativelanguage.googleapis.com/v1beta';
 
+// Google buries the useful part — which quota was hit — in error.details, well
+// past any naive truncation. Pull the quota ids out so the caller can tell a
+// per-minute stall (worth waiting on) from a per-day ceiling (not).
+async function gemError(r) {
+  const body = await r.text();
+  let msg = body.slice(0, 200), ids = [];
+  try {
+    const e = (JSON.parse(body) || {}).error || {};
+    msg = e.message || msg;
+    (e.details || []).forEach(d => (d.violations || []).forEach(v => v.quotaId && ids.push(v.quotaId)));
+  } catch (_) {}
+  return new Error(r.status + ' ' + msg.split('\n')[0].slice(0, 180) + (ids.length ? '  [' + ids.join(', ') + ']' : ''));
+}
+
 // ── providers ──────────────────────────────────────────────────────────────
 // Each returns raw image bytes for one prompt. Model names move around, so the
 // Gemini path asks the API what this key can actually use instead of guessing.
@@ -133,7 +147,7 @@ async function genGemini(prompt) {
       body: JSON.stringify({ instances: [{ prompt }],
                              parameters: { sampleCount: 1, aspectRatio: '16:9' } }),
     });
-    if (!r.ok) throw new Error(r.status + ' ' + (await r.text()).slice(0, 300));
+    if (!r.ok) throw await gemError(r);
     const p = (await r.json()).predictions || [];
     if (!p[0] || !p[0].bytesBase64Encoded) throw new Error('no image in response');
     return Buffer.from(p[0].bytesBase64Encoded, 'base64');
@@ -142,7 +156,7 @@ async function genGemini(prompt) {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
   });
-  if (!r.ok) throw new Error(r.status + ' ' + (await r.text()).slice(0, 300));
+  if (!r.ok) throw await gemError(r);
   const j = await r.json();
   const parts = (((j.candidates || [])[0] || {}).content || {}).parts || [];
   const img = parts.find(p => p.inlineData && p.inlineData.data);
@@ -165,7 +179,25 @@ async function genOpenAI(prompt) {
   return Buffer.from((await r.json()).data[0].b64_json, 'base64');
 }
 
-const generate = p => (PROVIDER === 'gemini' ? genGemini(p) : genOpenAI(p));
+// Image APIs rate-limit per minute, so a whole-arcade run WILL hit 429 partway
+// through. Back off and retry rather than losing the rest of the batch — but
+// never retry a per-day quota, which won't clear no matter how long we wait.
+async function generate(prompt) {
+  const one = () => (PROVIDER === 'gemini' ? genGemini(prompt) : genOpenAI(prompt));
+  const waits = [20000, 45000, 90000];
+  for (let i = 0; ; i++) {
+    try { return await one(); }
+    catch (e) {
+      const m = String(e.message || '');
+      const limited = /\b429\b|RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(m);
+      // A daily ceiling or an empty balance won't clear on any timescale we can wait out.
+      const hopeless = /PerDay|per day|daily|insufficient_quota|billing/i.test(m);
+      if (!limited || hopeless || i >= waits.length) throw e;
+      process.stdout.write(`rate-limited, waiting ${waits[i] / 1000}s … `);
+      await new Promise(r => setTimeout(r, waits[i]));
+    }
+  }
+}
 
 // ── one game ───────────────────────────────────────────────────────────────
 async function gen(gid) {
