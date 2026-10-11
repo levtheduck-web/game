@@ -20,6 +20,7 @@ body.hiq #vig{display:none}
 #flash{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(255,40,30,0) 35%,rgba(255,20,10,.55) 100%);opacity:0;z-index:3}
 #white{position:fixed;inset:0;pointer-events:none;background:#fff;opacity:0;z-index:3}
 /* cinematic layers: low-health pulse, impact frame (LOW graphics fallback), letterbox, replay tag */
+#sdvF{position:fixed;inset:0;pointer-events:none;z-index:2;opacity:0;background:radial-gradient(ellipse at center,rgba(40,255,140,.05) 40%,rgba(40,255,140,.32) 100%);mix-blend-mode:screen}
 #lowhp{position:fixed;inset:0;pointer-events:none;z-index:2;opacity:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 48%,rgba(190,0,10,.55) 100%)}
 #lowhp.on{animation:lowhp 1.05s infinite}
 @keyframes lowhp{0%,100%{opacity:.3}10%{opacity:.85}22%{opacity:.35}34%{opacity:.7}}
@@ -191,6 +192,9 @@ body.replay #hud,body.replay #floats,body.replay #touch{opacity:0;transition:opa
 .ov{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;flex-direction:column;padding:20px;overflow:auto}
 .ov.on{display:flex}
 .ov.dark{justify-content:flex-start}
+#cardOv{align-items:flex-end;justify-content:center;padding-right:3.5vw;pointer-events:none;background:linear-gradient(90deg,transparent 45%,rgba(0,0,0,.55))}
+#cardOv .card2{width:min(430px,46vw);transform:scale(.9);transform-origin:right center;animation:cardIn .45s cubic-bezier(.2,1.3,.4,1) both}
+@keyframes cardIn{from{transform:translateX(120%) scale(.9)}to{transform:scale(.9)}}
 .ov.dark>*{margin-top:auto;margin-bottom:auto}
 .ov.dark{background:radial-gradient(ellipse at center,rgba(8,6,10,.55),rgba(0,0,0,.92))}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 24px;max-width:560px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.6);backdrop-filter:blur(8px)}
@@ -303,7 +307,7 @@ body.touch #abil,body.touch #keys{display:none}
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="vig"></div><div id="lowhp"></div><div id="flash"></div><div id="white"></div><div id="impactF"></div><div id="lbT"></div><div id="lbB"></div>
+<div id="vig"></div><div id="lowhp"></div><div id="sdvF"></div><div id="flash"></div><div id="white"></div><div id="impactF"></div><div id="lbT"></div><div id="lbB"></div>
 <div id="hud" class="hide">
   <div id="top">
     <div class="side s0" id="hb0"><div class="who"><span class="ico"></span><span class="nm"></span><span class="rageTag">RAGE</span><span class="kd"><i></i><i></i><i></i></span></div><div class="bar hp"><i class="tr"></i><i class="fl"></i></div><div class="bar sta"><i class="fl"></i></div><div class="bar met"><i class="fl"></i></div><div class="stat"></div></div>
@@ -432,7 +436,7 @@ body.touch #abil,body.touch #keys{display:none}
   </div>
 </div>
 
-<div class="ov dark" id="cardOv"><div class="card2" id="cardBody"></div></div>
+<div class="ov" id="cardOv"><div class="card2" id="cardBody"></div></div>
 <div class="ov dark" id="endOv"><div class="card2" id="endBody"></div></div>
 <div class="ov dark" id="ladOv"><div class="card2" id="ladBody"></div></div>
 <script type="module">
@@ -486,7 +490,7 @@ const FIGHTERS=[
   passive:{name:'Overclocked',desc:'Moves 12% and punches 7% faster than anyone else.'},
   q:{name:'Blink',cd:7,desc:'Teleport right up to your opponent. Your next punch counts as a counter.'},
   e:{name:'Shock Jab',cd:9,desc:'A long-reach electric jab that stuns for 0.8s. Blocking stops the stun.'},
-  r:{name:'Thunderstrike',desc:'Lightning hits where your opponent stands: big damage and a long stun. Dodge it!'}},
+  r:{name:'Militech Sandevistan',desc:'Military-grade spine implant. Time crawls for your opponent for 3 seconds while you move at full speed.'}},
  {id:'titan',name:'TITAN',nick:'THE MOUNTAIN',col:'#9be05a',
   look:{skin:0x5c3a26,shorts:0x3d5a2a,trim:0xd9c27b,glove:0x70757c,hair:'bald',beard:1,hairCol:0x1a1008,glow:0x9be05a},
   taunt:'beat',alts:[{},{shorts:0x7a1d1d,trim:0xffc83a,glove:0xc8a032},{shorts:0x1a1a1e,trim:0x9be05a,glove:0x2a2a30}],
@@ -574,7 +578,7 @@ const PFX={pass:null,waves:[],ca:0,zoom:0,zc:new THREE.Vector2(.5,.5),imp:0,impT
 // sRGB) with the effects folded in — ripples, zoom blur and colour fringing in linear light, then the grade on top.
 const FXFRAG=`precision highp float;
 uniform sampler2D tDiffuse;uniform vec2 uRes;uniform vec4 uW[4];uniform float uCA;uniform float uZoom;uniform vec2 uZC;uniform float uImp;uniform vec3 uImpC;
-uniform float uDesat;uniform float uLetter;uniform float uDim;uniform float uSat;uniform float uCon;
+uniform float uDesat;uniform float uLetter;uniform float uDim;uniform float uSat;uniform float uCon;uniform float uSdv;
 #include <tonemapping_pars_fragment>
 #include <colorspace_pars_fragment>
 varying vec2 vUv;
@@ -602,6 +606,7 @@ void main(){
   col=clamp(toDisplay(max(col,vec3(0.))),0.,1.);
   float L=dot(col,vec3(.299,.587,.114));
   col=mix(vec3(L),col,uSat);col=(col-.5)*uCon+.5;
+  if(uSdv>.001){vec2 e=vUv-.5;col=mix(col,vec3(L)*vec3(.62,1.12,.86)+vec3(0.,.035,.02),uSdv*.55);col+=vec3(.15,1.,.55)*uSdv*.22*smoothstep(.22,.55,length(e));}
   col=mix(col,vec3(L)*vec3(1.07,1.,.9),uDesat);
   col*=1.-uDim*.6;
   vec2 q=vUv-.5;q.x*=asp*.72;float vg=clamp(1.-dot(q,q)*1.3,0.,1.);
@@ -613,7 +618,7 @@ void main(){
 class FinalPass extends OutputPass{
   constructor(){super();
     Object.assign(this.uniforms,{uRes:{value:new THREE.Vector2(1,1)},uW:{value:[new THREE.Vector4(),new THREE.Vector4(),new THREE.Vector4(),new THREE.Vector4()]},
-      uCA:{value:0},uZoom:{value:0},uZC:{value:new THREE.Vector2(.5,.5)},uImp:{value:0},uImpC:{value:new THREE.Color(1,1,1)},uDesat:{value:0},uLetter:{value:0},uDim:{value:0},uSat:{value:1.12},uCon:{value:1.05}});
+      uCA:{value:0},uZoom:{value:0},uZC:{value:new THREE.Vector2(.5,.5)},uImp:{value:0},uImpC:{value:new THREE.Color(1,1,1)},uDesat:{value:0},uLetter:{value:0},uDim:{value:0},uSat:{value:1.12},uCon:{value:1.05},uSdv:{value:0}});
     this.material.dispose();
     this.material=new THREE.RawShaderMaterial({name:'HaymakerFinal',uniforms:this.uniforms,vertexShader:this.material.vertexShader,fragmentShader:FXFRAG});
     this.fsQuad.material=this.material}
@@ -632,11 +637,12 @@ function updPFX(rdt){
   PFX.ca=Math.max(0,PFX.ca-rdt*3.2);PFX.zoom=Math.max(0,PFX.zoom-rdt*2.6);
   if(PFX.impT>0){PFX.impT-=rdt;if(PFX.impT<=0)PFX.imp=0}
   if(PFX.dimT>0){PFX.dimT-=rdt;PFX.dim=Math.min(1,PFX.dim+rdt*8)}else PFX.dim=Math.max(0,PFX.dim-rdt*4);
+  {const o=!PFX.pass&&sdvOn()&&!G.attract?1:0;if(o!==PFX.sdvF){PFX.sdvF=o;const el=$('sdvF');el.style.transition='opacity '+(o?.12:.5)+'s';el.style.opacity=o}}
   const U=PFX.pass&&PFX.pass.uniforms;if(!U)return;
   renderer.getDrawingBufferSize(U.uRes.value);
   for(let i=0;i<4;i++){const w=PFX.waves[i],v=U.uW.value[i];if(!w){v.w=0;continue}const k=w.t/w.d;v.set(w.x,w.y,easeOut(k)*(.28+.16*w.s),w.s*(1-k)*(1-k))}
   U.uCA.value=SET.flash?PFX.ca:PFX.ca*.4;U.uZoom.value=PFX.zoom;U.uZC.value.copy(PFX.zc);U.uImp.value=PFX.imp;
-  U.uDesat.value=lerp(U.uDesat.value,PFX.desat,damp(5,rdt));U.uLetter.value=lerp(U.uLetter.value,PFX.letter,damp(7,rdt));U.uDim.value=PFX.dim;
+  U.uDesat.value=lerp(U.uDesat.value,PFX.desat,damp(5,rdt));U.uLetter.value=lerp(U.uLetter.value,PFX.letter,damp(7,rdt));U.uDim.value=PFX.dim;U.uSdv.value=lerp(U.uSdv.value,sdvOn()&&!G.attract?1:0,damp(sdvOn()?14:5,rdt));
 }
 function onResize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();if(renderer){renderer.setPixelRatio(pixelRatio());renderer.setSize(innerWidth,innerHeight,false);if(composer){composer.setPixelRatio(pixelRatio());composer.setSize(innerWidth,innerHeight)}}}
 addEventListener('resize',onResize);
@@ -743,7 +749,7 @@ function buildArena(){
   const ledM=new THREE.MeshStandardMaterial({color:0x000000,emissive:0xffffff,emissiveMap:led,emissiveIntensity:1.25,roughness:.4});
   for(const [nx,nz,yaw] of SIDE_DEFS){const b=new THREE.Mesh(new THREE.BoxGeometry(13,.75,.12),[0,0,0,0,ledM,ledM].map(m=>m||new THREE.MeshStandardMaterial({color:0x101014})));
     b.position.set(nx*6.6,-.75,nz*6.6);b.rotation.y=yaw+Math.PI;scene.add(b)}
-  buildCrowd();buildRig();buildJumbo();buildBeams();buildRingside();
+  buildCrowd();buildRig();buildJumbo();buildBeams();buildRingside();buildCorners();
   // lights
   scene.add(new THREE.HemisphereLight(0x6f7cff,0x140806,.42));
   const amb=new THREE.AmbientLight(0x221a2a,.4);scene.add(amb);
@@ -794,6 +800,7 @@ vec3 crowdPose(vec3 p,inout vec3 n,float part,out float e){
   p.y+=jump;return p;}
 vec3 crowdBase(float part,float k){
   if(part<.5)return aShirt;if(part<1.5)return aSkin;if(part<2.5)return aHair;
+  if(part>5.5)return vec3(.06,.06,.07);if(part>4.5)return vec3(.13,.13,.17);
   return k<.32?aShirt:aSkin;}`;
 function crowdMats(){
   const U=ARENA.crowdU;
@@ -832,13 +839,20 @@ function crowdMats(){
     fragmentShader:`void main(){gl_FragColor=vec4(.02,.02,.03,1.);}`});
   return {body,line}}
 // one fan, merged into a single geometry; colour.r tags the part, colour.g runs down the arm (sleeve vs skin)
-function fanGeo(){
+function fanGeo(legs){
   const tag=(g,part)=>{const n=g.attributes.position.count,uv=g.attributes.uv.array,c=new Float32Array(n*3);for(let i=0;i<n;i++){c[i*3]=part/8;c[i*3+1]=part>2?1-uv[i*2+1]:0;c[i*3+2]=0}g.setAttribute('color',new THREE.BufferAttribute(c,3));return g};
   const torso=blobG(.2,.27,.135,.75,.85,{nu:12,nv:9,bumps:[{u:.25,v:.32,su:.2,sv:.15,a:.05}]});torso.translate(0,.5,0);
   const head=blobG(.105,.124,.112,1,1,{nu:10,nv:8});head.translate(0,.96,.005);
   const hair=blobG(.114,.085,.12,.9,1,{nu:10,nv:6});hair.translate(0,1.0,-.012);
   const arm=sd=>{const g=limbG(.52,[[0,.062,.062],[.35,.05,.052],[.8,.042,.044],[1,.05,.05]],{capT:.04,capB:.05,nu:7,nv:6});g.translate(sd*.205,.76,0);return g};
-  return mergeG([tag(torso,0),tag(head,1),tag(hair,2),tag(arm(-1),3),tag(arm(1),4)])}
+  const parts=[tag(torso,0),tag(head,1),tag(hair,2),tag(arm(-1),3),tag(arm(1),4)];
+  if(legs)for(const sd of [-1,1]){
+    if(legs==='stand'){const l=limbG(.84,[[0,.08,.08],[.5,.062,.064],[1,.05,.052]],{capT:.05,capB:.03,nu:8,nv:6});l.translate(sd*.09,.26,0);parts.push(tag(l,5));
+      const sh=blobG(.055,.04,.11,.6,.8,{nu:8,nv:6});sh.translate(sd*.09,-.6,.04);parts.push(tag(sh,6))}
+    else{const t=limbG(.4,[[0,.075,.075],[1,.06,.06]],{capT:.04,capB:.04,nu:8,nv:5});t.rotateX(-1.35);t.translate(sd*.1,.24,0);parts.push(tag(t,5));
+      const sn=limbG(.42,[[0,.058,.058],[1,.05,.05]],{capT:.03,capB:.03,nu:8,nv:5});sn.translate(sd*.1,.2,.4);parts.push(tag(sn,5));
+      const sh=blobG(.05,.04,.1,.6,.8,{nu:8,nv:6});sh.translate(sd*.1,-.22,.45);parts.push(tag(sh,6))}}
+  return mergeG(parts)}
 // cardboard signs: an atlas of 8 messages, raised overhead when the fan gets loud
 function signTex(){return canvasTex(1024,512,(x,w,h)=>{
   const S=[['KO!','#ff3b3f','#fff'],['HAYMAKER','#ffc83a','#16110f'],['10/10','#ffffff','#16110f'],['GLITCHBOX','#3fd4ff','#16110f'],
@@ -982,8 +996,8 @@ function crowdTick(rdt){const U=ARENA.crowdU;if(!U.uWave)return;
 // ════════════════════ RINGSIDE ════════════════════
 // The press row with its glowing monitors, photographers leaning on the apron (their flashes pop on big shots),
 // ring steps, and each corner's stool, bucket and towel. People here reuse the crowd's fan mesh, posed calm.
-function staffMesh(list){
-  const n=list.length,geo=fanGeo(),im=new THREE.InstancedMesh(geo,ARENA.crowdMat,n),m=new THREE.Matrix4(),q=new THREE.Quaternion(),Y=new THREE.Vector3(0,1,0),P=new THREE.Vector3(),S=new THREE.Vector3(1,1,1),c=new THREE.Color();
+function staffMesh(list,legs){
+  const n=list.length,geo=fanGeo(legs),im=new THREE.InstancedMesh(geo,ARENA.crowdMat,n),m=new THREE.Matrix4(),q=new THREE.Quaternion(),Y=new THREE.Vector3(0,1,0),P=new THREE.Vector3(),S=new THREE.Vector3(1,1,1),c=new THREE.Color();
   const a={aShirt:new Float32Array(n*3),aSkin:new Float32Array(n*3),aHair:new Float32Array(n*3),aInfo:new Float32Array(n*4)};
   list.forEach(([x,y,z,yaw,shirt],i)=>{q.setFromAxisAngle(Y,yaw);m.compose(P.set(x,y,z),q,S);im.setMatrixAt(i,m);
     c.setHex(shirt);a.aShirt.set([c.r,c.g,c.b],i*3);c.setHex(pick([0xf1c9a5,0xd9a37c,0xb47b54,0x8a5a3c,0x5c3a26]));a.aSkin.set([c.r,c.g,c.b],i*3);
@@ -1010,8 +1024,8 @@ function buildRingside(){
   // photographers leaning on the apron, cameras up
   const shooters=[];ARENA.cams=[];
   for(const [nx,nz,yaw] of SIDE_DEFS)for(const s of [-2.6,2.6]){const d=E+.42,x=nx?nx*d:s,z=nz?nz*d:s,ry=Math.atan2(-x,-z);
-    shooters.push([x,F+.3,z,ry,pick([0x111114,0x1a1a20,0x2a2a2a])]);ARENA.cams.push(new THREE.Vector3(x-Math.sin(ry)*-.2,F+.3+.98,z-Math.cos(ry)*-.2))}
-  staffMesh(staff.concat(shooters));
+    shooters.push([x,F+.27,z,ry,pick([0x111114,0x1a1a20,0x2a2a2a])]);ARENA.cams.push(new THREE.Vector3(x-Math.sin(ry)*-.2,F+.3+.98,z-Math.cos(ry)*-.2))}
+  staffMesh(staff);staffMesh(shooters,'kneel');
   const camG=mergeG([blobG(.07,.055,.06,.4,.4),(()=>{const g=limbG(.1,[[0,.035,.035],[1,.032,.032]],{nu:10,nv:2,capT:.005,capB:.005});g.rotateX(-Math.PI/2);g.translate(0,0,.05);return g})()]);
   const camM=new THREE.MeshStandardMaterial({color:0x0c0c0e,roughness:.4,metalness:.5});
   const cm=new THREE.InstancedMesh(camG,camM,shooters.length),m4=new THREE.Matrix4(),qq=new THREE.Quaternion(),Y=new THREE.Vector3(0,1,0);
@@ -1030,6 +1044,19 @@ function buildRingside(){
     const towel=new THREE.Mesh(new THREE.BoxGeometry(.44,.02,.3),new THREE.MeshStandardMaterial({color:0xf2f2f2,roughness:.9}));towel.position.set(0,.665,0);towel.rotation.y=.4;st.add(towel);
     const hang=new THREE.Mesh(new THREE.PlaneGeometry(.3,.4),new THREE.MeshStandardMaterial({color:0xf2f2f2,roughness:.9,side:THREE.DoubleSide}));hang.position.set(-.15,.45,-.2);hang.rotation.set(0,.4,.08);st.add(hang)}
 }
+function buildCorners(){
+  ARENA.corner=[];const metal=new THREE.MeshStandardMaterial({color:0x9aa0aa,metalness:.85,roughness:.3,envMap:ENV,envMapIntensity:.8});
+  const men=[];
+  for(const [i,sx,col] of [[0,-1,0xd8202a],[1,1,0x1f5fd8]]){
+    const st=new THREE.Group();st.position.set(sx*3.12,0,sx*3.12);scene.add(st);
+    const seat=new THREE.Mesh(new THREE.CylinderGeometry(.21,.2,.07,18),new THREE.MeshStandardMaterial({color:col,roughness:.5}));seat.position.y=.56;seat.castShadow=true;st.add(seat);
+    for(let k=0;k<4;k++){const a=k*Math.PI/2+.78,leg=new THREE.Mesh(new THREE.CylinderGeometry(.018,.022,.56,6),metal);leg.position.set(Math.cos(a)*.14,.28,Math.sin(a)*.14);leg.rotation.set(Math.sin(a)*.12,0,-Math.cos(a)*.12);st.add(leg)}
+    st.scale.setScalar(.001);st.visible=false;ARENA.corner.push({st,k:0});
+    men.push([sx*4.12,.62,sx*4.12,Math.atan2(-sx,-sx),0xf2f2f2]);men.push([sx*4.12+sx*.15,.62,sx*3.55,Math.atan2(-sx,-sx)+.5*sx,col])}
+  ARENA.cornerMen=staffMesh(men,'stand');ARENA.cornerMen.visible=false}
+function cornerTick(dt){if(!ARENA.corner)return;const on=G.mode==='fight'&&G.phase==='rest'&&!RP.play;
+  for(const c of ARENA.corner){c.k=lerp(c.k,on?1:0,damp(on?7:12,dt));c.st.visible=c.k>.01;c.st.scale.setScalar(Math.max(.001,c.k))}
+  ARENA.cornerMen.visible=on&&ARENA.corner[0].k>.5}
 // a photographer's flash on a big shot
 function photoFlash(n=1){if(!ARENA.cams||G.attract&&Math.random()<.5)return;
   for(let i=0;i<n;i++){const p=pick(ARENA.cams);after(Math.random()*.25,()=>spr(flashTex(),p,.9+Math.random()*.5,{add:true,life:.12,top:false,upd:(o,k)=>{o.material.opacity=1-k}}))}}
@@ -1964,6 +1991,11 @@ class Boxer{
         const q=Math.sin(this.anT*7);gL.set(-.26,2.12+q*.04,.08);gR.set(.26,2.12-q*.04,.08);crouch=.04+Math.max(0,q)*.06;twist=0;headP=-.25;lean=-.05;k=10;
       }else if(a.k==='lose'){gL.set(-.18,1.05,.2);gR.set(.18,1.05,.2);headP=.35;lean=.12;twist=0}
     }
+    // between rounds: sit on the stool, arms draped over the ropes, chest heaving
+    const sitOn=G.phase==='rest'&&G.mode==='fight'&&!this.down&&this.home&&this.idx<2&&Math.hypot(this.x-Math.sign(this.home[0])*3.12,this.z-Math.sign(this.home[0])*3.12)<.4;
+    this.sit=lerp(this.sit||0,sitOn?1:0,damp(sitOn?5:9,dt));
+    if(this.sit>.01){const q=this.sit,br=Math.sin(this.anT*3.4);crouch=lerp(crouch,.43+br*.012,q);lean=lerp(lean,-.16+br*.03,q);twist=lerp(twist,0,q);roll=lerp(roll,0,q);
+      gL.lerp(_U.set(-.6,1.28,-.36),q);gR.lerp(_V.set(.6,1.28,-.36),q);headP=lerp(headP,-.12+br*.05,q);k=lerp(k,6,q)}
     if(this.override){gL.copy(this.override[0]);gR.copy(this.override[1]);k=7;lean+=this.override[2]||0;twist=0}
     if(this.down&&!(a&&(a.k==='down'||a.k==='ko'||a.k==='getup')))fall=1;
     // smooth everything
@@ -1992,6 +2024,7 @@ class Boxer{
       const lead=L.sd<0;const base=_w.set(L.sd*.16+(lead?-.02:.04),0,lead?.2:-.2);
       if(spd>.15&&!this.down){const ph=P.walk+(lead?0:Math.PI);const st=Math.sin(ph)*.17,lift=Math.max(0,Math.cos(ph))*.09;base.z+=mvF*st;base.x+=mvS*st;base.y+=lift}
       if(P.fall>.02){base.z+=P.fall*.05}
+      if(this.sit>.01)base.lerp(_U.set(L.sd*.22,0,.46),this.sit);
       const T=this.body.localToWorld(_legT.copy(base).add(_U.set(0,.075,0)));
       _pole.set(L.sd*.15,0,1).applyQuaternion(this.body.getWorldQuaternion(_Q2));
       const ws=this.worldScale;solveIK(L.hip,L.knee,TH*ws,SH*ws,T,_pole);
@@ -2030,7 +2063,7 @@ class Boxer{
     else if(k==='punch'||k==='cpunch'){e=EYES.angry;m=/hay|hook|upper/.test(a.p)?MOUTH.shout:MOUTH.grit}
     else if(k==='dodge'){e=EYES.angry;m=MOUTH.set}
     else if(this.blocking){e=EYES.angry;m=MOUTH.grit}
-    else if(this.sta<22){e=EYES.half;m=MOUTH.ouch}
+    else if(this.sit>.5||this.sta<22){e=EYES.half;m=MOUTH.ouch}
     else if(this.fxBits&FX.rage){e=EYES.angry;m=MOUTH.grit}
     this.blinkT-=dt;if(this.blinkT<-.11)this.blinkT=1.6+Math.random()*3.6;
     if(blink&&this.blinkT<0)e=EYES.blink;
@@ -2090,6 +2123,7 @@ function updateRef(dt){
     // stand beyond the downed fighter as the knockdown camera sees it, a little to one side so he stays in shot
     const cc=kdCentre(d),spots=[[-1.05,.75],[-1.05,-.75],[-.2,1.4],[-.2,-1.4]].map(([b,sd])=>[cc[0]+cv[0]*b-cv[1]*sd,cc[1]+cv[1]*b+cv[0]*sd]);
     const ok=spots.find(p=>Math.abs(p[0])<RING-.15&&Math.abs(p[1])<RING-.15)||spots[2];tx=ok[0];tz=ok[1];face=Math.atan2(d.x-r.x,d.z-r.z)}
+  else if(G.phase==='rest'||G.phase==='walk'){tx=2.75;tz=-2.75;face=Math.atan2(-tx,-tz)}   // a neutral corner, out of the corner shots
   else if(G.phase==='end'&&G.result&&G.result.w>=0){const w=G.B[G.result.w];tx=w.x+Math.cos(w.yaw)*.62;tz=w.z-Math.sin(w.yaw)*.62;face=Math.atan2(w.x-r.x,w.z-r.z)}
   else{
     const ax=B.x-A.x,az=B.z-A.z,l=Math.hypot(ax,az)||1,px=-az/l,pz=ax/l;
@@ -2156,6 +2190,7 @@ function logicBoxer(b,it,dt){
   if(G.phase==='kd'&&!b.down&&G.kdInfo){ // go to a neutral corner
     const d=G.B[G.kdInfo.b];const l0=Math.hypot(b.x-d.x,b.z-d.z)||1;const tx=clamp(d.x+(b.x-d.x)/l0*2.7,-RING+.3,RING-.3),tz=clamp(d.z+(b.z-d.z)/l0*2.7,-RING+.3,RING-.3);
     const ex=tx-b.x,ez=tz-b.z,el=Math.hypot(ex,ez);if(el>.2){mz=(ex*fx+ez*fz)/el;mx=(ex*rx+ez*rz)/el}}
+  if(G.phase==='rest'&&b.home&&!b.down){const sx=Math.sign(b.home[0]),ex=sx*3.12-b.x,ez=sx*3.12-b.z,el=Math.hypot(ex,ez);if(el>.06){mz=(ex*fx+ez*fz)/el*Math.min(1,el*1.5);mx=(ex*rx+ez*rz)/el*Math.min(1,el*1.5)}}
   if((G.phase==='ready'||G.phase==='intro')&&b.home){const ex=b.home[0]-b.x,ez=b.home[1]-b.z,el=Math.hypot(ex,ez);if(el>.1){mz=(ex*fx+ez*fz)/el*Math.min(1,el);mx=(ex*rx+ez*rz)/el*Math.min(1,el)}}
   const ml=Math.hypot(mx,mz);if(ml>1){mx/=ml;mz/=ml}
   let spd=2.35*f.spd*(b.blocking?.55:1)*(st.slow>0?.72:1)*(b.sta<15?.82:1)*(b.act&&b.act.k==='punch'?.4:1)*(st.colossus>0?.92:1)*(st.phase>0?1.25:1)*(b.act&&b.act.k==='charge'?.38:1)*(b.act&&b.act.k==='taunt'?0:1);
@@ -2232,6 +2267,7 @@ function startPunch(b,kind,body,c=0){
 function tauntDone(b){if(!owned(b))return;b.meter=Math.min(100,b.meter+15);b.sta=Math.min(100,b.sta+10);if(!G.attract){floatAt('+15 METER',b.headW,'heal',-20);SFX.ooh(.7)}}
 function launch(spec){
   const v=G.B[1-spec.a];
+  if(spec.k!=='proj'&&slowK(spec.a)<1)spec.delay/=slowK(spec.a); // a Sandevistan'd attacker's blows land on their own slowed clock
   if(owned(v)&&spec.k!=='proj')G.pending.push({spec,at:G.time+spec.delay});
   if(G.online)netSend({t:'atk',s:spec});
   attackVisual(spec);
@@ -2344,7 +2380,7 @@ const ABIL={
       b.counterT=1.1;netAb(b,'q',{fx:fx0,fz:fz0})},
     e(b,o){const sp=1;b.act={k:'punch',p:'jab',t:0,sp,d:(PUNCH.jab.w+PUNCH.jab.a+PUNCH.jab.r),id:nid(b)};
       launch({id:b.act.id,a:b.idx,k:'melee',cue:'shock',anim:'jab',sp,dmg:6*b.f.pow,range:2.75,guard:.85,hs:.2,kb:.6,meter:5,fx:['stun'],stunT:.8,delay:.14});netAb(b,'e')},
-    r(b,o){b.act={k:'cast',anim:'cast',t:0,d:.45};launch({id:nid(b),a:b.idx,k:'zone',shape:'circle',cue:'bolt',x:o.x,z:o.z,r:.95,delay:.62,dmg:18*b.f.pow,unblock:1,hs:.3,kb:.5,meter:0,fx:['stun'],stunT:1.4})},
+    r(b){b.act={k:'cast',anim:'charge',t:0,d:.2};netAb(b,'r')},
   },
   titan:{
     q(b){b.st.iron=4;b.act={k:'cast',anim:'roar',t:0,d:.45};netAb(b,'q')},
@@ -2371,6 +2407,15 @@ const ABIL={
     r(b){b.st.drain=6;b.act={k:'cast',anim:'roar',t:0,d:.5};netAb(b,'r')},
   },
 };
+// ── Volt's Militech Sandevistan: for SDV_T seconds the opponent's whole clock (moves, punches, stuns, recoveries,
+// even a CPU's thinking) runs at SDV_K speed while Volt runs at full speed. Both browsers start it from the 'r' ability
+// message, and each one slows only the boxer it owns. Ends early on a knockdown or the bell.
+const SDV_T=3,SDV_K=.25,SDV={by:-1,t:0};
+const sdvOn=()=>SDV.t>0&&SDV.by>=0;
+const slowK=i=>sdvOn()&&i!==SDV.by?SDV_K:1;
+function sdvStep(dt){if(!sdvOn())return;SDV.t-=dt;
+  if(!fighting()||G.B.some(b=>b.down))SDV.t=0;
+  if(SDV.t<=0){SDV.t=0;const b=G.B[SDV.by];SDV.by=-1;if(b&&b.f&&!G.attract){SFX.sdvOff(b.chestW);afterimage(b,0x5fff9a,.5,1)}}}
 function netAb(b,k,x){abilityVisual(b.idx,k,x||{});if(G.online&&owned(b))netSend(Object.assign({t:'ab',b:b.idx,k},x||{}))}
 
 // ── projectiles + zones, simulated by both sides ──
@@ -2386,7 +2431,7 @@ function stepWorld(dt){
     if(gone){dropMesh(p.mesh);const j=G.projs.indexOf(p);if(j>=0)G.projs.splice(j,1)}}
 }
 function dropMesh(m){if(!m)return;scene.remove(m);m.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose()})}
-function clearCombat(){for(const b of G.B){b.dbuf=null;b.abuf=null}G.pending=[];G.projs.forEach(p=>dropMesh(p.mesh));G.projs=[];G.zones.forEach(z=>z.mesh&&scene.remove(z.mesh));G.zones=[];for(const b of G.B){b.dash=null;b.buf=null}}
+function clearCombat(){for(const b of G.B){b.dbuf=null;b.abuf=null}SDV.t=0;SDV.by=-1;G.pending=[];G.projs.forEach(p=>dropMesh(p.mesh));G.projs=[];G.zones.forEach(z=>z.mesh&&scene.remove(z.mesh));G.zones=[];for(const b of G.B){b.dash=null;b.buf=null}}
 
 // ════════════════════ KNOCKDOWNS ════════════════════
 function knockdown(v){
@@ -2520,6 +2565,7 @@ const ICONS={
   blink:()=>SVG(`<g opacity=".45">${AT('translate','-9 0;-6 0;-9 0',.5)}${BOLT('#8fe8ff')}</g><g>${AO('1;.35;1;1',.5)}${BOLT('#ffe14a')}</g>`),
   shock:()=>SVG(GLOVE('#1f6bff',-2,4,.85)+`<g>${AO('1;0;1;0;1',.6)}<path d="M36 10l5-4-2 7 6-2-6 8" fill="none" stroke="${K}" stroke-width="5"/><path d="M36 10l5-4-2 7 6-2-6 8" fill="none" stroke="#ffe14a" stroke-width="2.4"/></g><g>${AO('0;1;0;1;0',.6)}<path d="M38 26l7 1-5 4 6 3" fill="none" stroke="${K}" stroke-width="5"/><path d="M38 26l7 1-5 4 6 3" fill="none" stroke="#8fe8ff" stroke-width="2.4"/></g>`),
   thunder:()=>SVG(`<g>${AO('1;1;0;1;1;1',.9)}${BOLT('#ffe14a',8,14,.7)}</g><path d="M11 22a7 7 0 0 1 2-13 10 10 0 0 1 19-2 8 8 0 0 1 6 15z" fill="#7d8aa6" stroke="${K}" stroke-width="2.6"/><path d="M15 12a8 8 0 0 1 14-4" fill="none" stroke="#c3cbe0" stroke-width="2.6"/>`),
+  sandy:()=>SVG(`<path d="M24 3v42" stroke="${K}" stroke-width="3"/>${[6,14,22,30,38].map((y,n)=>`<rect x="15" y="${y}" width="18" height="6" rx="2" fill="#5fff9a" stroke="${K}" stroke-width="2.4"><animate attributeName="fill" values="#5fff9a;#ffe14a;#ff4dc4;#5fdcff;#5fff9a" dur="1.2s" begin="${-n*.15}s" repeatCount="indefinite"/></rect>`).join('')}<g>${AO('0;1;0',.6)}<path d="M9 9 4 4M39 9l5-5M9 39l-5 5M39 39l5 5" stroke="#5fff9a" stroke-width="2.6"/></g>`),
   iron:()=>SVG(SHIELD()),
   pound:()=>SVG(`<g>${AT('translate','0 -6;0 2;0 2;0 -6',.9)}${GLOVE('#70757c',8,-8,.66)}</g><ellipse cx="24" cy="42" rx="4" ry="1.5" fill="none" stroke="#ffd27a" stroke-width="2.5"><animate attributeName="rx" values="4;21" dur=".9s" repeatCount="indefinite"/><animate attributeName="ry" values="1.5;5" dur=".9s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur=".9s" repeatCount="indefinite"/></ellipse>`),
   colossus:()=>SVG(`<g>${AT('scale','.92;1.06;.92',1.1)}<g transform="translate(-1 0)">${GLOVE('#70757c',6,6,.8)}</g></g><g>${AT('translate','0 4;0 -4',.8)}${AO('0;1;0',.8)}<path d="M38 18l5-6 5 6" fill="none" stroke="${K}" stroke-width="5"/><path d="M38 18l5-6 5 6" fill="none" stroke="#9be05a" stroke-width="2.4"/></g>`),
@@ -2545,7 +2591,7 @@ const ICONS={
   random:()=>SVG(`<g>${AT('rotate','-10 24 24;10 24 24;-10 24 24',1.2)}<rect x="9" y="9" width="30" height="30" rx="7" fill="#f4f1ea" stroke="${K}" stroke-width="2.6"/><text x="24" y="33" text-anchor="middle" font-family="Anton,Impact,sans-serif" font-size="24" fill="${K}">?</text></g>`),
   phone:()=>SVG(`<g>${AT('rotate','0 24 24;90 24 24;90 24 24;0 24 24',2.4)}<rect x="15" y="6" width="18" height="36" rx="4" fill="#20232c" stroke="#f4f1ea" stroke-width="2.6"/><circle cx="24" cy="37" r="1.8" fill="#f4f1ea"/></g>`),
 };
-const ABICON={blaze:{q:'firefist',e:'comet',r:'inferno'},volt:{q:'blink',e:'shock',r:'thunder'},titan:{q:'iron',e:'pound',r:'colossus'},
+const ABICON={blaze:{q:'firefist',e:'comet',r:'inferno'},volt:{q:'blink',e:'shock',r:'sandy'},titan:{q:'iron',e:'pound',r:'colossus'},
   shade:{q:'phase',e:'seal',r:'fists'},frost:{q:'icefist',e:'frostshield',r:'zero'},viper:{q:'spit',e:'coil',r:'kiss'}};
 const ICO=(k)=>(ICONS[k]||ICONS.random)();
 const abIcon=(f,k)=>ICO(ABICON[f.id][k]);
@@ -2769,7 +2815,9 @@ function abilityVisual(i,k,x){
   if(k==='shatter'){burst(b.chestW,40,0xbff0ff,5,.7,.08,{normal:true,grav:6});for(let n=0;n<24;n++)PN&&PN.emit(P.x,P.y,P.z,(Math.random()-.5)*5,Math.random()*4,(Math.random()-.5)*5,.9,.06,.8,.95,1,1,9.8,.4);if(!q){SFX.shatter(P);comic('krak',b.headW,1,true)}return}
   if(id==='blaze'){if(k==='q'){b.gW.forEach(g=>burst(g,26,0xff6a1f,2.8,.45,.13,{up:1}));if(!q)SFX.fire(.6,P)}if(k==='e'){b.trail={c:0xff6a1f,t:.4};b.ghostT=.4;b.ghostC=0xff6a1f;if(!q)SFX.fire(.7,P)}}
   if(id==='volt'){if(k==='q'){const from=new THREE.Vector3(x.fx,1.2,x.fz),to=new THREE.Vector3(b.x,1.2,b.z);afterimage(b,0x5fdcff,.45,1.1);zap(from,to,0x8fe8ff,.3,.05);zap(from,to,0xffffff,.2,.02);burst(from,24,0x8fe8ff,4,.3,.06,{});burst(to,24,0x8fe8ff,4,.3,.06,{});if(!q){SFX.blink(P);wave(to,.8)}}
-    if(k==='e'){b.gW.forEach(g=>burst(g,12,0x8fe8ff,3,.2,.05,{}));if(!q)SFX.zap(.5,P)}}
+    if(k==='e'){b.gW.forEach(g=>burst(g,12,0x8fe8ff,3,.2,.05,{}));if(!q)SFX.zap(.5,P)}
+    if(k==='r'){SDV.by=i;SDV.t=SDV_T;b.sdvH=0;afterimage(b,0x5fff9a,.7,1.2);burst(b.headW,40,0x5fff9a,3,.5,.07,{});groundRing(b.x,b.z,2.6,0x5fff9a,.5,.05);
+      if(!q){SFX.sdvOn(P);wave(P,1.6);PFX.ca=Math.max(PFX.ca,2.5);if(b.idx===G.ME)callout('SANDEVISTAN','#5fff9a')}}}
   if(id==='titan'){if(k==='q'){burst(b.chestW,30,0xdde4ee,3,.4,.06,{});hitSpark(P,0xdde4ee,.8);if(!q)SFX.clang(P)}
     if(k==='r'){burst(b.chestW,50,0x9be05a,4,.6,.12,{up:1});groundRing(b.x,b.z,2,0x9be05a,.6);groundRing(b.x,b.z,3.2,0xffffff,.5,.05);decal('crack',b.x,b.z,2,7);if(!q){SFX.roar(P);SFX.boom(P);shake(.4)}}}
   if(id==='shade'){if(k==='q'){for(let n=0;n<34;n++)PN&&PN.emit(b.chestW.x,b.chestW.y,b.chestW.z,(Math.random()-.5)*3,(Math.random()-.5)*2,(Math.random()-.5)*3,.8,.3,.2,.05,.3,.6,0,2);afterimage(b,0xb06bff,.5,1);if(!q)SFX.shadow(P)}
@@ -2880,6 +2928,10 @@ const SFX={
   fire(v=.6,p){if(!sOK())return;const pan=panOf(p);noise({dur:.4*v+.15,vol:.22*v+.05,bp:280,fbp:1100,q:.6,a:.05,pan,rev:.2});for(let i=0;i<8*v;i++)noise({at:rr(0,.4),dur:.012,vol:rr(.04,.1)*v,hp:rr(2000,5000),pan})},
   zap(v=.6,p){if(!sOK())return;const pan=panOf(p),c=AU.ctx,t=c.currentTime,d=.16+.16*v;const o=c.createOscillator();o.type='square';for(let k=0;k<d/.018;k++)o.frequency.setValueAtTime(rr(180,1400),t+k*.018);
     const f=c.createBiquadFilter();f.type='highpass';f.frequency.value=300;const g=vout(pan,.15);o.connect(f);f.connect(g);envl(g,t,.004,.09*v+.03,d);o.start(t);o.stop(t+d+.05);track(o);noise({dur:d*.7,vol:.09*v,bp:3500,q:2,pan})},
+  sdvOn(p){if(!sOK())return;const pan=panOf(p);noise({dur:.32,vol:.12,hp:600,fhp:5000,a:.3,pan});
+    tone({at:.3,type:'sine',f:260,f2:38,glide:.7,dur:.9,vol:.6,rev:.5});tone({at:.3,type:'sawtooth',f:900,f2:90,glide:.6,dur:.7,vol:.07,lp:2600,flp:300,pan});
+    [1760,2637,3520].forEach((f,n)=>tone({at:.3+n*.05,type:'sine',f,dur:1.1,vol:.045,rev:.7,pan}))},
+  sdvOff(p){if(!sOK())return;tone({type:'sine',f:55,f2:420,glide:.3,dur:.34,vol:.32,pan:panOf(p)});noise({dur:.3,vol:.1,bp:500,fbp:4200,q:1.4,a:.2})},
   blink(p){if(!sOK())return;tone({type:'sine',f:300,f2:2400,dur:.1,vol:.14,pan:panOf(p)});SFX.zap(.5,p)},
   thunder(){if(!sOK())return;noise({dur:.07,vol:.5,hp:1800,rev:.4});tone({type:'sine',f:70,f2:26,dur:1.4,vol:.7,rev:.6});noise({at:.03,dur:1.3,vol:.26,lp:420,flp:60,a:.05,rev:.5})},
   rumble(){if(!sOK())return;tone({type:'sine',f:45,f2:38,dur:.6,vol:.25,a:.25})},
@@ -3010,7 +3062,7 @@ function pickCombo(dist,o){
 }
 const AIAB={
   blaze:(b,o,d)=>b.meter>=100&&Math.random()<.6?'r':b.cd.q<=0&&d<1.8?'q':b.cd.e<=0&&d>1.9&&d<3.6?'e':null,
-  volt:(b,o,d)=>b.meter>=100?'r':b.cd.q<=0&&d>2.3?'q':b.cd.e<=0&&d>1.6&&d<2.6?'e':null,
+  volt:(b,o,d)=>b.meter>=100&&d<2.8&&!o.down?'r':b.cd.q<=0&&d>2.3?'q':b.cd.e<=0&&d>1.6&&d<2.6?'e':null,
   titan:(b,o,d)=>b.meter>=100&&d<2.4?'r':b.cd.e<=0&&d<1.9?'e':b.cd.q<=0&&d<2.2&&b.hp<b.hpMax*.75?'q':null,
   shade:(b,o,d)=>b.meter>=100&&d<1.55?'r':b.cd.e<=0&&d<3.5&&(o.blocking||Math.random()<.3)?'e':b.cd.q<=0&&o.act&&o.act.k==='punch'&&d<1.9?'q':null,
   frost:(b,o,d)=>b.meter>=100&&d<3?'r':b.cd.q<=0&&d<1.9?'q':b.cd.e<=0&&d<2.2&&b.hp<b.hpMax*.85?'e':null,
@@ -3405,7 +3457,9 @@ function updateCamera(dt){
     const me=G.B[G.ME],o=other(me);const dx=o.x-me.x,dz=o.z-me.z,l=Math.hypot(dx,dz)||1,fx=dx/l,fz=dz/l,rx=fz,rz=-fx;
     if(G.phase==='walk'&&WALK.cam){_cp.copy(WALK.cam[0]);_cl.copy(WALK.cam[1]);k=WALK.cut?1e5:5;if(WALK.cut){camera.position.copy(_cp);camLook.copy(_cl)}WALK.cut=false}
     else if(G.phase==='intro'){const q=ease(clamp(G.phT/4.2,0,1));const a0=Math.atan2(-fx,-fz),a=a0+(1-q)*1.25,R=lerp(7.2,3.3,q);_cp.set(me.x+Math.sin(a)*R,lerp(5.2,2.2,q),me.z+Math.cos(a)*R);_cl.set((me.x+o.x)/2,1.2,(me.z+o.z)/2);k=3}
-    else if(G.phase==='rest'){const a=t*.12;_cp.set(Math.cos(a)*5.6,4.4,Math.sin(a)*5.6);_cl.set(0,.8,0);k=2}
+    else if(G.phase==='rest'){const ph=G.phT,i=ph<2.6?G.ME:ph<5?1-G.ME:-1;
+      if(i<0){const a=t*.12;_cp.set(Math.cos(a)*5.6,4.4,Math.sin(a)*5.6);_cl.set(0,.8,0);k=2}
+      else{const sx=i?1:-1,c=sx*3.12,sw=Math.sin(ph*.4)*.5;_cp.set(c*.42+sw*sx,1.45,c*.42-sw*sx);_cl.set(c,1.05,c);k=ph<.15||Math.abs(ph-2.6)<.05?50:3}}
     else if(G.phase==='end'&&G.result&&G.result.w>=0&&G.phT>1.3){const w=G.B[G.result.w];const a=t*.22;let R=3.1;while(R>1.9&&Math.max(Math.abs(w.x+Math.cos(a)*R),Math.abs(w.z+Math.sin(a)*R))>RING+.1)R-=.05;_cp.set(w.x+Math.cos(a)*R,1.55,w.z+Math.sin(a)*R);_cl.set(w.x,1.4,w.z);k=1.6}
     else if(G.phase==='kd'&&G.kdInfo&&!G.kdInfo.up&&G.kdInfo.t<2.4){const d=G.B[G.kdInfo.b],cv=kdView(d),cc=kdCentre(d);_cp.set(cc[0]+cv[0]*2.6,1.35,cc[1]+cv[1]*2.6);_cl.set(cc[0],.3,cc[1]);k=3}
     else if(SET.cam==='tv'){
@@ -3447,8 +3501,8 @@ function step(dt){
   if(G.mode==='fight'||G.attract){
     hostTick(dt);
     if(G.phase==='walk')walkTick(dt);
-    else for(let i=0;i<2;i++){const b=G.B[i];if(owned(b))logicBoxer(b,getIntent(i,dt),dt);else mirrorUpdate(b,dt)}
-    stepWorld(dt);if(G.phase==='kd')stepKD(dt);
+    else for(let i=0;i<2;i++){const b=G.B[i],bdt=dt*slowK(i);if(owned(b))logicBoxer(b,getIntent(i,bdt),bdt);else mirrorUpdate(b,bdt)}
+    sdvStep(dt);stepWorld(dt);if(G.phase==='kd')stepKD(dt);
     netTick(dt);
   }else if(G.mode==='select')selectStep(dt);
   if(G.mode!=='fight')PRESS.length=0;
@@ -3565,6 +3619,9 @@ function extras(rdt,adt){
     if(b.trail&&b.trail.t>0){b.trail.t-=adt;_c.set(b.trail.c);for(let i=0;i<3;i++)PA.emit(b.chestW.x+(Math.random()-.5)*.3,.2+Math.random()*1.4,b.chestW.z+(Math.random()-.5)*.3,0,.6,0,.45,.18,_c.r,_c.g,_c.b,.9,0,2)}
     if(b.act&&b.act.anim==='flurry'){if(Math.random()<.8){const g=b.gW[Math.random()<.5?0:1];PA.emit(g.x,g.y,g.z,(Math.random()-.5),(Math.random()-.5),(Math.random()-.5),.25,.22,.7,.4,1,.8,0,3)}
       b.gfT=(b.gfT||0)-adt;if(b.gfT<=0){b.gfT=.075;ghostFist(b)}}
+    // Sandevistan: a stream of afterimages cycling through the spectrum, plus sparks off the spine implant
+    if(SDV.by===b.idx&&sdvOn()){b.sdvT=(b.sdvT||0)-rdt;if(b.sdvT<=0){b.sdvT=.045;b.sdvH=((b.sdvH||0)+.07)%1;afterimage(b,_c.setHSL(b.sdvH,1,.55).getHex(),.55,.8)}
+      if(Math.random()<.5){const h=b.headW;PA.emit(h.x-Math.sin(b.yaw)*.12,h.y-.25-Math.random()*.5,h.z-Math.cos(b.yaw)*.12,(Math.random()-.5)*.6,.3,(Math.random()-.5)*.6,.3,.06,.37,1,.6,1,0,2)}}
     if(b.ghostT>0){b.ghostT-=adt;b.ghT=(b.ghT||0)-adt;if(b.ghT<=0){b.ghT=.05;afterimage(b,b.ghostC,.3,.75)}}
     if(b.fxBits&FX.phase){b.phT2=(b.phT2||0)-adt;if(b.phT2<=0){b.phT2=.12;afterimage(b,0xb06bff,.42,.55)}}
     if(b.act&&b.act.k==='punch'&&b.act.p==='hay'&&b.act.t<.1&&!b._hayG){b._hayG=1;afterimage(b,b.look.glow||0xffc83a,.32,.8)}else if(!(b.act&&b.act.p==='hay'))b._hayG=0;
@@ -3585,12 +3642,12 @@ function extras(rdt,adt){
 let jumboT=0;
 function visuals(rdt,adt){
   if(RP.play){rpUpdate(rdt);for(const b of [G.B[0],G.B[1],REF.b])if(b&&b.f)b.statusVisuals(adt)}
-  else{for(const b of G.B)if(b.f&&b.root.visible)b.animate(adt,other(b));
+  else{for(const b of G.B)if(b.f&&b.root.visible)b.animate(adt*slowK(b.idx),other(b));
     if(REF.b&&REF.b.root.visible&&(G.mode==='fight'||G.attract))updateRef(adt);rpRecord(adt)}
   ropeVisuals(adt);PA.update(adt);PN.update(adt);fxUpdate(adt);updEmit(adt);updConfetti(adt);extras(rdt,adt);updPFX(rdt);
   ARENA.excite=Math.max(0,(ARENA.excite||0)-rdt*.22);
   const ex=G.mode==='fight'?.12+ARENA.excite*.9:.18;ARENA.crowdU.uEx.value=lerp(ARENA.crowdU.uEx.value,ex,damp(3,rdt));ARENA.crowdU.uT.value+=rdt;
-  crowdTick(rdt);ARENA.flashU.uT.value+=rdt;ARENA.flashU.uRate.value=1+ARENA.excite*7+(G.phase==='kd'||G.phase==='end'?5:0);
+  crowdTick(rdt);cornerTick(rdt);ARENA.flashU.uT.value+=rdt;ARENA.flashU.uRate.value=1+ARENA.excite*7+(G.phase==='kd'||G.phase==='end'?5:0);
   ARENA.impact.intensity*=Math.exp(-16*rdt);if(ARENA.impact.intensity<.05)ARENA.impact.intensity=0;ARENA.led.offset.x+=rdt*.035;
   // the big screen only redraws (and re-uploads) when what it shows has changed
   jumboT-=rdt;if(jumboT<=0){jumboT=.25;const t=Math.max(0,Math.ceil(G.tl));
@@ -3702,7 +3759,12 @@ function runSmoke(){
     abil('blaze','frost','e',3);sim(.6);ok(G.B[1].hp<100&&G.B[1].st.burn>0,'Flame Dash closes the gap');ok(G.B[0].cd.e>0,'cooldown starts');ok(castAbility(G.B[0],'e')===false,'can\'t recast on cooldown');
     abil('volt','frost','e',2.4);sim(.4);ok(G.B[1].st.stun>0,'Shock Jab reaches 2.4m and stuns');
     abil('volt','frost','q',3);ok(Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z)<1.25&&G.B[0].counterT>0,'Blink lands beside them with a counter ready');
-    abil('volt','frost','r');sim(.8);ok(G.B[1].st.stun>0&&G.B[1].hp<85,'Thunderstrike stuns ('+G.B[1].hp.toFixed(1)+')');ok(G.B[0].meter===0,'ultimate spends the meter');
+    abil('volt','frost','r',3);ok(sdvOn()&&SDV.by===0,'Sandevistan switches on');ok(G.B[0].meter===0,'ultimate spends the meter');
+    {G.B[1].st.stun=.5;sim(.4);ok(near(G.B[1].st.stun,.5-.4*SDV_K,.02),'…the opponent\'s clock runs at '+SDV_K+'× ('+G.B[1].st.stun.toFixed(2)+')');
+     G.B[0].st.stun=.5;sim(.2);ok(G.B[0].st.stun<.31,'…while Volt\'s runs at full speed');
+     place(1);const hp=G.B[0].hp;startPunch(G.B[1],'jab');const T=(PUNCH.jab.w+PUNCH.jab.a*.8)/(FBY.frost.pspd||FBY.frost.spd);sim(T+.05);ok(G.B[0].hp===hp,'…their punches land on their slow clock');
+     sim(SDV_T);ok(!sdvOn(),'Sandevistan wears off after '+SDV_T+'s');ok(G.B[0].hp<hp,'…and the punch lands in the end')}
+    abil('volt','frost','r',1);G.B[1].hp=1;startPunch(G.B[0],'cross');sim(.6);ok(!sdvOn(),'a knockdown ends the Sandevistan');
     solo('volt','frost');G.B[0].meter=50;ok(castAbility(G.B[0],'r')===false,'no ultimate without a full meter');
     abil('titan','frost','e',1.6);sim(.6);ok(G.B[1].hp<=88,'Ground Pound hits within 2.3m ('+G.B[1].hp.toFixed(1)+')');
     abil('titan','frost','q');G.B[0].act=null;startPunch(G.B[1],'cross');sim(.5);ok(near(G.B[0].hp,135-PUNCH.cross.dmg*FBY.frost.pow*.5,.2),'Iron Skin halves damage ('+G.B[0].hp.toFixed(2)+')');
