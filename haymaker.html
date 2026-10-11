@@ -2013,6 +2013,8 @@ class Boxer{
     const dazed=(bits&FX.stun)||(a&&a.k==='hurt'&&a.big);
     if(this.blocking&&!(a&&a.k==='punch')){crouch+=.05;lean+=.06;gL.copy(BLOCK_L);gR.copy(BLOCK_R);headP=.12;twist=.12;elIn=1;k=30}
     if(dazed){gL.set(-.22,1.18,.22);gR.set(.22,1.16,.22);headR=Math.sin(this.anT*6)*.18;roll+=Math.sin(this.anT*3)*.12;crouch+=.06}
+    // a body shot doubles you over: guard drops to the stomach, chin comes down
+    if(a&&a.k==='hurt'&&a.body){const q=1-clamp(a.t/a.d,0,1),e2=Math.min(1,q*1.6);crouch+=.13*e2;lean+=.34*e2;gL.lerp(_U.set(-.13,1.12,.2),e2);gR.lerp(_V.set(.13,1.08,.18),e2);headP+=.22*e2;twist=lerp(twist,.05,e2);k=26}
     if(a&&a.k==='hurt'&&a.parried){const q=clamp(a.t/a.d,0,1);gL.set(-.36,1.66-.24*q,-.04);gR.set(.36,1.66-.24*q,-.04);lean-=.26*(1-q);headP=-.32*(1-q);twist=0;k=12}
     // gassed: the guard sags and the chest heaves
     const tired=this.sta<22&&!this.down&&!(a&&/down|ko|getup|win|lose/.test(a.k));
@@ -2429,7 +2431,7 @@ function applyResult(res){
   const a=G.B[res.a],v=G.B[1-res.a];const hitLike=res.r==='hit'||res.r==='break';
   if(owned(v)){
     if(res.dmg>0)v.hp=Math.max(res.r==='block'?Math.min(v.hp,1):0,v.hp-res.dmg);  // only clean shots put you down
-    if(res.hs>0){cancelPunch(v);v.act={k:'hurt',t:0,d:res.hs,big:res.hs>.36};v.blocking=false;v.buf=null}
+    if(res.hs>0){cancelPunch(v);v.act={k:'hurt',t:0,d:res.hs,big:res.hs>.36,body:res.body?1:0};v.blocking=false;v.buf=null}
     if(res.kb){v.kx+=res.kx*res.kb;v.kz+=res.kz*res.kb}
     if(res.r==='break')v.st.stun=Math.max(v.st.stun,.45);
     if(res.shatter){v.st.freeze=0;netAb(v,'shatter')}
@@ -2449,7 +2451,7 @@ function applyResult(res){
     if(v.hp<=0&&!v.down&&fighting())knockdown(v);
   }else{
     // a mirror: just play the reaction
-    if(res.hs>0)v.act={k:'hurt',t:0,d:res.hs,big:res.hs>.36};
+    if(res.hs>0)v.act={k:'hurt',t:0,d:res.hs,big:res.hs>.36,body:res.body?1:0};
   }
   // parried: the attacker is thrown off balance (applied by whoever owns the attacker)
   if(res.r==='parry'){if(owned(a)){cancelPunch(a);a.combo=0;a.blocking=false;a.buf=null;a.dash=null}a.act={k:'hurt',t:0,d:.55,big:true,parried:true}}
