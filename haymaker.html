@@ -490,7 +490,7 @@ const FIGHTERS=[
   passive:{name:'Overclocked',desc:'Moves 12% and punches 7% faster than anyone else.'},
   q:{name:'Blink',cd:7,desc:'Teleport right up to your opponent. Your next punch counts as a counter.'},
   e:{name:'Shock Jab',cd:9,desc:'A long-reach electric jab that stuns for 0.8s. Blocking stops the stun.'},
-  r:{name:'Militech Sandevistan',desc:'Military-grade spine implant. Time crawls for your opponent for 3 seconds while you move at full speed.'}},
+  r:{name:'Militech Sandevistan',desc:'Military-grade spine implant. Time crawls for your opponent for 2 seconds while you move at full speed.'}},
  {id:'titan',name:'TITAN',nick:'THE MOUNTAIN',col:'#9be05a',
   look:{skin:0x5c3a26,shorts:0x3d5a2a,trim:0xd9c27b,glove:0x70757c,hair:'bald',beard:1,hairCol:0x1a1008,glow:0x9be05a},
   taunt:'beat',alts:[{},{shorts:0x7a1d1d,trim:0xffc83a,glove:0xc8a032},{shorts:0x1a1a1e,trim:0x9be05a,glove:0x2a2a30}],
@@ -2410,7 +2410,7 @@ const ABIL={
 // ── Volt's Militech Sandevistan: for SDV_T seconds the opponent's whole clock (moves, punches, stuns, recoveries,
 // even a CPU's thinking) runs at SDV_K speed while Volt runs at full speed. Both browsers start it from the 'r' ability
 // message, and each one slows only the boxer it owns. Ends early on a knockdown or the bell.
-const SDV_T=3,SDV_K=.25,SDV={by:-1,t:0};
+const SDV_T=2,SDV_K=.25,SDV={by:-1,t:0};
 const sdvOn=()=>SDV.t>0&&SDV.by>=0;
 const slowK=i=>sdvOn()&&i!==SDV.by?SDV_K:1;
 function sdvStep(dt){if(!sdvOn())return;SDV.t-=dt;
