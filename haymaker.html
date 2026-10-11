@@ -62,6 +62,8 @@ body.touch #train{top:auto;bottom:8px;right:auto;left:50%;transform:translateX(-
 #photoBar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:30;display:none;gap:10px;align-items:center;background:rgba(8,8,12,.82);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font:700 11px Rubik;color:#ccc;letter-spacing:.06em;white-space:nowrap}
 #photoBar b{font:400 18px Anton;color:var(--gold);letter-spacing:.08em}#photoBar i{color:#fff;font-style:normal}#photoBar button{border:1px solid var(--line);background:#1a1a22;color:#fff;border-radius:8px;padding:6px 10px;font:800 11px Rubik;cursor:pointer}
 body.photo #photoBar{display:flex}body.photo>*:not(canvas):not(#photoBar){visibility:hidden!important}
+body.watching #keys{visibility:hidden}
+body.watching #keys::after{content:'EXHIBITION · PRESS A PUNCH KEY TO TAKE OVER THE RED CORNER';visibility:visible;position:absolute;left:0;right:0;text-align:center;color:var(--gold)}
 #walk{position:fixed;left:0;right:0;bottom:12vh;z-index:9;pointer-events:none;display:none}
 #walk.on{display:block}
 #walk .bar{position:relative;margin-left:5vw;padding:14px 46px 16px 26px;display:inline-block;background:linear-gradient(100deg,var(--c) 0 8px,rgba(8,8,12,.9) 8px 70%,rgba(8,8,12,0));clip-path:polygon(0 0,100% 0,94% 100%,0 100%);animation:wIn .5s cubic-bezier(.2,1.4,.4,1) both}
@@ -407,7 +409,7 @@ body.touch #abil,body.touch #keys{display:none}
   <div class="selR">
     <div class="finfo" id="finfo"></div>
     <div id="netBox" class="vsbox hide"></div>
-    <div class="row" id="selBtns"><button class="btn ghost" id="selBack" style="flex:1">BACK</button><button class="btn primary" id="selGo" style="flex:2">FIGHT!</button></div>
+    <div class="row" id="selBtns"><button class="btn ghost" id="selBack" style="flex:1">BACK</button><button class="btn ghost" id="selWatch" style="flex:1">WATCH</button><button class="btn primary" id="selGo" style="flex:2">FIGHT!</button></div>
   </div>
 </div>
 
@@ -2795,7 +2797,7 @@ function setPhase(ph,x={}){
     hideOv('cardOv');if(!G.attract){announce(G.title&&G.rnd===1?'TITLE FIGHT':'ROUND '+G.rnd,'gold',1.4);say(G.rnd===ROUNDS?'Final round!':'Round '+['','one','two','three','four','five'][G.rnd])}
   }
   if(ph==='fight'){clearTimeout(sub.t);$('sub').style.opacity=0}
-  if(ph==='fight'&&!G.attract&&G.rnd===1&&!SMOKE){let seen=0;try{seen=+localStorage.getItem('haymaker.tip')||0}catch(e){}
+  if(ph==='fight'&&!G.attract&&!G.watch&&G.rnd===1&&!SMOKE){let seen=0;try{seen=+localStorage.getItem('haymaker.tip')||0}catch(e){}
     if(seen<1)setTimeout(()=>{if(G.phase==='fight')sub(TOUCH?'TIP: HOLD HAYMAKER TO CHARGE · TAP BLOCK AS A PUNCH LANDS = PERFECT':'TIP: HOLD H TO CHARGE A HAYMAKER · TAP SPACE AS A PUNCH LANDS = PERFECT BLOCK',4.5)},1100)}
   if(ph==='fight'&&!G.attract){announce('FIGHT!','',.8);SFX.bell(G.rnd===1&&G.phT===0?3:1);pyro(.9,G.rnd%2?[0,2]:[1,3],.8);ARENA.excite=Math.max(ARENA.excite||0,.7)}
   if(ph==='rest'){clearCombat();if(!G.attract){SFX.bell(1);G.cards=x.cards||G.cards;setTimeout(()=>{if(G.phase==='rest')showRoundCard(x)},900)}}
@@ -3406,6 +3408,7 @@ addEventListener('keydown',e=>{
   if(RP.play&&!e.repeat){rpEnd();e.preventDefault();return}
   if(G.phase==='walk'&&G.mode==='fight'&&!e.repeat&&e.code!=='Escape'){hostPhase('intro');e.preventDefault();return}
   if(e.code==='KeyM'&&!e.repeat){toggleMute();return}
+  if(G.watch&&G.mode==='fight'&&G.phase==='fight'&&!e.repeat&&KMAP[e.code]){G.watch=false;G.bots[0]=null;document.body.classList.remove('watching');showHUD(true);sub('YOU HAVE CONTROL',1.4)}
   if(G.bag&&G.mode==='fight'&&/^Digit[1-6]$/.test(e.code)){const n=+e.code[5];if(n<=4)trainSet(['stand','block','dodge','fight'][n-1]);else if(n===5){TR.meter=!TR.meter;trainUI()}else{TR.cds=!TR.cds;trainUI()}SFX.ui();return}
   if(PHOTO.on){const c=e.code;if(c==='Escape'||c==='KeyP')photoOff();else if(c==='KeyF')PHOTO.film=(PHOTO.film+1)%FILMS.length;else if(c==='KeyS')photoSave();
     else if(c==='KeyQ')PHOTO.r=Math.max(1,PHOTO.r-.3);else if(c==='KeyE')PHOTO.r=Math.min(10,PHOTO.r+.3);else if(c==='KeyA'||c==='ArrowLeft')PHOTO.a-=.1;else if(c==='KeyD'||c==='ArrowRight')PHOTO.a+=.1;
@@ -3504,6 +3507,7 @@ function checkStart(){if(NET.mode==='host'&&NET.myReady&&NET.peerReady&&NET.peer
 function checkRematch(){if(NET.mode==='host'&&NET.rm&&NET.peerRm)hostGo()}
 function hostGo(){const m={t:'go',v:pickVenue(SEL.venue),f:[SEL.f,NET.peerPick],n:[myName()||FBY[SEL.f].name,NET.peer||FBY[NET.peerPick].name],a:[SEL.alt|0,NET.peerAlt|0]};netSend(m);startOnlineMatch(m)}
 function startOnlineMatch(m){
+  G.watch=false;document.body.classList.remove('watching');
   applyVenue(m.v);
   G.online=true;G.attract=false;G.bag=false;G.ME=NET.mode==='host'?0:1;G.bots=[null,null];G.ladder=null;G.paused=false;
   Object.assign(NET,{myReady:false,peerReady:false,rm:false,peerRm:false});
@@ -3572,7 +3576,7 @@ const QUOTES={blaze:['Hope you brought a fire extinguisher.','I\'m already warme
   kitsune:['Catch me if you can~','Which one of me is real?','Nine tails. Zero mercy.'],
   toro:['Olé.','I see red.','You\'ll get the horns.'],
   unit:['TARGET ACQUIRED.','14,000,605 SIMULATIONS. YOU LOSE IN ALL OF THEM.','RESISTANCE IS INEFFICIENT.']};
-function vsShow(){if(G.attract||SMOKE)return;const el=$('vs'),[A,B]=G.B,side=(b,i)=>`<div class="vport">${portrait(b.f.id,Math.min(300,innerHeight*.42)|0,i===1)}</div><div class="tag">${i===G.ME?'YOU':G.online?'RIVAL':'CPU'} · ${i?'BLUE':'RED'} CORNER</div><div class="nm">${(b.name||b.f.name).replace(/[<>&]/g,'')}</div><div class="nk">“${b.f.nick}”</div><div class="qt">${pick(QUOTES[b.f.id]||['…'])}</div>`;
+function vsShow(){if(G.attract||SMOKE)return;const el=$('vs'),[A,B]=G.B,side=(b,i)=>`<div class="vport">${portrait(b.f.id,Math.min(300,innerHeight*.42)|0,i===1)}</div><div class="tag">${i===G.ME&&!G.watch?'YOU':G.online?'RIVAL':'CPU'} · ${i?'BLUE':'RED'} CORNER</div><div class="nm">${(b.name||b.f.name).replace(/[<>&]/g,'')}</div><div class="nk">“${b.f.nick}”</div><div class="qt">${pick(QUOTES[b.f.id]||['…'])}</div>`;
   const l=el.querySelector('.l'),r=el.querySelector('.r');l.style.setProperty('--c',A.f.col);r.style.setProperty('--c',B.f.col);l.innerHTML=side(A,0);r.innerHTML=side(B,1);
   el.className='';void el.offsetWidth;el.classList.add('on');SFX.slide();clearTimeout(vsShow.t);clearTimeout(vsShow.t2);vsShow.t2=setTimeout(()=>SFX.vs(),300);
   vsShow.t=setTimeout(vsHide,2300)}
@@ -3591,7 +3595,7 @@ const HUDC={};
 function showHUD(on){
   $('hud').classList.toggle('hide',!on);$('touch').classList.toggle('hide',!(on&&TOUCH));document.body.classList.toggle('infight',!!on);
   if(!on)return;
-  G.B.forEach((b,i)=>{const el=$('hb'+i);el.querySelector('.nm').innerHTML=(b.name||b.f.name).replace(/[<>&]/g,'')+(i===G.ME&&!G.attract?' <span style="color:var(--gold);font-size:.75em">YOU</span>':'');const ic=el.querySelector('.ico');ic.innerHTML=portrait(b.f.id,46,i===1);ic.style.setProperty('--c',b.f.col);b.trail=b.hp;b._lastHp=b.hp});
+  G.B.forEach((b,i)=>{const el=$('hb'+i);el.querySelector('.nm').innerHTML=(b.name||b.f.name).replace(/[<>&]/g,'')+(i===G.ME&&!G.attract&&!G.watch?' <span style="color:var(--gold);font-size:.75em">YOU</span>':'');const ic=el.querySelector('.ico');ic.innerHTML=portrait(b.f.id,46,i===1);ic.style.setProperty('--c',b.f.col);b.trail=b.hp;b._lastHp=b.hp});
   const me=G.B[G.ME].f;if(TOUCH)['q','e','r'].forEach(k=>{document.querySelector(`#touch [data-k=${k}]`).innerHTML=`<i class="tcd"></i><span class="tic">${abIcon(me,k)}</span>`});$('abQ').querySelector('.ic').innerHTML=abIcon(me,'q');$('abE').querySelector('.ic').innerHTML=abIcon(me,'e');$('abR').querySelector('.ic').innerHTML=abIcon(me,'r');
   ['abQ','abE','abR'].forEach((id,i)=>$(id).title=[me.q,me.e,me.r][i].name);
   $('keys').style.opacity=1;G.keysT=14;$('mashKeys').textContent=TOUCH?'PUNCH':'J / K';
@@ -3634,6 +3638,7 @@ function showTitle(){
   startAttract();
 }
 function startAttract(){
+  G.watch=false;document.body.classList.remove('watching');
   applyVenue(Math.random()<.35?(Math.random()<.5?'roof-rain':'roof'):'arena');
   G.online=false;G.attract=true;G.ME=0;G.bag=false;const a=pick(FIGHTERS).id;let b;do b=pick(FIGHTERS).id;while(b===a);
   setupMatch([a,b]);G.bots=[new Bot(0,'contender'),new Bot(1,'contender')];REF.b.root.visible=true;setPhase('intro');
@@ -3660,6 +3665,7 @@ function renderSelect(){
   $('oppBox').classList.toggle('hide',SEL.mode!=='quick');
   $('oppSeg').innerHTML=`<button data-o="random" class="${SEL.opp==='random'?'on':''}"><span style="width:20px;height:20px;display:block">${ICO('random')}</span>RANDOM</button>`+FIGHTERS.map(f=>`<button data-o="${f.id}" class="${SEL.opp===f.id?'on':''}" title="${f.name}">${portrait(f.id,25)}</button>`).join('');
   $('venueSeg').innerHTML=[['arena','ARENA'],['roof','ROOFTOP'],['random','RANDOM']].map(([k,n])=>`<button data-v="${k}" class="${SEL.venue===k?'on':''}">${n}</button>`).join('');
+  $('selWatch').style.display=SEL.mode==='quick'?'':'none';
   $('venueBox').style.display=SEL.mode==='online'&&NET.mode!=='host'?'none':'';
   $('diffSeg').innerHTML=Object.entries(DIFF).map(([k,d])=>`<button data-d="${k}" class="${SEL.diff===k?'on':''}">${d.name}</button>`).join('');
   $('netBox').classList.toggle('hide',!on);
@@ -3701,6 +3707,7 @@ function setupUI(){
   $('venueSeg').addEventListener('click',e=>{const c=e.target.closest('[data-v]');if(!c)return;SFX.ui();SEL.venue=c.dataset.v;saveSel();renderSelect();if(SEL.venue!=='random')setVenue(SEL.venue)});
   $('diffSeg').addEventListener('click',e=>{const c=e.target.closest('[data-d]');if(!c)return;SEL.diff=c.dataset.d;saveSel();renderSelect()});
   $('selBack').onclick=()=>{if(SEL.mode==='online')netLeave();showTitle()};
+  $('selWatch').onclick=()=>{SFX.ui();let o=SEL.opp;if(o==='random'||!FBY[o]){const others=FIGHTERS.filter(f=>f.id!==SEL.f);o=pick(others).id}startSolo(SEL.f,o,SEL.diff,true)};
   $('selGo').onclick=()=>{SFX.ui();
     if(SEL.mode==='quick'){let o=SEL.opp;if(o==='random'){const others=FIGHTERS.filter(f=>f.id!==SEL.f);o=pick(others).id}startSolo(SEL.f,o,SEL.diff)}
     else if(SEL.mode==='ladder'){const opps=FIGHTERS.map(f=>f.id).filter(id=>id!==SEL.f).sort(()=>Math.random()-.5).slice(0,LAD_DIFF.length);G.ladder={f:SEL.f,opps,i:0};showLadder()}
@@ -3722,11 +3729,12 @@ function saveName(){NAME=$('nameIn').value.trim().toUpperCase().slice(0,12);try{
 // ── fights ──
 function rpStop(){if(RP.play){RP.play.done=null;rpEnd()}}
 function renderToggles(){document.querySelectorAll('.tgl').forEach(b=>{const on=!!SET[b.dataset.s]&&!(SET.mute&&b.dataset.s!=='flash'&&b.dataset.s!=='walk');b.textContent=on?'ON':'OFF';b.classList.toggle('off',!on)})}
-function startSolo(myF,oppF,diff){rpStop();
+function startSolo(myF,oppF,diff,watch){rpStop();G.watch=!!watch;document.body.classList.toggle('watching',G.watch);
   G.online=false;G.attract=false;G.ME=0;G.bag=diff==='bag';G.paused=false;
   const oa=G.ladder?Math.floor(Math.random()*3):myF===oppF?(SEL.alt+1)%3:0;setupMatch([myF,oppF],[FBY[myF].name,FBY[oppF].name],[SEL.alt,oa]);G.bots=[null,new Bot(1,diff)];G.diff=diff;
   applyVenue(pickVenue(SEL.venue));G.mode='fight';hideAllOv();showHUD(true);REF.b.root.visible=true;setPhase(G.bag||SMOKE||!SET.walk?'intro':'walk');
   if(G.bag){Object.assign(TR,{last:0,combo:0,comboT:0,log:[],perfect:0});trainSet(TR.dummy)}
+  if(G.watch){G.bots[0]=new Bot(0,diff==='bag'?'contender':diff);if(G.bots[1].diff==='bag')G.bots[1]=new Bot(1,'contender')}
   // the last bout of the ladder is for the belt: the champion walks out wearing it
   G.title=!!(G.ladder&&G.ladder.i===G.ladder.opps.length-1);if(G.title&&G.phase==='walk')giveBelt(G.B[1],true);
 }
@@ -3752,7 +3760,7 @@ function onEnd(r){
     pyro(2.8,[0,1,2,3],1.2);flameJets();ARENA.excite=1;impactFrame(0xff3b3f)}
   else{SFX.bell(3);announce(w<0?'DRAW!':'DECISION','gold',1.8);say(w<0?'This one is a draw!':'We go to the judges\' scorecards.');SFX.cheer(.8)}
   if(w>=0)setTimeout(()=>{if(G.phase!=='end'||G.mode!=='fight')return;confetti();SFX.fanfare(w===G.ME);if(!ko)pyro(2,[0,1,2,3])},ko?1300:900);
-  if(!SMOKE){if(w===G.ME){REC.w++;if(ko)REC.ko++}else if(w>=0)REC.l++;saveRec()}
+  if(!SMOKE&&!G.watch){if(w===G.ME){REC.w++;if(ko)REC.ko++}else if(w>=0)REC.l++;saveRec()}
   if(G.ladder&&w===G.ME){G.ladder.i++;if(G.ladder.i>=G.ladder.opps.length){REC.ladders++;REC.champ[G.ladder.f]=1;saveRec()}}
   const fin=()=>{if(G.phase==='end'&&G.mode==='fight')showEnd(r)};
   clearTimeout(onEnd.t);
@@ -4188,6 +4196,7 @@ function runSmoke(){
     solo('blaze','frost');place(1);G.bag=true;TR.dummy='stand';G.B[1].hp=3;startPunch(G.B[0],'hook');sim(.8);ok(G.B[1].hp>=1&&!G.B[1].down&&TR.last>0,'training: the standing dummy takes the hit but never goes down');G.bag=false;
     setVenue('roof');ok(ARENA.roof&&ARENA.roof.g.visible&&ARENA.dress.every(o=>!o.visible)&&Math.abs(ARENA.tunnel.x+13.2)<.01,'the rooftop venue swaps in (and its stairwell becomes the walk-out door)');applyVenue('roof-rain');ok(ARENA.rain.L.visible,'rain falls on a wet rooftop night');applyVenue('arena');ok(!ARENA.roof.g.visible&&!ARENA.rain.L.visible&&ARENA.dress.every(o=>o.visible),'…and swaps back to a dry arena');
     solo('blaze','frost');photoOn();ok(PHOTO.on&&G.paused&&document.body.classList.contains('photo')&&CAM.lock===null||PHOTO.on,'photo mode freezes the fight and hides the UI');photoTick();ok(Array.isArray(CAM.lock),'…and drives a free camera');photoOff();hideOv('pauseOv');G.paused=false;ok(!PHOTO.on&&!document.body.classList.contains('photo')&&CAM.lock===null,'…and hands everything back');
+    {const w0=REC.w,l0=REC.l;startSolo('volt','titan','contender',true);ok(G.watch&&G.bots[0]&&G.bots[1],'WATCH: both corners are CPUs');G.forced=null;G.phase='fight';let n=0;while(G.phase!=='end'&&n<60*300){step(1/60);n++}ok(G.phase==='end'&&REC.w===w0&&REC.l===l0,'…the exhibition finishes and doesn\'t touch your record');G.watch=false;document.body.classList.remove('watching');G.forced=[EMPTY,EMPTY]}
     abil('kitsune','frost','q',2.5);sim(.7);ok(G.B[1].hp<100&&G.B[1].st.burn>0,'Foxfire wisps burn ('+G.B[1].hp.toFixed(1)+')');
     abil('kitsune','frost','e',2.5);sim(.6);ok(G.B[1].st.charm>0,'Charm lands');{const d0=Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z);G.forced[1]={...EMPTY,mz:1};sim(.4);
       ok(Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z)>d0+.2,'…and a charmed fighter walking in backs off instead');G.forced[1]=EMPTY}
