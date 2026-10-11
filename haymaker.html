@@ -70,6 +70,7 @@ body.watching #keys::after{content:'EXHIBITION · PRESS A PUNCH KEY TO TAKE OVER
 #recBody .rc{position:relative;background:#14141c;border:1px solid var(--line);border-radius:12px;padding:8px 10px 8px 62px;min-height:62px;border-left:4px solid var(--c)}
 #recBody .rc .port{position:absolute;left:6px;top:6px}#recBody .rc .n{font:400 18px Anton;color:var(--c)}#recBody .rc .s{font:700 11px Rubik;color:#ccc;line-height:1.5}#recBody .rc .s b{color:#fff}
 #recBody .rc .t{position:absolute;right:6px;top:6px;width:20px;height:20px}
+#altSeg .leg{box-shadow:0 0 0 2px #ffd23a,0 0 10px rgba(255,210,58,.6)}#altSeg .lock{opacity:.45;font-size:13px;display:grid;place-items:center}
 #walk{position:fixed;left:0;right:0;bottom:12vh;z-index:9;pointer-events:none;display:none}
 #walk.on{display:block}
 #walk .bar{position:relative;margin-left:5vw;padding:14px 46px 16px 26px;display:inline-block;background:linear-gradient(100deg,var(--c) 0 8px,rgba(8,8,12,.9) 8px 70%,rgba(8,8,12,0));clip-path:polygon(0 0,100% 0,94% 100%,0 100%);animation:wIn .5s cubic-bezier(.2,1.4,.4,1) both}
@@ -588,6 +589,9 @@ const FIGHTERS=[
   e:{name:'Overclock',cd:13,desc:'For 4 seconds every punch comes out 30% faster.'},
   r:{name:'Hyper Beam',desc:'Half a second of charge, then a laser straight down the line. Unblockable — sidestep it!'}},
 ];
+// LEGEND colourway: black satin and gold, unlocked by winning the arcade ladder with that fighter
+FIGHTERS.forEach(f=>f.alts.push({shorts:0x14110a,trim:0xffd23a,glove:0xe8b42a,shoe:0x14110a,glow:0xffd23a,legend:1}));
+const NALT=4,altOK=(id,a)=>a<3||!!REC.champ[id];
 const FBY=Object.fromEntries(FIGHTERS.map(f=>[f.id,f]));
 const DIFF={
   bag:      {name:'TRAINING',      react:9,  block:0,  dodge:0,  aggr:0,  abil:0,  think:9,  getup:1,  parry:0,  hay:0},
@@ -2854,7 +2858,7 @@ const HOME=[[-1.35,-1.35],[1.35,1.35]];
 function setupMatch(fids,names,alts){
   dropBelts();G.title=false;
   G.rnd=1;G.tl=ROUND_T;G.rdmg=[[],[]];G.rkd=[[],[]];G.result=null;G.kdInfo=null;G.cards=null;clearCombat();rpReset();clearDecals();clearConfetti();
-  alts=(alts||[0,0]).map(a=>a|0);if(fids[0]===fids[1]&&alts[0]===alts[1])alts[1]=(alts[0]+1)%3;   // mirror match: never the same colours
+  alts=(alts||[0,0]).map(a=>a|0);if(fids[0]===fids[1]&&alts[0]===alts[1])alts[1]=(alts[0]+1)%NALT;   // mirror match: never the same colours
   G.B.forEach((b,i)=>{if(!b.f||b.f.id!==fids[i]||b.alt!==alts[i])b.build(FBY[fids[i]],alts[i]);b.reset();if(b.ribs)b.ribs.forEach(r=>r.clear());b.name=(names&&names[i])||b.f.name;b.x=HOME[i][0]*1.6;b.z=HOME[i][1]*1.6;b.home=HOME[i];b.yaw=Math.atan2(-b.x,-b.z);b.root.visible=true});
   crowdTeams(G.B[0].look.glow||G.B[0].f.col,G.B[1].look.glow||G.B[1].f.col);
 }
@@ -3563,8 +3567,8 @@ function onNet(m){
   if(m.t==='error'){const t=m.msg||'That didn\'t work.';netClose();NET.mode='off';showOv('mpOv');mpErr(t==='No game with that code.'?'No room with that code — check the letters.':t==='That game is full.'?'That room already has two boxers.':t);return}
   if(m.t==='left'||m.t==='bye'){if(NET.mode!=='off')netLost('Your opponent left the arena.');return}
   switch(m.t){
-    case 'hi':NET.peer=String(m.name||'').slice(0,12);NET.peerPick=FBY[m.f]?m.f:null;NET.peerAlt=(m.a|0)%3;NET.peerReady=!!m.ready;if(G.mode==='select'){renderSelect();placePreview()}checkStart();break;
-    case 'pick':NET.peerPick=FBY[m.f]?m.f:NET.peerPick;NET.peerAlt=(m.a|0)%3;NET.peerReady=!!m.ready;if(G.mode==='select'){renderSelect();placePreview()}checkStart();break;
+    case 'hi':NET.peer=String(m.name||'').slice(0,12);NET.peerPick=FBY[m.f]?m.f:null;NET.peerAlt=(m.a|0)%NALT;NET.peerReady=!!m.ready;if(G.mode==='select'){renderSelect();placePreview()}checkStart();break;
+    case 'pick':NET.peerPick=FBY[m.f]?m.f:NET.peerPick;NET.peerAlt=(m.a|0)%NALT;NET.peerReady=!!m.ready;if(G.mode==='select'){renderSelect();placePreview()}checkStart();break;
     case 'go':if(NET.mode==='guest')startOnlineMatch(m);break;
     case 's':applySnap(m);break;
     case 'atk':onAtk(m.s);break;
@@ -3625,7 +3629,7 @@ addEventListener('pagehide',()=>{if(NET.mode!=='off')netSend({t:'bye'})});
 const SEL={mode:'quick',f:'blaze',opp:'random',diff:'contender',alt:0,venue:'arena',mut:{}};
 const MUT={};   // the mutators live for this match: big (heads), dmg (double damage), ult (meter ×3)
 const mutOn=k=>!!MUT[k]&&!G.online;
-try{const s=JSON.parse(localStorage.getItem('haymaker.sel')||'{}');if(FBY[s.f])SEL.f=s.f;if(s.opp==='random'||FBY[s.opp])SEL.opp=s.opp;if(DIFF[s.diff])SEL.diff=s.diff;if(['arena','roof','pit','random'].includes(s.venue))SEL.venue=s.venue;if(s.mut&&typeof s.mut==='object')SEL.mut={big:!!s.mut.big,dmg:!!s.mut.dmg,ult:!!s.mut.ult};SEL.alt=(s.alt|0)%3}catch(e){}
+try{const s=JSON.parse(localStorage.getItem('haymaker.sel')||'{}');if(FBY[s.f])SEL.f=s.f;if(s.opp==='random'||FBY[s.opp])SEL.opp=s.opp;if(DIFF[s.diff])SEL.diff=s.diff;if(['arena','roof','pit','random'].includes(s.venue))SEL.venue=s.venue;if(s.mut&&typeof s.mut==='object')SEL.mut={big:!!s.mut.big,dmg:!!s.mut.dmg,ult:!!s.mut.ult};SEL.alt=(s.alt|0)%NALT;if(!altOK(SEL.f,SEL.alt))SEL.alt=0}catch(e){}
 const saveSel=()=>{try{localStorage.setItem('haymaker.sel',JSON.stringify({f:SEL.f,opp:SEL.opp,diff:SEL.diff,alt:SEL.alt,venue:SEL.venue,mut:SEL.mut}))}catch(e){}};
 function showOv(id){$(id).classList.add('on')}
 function hideOv(id){$(id).classList.remove('on')}
@@ -3748,7 +3752,7 @@ function renderSelect(){
   $('grid').innerHTML=FIGHTERS.map(f=>{const opp=(SEL.mode==='quick'&&SEL.opp===f.id)||(on&&NET.peerPick===f.id);
     return `<button class="card ${SEL.f===f.id?'sel':''} ${opp?'opp'+(on?' netopp':''):''}" style="--c:${f.col}" data-f="${f.id}"><div class="em">${portrait(f.id,64)}</div><div class="cn">${f.name}</div>${REC.champ[f.id]?'<div title="Arcade ladder champion" style="position:absolute;top:3px;left:4px;width:22px;height:22px">'+ICO('trophy')+'</div>':''}</button>`}).join('');
   $('finfo').innerHTML=fighterInfo(FBY[SEL.f]);
-  {const f=FBY[SEL.f],hx=c=>'#'+new THREE.Color(c).getHexString();$('altSeg').innerHTML=[0,1,2].map(a=>{const L=Object.assign({},f.look,f.alts[a]);return `<button data-a="${a}" class="${SEL.alt===a?'on':''}" style="--a:${hx(L.shorts)};--b:${hx(L.glove)}" title="Colour ${a+1}"></button>`}).join('')}
+  {const f=FBY[SEL.f],hx=c=>'#'+new THREE.Color(c).getHexString();if(!altOK(f.id,SEL.alt))SEL.alt=0;$('altSeg').innerHTML=[0,1,2,3].map(a=>{const L=Object.assign({},f.look,f.alts[a]),ok2=altOK(f.id,a);return `<button data-a="${a}" class="${SEL.alt===a?'on':''} ${a===3?'leg':''} ${ok2?'':'lock'}" style="--a:${hx(L.shorts)};--b:${hx(L.glove)}" title="${a===3?(ok2?'LEGEND colours':'LEGEND — win the arcade ladder with '+f.name+' to unlock'):'Colour '+(a+1)}">${ok2?'':'🔒'}</button>`}).join('')}
   $('oppBox').classList.toggle('hide',SEL.mode!=='quick');
   $('oppSeg').innerHTML=`<button data-o="random" class="${SEL.opp==='random'?'on':''}"><span style="width:20px;height:20px;display:block">${ICO('random')}</span>RANDOM</button>`+FIGHTERS.map(f=>`<button data-o="${f.id}" class="${SEL.opp===f.id?'on':''}" title="${f.name}">${portrait(f.id,25)}</button>`).join('');
   $('venueSeg').innerHTML=[['arena','ARENA'],['roof','ROOFTOP'],['pit','THE PIT'],['random','RANDOM']].map(([k,n])=>`<button data-v="${k}" class="${SEL.venue===k?'on':''}">${n}</button>`).join('');
@@ -3765,7 +3769,7 @@ function renderSelect(){
 const PREV=[[-.72,-.55],[.78,-.75]];
 function placePreview(ids){
   const show=ids||[SEL.f,SEL.mode==='quick'&&SEL.opp!=='random'?SEL.opp:SEL.mode==='online'?NET.peerPick:null];
-  const alts=[SEL.alt,SEL.mode==='online'?NET.peerAlt|0:0];if(show[0]===show[1]&&alts[0]===alts[1])alts[1]=(alts[0]+1)%3;
+  const alts=[SEL.alt,SEL.mode==='online'?NET.peerAlt|0:0];if(show[0]===show[1]&&alts[0]===alts[1])alts[1]=(alts[0]+1)%NALT;
   G.B.forEach((b,i)=>{const id=show[i];if(!id){b.root.visible=false;return}const fresh=!b.f||b.f.id!==id;if(fresh||b.alt!==alts[i])b.build(FBY[id],alts[i]);b.reset();b.root.visible=true;
     b.x=PREV[i][0];b.z=PREV[i][1];b.yaw=Math.atan2(0-b.x,2.75-b.z)+(i?-.25:.25);b.act=null;
     // a freshly picked fighter shows off with their taunt
@@ -3802,7 +3806,7 @@ function setupUI(){
     if(SEL.mode==='quick'){let o=SEL.opp;if(o==='random'){const others=FIGHTERS.filter(f=>f.id!==SEL.f);o=pick(others).id}startSolo(SEL.f,o,SEL.diff)}
     else if(SEL.mode==='ladder'){const opps=FIGHTERS.map(f=>f.id).filter(id=>id!==SEL.f).sort(()=>Math.random()-.5).slice(0,LAD_DIFF.length);G.ladder={f:SEL.f,opps,i:0};showLadder()}
     else{NET.myReady=!NET.myReady;netSend({t:'pick',f:SEL.f,a:SEL.alt,ready:NET.myReady});renderSelect();checkStart()}};
-  $('altSeg').addEventListener('click',e=>{const c=e.target.closest('[data-a]');if(!c)return;SFX.ui();SEL.alt=+c.dataset.a;saveSel();if(SEL.mode==='online'){NET.myReady=false;netSend({t:'pick',f:SEL.f,a:SEL.alt,ready:false})}renderSelect();placePreview()});
+  $('altSeg').addEventListener('click',e=>{const c=e.target.closest('[data-a]');if(!c)return;SFX.ui();if(c.classList.contains('lock')){sub('WIN THE ARCADE LADDER WITH '+FBY[SEL.f].name+' TO UNLOCK THE LEGEND COLOURS',2.4);return}SEL.alt=+c.dataset.a;saveSel();if(SEL.mode==='online'){NET.myReady=false;netSend({t:'pick',f:SEL.f,a:SEL.alt,ready:false})}renderSelect();placePreview()});
   // a switch shows OFF while M-muted, so pressing it always turns that sound ON (and un-mutes)
   document.querySelectorAll('.tgl').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.s,vis=k==='flash'||k==='walk',shown=!!SET[k]&&!(SET.mute&&!vis);if(!vis)SET.mute=false;SET[k]=!shown;saveSet();auResume();auApply();renderToggles();if(SET.snd&&!SET.mute)SFX.ui()}));
   renderToggles();
@@ -3821,7 +3825,7 @@ function rpStop(){if(RP.play){RP.play.done=null;rpEnd()}}
 function renderToggles(){document.querySelectorAll('.tgl').forEach(b=>{const on=!!SET[b.dataset.s]&&!(SET.mute&&b.dataset.s!=='flash'&&b.dataset.s!=='walk');b.textContent=on?'ON':'OFF';b.classList.toggle('off',!on)})}
 function startSolo(myF,oppF,diff,watch){rpStop();for(const k of ['big','dmg','ult'])MUT[k]=!!(SEL.mut[k]&&diff!=='bag'&&!SMOKE);G.watch=!!watch;document.body.classList.toggle('watching',G.watch);
   G.online=false;G.attract=false;G.ME=0;G.bag=diff==='bag';G.paused=false;
-  const oa=G.ladder?Math.floor(Math.random()*3):myF===oppF?(SEL.alt+1)%3:0;setupMatch([myF,oppF],[FBY[myF].name,FBY[oppF].name],[SEL.alt,oa]);G.bots=[null,new Bot(1,diff)];G.diff=diff;
+  const oa=G.ladder?(G.ladder.i===G.ladder.opps.length-1?3:Math.floor(Math.random()*3)):myF===oppF?(SEL.alt+1)%3:0;setupMatch([myF,oppF],[FBY[myF].name,FBY[oppF].name],[SEL.alt,oa]);G.bots=[null,new Bot(1,diff)];G.diff=diff;
   applyVenue(pickVenue(SEL.venue));G.mode='fight';hideAllOv();showHUD(true);REF.b.root.visible=true;setPhase(G.bag||SMOKE||!SET.walk?'intro':'walk');
   if(G.bag){Object.assign(TR,{last:0,combo:0,comboT:0,log:[],perfect:0});TUT.on=false;trainSet(TR.dummy);tutUI()}
   if(G.watch){G.bots[0]=new Bot(0,diff==='bag'?'contender':diff);if(G.bots[1].diff==='bag')G.bots[1]=new Bot(1,'contender')}
@@ -4307,6 +4311,7 @@ function runSmoke(){
      ok(d1>0&&near(d2,d1*2,.6),'DOUBLE DAMAGE mutator doubles a cross ('+d1.toFixed(1)+' → '+d2.toFixed(1)+')');
      solo('blaze','frost');place(1);MUT.ult=true;const m0=G.B[0].meter;startPunch(G.B[0],'cross');sim(.6);const g3=G.B[0].meter-m0;MUT.ult=false;solo('blaze','frost');place(1);startPunch(G.B[0],'cross');sim(.6);ok(near(g3,G.B[0].meter*3,.5),'ULT RUSH fills the meter 3× faster')}
     solo('blaze','frost');G.bag=true;tutStart();G.forced[1]=EMPTY;place(1);startPunch(G.B[0],'jab');sim(.5);ok(TUT.on&&TUT.i===1,'tutorial: landing a jab ticks off step one');startPunch(G.B[0],'hook');sim(.6);ok(TUT.i===1,'…and steps must go in order');TUT.on=false;G.bag=false;
+    {const had=REC.champ.volt;delete REC.champ.volt;ok(!altOK('volt',3)&&altOK('volt',2),'LEGEND colours are locked until you win the ladder');REC.champ.volt=1;ok(altOK('volt',3),'…and unlock once you have');if(!had)delete REC.champ.volt;solo('volt','frost');G.B[0].build(FBY.volt,3);ok(G.B[0].look.legend===1,'…and the legend kit builds')}
     abil('kitsune','frost','q',2.5);sim(.7);ok(G.B[1].hp<100&&G.B[1].st.burn>0,'Foxfire wisps burn ('+G.B[1].hp.toFixed(1)+')');
     abil('kitsune','frost','e',2.5);sim(.6);ok(G.B[1].st.charm>0,'Charm lands');{const d0=Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z);G.forced[1]={...EMPTY,mz:1};sim(.4);
       ok(Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z)>d0+.2,'…and a charmed fighter walking in backs off instead');G.forced[1]=EMPTY}
