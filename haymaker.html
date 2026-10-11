@@ -50,6 +50,16 @@ body.replay #hud,body.replay #floats,body.replay #touch{opacity:0;transition:opa
 #cutin .ctxt small{display:block;font:900 clamp(11px,1.4vw,17px) Rubik;letter-spacing:.55em;-webkit-text-stroke:0;color:#fff;text-shadow:0 2px 0 #000;margin-bottom:6px}
 @keyframes ciTxt{0%{opacity:0;transform:translate(-60px,-50%) skewX(-18deg)}14%{opacity:1;transform:translate(0,-50%) skewX(-8deg)}82%{opacity:1;transform:translate(14px,-50%) skewX(-8deg)}100%{opacity:0;transform:translate(60px,-50%) skewX(-8deg)}}
 /* fighter VS splash */
+#walk{position:fixed;left:0;right:0;bottom:12vh;z-index:9;pointer-events:none;display:none}
+#walk.on{display:block}
+#walk .bar{position:relative;margin-left:5vw;padding:14px 46px 16px 26px;display:inline-block;background:linear-gradient(100deg,var(--c) 0 8px,rgba(8,8,12,.9) 8px 70%,rgba(8,8,12,0));clip-path:polygon(0 0,100% 0,94% 100%,0 100%);animation:wIn .5s cubic-bezier(.2,1.4,.4,1) both}
+#walk .cr{font:900 13px Rubik;letter-spacing:.38em;color:var(--c);text-shadow:0 2px 0 #000}
+#walk .nm{font:400 clamp(44px,7vw,92px) Anton;line-height:.95;color:#fff;-webkit-text-stroke:2px #000;paint-order:stroke fill;text-shadow:5px 5px 0 rgba(0,0,0,.55)}
+#walk .nk{font:900 clamp(11px,1.2vw,15px) Rubik;letter-spacing:.4em;color:#ffc83a;margin-top:4px}
+#walk .st{font:700 12px Rubik;letter-spacing:.2em;color:rgba(255,255,255,.75);margin-top:10px}
+#walk .skip{position:fixed;right:4vw;bottom:5vh;font:900 12px Rubik;letter-spacing:.3em;color:rgba(255,255,255,.6);animation:blink 1.4s infinite}
+@keyframes wIn{from{transform:translateX(-110%)}to{transform:none}}
+@keyframes blink{50%{opacity:.25}}
 #vs{position:fixed;inset:0;z-index:9;pointer-events:none;display:none;overflow:hidden}
 #vs.on{display:block}
 #vs .side{position:absolute;top:0;bottom:0;width:60%;display:flex;flex-direction:column;justify-content:flex-end;padding:0 5% 9vh;overflow:hidden}
@@ -316,6 +326,7 @@ body.touch #abil,body.touch #keys{display:none}
 </div>
 <div id="floats"></div>
 <div id="cutin"><div class="band"></div><div class="cport"></div><div class="ctxt"></div></div>
+<div id="walk"><div class="bar"></div><div class="skip">PRESS ANY KEY TO SKIP</div></div>
 <div id="vs"><div class="side l"></div><div class="side r"></div><div class="mid">VS</div></div>
 <div id="replayTag"><i></i>REPLAY<small>ANY KEY TO SKIP</small></div>
 <div id="rotate"><span style="display:inline-block;width:40px;height:40px;vertical-align:middle" id="rotIco"></span> TURN YOUR PHONE SIDEWAYS</div>
@@ -346,7 +357,7 @@ body.touch #abil,body.touch #keys{display:none}
     <a class="ghost" href="index.html">QUIT TO ARCADE</a>
   </div>
   <div class="opts">GRAPHICS <button id="qBtn">HIGH</button> CAMERA <button id="cBtn">BROADCAST</button></div>
-  <div class="opts">SOUND <button class="tgl" data-s="snd">ON</button> MUSIC <button class="tgl" data-s="mus">OFF</button> FLASHES <button class="tgl" data-s="flash">ON</button></div>
+  <div class="opts">SOUND <button class="tgl" data-s="snd">ON</button> MUSIC <button class="tgl" data-s="mus">OFF</button> FLASHES <button class="tgl" data-s="flash">ON</button> ENTRANCES <button class="tgl" data-s="walk">ON</button></div>
   <div id="recLine"></div>
 </div>
 
@@ -516,7 +527,7 @@ const DIFF={
   contender:{name:'CONTENDER',react:.25,block:.48,dodge:.2, aggr:.62,abil:.6, think:.42,getup:.8, parry:.07,hay:.35},
   champion: {name:'CHAMPION', react:.14,block:.66,dodge:.36,aggr:.82,abil:.95,think:.22,getup:.9, parry:.18,hay:.55},
 };
-const SET={q:TOUCH?'low':'high',snd:true,cam:'tv',mus:false,flash:true,mute:false};
+const SET={q:TOUCH?'low':'high',snd:true,cam:'tv',mus:false,flash:true,mute:false,walk:true};
 try{Object.assign(SET,JSON.parse(localStorage.getItem('haymaker.set')||'{}'))}catch(e){}
 const saveSet=()=>{try{localStorage.setItem('haymaker.set',JSON.stringify(SET))}catch(e){}};
 const REC={w:0,l:0,ko:0,champ:{},ladders:0};
@@ -924,7 +935,7 @@ function buildStands(rows){
       const L=d+.5-1.3;for(const sg of [-1,1]){const zc=sg*(1.3+L/2);
         const b=new THREE.Mesh(new THREE.BoxGeometry(.95,h,L),riserM);b.position.set(-(d+.15),y-h/2,zc);scene.add(b);
         const e=new THREE.Mesh(new THREE.BoxGeometry(.03,.025,L),edgeM);e.position.set(-(d-.33),y+.005,zc);scene.add(e);
-        const sd=new THREE.Mesh(new THREE.BoxGeometry(.95,h,.04),edgeM);sd.position.set(-(d+.15),y-h/2,sg*1.3);scene.add(sd)}}
+        const sd=new THREE.Mesh(new THREE.BoxGeometry(.95,h,.04),riserM);sd.position.set(-(d+.15),y-h/2,sg*1.3);scene.add(sd)}}
     else{const b=new THREE.Mesh(new THREE.BoxGeometry(2*d+1,h,.95),riserM);b.position.set(nx*(d+.15),y-h/2,nz*(d+.15));b.rotation.y=yaw;scene.add(b);
     const e=new THREE.Mesh(new THREE.BoxGeometry(2*d+1,.025,.03),edgeM);e.position.set(nx*(d-.33),y+.005,nz*(d-.33));e.rotation.y=yaw;scene.add(e)}
     for(const s of [-5.2,5.2]){const a=new THREE.Mesh(new THREE.BoxGeometry(.05,.02,.05),aisleM);const t=nx?[nx*(d-.3),y+.02,s]:[s,y+.02,nz*(d-.3)];a.position.set(...t);scene.add(a)}}
@@ -1967,7 +1978,7 @@ class Boxer{
     const spd=Math.hypot(this.mvx||0,this.mvz||0);P.walk+=dt*(4+spd*4.5)*(spd>.15?1:0);
     // ── apply to the rig ──
     const S=(this.f.size||1)*(this.f.id==='ref'?1.04:BODY);this.body.scale.setScalar(S*P.scale);
-    this.root.position.set(this.x,0,this.z);this.root.rotation.y=this.yaw;
+    this.root.position.set(this.x,this.y||0,this.z);this.root.rotation.y=this.yaw;
     P.lunge=lerp(P.lunge||0,lunge,damp(pk!=null?40:12,dt));this.body.rotation.set(-P.fall*1.5,0,0);this.body.position.set(0,P.fall*.13*S,P.lunge*S);
     this.pelvis.position.set(P.side,1.0-P.crouch,0);this.pelvis.rotation.set(0,P.twist*.35,P.roll*.3);
     this.spine.rotation.set(P.lean-h.x*.55,P.twist*.65,P.roll*.7+h.z*.4);
@@ -2434,6 +2445,8 @@ function setupMatch(fids,names,alts){
 function setPhase(ph,x={}){
   G.phase=ph;G.phT=0;
   if(x.rnd)G.rnd=x.rnd;if(x.tl!=null)G.tl=x.tl;
+  if(ph!=='walk')walkEnd();
+  if(ph==='walk')walkStart();
   if(ph==='intro'){CAM.shot='intro';CAM.shotT=0;if(!G.attract){showHUD(true);vsShow()}}
   if(ph==='ready'){
     CAM.shot=null;clearCombat();clearTimeout(sub.t);$('sub').style.opacity=0;vsHide();
@@ -2454,7 +2467,8 @@ function setPhase(ph,x={}){
 function hostPhase(ph,x={}){setPhase(ph,x);if(G.online)netSend(Object.assign({t:'ph',ph,rnd:G.rnd,tl:G.tl},x))}
 function hostTick(dt){
   if(!isHost())return;
-  if(G.phase==='intro'&&G.phT>(G.attract?.1:4.2))hostPhase('ready',{rnd:1,tl:ROUND_T});
+  if(G.phase==='walk'&&G.phT>WALK_T)hostPhase('intro');
+  else if(G.phase==='intro'&&G.phT>(G.attract?.1:4.2))hostPhase('ready',{rnd:1,tl:ROUND_T});
   else if(G.phase==='ready'&&G.phT>1.9)hostPhase('fight');
   else if(G.phase==='fight'){
     if(!G.attract&&!G.bag)G.tl-=dt;
@@ -3008,10 +3022,12 @@ const KEYS={},PRESS=[];let touchBlock=false,touchHay=false,mouseHay=false;const 
 const EMPTY={mx:0,mz:0,block:false,punch:null,dodge:false,abil:null};
 const KMAP={KeyJ:'jab',KeyK:'cross',KeyL:'hook',KeyI:'upper',KeyU:'hook',KeyO:'upper',Numpad4:'jab',Numpad5:'cross',Numpad6:'hook',Numpad8:'upper',KeyQ:'q',KeyE:'e',KeyR:'r',ShiftLeft:'dodge',ShiftRight:'dodge',KeyC:'duck',KeyT:'taunt'};
 function toggleMute(){SET.mute=!SET.mute;saveSet();auResume();auApply();renderToggles();sub(SET.mute?'SOUND MUTED (M)':'SOUND ON',1.1)}
+addEventListener('pointerdown',()=>{if(G.phase==='walk'&&G.mode==='fight'&&!G.online)hostPhase('intro')});
 addEventListener('keydown',e=>{
   if(e.target&&e.target.tagName==='INPUT')return;
   auResume();
   if(RP.play&&!e.repeat){rpEnd();e.preventDefault();return}
+  if(G.phase==='walk'&&G.mode==='fight'&&!e.repeat&&e.code!=='Escape'){hostPhase('intro');e.preventDefault();return}
   if(e.code==='KeyM'&&!e.repeat){toggleMute();return}
   if(e.code==='Escape'||e.code==='KeyP'){if(G.mode==='fight'){togglePause();e.preventDefault()}return}
   if(e.code==='KeyV'){SET.cam=SET.cam==='tv'?'back':'tv';saveSet();sub(SET.cam==='tv'?'CAMERA: BROADCAST':'CAMERA: BEHIND YOU',1.2);return}
@@ -3288,7 +3304,7 @@ function setupUI(){
     else{NET.myReady=!NET.myReady;netSend({t:'pick',f:SEL.f,a:SEL.alt,ready:NET.myReady});renderSelect();checkStart()}};
   $('altSeg').addEventListener('click',e=>{const c=e.target.closest('[data-a]');if(!c)return;SFX.ui();SEL.alt=+c.dataset.a;saveSel();if(SEL.mode==='online'){NET.myReady=false;netSend({t:'pick',f:SEL.f,a:SEL.alt,ready:false})}renderSelect();placePreview()});
   // a switch shows OFF while M-muted, so pressing it always turns that sound ON (and un-mutes)
-  document.querySelectorAll('.tgl').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.s,shown=!!SET[k]&&!(SET.mute&&k!=='flash');if(k!=='flash')SET.mute=false;SET[k]=!shown;saveSet();auResume();auApply();renderToggles();if(SET.snd&&!SET.mute)SFX.ui()}));
+  document.querySelectorAll('.tgl').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.s,vis=k==='flash'||k==='walk',shown=!!SET[k]&&!(SET.mute&&!vis);if(!vis)SET.mute=false;SET[k]=!shown;saveSet();auResume();auApply();renderToggles();if(SET.snd&&!SET.mute)SFX.ui()}));
   renderToggles();
   $('mkRoom').onclick=()=>{saveName();mpErr('Making a room…');netConnect(rcode(4),'host')};
   $('joinRoom').onclick=()=>{saveName();const c=$('codeIn').value.toUpperCase().replace(/[^A-Z0-9]/g,'');if(c.length<3){mpErr('Type the room code first.');return}mpErr('Joining…');netConnect(c,'guest')};
@@ -3302,11 +3318,11 @@ function saveName(){NAME=$('nameIn').value.trim().toUpperCase().slice(0,12);try{
 
 // ── fights ──
 function rpStop(){if(RP.play){RP.play.done=null;rpEnd()}}
-function renderToggles(){document.querySelectorAll('.tgl').forEach(b=>{const on=!!SET[b.dataset.s]&&!(SET.mute&&b.dataset.s!=='flash');b.textContent=on?'ON':'OFF';b.classList.toggle('off',!on)})}
+function renderToggles(){document.querySelectorAll('.tgl').forEach(b=>{const on=!!SET[b.dataset.s]&&!(SET.mute&&b.dataset.s!=='flash'&&b.dataset.s!=='walk');b.textContent=on?'ON':'OFF';b.classList.toggle('off',!on)})}
 function startSolo(myF,oppF,diff){rpStop();
   G.online=false;G.attract=false;G.ME=0;G.bag=diff==='bag';G.paused=false;
   const oa=G.ladder?Math.floor(Math.random()*3):myF===oppF?(SEL.alt+1)%3:0;setupMatch([myF,oppF],[FBY[myF].name,FBY[oppF].name],[SEL.alt,oa]);G.bots=[null,new Bot(1,diff)];G.diff=diff;
-  G.mode='fight';hideAllOv();showHUD(true);REF.b.root.visible=true;setPhase('intro');
+  G.mode='fight';hideAllOv();showHUD(true);REF.b.root.visible=true;setPhase(G.bag||SMOKE||!SET.walk?'intro':'walk');
 }
 const LAD_DIFF=['rookie','rookie','contender','contender','champion'];
 function showLadder(){rpStop();vsHide();clearConfetti();
@@ -3387,7 +3403,8 @@ function updateCamera(dt){
   else if(G.mode==='select'){_cp.set(0,1.6,3.05);_cl.set(0,1.22,-.6);k=4}
   else{
     const me=G.B[G.ME],o=other(me);const dx=o.x-me.x,dz=o.z-me.z,l=Math.hypot(dx,dz)||1,fx=dx/l,fz=dz/l,rx=fz,rz=-fx;
-    if(G.phase==='intro'){const q=ease(clamp(G.phT/4.2,0,1));const a0=Math.atan2(-fx,-fz),a=a0+(1-q)*1.25,R=lerp(7.2,3.3,q);_cp.set(me.x+Math.sin(a)*R,lerp(5.2,2.2,q),me.z+Math.cos(a)*R);_cl.set((me.x+o.x)/2,1.2,(me.z+o.z)/2);k=3}
+    if(G.phase==='walk'&&WALK.cam){_cp.copy(WALK.cam[0]);_cl.copy(WALK.cam[1]);k=WALK.cut?1e5:5;if(WALK.cut){camera.position.copy(_cp);camLook.copy(_cl)}WALK.cut=false}
+    else if(G.phase==='intro'){const q=ease(clamp(G.phT/4.2,0,1));const a0=Math.atan2(-fx,-fz),a=a0+(1-q)*1.25,R=lerp(7.2,3.3,q);_cp.set(me.x+Math.sin(a)*R,lerp(5.2,2.2,q),me.z+Math.cos(a)*R);_cl.set((me.x+o.x)/2,1.2,(me.z+o.z)/2);k=3}
     else if(G.phase==='rest'){const a=t*.12;_cp.set(Math.cos(a)*5.6,4.4,Math.sin(a)*5.6);_cl.set(0,.8,0);k=2}
     else if(G.phase==='end'&&G.result&&G.result.w>=0&&G.phT>1.3){const w=G.B[G.result.w];const a=t*.22;let R=3.1;while(R>1.9&&Math.max(Math.abs(w.x+Math.cos(a)*R),Math.abs(w.z+Math.sin(a)*R))>RING+.1)R-=.05;_cp.set(w.x+Math.cos(a)*R,1.55,w.z+Math.sin(a)*R);_cl.set(w.x,1.4,w.z);k=1.6}
     else if(G.phase==='kd'&&G.kdInfo&&!G.kdInfo.up&&G.kdInfo.t<2.4){const d=G.B[G.kdInfo.b],cv=kdView(d),cc=kdCentre(d);_cp.set(cc[0]+cv[0]*2.6,1.35,cc[1]+cv[1]*2.6);_cl.set(cc[0],.3,cc[1]);k=3}
@@ -3429,11 +3446,64 @@ function step(dt){
   G.time+=dt;G.phT+=dt;
   if(G.mode==='fight'||G.attract){
     hostTick(dt);
-    for(let i=0;i<2;i++){const b=G.B[i];if(owned(b))logicBoxer(b,getIntent(i,dt),dt);else mirrorUpdate(b,dt)}
+    if(G.phase==='walk')walkTick(dt);
+    else for(let i=0;i<2;i++){const b=G.B[i];if(owned(b))logicBoxer(b,getIntent(i,dt),dt);else mirrorUpdate(b,dt)}
     stepWorld(dt);if(G.phase==='kd')stepKD(dt);
     netTick(dt);
   }else if(G.mode==='select')selectStep(dt);
   if(G.mode!=='fight')PRESS.length=0;
+}
+// ════════════════════ RING WALK ════════════════════
+// Before the first bell of a solo fight: the opponent, then you, jog out of the tunnel under a follow-spot, vault the
+// top rope and throw their arms up in their corner while their fans lose it. Any key (or a tap) skips it.
+const WALK_T=8.4,WALK={cam:null,cut:false,who:-1,spot:null};
+function walkSpot(){if(WALK.spot)return WALK.spot;
+  const g=new THREE.Group(),cone=new THREE.CylinderGeometry(.12,1.05,1,24,1,true);cone.translate(0,-.5,0);
+  const bm=new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,uniforms:{uA:{value:.16}},
+    vertexShader:`varying float vY;varying vec3 vN;varying vec3 vV;void main(){vY=-position.y;vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,
+    fragmentShader:`uniform float uA;varying float vY;varying vec3 vN;varying vec3 vV;void main(){float f=pow(clamp(abs(dot(vN,vV)),0.,1.),1.5);gl_FragColor=vec4(vec3(1.,.95,.85)*uA*f*(.35+.65*clamp(vY,0.,1.)),1.);}`});
+  const beam=new THREE.Mesh(cone,bm);beam.frustumCulled=false;g.add(beam);
+  const pool=new THREE.Mesh(new THREE.CircleGeometry(1,40),new THREE.MeshBasicMaterial({map:flashTex(),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.55}));
+  pool.rotation.x=-Math.PI/2;g.add(pool);g.visible=false;scene.add(g);WALK.spot={g,beam,pool};return WALK.spot}
+function walkStart(){
+  WALK.who=-1;const el=$('walk');el.classList.add('on');showHUD(false);walkSpot().g.visible=true;
+  for(const b of G.B){b.root.visible=false;b.act=null;b.blocking=false}
+  if(REF.b){REF.b.x=0;REF.b.z=0}}
+function walkEnd(){if(!WALK.spot)return;if(ARENA.key){ARENA.key.position.set(0,9.5,0);ARENA.key.target.position.set(0,0,0)}WALK.spot.g.visible=false;$('walk').classList.remove('on');WALK.cam=null;
+  if(G.mode==='fight'&&G.B[0].f)for(const b of G.B){b.y=0;b.root.visible=true;if(b.act&&b.act.k==='win')b.act=null;if(b.home&&G.phase!=='walk'){b.x=b.home[0]*1.6;b.z=b.home[1]*1.6;b.yaw=Math.atan2(-b.x,-b.z)}}}
+function walkCard(b){const f=b.f,el=$('walk').querySelector('.bar'),you=b.idx===G.ME;
+  const rec=G.ladder?`ARCADE LADDER · BOUT ${G.ladder.i+1}`:you?'YOUR FIGHTER':'YOUR OPPONENT';
+  el.style.setProperty('--c',b.look.glow?'#'+new THREE.Color(b.look.glow).getHexString():f.col);
+  el.innerHTML=`<div class="cr">${b.idx?'BLUE':'RED'} CORNER · ${rec}</div><div class="nm">${f.name}</div><div class="nk">"${f.nick}"</div><div class="st">POWER ${'▮'.repeat(f.stats[0])} · SPEED ${'▮'.repeat(f.stats[1])} · TOUGH ${'▮'.repeat(f.stats[2])}</div>`;
+  el.style.animation='none';void el.offsetWidth;el.style.animation=''}
+const _wc=new THREE.Vector3(),_wl=new THREE.Vector3();
+function walkTick(dt){
+  const half=WALK_T/2,T=G.phT,X0=ARENA.tunnel?ARENA.tunnel.x+.4:-18,XE=-5.35;
+  for(const i of [1,0]){const b=G.B[i],start=i===1?0:half,tt=T-start;
+    if(tt<0){b.root.visible=false;continue}
+    b.root.visible=true;const q=clamp(tt/half,0,1);
+    if(tt<half&&WALK.who!==i){WALK.who=i;walkCard(b);WALK.cut=true;ARENA.cheer[i]=1.2;ARENA.excite=Math.max(ARENA.excite||0,.55);if(!G.attract)SFX.cheer(.8)}
+    if(tt>=half){// done: wait in the corner, facing the ring
+      b.y=0;const h=b.home;b.x=lerp(b.x,h[0]*1.6,damp(4,dt));b.z=lerp(b.z,h[1]*1.6,damp(4,dt));b.yaw=Math.atan2(-b.x,-b.z);b.mvx=b.mvz=b.mvF=b.mvS=0;if(b.act&&b.act.k==='win'&&tt>half+.4)b.act=null;continue}
+    if(tt<half)ARENA.cheer[i]=Math.max(ARENA.cheer[i],.9);
+    const A=.6,J=.72;   // jog the walkway until A, vault the ropes until J, then strut to the corner
+    if(q<A){const u=q/A;b.x=lerp(X0,XE,u);b.z=Math.sin(u*9)*.05;b.y=-1.15;b.yaw=Math.PI/2;
+      const sp=(XE-X0)/(A*half);b.mvx=sp;b.mvz=0;b.mvF=.9;b.mvS=0;
+      _wc.set(b.x+3.4-u*.8,-1.15+1.9-u*.3,.35+u*.4);_wl.set(b.x,-1.15+1.25,0);
+      const S=walkSpot();S.g.position.set(b.x,-1.15,b.z);S.beam.position.set(0,10.5,0);S.beam.scale.set(1,10.5,1);S.pool.scale.setScalar(1.2);S.pool.position.y=.01}
+    else if(q<J){const u=(q-A)/(J-A);b.x=lerp(XE,-3.05,u);b.z=0;b.y=lerp(-1.15,0,u)+Math.sin(u*Math.PI)*1.45;b.yaw=Math.PI/2;b.mvx=b.mvz=b.mvF=b.mvS=0;
+      if(!b._vault&&u>.05){b._vault=1;b.act={k:'dodge',dir:'duck',t:0,d:.5};if(!G.attract)SFX.whoosh(.7,b.chestW,'dodge')}
+      if(u>.9&&b._vault===1){b._vault=2;b.act=null;shake(.2);burst(new THREE.Vector3(b.x,.05,b.z),24,0xffffff,2.5,.5,.06,{up:1});if(!G.attract)SFX.thud(b.chestW)}
+      _wc.set(.6,2.6,.8);_wl.set(b.x,b.y+1.0,0);if(u<.08)WALK.cut=true;
+      const S=walkSpot();S.g.position.set(b.x,b.y,b.z);S.beam.scale.set(1,10.5-b.y,1);S.beam.position.y=10.5-b.y}
+    else{const u=(q-J)/(1-J),h=b.home,hx=h[0]*1.6,hz=h[1]*1.6;b.y=0;b._vault=0;
+      const tx=lerp(-3.05,hx,ease(Math.min(1,u*1.6))),tz=lerp(0,hz,ease(Math.min(1,u*1.6)));b.mvx=(tx-b.x)/Math.max(dt,1e-3);b.mvz=(tz-b.z)/Math.max(dt,1e-3);b.x=tx;b.z=tz;
+      const c=Math.cos(b.yaw),s=Math.sin(b.yaw);b.mvF=(b.mvx*s+b.mvz*c)/2.4;b.mvS=(b.mvx*c-b.mvz*s)/2.4;
+      if(u<.62)b.yaw=Math.atan2(hx+3.05,hz);else{b.yaw=lerp(b.yaw,Math.atan2(-b.x,-b.z),damp(6,dt));if(!b.act||b.act.k!=='win'){b.act={k:'win',t:0};
+        const P=new THREE.Vector3(hx*1.25,1.6,hz*1.25);pyro(1.1,[i?3:0,i?2:1],.9);burst(P,40,b.look.glow||0xffc83a,4,.7,.08,{up:1});ARENA.excite=1;if(!G.attract)SFX.cheer(1)}}
+      const fx=Math.sin(b.yaw),fz=Math.cos(b.yaw);_wc.set(b.x+fx*3.3+1.1,1.75,b.z+fz*3.3+.6);_wl.set(b.x,1.3,b.z);if(u<.03)WALK.cut=true;
+      const S=walkSpot();S.g.position.set(b.x,0,b.z);S.beam.scale.set(1,10.5,1);S.beam.position.y=10.5}
+    WALK.cam=[_wc,_wl];if(tt<half&&ARENA.key){ARENA.key.position.set(b.x,9.5,b.z);ARENA.key.target.position.set(b.x,b.y||0,b.z)}}
 }
 // ════════════════════ KO REPLAY ════════════════════
 // Every rendered frame of a fight, the pose of both boxers and the referee goes on a short tape (a ring buffer).
