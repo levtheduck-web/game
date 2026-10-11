@@ -428,6 +428,7 @@ body.touch #abil,body.touch #keys{display:none}
     <h3>THE FIGHT</h3>
     <p>Three rounds of a minute. Drop to zero health and you're down — mash punch to beat the ten-count. Three knockdowns is a TKO. Still standing at the end? The judges score each round on damage and knockdowns.</p>
     <p>Punches cost stamina. Throw too many and you gas out: slower, weaker, and your guard crumbles. Chain punches together for a combo bonus. Under a quarter health you go into RAGE: punches hit 15% harder.</p>
+    <p>Eight fighters, each with a passive, two abilities and an ultimate — pick one on the select screen to read them. Before the first bell both fighters walk out to the ring: press any key (or tap) to skip, or switch ENTRANCES off on the title screen. Win the arcade ladder to take the belt home.</p>
     <button class="btn primary" id="helpBack">GOT IT</button>
   </div>
 </div>
@@ -487,7 +488,7 @@ const FIGHTERS=[
  {id:'blaze',name:'BLAZE',nick:'KID INFERNO',col:'#ff6a1f',
   look:{skin:0xb9794f,shorts:0xe0461a,trim:0xffcc33,glove:0xd11f1a,hair:'spikes',hairCol:0xff4a12,glow:0xff5a10},
   taunt:'flex',alts:[{},{shorts:0x1c1c24,trim:0xff5a10,glove:0x1c1c24,hairCol:0xffd21f},{shorts:0xf2f2f2,trim:0xe0461a,glove:0xf2f2f2,hairCol:0xff2a2a}],
-  size:1,hp:100,pow:1.1,spd:1,reach:1,stats:[4,3,3],
+  size:1,hp:100,pow:1.16,spd:1.02,reach:1,stats:[4,3,3],
   passive:{name:'Hot Hands',desc:'Every third hit of a combo sets the target on fire.'},
   q:{name:'Fire Fist',cd:9,desc:'Your next 3 punches hit 40% harder and set the target on fire.'},
   e:{name:'Flame Dash',cd:8,desc:'Rocket forward with a flaming straight. Blockable.'},
@@ -495,7 +496,7 @@ const FIGHTERS=[
  {id:'volt',name:'VOLT',nick:'LIVE WIRE',col:'#3fd4ff',
   look:{skin:0xf0c8a0,shorts:0xffd21f,trim:0x15151a,glove:0x1f6bff,hair:'swept',hairCol:0xffe27a,glow:0x5fdcff},
   taunt:'bounce',alts:[{},{shorts:0x1f6bff,trim:0xffe14a,glove:0xffd21f,hairCol:0x5fdcff},{shorts:0x15151a,trim:0x3fd4ff,glove:0x15151a,hairCol:0xf2f2f2}],
-  size:.97,hp:95,pow:.92,spd:1.12,pspd:1.07,reach:1,stats:[3,5,2],
+  size:.97,hp:95,pow:.85,spd:1.12,pspd:1.07,reach:1,stats:[3,5,2],
   passive:{name:'Overclocked',desc:'Moves 12% and punches 7% faster than anyone else.'},
   q:{name:'Blink',cd:7,desc:'Teleport right up to your opponent. Your next punch counts as a counter.'},
   e:{name:'Shock Jab',cd:9,desc:'A long-reach electric jab that stuns for 0.8s. Blocking stops the stun.'},
@@ -519,7 +520,7 @@ const FIGHTERS=[
  {id:'frost',name:'FROST',nick:'ICE QUEEN',col:'#9fe6ff',
   look:{skin:0xe2bfa5,shorts:0xb9dcf2,trim:0x2f9fe0,glove:0x6fcaf2,hair:'pony',hairCol:0xf2fbff,glow:0x8fe8ff},
   taunt:'flex',alts:[{},{shorts:0x2f3a8f,trim:0x9fe6ff,glove:0xe8f6ff,hairCol:0x9fd8ff},{shorts:0xf2f2f2,trim:0x7a5cff,glove:0x7a5cff,hairCol:0xd9c9ff}],
-  size:.96,hp:100,pow:1,spd:1.02,reach:1,stats:[3,3,3],
+  size:.96,hp:100,pow:1.07,spd:1.05,reach:1,stats:[3,3,3],
   passive:{name:'Frostbite',desc:'Every hit chills the target, slowing them for 1.5 seconds.'},
   q:{name:'Ice Gauntlet',cd:10,desc:'Your next 2 punches freeze the target solid for 0.9 seconds.'},
   e:{name:'Frost Shield',cd:13,desc:'A shell of ice soaks up 25 damage for 4 seconds.'},
@@ -527,7 +528,7 @@ const FIGHTERS=[
  {id:'viper',name:'VIPER',nick:'VENOM',col:'#7dff4a',
   look:{skin:0x9a7a55,shorts:0x1d3a14,trim:0x7dff4a,glove:0x46b318,hair:'mohawk',hairCol:0x2f9d17,glow:0x7dff4a},
   taunt:'beckon',alts:[{},{shorts:0x3a1458,trim:0x7dff4a,glove:0x7a2bd9,hairCol:0x7dff4a},{shorts:0x141414,trim:0xffe14a,glove:0xffd21f,hairCol:0xffe14a}],
-  size:1,hp:100,pow:1.04,spd:1.04,reach:1.02,stats:[3,4,3],
+  size:1,hp:100,pow:1.09,spd:1.05,reach:1.02,stats:[3,4,3],
   passive:{name:'Toxic',desc:'Hits poison. Every stack burns half a point of health a second.'},
   q:{name:'Venom Spit',cd:6,desc:'Spit poison: 6 damage and 3 poison stacks. Blockable.'},
   e:{name:'Coil Strike',cd:9,desc:'Lunge three metres into a rising uppercut.'},
@@ -535,7 +536,7 @@ const FIGHTERS=[
  {id:'kitsune',name:'KITSUNE',nick:'NINE TAILS',col:'#ff4fd8',
   look:{skin:0xf3d2bf,shorts:0x2a0f2e,trim:0xff4fd8,glove:0xff4fd8,hair:'fox',hairCol:0xf4ecff,glow:0xff4fd8},
   taunt:'beckon',alts:[{},{shorts:0x16161c,trim:0xff8a1a,glove:0xff8a1a,hairCol:0xff9a4a,glow:0xff8a1a},{shorts:0xf2f2f2,trim:0x7a5cff,glove:0x2a1a4a,hairCol:0x3a2a5a,glow:0x9a7aff}],
-  size:.95,hp:92,pow:.98,spd:1.1,pspd:1.04,reach:1,stats:[3,5,2],
+  size:.95,hp:96,pow:1.05,spd:1.1,pspd:1.04,reach:1,stats:[3,5,2],
   passive:{name:'Illusion',desc:'One clean hit in six passes straight through an illusion.'},
   q:{name:'Foxfire',cd:7,desc:'Throw three fox-flame wisps in a fan. Each one burns. Blockable.'},
   e:{name:'Charm',cd:11,desc:'Blow a kiss: whoever it hits has their movement reversed for 1.8s. Blockable.'},
@@ -543,7 +544,7 @@ const FIGHTERS=[
  {id:'toro',name:'TORO',nick:'THE BULL',col:'#ff3b3f',
   look:{skin:0x9a5a3a,shorts:0x16161a,trim:0xff3b3f,glove:0xb3121c,hair:'horns',hairCol:0x17110c,glow:0xff3b3f},
   taunt:'beat',alts:[{},{shorts:0xf2f2f2,trim:0xffd23a,glove:0xffd23a,glow:0xffd23a},{shorts:0x0f2a5a,trim:0xff8a1a,glove:0x0f2a5a,glow:0xff8a1a}],
-  size:1.1,hp:122,pow:1.1,spd:.93,pspd:.95,reach:1.04,stats:[5,2,4],
+  size:1.1,hp:122,pow:1.05,spd:.93,pspd:.95,reach:1.04,stats:[5,2,4],
   passive:{name:'Bull Neck',desc:'Shrugs off a third of every stagger and gets up from knockdowns twice as fast.'},
   q:{name:'Bull Rush',cd:9,desc:'Charge up to 3.6m with a shoulder-first straight that breaks guards.'},
   e:{name:'Red Cape',cd:12,desc:'Flourish the cape: the next punch within 1.2s whiffs and you get a counter.'},
@@ -2197,7 +2198,6 @@ const REF={b:null,x:0,z:2.4,yaw:0,count:-1,beat:0,mode:'idle'};
 function buildRef(){const r=new Boxer(9);r.build({id:'ref',size:1,hp:1,look:{skin:0xe0b090,ref:1,shorts:0x1a1a1e,hair:'refhair',hairCol:0x2a2a2a,shoe:0x111111,trim:0x111111,glove:0}});REF.b=r;r.x=0;r.z=2.4}
 function updateRef(dt){
   const r=REF.b;if(!r)return;const [A,B]=G.B;
-  if(G.phase!=='end')r.override=null;
   let tx,tz,face;
   const mx=(A.x+B.x)/2,mz=(A.z+B.z)/2;
   if(G.phase==='kd'&&G.kdInfo){const d=G.B[G.kdInfo.b],cv=kdView(d);
@@ -2205,7 +2205,7 @@ function updateRef(dt){
     const cc=kdCentre(d),spots=[[-1.05,.75],[-1.05,-.75],[-.2,1.4],[-.2,-1.4]].map(([b,sd])=>[cc[0]+cv[0]*b-cv[1]*sd,cc[1]+cv[1]*b+cv[0]*sd]);
     const ok=spots.find(p=>Math.abs(p[0])<RING-.15&&Math.abs(p[1])<RING-.15)||spots[2];tx=ok[0];tz=ok[1];face=Math.atan2(d.x-r.x,d.z-r.z)}
   else if(G.phase==='rest'||G.phase==='walk'){tx=2.75;tz=-2.75;face=Math.atan2(-tx,-tz)}   // a neutral corner, out of the corner shots
-  else if(G.phase==='end'&&G.result&&G.result.w>=0){const w=G.B[G.result.w];r.override=G.phT>1.6?[new THREE.Vector3(-.22,1.0,.12),new THREE.Vector3(.18,2.08,.18),0]:null;{const ca=Math.atan2(-w.z,-w.x);tx=w.x+Math.sin(ca)*.98+Math.cos(ca)*.1;tz=w.z-Math.cos(ca)*.98+Math.sin(ca)*.1}   // beside the winner, out of the camera's line
+  else if(G.phase==='end'&&G.result&&G.result.w>=0){const w=G.B[G.result.w];{const ca=Math.atan2(-w.z,-w.x);tx=w.x+Math.sin(ca)*.98+Math.cos(ca)*.1;tz=w.z-Math.cos(ca)*.98+Math.sin(ca)*.1}   // beside the winner, out of the camera's line
     face=Math.atan2(w.x-r.x,w.z-r.z)}
   else{
     const ax=B.x-A.x,az=B.z-A.z,l=Math.hypot(ax,az)||1,px=-az/l,pz=ax/l;
@@ -2925,6 +2925,7 @@ function abilityVisual(i,k,x){
   if(k==='ult'){if(!q){cutin(b);SFX.ult();burst(P,50,col,5,.6,.1,{up:1});groundRing(b.x,b.z,2.2,col,.6,.2);wave(P,1.2);afterimage(b,col,.5,1)}return}
   if(k==='taunt'){if(!owned(b))b.act={k:'taunt',t:0,d:TAUNT_T,style:x.s||b.f.taunt};if(!q){SFX.taunt(id,P);setTimeout(()=>{if(G.mode==='fight')SFX.ooh(.5)},350)}
     if(id==='blaze')b.gW.forEach(g=>burst(g,16,0xff6a1f,2,.5,.12,{up:1}));if(id==='volt')b.gW.forEach(g=>zap(g,g.clone().add(new THREE.Vector3(0,.5,0)),0x8fe8ff,.3,.02));
+    if(id==='kitsune')burst(b.headW,22,0xff4fd8,1.8,.6,.07,{up:1});if(id==='toro')burst(_hp.set(b.x,.1,b.z),26,0xc9a27a,2.4,.6,.1,{up:1});
     if(id==='frost')burst(P,20,0xbff0ff,2,.6,.07,{});if(id==='viper')burst(b.headW,14,0x7dff4a,1.5,.6,.06,{});if(id==='shade')for(let n=0;n<16;n++)PN&&PN.emit(P.x,P.y,P.z,(Math.random()-.5)*2,(Math.random()-.5)*1.5,(Math.random()-.5)*2,.8,.25,.2,.05,.3,.6,0,2);
     return}
   if(k==='shatter'){burst(b.chestW,40,0xbff0ff,5,.7,.08,{normal:true,grav:6});for(let n=0;n<24;n++)PN&&PN.emit(P.x,P.y,P.z,(Math.random()-.5)*5,Math.random()*4,(Math.random()-.5)*5,.9,.06,.8,.95,1,1,9.8,.4);if(!q){SFX.shatter(P);comic('krak',b.headW,1,true)}return}
@@ -3069,7 +3070,7 @@ const SFX={
   splat(p){if(!sOK())return;const pan=panOf(p);noise({dur:.12,vol:.3,lp:900,pan});tone({type:'sine',f:300,f2:80,dur:.1,vol:.25,pan})},
   heal(p){if(!sOK())return;const pan=panOf(p);[72,76,79,84].forEach((m,i)=>tone({at:i*.06,type:'sine',f:440*Math.pow(2,(m-69)/12),dur:.4,vol:.06,pan,rev:.5}))},
   pyro(d=1.5){if(!sOK())return;for(let i=0;i<Math.round(16*d);i++)noise({at:rr(0,d),dur:.01,vol:rr(.03,.07),hp:rr(2500,6000),pan:rr(-.8,.8)});tone({type:'sine',f:90,f2:45,dur:.4,vol:.3,rev:.4})},
-  taunt(id,p){if(!sOK())return;({blaze:()=>SFX.fire(.8,p),volt:()=>SFX.zap(.7,p),titan:()=>SFX.roar(p),shade:()=>SFX.shadow(p),frost:()=>SFX.ice(.7,p),viper:()=>SFX.hiss(p)}[id]||(()=>{}))()},
+  taunt(id,p){if(!sOK())return;({blaze:()=>SFX.fire(.8,p),volt:()=>SFX.zap(.7,p),titan:()=>SFX.roar(p),shade:()=>SFX.shadow(p),frost:()=>SFX.ice(.7,p),viper:()=>SFX.hiss(p),kitsune:()=>SFX.fire(.45,p),toro:()=>SFX.roar(p)}[id]||(()=>{}))()},
   rage(){if(!sOK())return;tone({type:'sine',f:60,f2:40,dur:.5,vol:.55,rev:.3});SFX.roar()},
   heart(){if(!sOK())return;tone({type:'sine',f:62,f2:40,dur:.14,vol:.27});tone({at:.19,type:'sine',f:56,f2:38,dur:.12,vol:.19})},
   clapper(){if(!sOK())return;for(let k=0;k<3;k++){noise({at:k*.16,dur:.035,vol:.4,bp:2300,q:3,rev:.3});tone({at:k*.16,type:'triangle',f:1300,f2:800,dur:.03,vol:.1})}},
