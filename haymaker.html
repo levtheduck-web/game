@@ -1216,13 +1216,31 @@ function buildRoof(){if(ARENA.roof)return ARENA.roof;
     for(const k in a)geo.setAttribute(k,new THREE.InstancedBufferAttribute(a[k],k==='aInfo'?4:3));fm.frustumCulled=false;g.add(fm);
     const ol=new THREE.InstancedMesh(geo,ARENA.crowdLine,n);ol.instanceMatrix=fm.instanceMatrix;ol.frustumCulled=false;g.add(ol);R.fans=fm;R.fanLine=ol}
   return R}
+// rain over the rooftop: streaks fall in the vertex shader (no per-frame CPU work), splash rings dot the canvas,
+// and now and then lightning whites out the sky with a roll of thunder
+function buildRain(){if(ARENA.rain)return ARENA.rain;
+  const n=TOUCH?2500:6000,pos=new Float32Array(n*6),sd=new Float32Array(n*2);
+  for(let i=0;i<n;i++){const x=(Math.random()-.5)*34,z=(Math.random()-.5)*34,y=Math.random()*14,s=Math.random();pos.set([x,y,z,x,y,z],i*6);sd[i*2]=s;sd[i*2+1]=s}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));const end=new Float32Array(n*2);for(let i=0;i<n;i++)end[i*2+1]=1;
+  g.setAttribute('aEnd',new THREE.BufferAttribute(end,1));g.setAttribute('aS',new THREE.BufferAttribute(sd,1));
+  const m=new THREE.ShaderMaterial({uniforms:{uT:ARENA.crowdU.uT,uFl:{value:0}},transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+    vertexShader:`uniform float uT;attribute float aEnd;attribute float aS;varying float vA;void main(){vec3 p=position;float y=mod(p.y-uT*(16.+aS*6.),15.)-1.2;p.y=y+aEnd*.55;p.x+=aEnd*.06;vA=(1.-aEnd)*.5+.1;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`,
+    fragmentShader:`uniform float uFl;varying float vA;void main(){gl_FragColor=vec4(vec3(.62,.72,.9)*vA*(.45+uFl*1.5),1.);}`});
+  const L=new THREE.LineSegments(g,m);L.frustumCulled=false;L.visible=false;scene.add(L);
+  ARENA.rain={L,m,flash:0,next:6,on:false};return ARENA.rain}
+function rainTick(dt){const R=ARENA.rain;if(!R||!R.on)return;R.next-=dt;
+  if(R.next<=0){R.next=7+Math.random()*12;R.flash=1;after(.08,()=>{R.flash=.7});if(!G.attract){after(.5+Math.random()*1.2,()=>{SFX.rumble();SFX.thud(new THREE.Vector3(0,8,-30))})}}
+  R.flash=Math.max(0,R.flash-dt*2.6);R.m.uniforms.uFl.value=R.flash;if(ARENA.hemi)ARENA.hemi.intensity=.5+R.flash*2.2;
+  if(PA&&!G.attract&&Math.random()<dt*40){const x=(Math.random()-.5)*7,z=(Math.random()-.5)*7;PA.emit(x,.03,z,(Math.random()-.5)*.6,.6+Math.random()*.6,(Math.random()-.5)*.6,.25,.025,.7,.8,1,.6,6,1)}}
+function setRain(on){const R=buildRain();R.on=on;R.L.visible=on;if(!on&&ARENA.hemi&&ARENA.venue==='roof')ARENA.hemi.intensity=.62}
 function setVenue(v){v=v==='roof'?'roof':'arena';if(ARENA.venue===v)return;ARENA.venue=v;
   const roof=v==='roof';for(const o of ARENA.dress||[])o.visible=!roof;
-  if(roof)buildRoof();if(ARENA.roof)ARENA.roof.g.visible=roof;
+  if(roof)buildRoof();if(ARENA.roof)ARENA.roof.g.visible=roof;if(!roof&&ARENA.rain)setRain(false);
   ARENA.tunnel=roof?ARENA.roof.door:ARENA.tunnel0;
   scene.background=null;if(ARENA.hemi)ARENA.hemi.intensity=roof?.62:.42;
   if(ARENA.B0)crowdTeams(ARENA.B0,ARENA.B1)}
-function pickVenue(v){return v==='random'?(Math.random()<.5?'roof':'arena'):v||'arena'}
+function pickVenue(v){const r=v==='random'?(Math.random()<.5?'roof':'arena'):v||'arena';return r==='roof'&&Math.random()<.5?'roof-rain':r}
+function applyVenue(v){v=v||'arena';setVenue(v.startsWith('roof')?'roof':'arena');setRain(v==='roof-rain')}
 // moving-head lights on the truss: long additive beams that sweep over the crowd
 function buildBeams(){
   ARENA.beams=[];const g=new THREE.CylinderGeometry(.06,1.1,16,20,1,true);g.translate(0,-8,0);g.rotateX(-Math.PI/2);
@@ -3474,7 +3492,7 @@ function checkStart(){if(NET.mode==='host'&&NET.myReady&&NET.peerReady&&NET.peer
 function checkRematch(){if(NET.mode==='host'&&NET.rm&&NET.peerRm)hostGo()}
 function hostGo(){const m={t:'go',v:pickVenue(SEL.venue),f:[SEL.f,NET.peerPick],n:[myName()||FBY[SEL.f].name,NET.peer||FBY[NET.peerPick].name],a:[SEL.alt|0,NET.peerAlt|0]};netSend(m);startOnlineMatch(m)}
 function startOnlineMatch(m){
-  setVenue(m.v);
+  applyVenue(m.v);
   G.online=true;G.attract=false;G.bag=false;G.ME=NET.mode==='host'?0:1;G.bots=[null,null];G.ladder=null;G.paused=false;
   Object.assign(NET,{myReady:false,peerReady:false,rm:false,peerRm:false});
   rpStop();setupMatch(m.f,m.n,m.a);G.mode='fight';hideAllOv();showHUD(true);REF.b.root.visible=true;setPhase('intro');
@@ -3604,7 +3622,7 @@ function showTitle(){
   startAttract();
 }
 function startAttract(){
-  setVenue(Math.random()<.35?'roof':'arena');
+  applyVenue(Math.random()<.35?(Math.random()<.5?'roof-rain':'roof'):'arena');
   G.online=false;G.attract=true;G.ME=0;G.bag=false;const a=pick(FIGHTERS).id;let b;do b=pick(FIGHTERS).id;while(b===a);
   setupMatch([a,b]);G.bots=[new Bot(0,'contender'),new Bot(1,'contender')];REF.b.root.visible=true;setPhase('intro');
 }
@@ -3690,7 +3708,7 @@ function renderToggles(){document.querySelectorAll('.tgl').forEach(b=>{const on=
 function startSolo(myF,oppF,diff){rpStop();
   G.online=false;G.attract=false;G.ME=0;G.bag=diff==='bag';G.paused=false;
   const oa=G.ladder?Math.floor(Math.random()*3):myF===oppF?(SEL.alt+1)%3:0;setupMatch([myF,oppF],[FBY[myF].name,FBY[oppF].name],[SEL.alt,oa]);G.bots=[null,new Bot(1,diff)];G.diff=diff;
-  setVenue(pickVenue(SEL.venue));G.mode='fight';hideAllOv();showHUD(true);REF.b.root.visible=true;setPhase(G.bag||SMOKE||!SET.walk?'intro':'walk');
+  applyVenue(pickVenue(SEL.venue));G.mode='fight';hideAllOv();showHUD(true);REF.b.root.visible=true;setPhase(G.bag||SMOKE||!SET.walk?'intro':'walk');
   if(G.bag){Object.assign(TR,{last:0,combo:0,comboT:0,log:[],perfect:0});trainSet(TR.dummy)}
   // the last bout of the ladder is for the belt: the champion walks out wearing it
   G.title=!!(G.ladder&&G.ladder.i===G.ladder.opps.length-1);if(G.title&&G.phase==='walk')giveBelt(G.B[1],true);
@@ -4007,7 +4025,7 @@ function visuals(rdt,adt){
   ropeVisuals(adt);PA.update(adt);PN.update(adt);fxUpdate(adt);updEmit(adt);updConfetti(adt);extras(rdt,adt);updPFX(rdt);
   ARENA.excite=Math.max(0,(ARENA.excite||0)-rdt*.22);
   const ex=G.mode==='fight'?.12+ARENA.excite*.9:.18;ARENA.crowdU.uEx.value=lerp(ARENA.crowdU.uEx.value,ex,damp(3,rdt));ARENA.crowdU.uT.value+=rdt;
-  crowdTick(rdt);cornerTick(rdt);trainTick(rdt);ARENA.flashU.uT.value+=rdt;ARENA.flashU.uRate.value=1+ARENA.excite*7+(G.phase==='kd'||G.phase==='end'?5:0);
+  crowdTick(rdt);cornerTick(rdt);trainTick(rdt);rainTick(rdt);ARENA.flashU.uT.value+=rdt;ARENA.flashU.uRate.value=1+ARENA.excite*7+(G.phase==='kd'||G.phase==='end'?5:0);
   ARENA.impact.intensity*=Math.exp(-16*rdt);if(ARENA.impact.intensity<.05)ARENA.impact.intensity=0;ARENA.led.offset.x+=rdt*.035;
   // the big screen only redraws (and re-uploads) when what it shows has changed
   jumboT-=rdt;if(jumboT<=0){jumboT=.25;const t=Math.max(0,Math.ceil(G.tl));
@@ -4056,7 +4074,7 @@ function init(){
   if(document.fonts)document.fonts.ready.then(()=>ARENA.texs.forEach(redrawTex));
   if(window.GBSave)GBSave.register({save:()=>(REC.w||REC.l)?JSON.parse(JSON.stringify(REC)):null,load:d=>{if(d&&typeof d==='object'){Object.assign(REC,d);saveRec();renderRec()}}});
   if(DEBUG){window.kdView=kdView;window.kdCentre=kdCentre}
-  if(DEBUG)window.__HM={ARENA,ANCHORS,prewarmFX,RP,rpStart,rpEnd,AU,SFX,PFX,MUS,musTick,FX,afterimage,hitSpark,comic,decal,pyro,confetti,cutin,vsShow,impactFrame,wave,TEX,FXL,EMIT,CONF,trailW,auInit,PORT,showLadder,V3:THREE.Vector3,renderer,OUTLINE_U,scene,hostPhase,onNetGo:m=>startOnlineMatch(m),updRef:updateRef,CAM,knockdown,PERF,Bot,DIFF,G,NET,REF,FBY,PUNCH,startSolo,openSelect,showTitle,step,setupMatch,setPhase,castAbility,startPunch,startAttract,netConnect,onNet,camera,SET};
+  if(DEBUG)window.__HM={applyVenue,ARENA,ANCHORS,prewarmFX,RP,rpStart,rpEnd,AU,SFX,PFX,MUS,musTick,FX,afterimage,hitSpark,comic,decal,pyro,confetti,cutin,vsShow,impactFrame,wave,TEX,FXL,EMIT,CONF,trailW,auInit,PORT,showLadder,V3:THREE.Vector3,renderer,OUTLINE_U,scene,hostPhase,onNetGo:m=>startOnlineMatch(m),updRef:updateRef,CAM,knockdown,PERF,Bot,DIFF,G,NET,REF,FBY,PUNCH,startSolo,openSelect,showTitle,step,setupMatch,setPhase,castAbility,startPunch,startAttract,netConnect,onNet,camera,SET};
   if(SMOKE){runSmoke();return}
   showTitle();
   const h=new URLSearchParams(HASH.replace(/^#/,'').replace(/-?debug$/,''));const room=(h.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
@@ -4140,7 +4158,7 @@ function runSmoke(){
     abil('viper','frost','r');G.B[0].hp=50;startPunch(G.B[0],'cross');sim(.5);ok(G.B[0].hp>50,'Serpent\'s Kiss heals on hit');
     abil('viper','frost','e',3);sim(.7);ok(G.B[1].hp<100,'Coil Strike lunges in');
     solo('blaze','frost');place(1);G.bag=true;TR.dummy='stand';G.B[1].hp=3;startPunch(G.B[0],'hook');sim(.8);ok(G.B[1].hp>=1&&!G.B[1].down&&TR.last>0,'training: the standing dummy takes the hit but never goes down');G.bag=false;
-    setVenue('roof');ok(ARENA.roof&&ARENA.roof.g.visible&&ARENA.dress.every(o=>!o.visible)&&Math.abs(ARENA.tunnel.x+13.2)<.01,'the rooftop venue swaps in (and its stairwell becomes the walk-out door)');setVenue('arena');ok(!ARENA.roof.g.visible&&ARENA.dress.every(o=>o.visible),'…and swaps back to the arena');
+    setVenue('roof');ok(ARENA.roof&&ARENA.roof.g.visible&&ARENA.dress.every(o=>!o.visible)&&Math.abs(ARENA.tunnel.x+13.2)<.01,'the rooftop venue swaps in (and its stairwell becomes the walk-out door)');applyVenue('roof-rain');ok(ARENA.rain.L.visible,'rain falls on a wet rooftop night');applyVenue('arena');ok(!ARENA.roof.g.visible&&!ARENA.rain.L.visible&&ARENA.dress.every(o=>o.visible),'…and swaps back to a dry arena');
     abil('kitsune','frost','q',2.5);sim(.7);ok(G.B[1].hp<100&&G.B[1].st.burn>0,'Foxfire wisps burn ('+G.B[1].hp.toFixed(1)+')');
     abil('kitsune','frost','e',2.5);sim(.6);ok(G.B[1].st.charm>0,'Charm lands');{const d0=Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z);G.forced[1]={...EMPTY,mz:1};sim(.4);
       ok(Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z)>d0+.2,'…and a charmed fighter walking in backs off instead');G.forced[1]=EMPTY}
