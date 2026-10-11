@@ -192,6 +192,14 @@ body.replay #hud,body.replay #floats,body.replay #touch{opacity:0;transition:opa
 .ov{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;flex-direction:column;padding:20px;overflow:auto}
 .ov.on{display:flex}
 .ov.dark{justify-content:flex-start}
+#endOv{align-items:flex-end;justify-content:center;padding-right:3.5vw;background:linear-gradient(90deg,rgba(0,0,0,.15),transparent 35%,transparent 50%,rgba(0,0,0,.7))}
+#endOv .card2{width:min(440px,44vw);animation:cardIn2 .5s cubic-bezier(.2,1.3,.4,1) both}
+@keyframes cardIn2{from{transform:translateX(120%)}to{transform:none}}
+#endHero{position:absolute;left:4vw;bottom:17vh;pointer-events:none;max-width:48vw}
+#endHero .k{font:900 clamp(12px,1.4vw,17px) Rubik;letter-spacing:.42em;color:#ffc83a;text-shadow:0 2px 0 #000}
+#endHero .n{font:400 clamp(56px,10vw,150px) Anton;line-height:.9;color:#fff;-webkit-text-stroke:3px #000;paint-order:stroke fill;text-shadow:8px 8px 0 var(--c,#ff3b3f);animation:heroIn .6s cubic-bezier(.2,1.5,.4,1) both}
+#endHero .s{font:900 clamp(11px,1.2vw,15px) Rubik;letter-spacing:.3em;color:#fff;opacity:.85;margin-top:8px}
+@keyframes heroIn{from{transform:scale(2.2) rotate(-6deg);opacity:0}to{transform:none;opacity:1}}
 #cardOv{align-items:flex-end;justify-content:center;padding-right:3.5vw;pointer-events:none;background:linear-gradient(90deg,transparent 45%,rgba(0,0,0,.55))}
 #cardOv .card2{width:min(430px,46vw);transform:scale(.9);transform-origin:right center;animation:cardIn .45s cubic-bezier(.2,1.3,.4,1) both}
 @keyframes cardIn{from{transform:translateX(120%) scale(.9)}to{transform:scale(.9)}}
@@ -437,7 +445,7 @@ body.touch #abil,body.touch #keys{display:none}
 </div>
 
 <div class="ov" id="cardOv"><div class="card2" id="cardBody"></div></div>
-<div class="ov dark" id="endOv"><div class="card2" id="endBody"></div></div>
+<div class="ov" id="endOv"><div id="endHero"></div><div class="card2" id="endBody"></div></div>
 <div class="ov dark" id="ladOv"><div class="card2" id="ladBody"></div></div>
 <script type="module">
 import * as THREE from 'three';
@@ -2015,6 +2023,9 @@ class Boxer{
     this.pelvis.position.set(P.side,1.0-P.crouch,0);this.pelvis.rotation.set(0,P.twist*.35,P.roll*.3);
     this.spine.rotation.set(P.lean-h.x*.55,P.twist*.65,P.roll*.7+h.z*.4);
     this.head.rotation.set(P.headP-h.x*1.1,-P.twist*.9+h.y*1.4+P.headY,headR+h.z*.8);
+    // squash-and-stretch springs (head on a hit taken, gloves on a hit landed)
+    {const d=Math.min(rdt0,.033);this.sqV=(this.sqV||0)+(-300*(this.sqX||0)-16*(this.sqV||0))*d;this.sqX=(this.sqX||0)+this.sqV*d;const q=this.sqX;this.head.scale.set(1+q*.7,1-q,1+q*.5);
+      if(!this.gsq)this.gsq=[[0,0],[0,0]];this.arm.forEach((A,i)=>{const g=this.gsq[i];g[1]+=(-420*g[0]-18*g[1])*d;g[0]+=g[1]*d;A.gl.scale.set(1+g[0]*.6,1-g[0],1+g[0]*.6)})}
     if(this.pony){this.pony.rotation.x=Math.sin(this.anT*5)*.12-h.x*1.4+P.lean*.6;this.pony.rotation.z=Math.sin(this.anT*3.1)*.08-h.z}
     if(this.tails){this.tails.rotation.x=Math.sin(this.anT*6.3)*.18-h.x*1.6+P.lean*.5;this.tails.rotation.y=Math.sin(this.anT*4.1)*.15+P.twist*.3}
     this.root.updateMatrixWorld(true);
@@ -2117,6 +2128,7 @@ const REF={b:null,x:0,z:2.4,yaw:0,count:-1,beat:0,mode:'idle'};
 function buildRef(){const r=new Boxer(9);r.build({id:'ref',size:1,hp:1,look:{skin:0xe0b090,ref:1,shorts:0x1a1a1e,hair:'refhair',hairCol:0x2a2a2a,shoe:0x111111,trim:0x111111,glove:0}});REF.b=r;r.x=0;r.z=2.4}
 function updateRef(dt){
   const r=REF.b;if(!r)return;const [A,B]=G.B;
+  if(G.phase!=='end')r.override=null;
   let tx,tz,face;
   const mx=(A.x+B.x)/2,mz=(A.z+B.z)/2;
   if(G.phase==='kd'&&G.kdInfo){const d=G.B[G.kdInfo.b],cv=kdView(d);
@@ -2124,7 +2136,8 @@ function updateRef(dt){
     const cc=kdCentre(d),spots=[[-1.05,.75],[-1.05,-.75],[-.2,1.4],[-.2,-1.4]].map(([b,sd])=>[cc[0]+cv[0]*b-cv[1]*sd,cc[1]+cv[1]*b+cv[0]*sd]);
     const ok=spots.find(p=>Math.abs(p[0])<RING-.15&&Math.abs(p[1])<RING-.15)||spots[2];tx=ok[0];tz=ok[1];face=Math.atan2(d.x-r.x,d.z-r.z)}
   else if(G.phase==='rest'||G.phase==='walk'){tx=2.75;tz=-2.75;face=Math.atan2(-tx,-tz)}   // a neutral corner, out of the corner shots
-  else if(G.phase==='end'&&G.result&&G.result.w>=0){const w=G.B[G.result.w];tx=w.x+Math.cos(w.yaw)*.62;tz=w.z-Math.sin(w.yaw)*.62;face=Math.atan2(w.x-r.x,w.z-r.z)}
+  else if(G.phase==='end'&&G.result&&G.result.w>=0){const w=G.B[G.result.w];r.override=G.phT>1.6?[new THREE.Vector3(-.22,1.0,.12),new THREE.Vector3(.18,2.08,.18),0]:null;{const ca=Math.atan2(-w.z,-w.x);tx=w.x+Math.sin(ca)*.98+Math.cos(ca)*.1;tz=w.z-Math.cos(ca)*.98+Math.sin(ca)*.1}   // beside the winner, out of the camera's line
+    face=Math.atan2(w.x-r.x,w.z-r.z)}
   else{
     const ax=B.x-A.x,az=B.z-A.z,l=Math.hypot(ax,az)||1,px=-az/l,pz=ax/l;
     // stand off to the side the camera ISN'T on, a step toward the far fighter so he stays in the background
@@ -2482,6 +2495,7 @@ function onOut(i,tko){
 // ════════════════════ MATCH FLOW (host decides) ════════════════════
 const HOME=[[-1.35,-1.35],[1.35,1.35]];
 function setupMatch(fids,names,alts){
+  dropBelts();
   G.rnd=1;G.tl=ROUND_T;G.rdmg=[[],[]];G.rkd=[[],[]];G.result=null;G.kdInfo=null;G.cards=null;clearCombat();rpReset();clearDecals();clearConfetti();
   alts=(alts||[0,0]).map(a=>a|0);if(fids[0]===fids[1]&&alts[0]===alts[1])alts[1]=(alts[0]+1)%3;   // mirror match: never the same colours
   G.B.forEach((b,i)=>{if(!b.f||b.f.id!==fids[i]||b.alt!==alts[i])b.build(FBY[fids[i]],alts[i]);b.reset();if(b.ribs)b.ribs.forEach(r=>r.clear());b.name=(names&&names[i])||b.f.name;b.x=HOME[i][0]*1.6;b.z=HOME[i][1]*1.6;b.home=HOME[i];b.yaw=Math.atan2(-b.x,-b.z);b.root.visible=true});
@@ -2653,6 +2667,8 @@ function hitVisual(res,a,v,rp){
     if(res.dmg>0||res.cue==='seal'){impactFlash(p,col,heavy?1.6:.95);burst(p,heavy?30+pw*10:14,col,heavy?5.5+pw:3.6,.32,.06,{drag:3});hitSpark(p,col,pw)}
     if(res.dmg>0&&!res.body)burst(p,heavy?14+pw*14:5,0xdcefff,2.6+pw,.8,.04+.01*pw,{normal:true,grav:9.8,dir:_hd,drag:.6,a:.85});   // sweat off the head
     v.flashT=heavy?.09:.05;
+    // cartoon squash: the head that takes it and the glove that lands it both squish, then wobble back
+    v.sqX=Math.max(v.sqX||0,.07+.06*pw);{const hd=PUNCH[res.cue]&&PUNCH[res.cue].hand==='L'?0:1;if(a.gsq)a.gsq[hd][0]=Math.max(a.gsq[hd][0],.12+.08*pw)}
     const h=v.hs,side=PUNCH[res.cue]&&PUNCH[res.cue].hand==='L'?1:-1,big=pw>=2?1.6:1;
     if(res.body)h.vx-=7*big;
     else if(res.cue==='hook'){h.vy+=side*15;h.vz+=side*7;h.vx+=3}
@@ -3390,7 +3406,7 @@ function showLadder(){rpStop();vsHide();clearConfetti();
 }
 function onEnd(r){
   const w=r.w;
-  if(w>=0)setTimeout(()=>{if(G.phase!=='end')return;const W=G.B[w],L=G.B[1-w];W.act={k:'win',t:0};if(!L.down)L.act={k:'lose',t:0}},r.how.includes('KO')?1500:500);
+  if(w>=0)setTimeout(()=>{if(G.phase!=='end')return;const W=G.B[w],L=G.B[1-w];W.act={k:'win',t:0};giveBelt(W);if(!L.down)L.act={k:'lose',t:0}},r.how.includes('KO')?1500:500);
   else G.B.forEach(b=>{if(!b.down)b.act={k:'lose',t:0}});
   if(G.attract){setTimeout(()=>{if(G.attract&&G.mode==='title')startAttract()},4500);return}
   const ko=r.how==='KO'||r.how==='TKO';
@@ -3406,6 +3422,25 @@ function onEnd(r){
   if(ko)onEnd.t=setTimeout(()=>{if(G.phase!=='end'||G.mode!=='fight')return;if(!rpStart(()=>{clearTimeout(onEnd.t);onEnd.t=setTimeout(fin,500)}))fin()},2000);
   else onEnd.t=setTimeout(fin,2400);
 }
+// ════ the title belt: strapped onto the winner as they celebrate ════
+let BELT_TEX=null;
+function beltTex(){return BELT_TEX||(BELT_TEX=canvasTex(256,256,(x,w,h)=>{
+  const g=x.createRadialGradient(w*.4,h*.35,10,w/2,h/2,w*.55);g.addColorStop(0,'#fff6c8');g.addColorStop(.45,'#f2c43a');g.addColorStop(1,'#8a5a10');x.fillStyle=g;x.beginPath();x.arc(w/2,h/2,w*.48,0,6.3);x.fill();
+  x.strokeStyle='#6a420a';x.lineWidth=6;x.beginPath();x.arc(w/2,h/2,w*.44,0,6.3);x.stroke();x.lineWidth=3;x.beginPath();x.arc(w/2,h/2,w*.36,0,6.3);x.stroke();
+  for(let i=0;i<16;i++){const a=i/16*6.283;x.fillStyle=i%2?'#ff3b3f':'#3fd4ff';x.beginPath();x.arc(w/2+Math.cos(a)*w*.4,h/2+Math.sin(a)*w*.4,5,0,6.3);x.fill()}
+  x.fillStyle='#16110f';x.font=`${w*.13}px ${FONT}`;x.textAlign='center';x.textBaseline='middle';x.save();x.translate(w/2,h*.44);x.scale(-1,1);x.fillText('WORLD',0,0);x.translate(0,h*.13);x.fillText('CHAMPION',0,0);x.restore();
+  x.fillStyle='#ffc83a';x.strokeStyle='#16110f';x.lineWidth=3;x.beginPath();for(let i=0;i<5;i++){const a=-Math.PI/2+i*1.2566,b=a+.628;x.lineTo(w/2+Math.cos(a)*24,h*.25+Math.sin(a)*24);x.lineTo(w/2+Math.cos(b)*10,h*.25+Math.sin(b)*10)}x.closePath();x.fill();x.stroke()}))}
+function giveBelt(b){if(!b||!b.pelvis||b.belt)return;
+  const gold=new THREE.MeshStandardMaterial({color:0xf2c43a,metalness:.9,roughness:.25,envMap:ENV,envMapIntensity:1.4,emissive:0x3a2400}),strap=new THREE.MeshStandardMaterial({color:0x16110f,roughness:.5,metalness:.2});
+  const g=new THREE.Group();g.position.y=.07;
+  const band=new THREE.Mesh(new THREE.CylinderGeometry(.228,.232,.09,40,1,true),strap);band.scale.z=.76;band.material.side=THREE.DoubleSide;g.add(band);
+  const plate=new THREE.Mesh(new THREE.CylinderGeometry(.115,.115,.025,40),[gold,new THREE.MeshStandardMaterial({map:beltTex(),metalness:.7,roughness:.3,envMap:ENV,envMapIntensity:1.2}),gold]);
+  plate.rotation.x=Math.PI/2;plate.position.set(0,.005,.178);g.add(plate);
+  for(const sd of [-1,1]){const sp=new THREE.Mesh(new THREE.BoxGeometry(.07,.075,.02),gold);sp.position.set(sd*.17,0,.12);sp.rotation.y=sd*.75;g.add(sp)}
+  g.traverse(o=>{if(o.isMesh){o.castShadow=true;b.mats.push(o.material)}});b.pelvis.add(g);b.belt=g;g.scale.setScalar(.01);
+  emitter(.45,(dt,k)=>{g.scale.setScalar(Math.min(1,easeOut(k)*1.15))});
+  if(!G.attract){const P=b.chestW.clone();P.y-=.35;burst(P,40,0xffd24a,3.5,.6,.06,{up:1});impactFlash(P,0xffd24a,1.2);photoFlash(5)}}
+function dropBelts(){for(const b of G.B)if(b.belt){b.pelvis.remove(b.belt);b.belt=null}}
 function showEnd(r){
   const me=G.ME,w=r.w,A=G.B[0],B=G.B[1];
   const title=w<0?'DRAW':w===me?'YOU WIN':'YOU LOSE',col=w<0?'var(--gold)':w===me?'#7dff4a':'var(--red)';
@@ -3418,6 +3453,7 @@ function showEnd(r){
     ${row('LANDED',x=>x.landed+' / '+x.thrown)}${row('ACCURACY',x=>x.thrown?Math.round(x.landed/x.thrown*100)+'%':'—')}${row('DAMAGE',x=>Math.round(x.dmg))}
     ${row('KNOCKDOWNS',(x,i)=>s[1-i].kd)}${row('DODGES',x=>x.dodged)}${row('BLOCKS',x=>x.blocked)}</table>
     <div class="menu" id="endBtns" style="margin-top:14px"></div>`;
+  const W=w>=0?G.B[w]:null;$('endHero').innerHTML=W?`<div class="k">${G.ladder&&G.ladder.i>=G.ladder.opps.length&&w===me?'NEW GLITCHBOX CHAMPION':'AND THE WINNER'}</div><div class="n" style="--c:${W.f.col}">${W.f.name}</div><div class="s">${how}</div>`:`<div class="k">THE JUDGES CAN'T SPLIT THEM</div><div class="n">DRAW</div>`;
   showOv('endOv');renderEndButtons();
 }
 function renderEndButtons(){
@@ -3460,7 +3496,7 @@ function updateCamera(dt){
     else if(G.phase==='rest'){const ph=G.phT,i=ph<2.6?G.ME:ph<5?1-G.ME:-1;
       if(i<0){const a=t*.12;_cp.set(Math.cos(a)*5.6,4.4,Math.sin(a)*5.6);_cl.set(0,.8,0);k=2}
       else{const sx=i?1:-1,c=sx*3.12,sw=Math.sin(ph*.4)*.5;_cp.set(c*.42+sw*sx,1.45,c*.42-sw*sx);_cl.set(c,1.05,c);k=ph<.15||Math.abs(ph-2.6)<.05?50:3}}
-    else if(G.phase==='end'&&G.result&&G.result.w>=0&&G.phT>1.3){const w=G.B[G.result.w];const a=t*.22;let R=3.1;while(R>1.9&&Math.max(Math.abs(w.x+Math.cos(a)*R),Math.abs(w.z+Math.sin(a)*R))>RING+.1)R-=.05;_cp.set(w.x+Math.cos(a)*R,1.55,w.z+Math.sin(a)*R);_cl.set(w.x,1.4,w.z);k=1.6}
+    else if(G.phase==='end'&&G.result&&G.result.w>=0&&G.phT>1.3){const w=G.B[G.result.w];const cl=Math.hypot(w.x,w.z),a=(cl>.4?Math.atan2(-w.z,-w.x):t*.1)+Math.sin(t*.25)*.45,R=2.9;_cp.set(w.x+Math.cos(a)*R,1.6,w.z+Math.sin(a)*R);_cl.set(w.x,1.4,w.z);if($('endOv').classList.contains('on')){_cl.x+=Math.sin(a)*.75;_cl.z-=Math.cos(a)*.75}k=1.6}
     else if(G.phase==='kd'&&G.kdInfo&&!G.kdInfo.up&&G.kdInfo.t<2.4){const d=G.B[G.kdInfo.b],cv=kdView(d),cc=kdCentre(d);_cp.set(cc[0]+cv[0]*2.6,1.35,cc[1]+cv[1]*2.6);_cl.set(cc[0],.3,cc[1]);k=3}
     else if(SET.cam==='tv'){
       // three-quarter broadcast angle: you near-left, opponent right, both always in full view
