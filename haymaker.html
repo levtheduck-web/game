@@ -453,6 +453,7 @@ body.touch #abil,body.touch #keys{display:none}
       <kbd>T</kbd><span>Taunt. Finish it untouched for a chunk of meter — get hit and it hurts more.</span>
       <kbd>V · M</kbd><span>Switch camera (broadcast or behind you) · mute everything.</span>
       <kbd>ESC</kbd><span>Pause</span>
+      <kbd>2 PLAYER</kbd><span>Pick 2 PLAYER as the difficulty in Quick Fight: player 1 on the keyboard (or the first controller), player 2 on a controller. The opponent you pick is player 2's fighter.</span>
       <kbd>🎮 PAD</kbd><span>Stick moves · A B X Y punch · RB block · RT haymaker · LB dodge · LT duck · D-pad ← → abilities, ↑ ultimate, ↓ taunt · START pause. In menus A confirms, B goes back, D-pad picks a fighter.</span>
     </div>
     <h3>THE FIGHT</h3>
@@ -520,7 +521,7 @@ const FIGHTERS=[
  {id:'blaze',name:'BLAZE',nick:'KID INFERNO',col:'#ff6a1f',
   look:{skin:0xb9794f,shorts:0xe0461a,trim:0xffcc33,glove:0xd11f1a,hair:'spikes',hairCol:0xff4a12,glow:0xff5a10},
   taunt:'flex',alts:[{},{shorts:0x1c1c24,trim:0xff5a10,glove:0x1c1c24,hairCol:0xffd21f},{shorts:0xf2f2f2,trim:0xe0461a,glove:0xf2f2f2,hairCol:0xff2a2a}],
-  size:1,hp:100,pow:1.16,spd:1.02,reach:1,stats:[4,3,3],
+  size:1,hp:100,pow:1.18,spd:1.02,reach:1,stats:[4,3,3],
   passive:{name:'Hot Hands',desc:'Every third hit of a combo sets the target on fire.'},
   q:{name:'Fire Fist',cd:9,desc:'Your next 3 punches hit 40% harder and set the target on fire.'},
   e:{name:'Flame Dash',cd:8,desc:'Rocket forward with a flaming straight. Blockable.'},
@@ -584,7 +585,7 @@ const FIGHTERS=[
  {id:'unit',name:'UNIT-7',nick:'THE MACHINE',col:'#ffd23a',
   look:{skin:0xa9b3c2,shorts:0x1c2230,trim:0xffd23a,glove:0x2a3240,hair:'robot',hairCol:0x3a4250,glow:0xffd23a},
   taunt:'beat',alts:[{},{skin:0xd6b36a,shorts:0x101010,trim:0xff3b3f,glove:0x101010,hairCol:0x2a2420,glow:0xff3b3f},{skin:0x4a505c,shorts:0xf2f2f2,trim:0x3fd4ff,glove:0xf2f2f2,hairCol:0x1a1e26,glow:0x3fd4ff}],
-  size:1.02,hp:105,pow:1.02,spd:.96,pspd:1,reach:1.02,stats:[4,3,4],
+  size:1.02,hp:105,pow:1.07,spd:.96,pspd:1,reach:1.02,stats:[4,3,4],
   passive:{name:'Chrome Plating',desc:'Burn, poison and chill don\'t stick to metal.'},
   q:{name:'Rocket Fist',cd:8,desc:'Fire a glove across the ring: 9 damage and a big knockback. Blockable.'},
   e:{name:'Overclock',cd:13,desc:'For 4 seconds every punch comes out 30% faster.'},
@@ -3511,7 +3512,11 @@ $('cv').addEventListener('contextmenu',e=>e.preventDefault());
 // ── gamepads (standard mapping): stick moves, face buttons punch, shoulders guard/dodge, triggers haymaker/duck,
 //    d-pad abilities/ultimate/taunt, START pauses; in menus A confirms and the d-pad picks a fighter ──
 const PAD={on:false,prev:[],x:0,y:0,block:false,hay:false};
-function padPoll(){const ps=navigator.getGamepads?navigator.getGamepads():[];let gp=null;for(const p of ps)if(p&&p.connected&&p.mapping==='standard'){gp=p;break}
+const PAD2={on:false,prev:[],x:0,y:0,block:false,hay:false,press:[]};   // player 2's controller in local versus
+function padPoll(){const ps=navigator.getGamepads?navigator.getGamepads():[];const all=[];for(const p of ps)if(p&&p.connected&&p.mapping==='standard')all.push(p);
+  let gp=all[0]||null;
+  // local versus: the last controller belongs to player 2 (with a single pad, player 1 keeps the keyboard)
+  if(G.local&&G.mode==='fight'){const g2=all.length>=2?all[1]:all[0];gp=all.length>=2?all[0]:null;padP2(g2)}
   if(!gp){if(PAD.on){PAD.on=false;PAD.x=PAD.y=0;PAD.block=PAD.hay=false}return}
   const b=gp.buttons.map(x=>x.pressed||x.value>.5),pr=PAD.prev,down=i=>b[i]&&!pr[i];PAD.prev=b;
   if(!PAD.on){PAD.on=true;sub('CONTROLLER CONNECTED',1.6)}
@@ -3530,6 +3535,19 @@ function padPoll(){const ps=navigator.getGamepads?navigator.getGamepads():[];let
     if(G.mode==='select'&&(down(14)||down(15))){const i=FIGHTERS.findIndex(f=>f.id===SEL.f),n=(i+(down(15)?1:-1)+FIGHTERS.length)%FIGHTERS.length;const c=document.querySelector(`#grid [data-f=${FIGHTERS[n].id}]`);if(c)c.click()}
     if(down(1)){const bk=document.querySelector('.ov.on #selBack, .ov.on #helpBack, .ov.on #recBack, .ov.on #resume');if(bk)bk.click()}
     if(down(0)){const go=document.querySelector('.ov.on .primary, .ov.on #selGo');if(go)go.click()}}}
+function padP2(gp){const P=PAD2;if(!gp){P.on=false;P.x=P.y=0;P.block=P.hay=false;return}
+  const b=gp.buttons.map(x=>x.pressed||x.value>.5),pr=P.prev,down=i=>b[i]&&!pr[i];P.prev=b;P.on=true;
+  let x=gp.axes[0]||0,y=gp.axes[1]||0;if(Math.hypot(x,y)<.22){x=0;y=0}if(b[12]&&!b[14]&&!b[15])y=y;P.x=x;P.y=y;P.block=!!b[5];P.hay=!!b[7];
+  const map={0:'jab',1:'cross',2:'hook',3:'upper',4:'dodge',6:'duck',14:'q',15:'e',12:'r',13:'taunt'};for(const i in map)if(down(+i))P.press.push(map[i]);
+  if(G.phase==='kd'&&G.kdInfo&&G.kdInfo.b===1&&[0,1,2,3].some(down)){const v=G.B[1];if(!G.kdInfo.up)v.getup+=v.f.id==='toro'?2:1}
+  if(down(9))togglePause()}
+// a controller's intent for any boxer (screen-relative movement like the keyboard)
+function padIntent(i,P){const it={mx:0,mz:0,block:false,punch:null,dodge:false,abil:null};const rt=P.x,up=-P.y;
+  if(up||rt){camera.getWorldDirection(_U);let cx=_U.x,cz=_U.z;const cl=Math.hypot(cx,cz)||1;cx/=cl;cz/=cl;const wx=cx*up-cz*rt,wz=cz*up+cx*rt;
+    const me=G.B[i],o=other(me),dx=o.x-me.x,dz=o.z-me.z,dl=Math.hypot(dx,dz)||1,fx=dx/dl,fz=dz/dl;it.mz=wx*fx+wz*fz;it.mx=wx*fz-wz*fx;const l=Math.hypot(it.mx,it.mz);if(l>1){it.mx/=l;it.mz/=l}}
+  it.block=P.block;it.hay=P.hay;let duck=false;
+  while(P.press.length){const k=P.press.shift();if(PUNCH[k]){if(!it.punch)it.punch=k}else if(k==='dodge')it.dodge=true;else if(k==='duck'){it.dodge=true;duck=true}else if(k==='q'||k==='e'||k==='r')it.abil=k;else if(k==='taunt')it.taunt=true}
+  if(duck){it.mx=0;it.mz=0}return it}
 function playerIntent(){
   const it={mx:0,mz:0,block:false,punch:null,dodge:false,abil:null};
   let up=(KEYS.KeyW||KEYS.ArrowUp?1:0)-(KEYS.KeyS||KEYS.ArrowDown?1:0),rt=(KEYS.KeyD||KEYS.ArrowRight?1:0)-(KEYS.KeyA||KEYS.ArrowLeft?1:0);
@@ -3612,6 +3630,7 @@ function checkStart(){if(NET.mode==='host'&&NET.myReady&&NET.peerReady&&NET.peer
 function checkRematch(){if(NET.mode==='host'&&NET.rm&&NET.peerRm)hostGo()}
 function hostGo(){const m={t:'go',v:pickVenue(SEL.venue),f:[SEL.f,NET.peerPick],n:[myName()||FBY[SEL.f].name,NET.peer||FBY[NET.peerPick].name],a:[SEL.alt|0,NET.peerAlt|0]};netSend(m);startOnlineMatch(m)}
 function startOnlineMatch(m){
+  G.local=false;
   for(const k in MUT)MUT[k]=false;
   G.watch=false;document.body.classList.remove('watching');
   applyVenue(m.v);
@@ -3653,7 +3672,7 @@ addEventListener('pagehide',()=>{if(NET.mode!=='off')netSend({t:'bye'})});
 const SEL={mode:'quick',f:'blaze',opp:'random',diff:'contender',alt:0,venue:'arena',mut:{}};
 const MUT={};   // the mutators live for this match: big (heads), dmg (double damage), ult (meter ×3)
 const mutOn=k=>!!MUT[k]&&!G.online;
-try{const s=JSON.parse(localStorage.getItem('haymaker.sel')||'{}');if(FBY[s.f])SEL.f=s.f;if(s.opp==='random'||FBY[s.opp])SEL.opp=s.opp;if(DIFF[s.diff])SEL.diff=s.diff;if(['arena','roof','pit','random'].includes(s.venue))SEL.venue=s.venue;if(s.mut&&typeof s.mut==='object')SEL.mut={big:!!s.mut.big,dmg:!!s.mut.dmg,ult:!!s.mut.ult};SEL.alt=(s.alt|0)%NALT;if(!altOK(SEL.f,SEL.alt))SEL.alt=0}catch(e){}
+try{const s=JSON.parse(localStorage.getItem('haymaker.sel')||'{}');if(FBY[s.f])SEL.f=s.f;if(s.opp==='random'||FBY[s.opp])SEL.opp=s.opp;if(DIFF[s.diff]||s.diff==='p2')SEL.diff=s.diff;if(['arena','roof','pit','random'].includes(s.venue))SEL.venue=s.venue;if(s.mut&&typeof s.mut==='object')SEL.mut={big:!!s.mut.big,dmg:!!s.mut.dmg,ult:!!s.mut.ult};SEL.alt=(s.alt|0)%NALT;if(!altOK(SEL.f,SEL.alt))SEL.alt=0}catch(e){}
 const saveSel=()=>{try{localStorage.setItem('haymaker.sel',JSON.stringify({f:SEL.f,opp:SEL.opp,diff:SEL.diff,alt:SEL.alt,venue:SEL.venue,mut:SEL.mut}))}catch(e){}};
 function showOv(id){$(id).classList.add('on')}
 function hideOv(id){$(id).classList.remove('on')}
@@ -3684,7 +3703,7 @@ const QUOTES={blaze:['Hope you brought a fire extinguisher.','I\'m already warme
   kitsune:['Catch me if you can~','Which one of me is real?','Nine tails. Zero mercy.'],
   toro:['Olé.','I see red.','You\'ll get the horns.'],
   unit:['TARGET ACQUIRED.','14,000,605 SIMULATIONS. YOU LOSE IN ALL OF THEM.','RESISTANCE IS INEFFICIENT.']};
-function vsShow(){if(G.attract||SMOKE)return;const el=$('vs'),[A,B]=G.B,side=(b,i)=>`<div class="vport">${portrait(b.f.id,Math.min(300,innerHeight*.42)|0,i===1)}</div><div class="tag">${i===G.ME&&!G.watch?'YOU':G.online?'RIVAL':'CPU'} · ${i?'BLUE':'RED'} CORNER</div><div class="nm">${(b.name||b.f.name).replace(/[<>&]/g,'')}</div><div class="nk">“${b.f.nick}”</div><div class="qt">${pick(QUOTES[b.f.id]||['…'])}</div>`;
+function vsShow(){if(G.attract||SMOKE)return;const el=$('vs'),[A,B]=G.B,side=(b,i)=>`<div class="vport">${portrait(b.f.id,Math.min(300,innerHeight*.42)|0,i===1)}</div><div class="tag">${G.local?'PLAYER '+(i+1):i===G.ME&&!G.watch?'YOU':G.online?'RIVAL':'CPU'} · ${i?'BLUE':'RED'} CORNER</div><div class="nm">${(b.name||b.f.name).replace(/[<>&]/g,'')}</div><div class="nk">“${b.f.nick}”</div><div class="qt">${pick(QUOTES[b.f.id]||['…'])}</div>`;
   const l=el.querySelector('.l'),r=el.querySelector('.r');l.style.setProperty('--c',A.f.col);r.style.setProperty('--c',B.f.col);l.innerHTML=side(A,0);r.innerHTML=side(B,1);
   el.className='';void el.offsetWidth;el.classList.add('on');SFX.slide();clearTimeout(vsShow.t);clearTimeout(vsShow.t2);vsShow.t2=setTimeout(()=>SFX.vs(),300);
   vsShow.t=setTimeout(vsHide,2300)}
@@ -3709,7 +3728,7 @@ const HUDC={};
 function showHUD(on){
   $('hud').classList.toggle('hide',!on);$('touch').classList.toggle('hide',!(on&&TOUCH));document.body.classList.toggle('infight',!!on);
   if(!on)return;
-  G.B.forEach((b,i)=>{const el=$('hb'+i);el.querySelector('.nm').innerHTML=(b.name||b.f.name).replace(/[<>&]/g,'')+(i===G.ME&&!G.attract&&!G.watch?' <span style="color:var(--gold);font-size:.75em">YOU</span>':'');const ic=el.querySelector('.ico');ic.innerHTML=portrait(b.f.id,46,i===1);ic.style.setProperty('--c',b.f.col);b.trail=b.hp;b._lastHp=b.hp});
+  G.B.forEach((b,i)=>{const el=$('hb'+i);el.querySelector('.nm').innerHTML=(b.name||b.f.name).replace(/[<>&]/g,'')+(G.local?` <span style="color:var(--gold);font-size:.75em">P${i+1}</span>`:'')+(i===G.ME&&!G.attract&&!G.watch&&!G.local?' <span style="color:var(--gold);font-size:.75em">YOU</span>':'');const ic=el.querySelector('.ico');ic.innerHTML=portrait(b.f.id,46,i===1);ic.style.setProperty('--c',b.f.col);b.trail=b.hp;b._lastHp=b.hp});
   const me=G.B[G.ME].f;if(TOUCH)['q','e','r'].forEach(k=>{document.querySelector(`#touch [data-k=${k}]`).innerHTML=`<i class="tcd"></i><span class="tic">${abIcon(me,k)}</span>`});$('abQ').querySelector('.ic').innerHTML=abIcon(me,'q');$('abE').querySelector('.ic').innerHTML=abIcon(me,'e');$('abR').querySelector('.ic').innerHTML=abIcon(me,'r');
   ['abQ','abE','abR'].forEach((id,i)=>$(id).title=[me.q,me.e,me.r][i].name);
   $('keys').style.opacity=1;G.keysT=14;$('mashKeys').textContent=TOUCH?'PUNCH':'J / K';
@@ -3752,6 +3771,7 @@ function showTitle(){
   startAttract();
 }
 function startAttract(){
+  G.local=false;
   for(const k in MUT)MUT[k]=false;
   G.watch=false;document.body.classList.remove('watching');
   applyVenue(Math.random()<.35?(Math.random()<.5?'roof-rain':'roof'):'arena');
@@ -3784,7 +3804,7 @@ function renderSelect(){
   $('mutSeg').innerHTML=[['big','BIG HEADS'],['dmg','DOUBLE DMG'],['ult','ULT RUSH']].map(([k,n])=>`<button data-m="${k}" class="${SEL.mut[k]?'on':''}">${n}</button>`).join('');
   $('mutBox').style.display=SEL.mode==='online'?'none':'';
   $('venueBox').style.display=SEL.mode==='online'&&NET.mode!=='host'?'none':'';
-  $('diffSeg').innerHTML=Object.entries(DIFF).map(([k,d])=>`<button data-d="${k}" class="${SEL.diff===k?'on':''}">${d.name}</button>`).join('');
+  $('diffSeg').innerHTML=Object.entries(SEL.mode==='quick'?Object.assign({},DIFF,{p2:{name:'2 PLAYER'}}):DIFF).map(([k,d])=>`<button data-d="${k}" class="${SEL.diff===k?'on':''}">${d.name}</button>`).join('');
   $('netBox').classList.toggle('hide',!on);
   if(on){const peer=NET.peer!=null?`${NET.peer||'RIVAL'}: ${NET.peerPick?FBY[NET.peerPick].name:'choosing…'} <span class="${NET.peerReady?'ready':'notready'}">${NET.peerReady?'READY':'NOT READY'}</span>`:`WAITING FOR A RIVAL…<br><span style="font:700 13px Rubik;color:var(--dim)">TELL THEM THE CODE: <b style="color:var(--gold);font-size:18px;letter-spacing:.2em">${NET.code}</b></span>`;
     $('netBox').innerHTML=`${myName()||'YOU'}: ${FBY[SEL.f].name} <span class="${NET.myReady?'ready':'notready'}">${NET.myReady?'READY':'NOT READY'}</span><br>${peer}`}
@@ -3847,11 +3867,12 @@ function saveName(){NAME=$('nameIn').value.trim().toUpperCase().slice(0,12);try{
 // ── fights ──
 function rpStop(){if(RP.play){RP.play.done=null;rpEnd()}}
 function renderToggles(){document.querySelectorAll('.tgl').forEach(b=>{const on=!!SET[b.dataset.s]&&!(SET.mute&&b.dataset.s!=='flash'&&b.dataset.s!=='walk');b.textContent=on?'ON':'OFF';b.classList.toggle('off',!on)})}
-function startSolo(myF,oppF,diff,watch){rpStop();for(const k of ['big','dmg','ult'])MUT[k]=!!(SEL.mut[k]&&diff!=='bag'&&!SMOKE);G.watch=!!watch;document.body.classList.toggle('watching',G.watch);
+function startSolo(myF,oppF,diff,watch){rpStop();G.local=diff==='p2'&&!watch;if(G.local)diff='contender';PAD2.press.length=0;for(const k of ['big','dmg','ult'])MUT[k]=!!(SEL.mut[k]&&diff!=='bag'&&!SMOKE);G.watch=!!watch;document.body.classList.toggle('watching',G.watch);
   G.online=false;G.attract=false;G.ME=0;G.bag=diff==='bag';G.paused=false;
   const oa=G.ladder?(G.ladder.i===G.ladder.opps.length-1?3:Math.floor(Math.random()*3)):myF===oppF?(SEL.alt+1)%3:0;setupMatch([myF,oppF],[FBY[myF].name,FBY[oppF].name],[SEL.alt,oa]);G.bots=[null,new Bot(1,diff)];G.diff=diff;
   applyVenue(pickVenue(SEL.venue));G.mode='fight';hideAllOv();showHUD(true);REF.b.root.visible=true;setPhase(G.bag||SMOKE||!SET.walk?'intro':'walk');
   if(G.bag){Object.assign(TR,{last:0,combo:0,comboT:0,log:[],perfect:0});TUT.on=false;trainSet(TR.dummy);tutUI()}
+  if(G.local){G.bots=[null,null];PAD2.prev=[];if(!(navigator.getGamepads&&[...navigator.getGamepads()].some(p=>p&&p.connected)))sub('PLAYER 2: CONNECT A CONTROLLER AND PRESS A BUTTON',4)}
   if(G.watch){G.bots[0]=new Bot(0,diff==='bag'?'contender':diff);if(G.bots[1].diff==='bag')G.bots[1]=new Bot(1,'contender')}
   // the last bout of the ladder is for the belt: the champion walks out wearing it
   G.title=!!(G.ladder&&G.ladder.i===G.ladder.opps.length-1);if(G.title&&G.phase==='walk')giveBelt(G.B[1],true);
@@ -3878,7 +3899,7 @@ function onEnd(r){
     pyro(2.8,[0,1,2,3],1.2);flameJets();ARENA.excite=1;impactFrame(0xff3b3f)}
   else{SFX.bell(3);announce(w<0?'DRAW!':'DECISION','gold',1.8);say(w<0?'This one is a draw!':'We go to the judges\' scorecards.');SFX.cheer(.8)}
   if(w>=0)setTimeout(()=>{if(G.phase!=='end'||G.mode!=='fight')return;confetti();SFX.fanfare(w===G.ME);if(!ko)pyro(2,[0,1,2,3])},ko?1300:900);
-  if(!SMOKE&&!G.watch){const P=recOf(G.B[G.ME].f.id);if(w===G.ME){REC.w++;P.w++;if(ko){REC.ko++;P.ko++}}else if(w>=0){REC.l++;P.l++}saveRec()}
+  if(!SMOKE&&!G.watch&&!G.local){const P=recOf(G.B[G.ME].f.id);if(w===G.ME){REC.w++;P.w++;if(ko){REC.ko++;P.ko++}}else if(w>=0){REC.l++;P.l++}saveRec()}
   if(G.ladder&&w===G.ME){G.ladder.i++;if(G.ladder.i>=G.ladder.opps.length){REC.ladders++;REC.champ[G.ladder.f]=1;if(!SMOKE)recOf(G.ladder.f).titles++;saveRec()}}
   const fin=()=>{if(G.phase==='end'&&G.mode==='fight')showEnd(r)};
   clearTimeout(onEnd.t);
@@ -3997,6 +4018,7 @@ function getIntent(i,dt){
   if(G.forced&&G.forced[i])return typeof G.forced[i]==='function'?G.forced[i]():G.forced[i];
   if(G.bots[i])return G.bots[i].intent(dt);
   if(i===G.ME&&!G.attract)return playerIntent();
+  if(G.local&&i===1)return padIntent(1,PAD2);
   return EMPTY;
 }
 function step(dt){
@@ -4341,6 +4363,7 @@ function runSmoke(){
      PRESS.length=0;padPoll();btn[0]={pressed:true,value:1};btn[5]={pressed:true,value:1};padPoll();ok(PAD.on&&PRESS.includes('jab')&&PAD.block&&PAD.x>.8,'gamepad: A jabs, RB blocks, the stick moves');
      padPoll();ok(PRESS.filter(k=>k==='jab').length===1,'…and a held button only fires once');
      try{Object.defineProperty(navigator,'getGamepads',{value:real,configurable:true})}catch(e){}PAD.on=false;PAD.x=PAD.y=0;PAD.block=false;PRESS.length=0}
+    {startSolo('blaze','titan','p2');G.forced=null;G.phase='fight';ok(G.local&&!G.bots[0]&&!G.bots[1],'2 PLAYER: both corners are human');PAD2.on=true;PAD2.press.push('jab');const it=getIntent(1,1/60);ok(it.punch==='jab','…and player 2\'s controller drives the blue corner');G.local=false;PAD2.on=false;G.forced=[EMPTY,EMPTY]}
     abil('kitsune','frost','q',2.5);sim(.7);ok(G.B[1].hp<100&&G.B[1].st.burn>0,'Foxfire wisps burn ('+G.B[1].hp.toFixed(1)+')');
     abil('kitsune','frost','e',2.5);sim(.6);ok(G.B[1].st.charm>0,'Charm lands');{const d0=Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z);G.forced[1]={...EMPTY,mz:1};sim(.4);
       ok(Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z)>d0+.2,'…and a charmed fighter walking in backs off instead');G.forced[1]=EMPTY}
