@@ -242,7 +242,7 @@ input.txt:focus{border-color:var(--gold)}
 #selOv{justify-content:space-between;flex-direction:row;align-items:stretch;gap:16px;background:linear-gradient(90deg,rgba(0,0,0,.85),rgba(0,0,0,0) 38%,rgba(0,0,0,0) 62%,rgba(0,0,0,.85))}
 .selL,.selR{width:min(380px,40vw);display:flex;flex-direction:column;justify-content:center;gap:10px}
 .selH{font:400 34px Anton;letter-spacing:.04em}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
 .card{position:relative;border-radius:12px;padding:10px 8px 8px;background:linear-gradient(160deg,#1e1e26,#0e0e13);border:2px solid rgba(255,255,255,.1);text-align:center;transition:transform .12s,border-color .12s}
 .card:hover{transform:translateY(-3px)}
 .card.sel{border-color:var(--c);box-shadow:0 0 18px var(--c),inset 0 0 18px rgba(255,255,255,.06)}
@@ -314,7 +314,7 @@ body.touch #abil,body.touch #keys{display:none}
   #clock{width:66px}#timer{font-size:24px}.bar.hp{height:14px}
   #selOv{flex-direction:column;justify-content:flex-start;background:rgba(0,0,0,.6)}
   .selL,.selR{width:100%}
-  .grid{grid-template-columns:repeat(8,1fr)}.card{padding:6px 2px}.card .em{font-size:22px}.card .cn{font-size:12px}
+  .grid{grid-template-columns:repeat(9,1fr)}.card{padding:6px 2px}.card .em{font-size:22px}.card .cn{font-size:12px}
   .finfo .fn{font-size:30px}#keys{display:none}
 }
 </style>
@@ -370,7 +370,7 @@ body.touch #abil,body.touch #keys{display:none}
 
 <div class="ov on" id="titleOv">
   <div class="logo">HAYMAKER</div>
-  <div class="tag">3D BOXING · EIGHT FIGHTERS · SUPER ABILITIES</div>
+  <div class="tag">3D BOXING · NINE FIGHTERS · SUPER ABILITIES</div>
   <div class="menu">
     <button class="primary" data-go="quick">QUICK FIGHT</button>
     <button data-go="ladder">ARCADE LADDER</button>
@@ -438,7 +438,7 @@ body.touch #abil,body.touch #keys{display:none}
     <h3>THE FIGHT</h3>
     <p>Three rounds of a minute. Drop to zero health and you're down — mash punch to beat the ten-count. Three knockdowns is a TKO. Still standing at the end? The judges score each round on damage and knockdowns.</p>
     <p>Punches cost stamina. Throw too many and you gas out: slower, weaker, and your guard crumbles. Chain punches together for a combo bonus. Under a quarter health you go into RAGE: punches hit 15% harder.</p>
-    <p>Eight fighters, each with a passive, two abilities and an ultimate — pick one on the select screen to read them. Before the first bell both fighters walk out to the ring: press any key (or tap) to skip, or switch ENTRANCES off on the title screen. Win the arcade ladder to take the belt home.</p>
+    <p>Nine fighters, each with a passive, two abilities and an ultimate — pick one on the select screen to read them. Before the first bell both fighters walk out to the ring: press any key (or tap) to skip, or switch ENTRANCES off on the title screen. Win the arcade ladder to take the belt home.</p>
     <button class="btn primary" id="helpBack">GOT IT</button>
   </div>
 </div>
@@ -514,7 +514,7 @@ const FIGHTERS=[
  {id:'titan',name:'TITAN',nick:'THE MOUNTAIN',col:'#9be05a',
   look:{skin:0x5c3a26,shorts:0x3d5a2a,trim:0xd9c27b,glove:0x70757c,hair:'bald',beard:1,hairCol:0x1a1008,glow:0x9be05a},
   taunt:'beat',alts:[{},{shorts:0x7a1d1d,trim:0xffc83a,glove:0xc8a032},{shorts:0x1a1a1e,trim:0x9be05a,glove:0x2a2a30}],
-  size:1.12,hp:140,pow:1.13,spd:.88,pspd:.94,reach:1.06,stats:[5,1,5],
+  size:1.12,hp:140,pow:1.16,spd:.88,pspd:.94,reach:1.06,stats:[5,1,5],
   passive:{name:'Granite Chin',desc:'140 health, and jabs never stagger him.'},
   q:{name:'Iron Skin',cd:13,desc:'For 4 seconds take half damage and shrug off stagger.'},
   e:{name:'Ground Pound',cd:11,desc:'Slam the canvas: a shockwave hits anyone close and throws them back. Dodge it!'},
@@ -559,6 +559,14 @@ const FIGHTERS=[
   q:{name:'Bull Rush',cd:9,desc:'Charge up to 3.6m with a shoulder-first straight that breaks guards.'},
   e:{name:'Red Cape',cd:12,desc:'Flourish the cape: the next punch within 1.2s whiffs and you get a counter.'},
   r:{name:'Stampede',desc:'Three Bull Rushes back to back, each one aimed afresh.'}},
+ {id:'unit',name:'UNIT-7',nick:'THE MACHINE',col:'#ffd23a',
+  look:{skin:0xa9b3c2,shorts:0x1c2230,trim:0xffd23a,glove:0x2a3240,hair:'robot',hairCol:0x3a4250,glow:0xffd23a},
+  taunt:'beat',alts:[{},{skin:0xd6b36a,shorts:0x101010,trim:0xff3b3f,glove:0x101010,hairCol:0x2a2420,glow:0xff3b3f},{skin:0x4a505c,shorts:0xf2f2f2,trim:0x3fd4ff,glove:0xf2f2f2,hairCol:0x1a1e26,glow:0x3fd4ff}],
+  size:1.02,hp:105,pow:1.02,spd:.96,pspd:1,reach:1.02,stats:[4,3,4],
+  passive:{name:'Chrome Plating',desc:'Burn, poison and chill don\'t stick to metal.'},
+  q:{name:'Rocket Fist',cd:8,desc:'Fire a glove across the ring: 9 damage and a big knockback. Blockable.'},
+  e:{name:'Overclock',cd:13,desc:'For 4 seconds every punch comes out 30% faster.'},
+  r:{name:'Hyper Beam',desc:'Half a second of charge, then a laser straight down the line. Unblockable — sidestep it!'}},
 ];
 const FBY=Object.fromEntries(FIGHTERS.map(f=>[f.id,f]));
 const DIFF={
@@ -1021,7 +1029,7 @@ function buildStands(rows){
       for(let j=-4;j<=4;j++){if(Math.abs(i)<2&&Math.abs(j)<2)continue;const l=new THREE.Mesh(new THREE.CylinderGeometry(.09,.12,.16,8),lamp);l.position.set(j*4.4+((i+j)%2?.9:-.9),12.98,i*4.4);scene.add(l)}}
     for(const [x,z] of [[-3.4,0],[3.4,0],[0,-3.4],[0,3.4]]){const b=new THREE.Mesh(new THREE.BoxGeometry(.9,1.8,.9),spk);b.position.set(x,11.6,z);scene.add(b)}}
   ARENA.banners=[];let k=0;
-  for(const [nx,nz,yaw] of SIDE_DEFS)for(const off of [-5,5]){const f=FIGHTERS[k++%FIGHTERS.length];
+  for(const [nx,nz,yaw] of SIDE_DEFS)for(const off of [-7.5,0,7.5]){const f=FIGHTERS[k++%FIGHTERS.length];
     const tex=canvasTex(256,640,(x,w,h)=>drawBanner(x,w,h,f));ARENA.texs.push(tex);
     const mat=new THREE.MeshStandardMaterial({map:tex,emissive:0xffffff,emissiveMap:tex,emissiveIntensity:.4,roughness:.8,side:THREE.DoubleSide});
     const ban=new THREE.Mesh(new THREE.PlaneGeometry(2.1,5.25),mat),dd=D-1.2;
@@ -1574,6 +1582,8 @@ const STYLE={
     face:{iris:'#5fd4ff',eye:'almond',ew:20,eh:12,bt:5,bin:3,bout:-4,lid:5,lash:1,mark:'flake',lips:'#c87a92'}},
   kitsune:{body:'fem',hair:'fox',top:1,emblem:'fox',
     face:{iris:'#ff4fd8',eye:'almond',ew:21,eh:12,bt:5,bin:3,bout:-6,lid:5,lash:1,mark:'whisk',lips:'#e05a9a'}},
+  unit:{body:'std',hair:'robot',emblem:'gear',mask:1,maskCol:0x2a303c,metal:1,
+    face:{eye:'glow',ew:20,eh:8,bt:0,bin:0,bout:0,lid:0,glow:'#fff2b0',gsh:'#ffb000'}},
   toro:{body:'heavy',hair:'horns',emblem:'bull',ring:1,tat:{arm:-1,kind:'tribal'},
     face:{iris:'#6a1a10',eye:'small',ew:17,eh:10,bt:13,bin:9,bout:-4,lid:6,mark:'paint'}},
   viper:{body:'std',hair:'mohawk',emblem:'snake',tat:{arm:1,kind:'snake'},
@@ -1589,6 +1599,7 @@ function emblem(x,kind,col,s){x.save();x.scale(s,s);x.lineJoin='round';x.lineWid
   else if(kind==='mountain'){x.moveTo(-1,.75);x.lineTo(-.35,-.55);x.lineTo(-.1,-.15);x.lineTo(.25,-.85);x.lineTo(1,.75)}
   else if(kind==='ghost'){x.moveTo(-.7,.9);x.lineTo(-.7,-.2);x.bezierCurveTo(-.7,-1.05,.7,-1.05,.7,-.2);x.lineTo(.7,.9);x.lineTo(.45,.65);x.lineTo(.22,.9);x.lineTo(0,.65);x.lineTo(-.22,.9);x.lineTo(-.45,.65)}
   else if(kind==='flake'){for(let i=0;i<6;i++){const a=i*Math.PI/3;x.moveTo(0,0);x.lineTo(Math.cos(a),Math.sin(a))}x.lineWidth=.34;x.lineCap='round';x.stroke();x.strokeStyle=col;x.lineWidth=.16;x.stroke();x.restore();return}
+  else if(kind==='gear'){for(let i=0;i<8;i++){const a=i/8*6.283;x.lineTo(Math.cos(a-.18)*.95,Math.sin(a-.18)*.95);x.lineTo(Math.cos(a+.18)*.95,Math.sin(a+.18)*.95);x.lineTo(Math.cos(a+.32)*.7,Math.sin(a+.32)*.7);x.lineTo(Math.cos(a+.62)*.7,Math.sin(a+.62)*.7)}}
   else if(kind==='fox'){x.moveTo(0,.95);x.lineTo(-.72,.1);x.lineTo(-.85,-.95);x.lineTo(-.3,-.42);x.lineTo(.3,-.42);x.lineTo(.85,-.95);x.lineTo(.72,.1)}
   else if(kind==='bull'){x.moveTo(-.42,-.35);x.quadraticCurveTo(-1.05,-.4,-.98,-1);x.quadraticCurveTo(-.78,-.62,-.34,-.6);x.lineTo(.34,-.6);x.quadraticCurveTo(.78,-.62,.98,-1);x.quadraticCurveTo(1.05,-.4,.42,-.35);x.lineTo(.4,.5);x.quadraticCurveTo(0,1.05,-.4,.5)}
   else if(kind==='snake'){x.moveTo(-.9,.6);x.bezierCurveTo(-.5,1.1,0,.4,-.1,0);x.bezierCurveTo(-.2,-.4,.3,-.9,.7,-.55);x.bezierCurveTo(.95,-.35,.75,-.05,.5,-.15);x.bezierCurveTo(.25,-.3,.12,-.15,.18,.05);
@@ -1597,6 +1608,7 @@ function emblem(x,kind,col,s){x.save();x.scale(s,s);x.lineJoin='round';x.lineWid
   if(kind==='mountain'){x.fillStyle='#fff';x.beginPath();x.moveTo(-.35,-.55);x.lineTo(-.55,-.15);x.lineTo(-.35,-.25);x.lineTo(-.2,-.35);x.closePath();x.fill();x.beginPath();x.moveTo(.25,-.85);x.lineTo(.05,-.43);x.lineTo(.25,-.55);x.lineTo(.42,-.45);x.closePath();x.fill()}
   if(kind==='ghost'){x.fillStyle=K2;for(const s of [-1,1]){x.beginPath();x.ellipse(s*.25,-.25,.12,.18,0,0,6.3);x.fill()}}
   if(kind==='snake'){x.fillStyle=K2;x.beginPath();x.arc(.55,-.48,.07,0,6.3);x.fill()}
+  if(kind==='gear'){x.fillStyle=K2;x.beginPath();x.arc(0,0,.3,0,6.3);x.fill()}
   if(kind==='fox'||kind==='bull'){x.fillStyle=K2;for(const sd of [-1,1]){x.beginPath();x.ellipse(sd*.24,kind==='fox'?-.05:-.15,.09,.06,sd*.5,0,6.3);x.fill()}if(kind==='bull'){x.strokeStyle='#ffd23a';x.lineWidth=.1;x.beginPath();x.arc(0,.58,.18,0,6.3);x.stroke()}}
   x.restore()}
 // a stroked ink line through quadratic segments [x0,y0, cx,cy,x,y, …]
@@ -1709,7 +1721,7 @@ function drawEyes(x,st,F,sk,lidDark,browCol){
       x.strokeStyle='rgba(120,50,40,.6)';x.lineWidth=2;for(let k=0;k<4;k++){const t=.15+k*.22,px=lerp(cx-ew*.4,cx+ew*.25,t),py=lerp(BY-16,cy+eh*1.9,t);x.beginPath();x.moveTo(px-5,py-2);x.lineTo(px+5,py+2);x.stroke()}}
     if(F.mark==='whisk'&&st!==EYES.ko){x.strokeStyle='#c2307a';x.lineWidth=3;x.lineCap='round';for(let k=0;k<3;k++){x.beginPath();x.moveTo(cx+s*ew*.25,cy+eh*1.55+k*6);x.lineTo(cx+s*ew*1.15,cy+eh*1.2+k*9);x.stroke()}}
     if(F.mark==='bolt'&&s>0){x.save();x.translate(cx+s*ew*.75,cy+eh*1.8);emblem(x,'bolt','#3fd4ff',8);x.restore()}
-    if(glow){const g=F.glow;x.save();x.shadowColor='#b06bff';x.shadowBlur=14;x.fillStyle=g;x.strokeStyle=g;x.lineCap='round';x.lineWidth=5;
+    if(glow){const g=F.glow;x.save();x.shadowColor=F.gsh||'#b06bff';x.shadowBlur=14;x.fillStyle=g;x.strokeStyle=g;x.lineCap='round';x.lineWidth=5;
       if(st===EYES.open||st===EYES.angry||st===EYES.half){const t=st===EYES.angry?.55:st===EYES.half?.45:1;x.beginPath();x.moveTo(ix,cy+2);x.quadraticCurveTo(cx,cy-eh*1.2*t-(st===EYES.angry?s*0:0),ox,cy-eh*.4*(st===EYES.angry?2:1));x.quadraticCurveTo(cx,cy+eh*.7,ix,cy+2);x.fill();x.stroke()}
       else if(st===EYES.blink){x.beginPath();x.moveTo(ix,cy);x.quadraticCurveTo(cx,cy+5,ox,cy-2);x.stroke()}
       else if(st===EYES.hurt){x.beginPath();x.moveTo(ox,cy-eh);x.lineTo(cx-s*ew*.45,cy);x.lineTo(ox,cy+eh);x.stroke()}
@@ -1812,7 +1824,7 @@ class Boxer{
     Object.assign(this,{hp:f.hp,hpMax:f.hp,sta:100,meter:0,act:null,blocking:false,vx:0,vz:0,kx:0,kz:0,cd:{q:0,e:0},dodgeCd:0,
       combo:0,comboT:0,counterT:0,taken:0,takenT:0,dash:null,upAt:99,down:false,kd:0,ko:false,getup:0,buf:null,trail:f.hp,trailT:0,net:null,fxBits:0,
       tauntCd:0,hayLatch:false,blockT0:-9,blkRelT:-9,_wasBlk:false,parryOK:false,flashT:0,dbuf:null,abuf:null,
-      st:{burn:0,poison:0,pstk:0,slow:0,stun:0,freeze:0,sealed:0,charm:0,cape:0,phase:0,iron:0,colossus:0,firefist:0,icefist:0,shield:0,shieldT:0,drain:0,dtick:0},
+      st:{burn:0,poison:0,pstk:0,slow:0,stun:0,freeze:0,sealed:0,charm:0,overclock:0,cape:0,phase:0,iron:0,colossus:0,firefist:0,icefist:0,shield:0,shieldT:0,drain:0,dtick:0},
       stats:{thrown:0,landed:0,dmg:0,blocked:0,dodged:0,kd:0}});
   }
   build(f,alt=0){
@@ -1930,7 +1942,7 @@ class Boxer{
       const hm=tm({map:paintHood('hood'+key,hex(hairC),trimC),alphaTest:.5,side:THREE.DoubleSide},{shade:SHADE.dark,spec:.1});
       head.add(bare(mesh(geo('hood',()=>surface((u,v,o)=>{hf(u,v*.93,o);o.x*=1.2;o.z=o.z*1.22-.012;o.y=(o.y-H.cy)*1.16+H.cy+.012},36,24)),hm)));
       head.add(bare(mesh(geo('cape',()=>{const p=new THREE.Vector3();hf(.75,.62,p);return lockG(p.clone().add(V3(0,0,-.02)),p.clone().add(V3(0,-.2,-.16)),p.clone().add(V3(.02,-.5,-.22)),.09,{flat:.18,pw:.4,up:V3(1,0,0)})}),hm)));
-      head.add(bare(mesh(geo('mask',()=>surface((u,v,o)=>{hf(.25+(u-.5)*.62,lerp(.5,.97,v),o);const r=Math.hypot(o.x,o.z)||1;o.x+=o.x/r*.012;o.z+=o.z/r*.012},30,10,{closed:false})),tm({color:0x1e0e2c,side:THREE.DoubleSide},{shade:SHADE.dark,spec:.25,gloss:.9}))))}
+      head.add(bare(mesh(geo('mask',()=>surface((u,v,o)=>{hf(.25+(u-.5)*.62,lerp(.5,.97,v),o);const r=Math.hypot(o.x,o.z)||1;o.x+=o.x/r*.012;o.z+=o.z/r*.012},30,10,{closed:false})),tm({color:ST.maskCol||0x1e0e2c,side:THREE.DoubleSide},{shade:SHADE.dark,spec:ST.metal?.7:.25,gloss:.9}))))}
     if(hs==='pony'){
       head.add(mesh(geo('cap'+hk,()=>tintG(capG('capp',.27,.56).clone(),hc(.7),hc(.92))),mHair));
       head.add(mesh(geo('bangs'+hk,()=>{const p=new THREE.Vector3(),L2=[];for(const [u,s] of [[.25-.1,-1],[.25-.03,-1],[.25+.09,1]]){hf(u,.12,p);L2.push(tintG(lockG(p.clone(),p.clone().add(V3(s*.04,-.02,.06)),p.clone().add(V3(s*.09,-.14,.05)),.04,{flat:.5,pw:.8}),hc(.92),hc(.75),1))}return mergeG(L2)}),mHair));
@@ -1954,6 +1966,13 @@ class Boxer{
         L2.push(tintG(lockG(p.clone().addScaledVector(n,-.01),p.clone().addScaledVector(n,.07).add(V3(sd*.02,.02,0)),p.clone().addScaledVector(n,.12).add(V3(sd*.05,.08,-.03)),.06,{flat:.35,pw:.95,up:V3(0,0,1)}),hc(1),0xff8ad8,1.4))}return mergeG(L2)}),mHair));
       const ft=this.foxTails=g(0,-.04,-.16);pelvis.add(ft);
       ft.add(mesh(geo('foxtails'+hk,()=>{const L2=[];for(const [sd,h] of [[-1,.9],[0,1.05],[1,.9]]){L2.push(tintG(lockG(V3(sd*.03,0,0),V3(sd*.2,-.08,-.32),V3(sd*.36,.42*h,-.5),.105,{flat:.85,pw:.45,tip:.05}),hc(.92),0xffffff,2))}return mergeG(L2)}),mHair))}
+    if(hs==='robot'){head.add(bare(mesh(geo('grill',()=>surface((u,v,o)=>{hf(.25+(u-.5)*.6,lerp(.5,.95,v),o);const r=Math.hypot(o.x,o.z)||1;o.x+=o.x/r*.012;o.z+=o.z/r*.012},30,10,{closed:false})),
+        tm({map:paint('grill'+key,128,64,(x,w,h)=>{x.fillStyle=hex(ST.maskCol);x.fillRect(0,0,w,h);x.fillStyle='rgba(0,0,0,.55)';for(let i=0;i<7;i++)x.fillRect(w*.3,h*(.35+i*.08),w*.4,h*.035);x.fillStyle=hex(L.glow||0xffd23a);x.fillRect(0,0,w,h*.06)}),side:THREE.DoubleSide},{shade:SHADE.metal,spec:.7,gloss:.92}))))}
+    if(hs==='robot'){const mM=tm({color:new THREE.Color(hairC)},{shade:SHADE.metal,spec:.8,gloss:.94}),gM=tm({color:new THREE.Color(L.glow||0xffd23a),emissive:L.glow||0xffd23a,emissiveIntensity:.8},{shade:[.8,.8,.8]});gM.userData.glow=1;
+      head.add(mesh(geo('helm',()=>capG('caph',.24,.5,.01)),mM));
+      head.add(mesh(geo('ant',()=>{const p=new THREE.Vector3(),L2=[];for(const sd of [-1,1]){hf(sd>0?.12:.38,.12,p);L2.push(lockG(p.clone(),p.clone().add(V3(sd*.03,.12,-.02)),p.clone().add(V3(sd*.06,.2,-.05)),.012,{pw:.2,tip:.6,nu:6,nv:4}))}return mergeG(L2)}),mM));
+      for(const sd of [-1,1]){const p=new THREE.Vector3();hf(sd>0?.12:.38,.12,p);const tip=mesh(new THREE.SphereGeometry(.022,10,8),gM,p.x+sd*.06,p.y+.2,p.z-.05);tip.userData.noOutline=1;head.add(tip);
+        hf(sd>0?0:.5,.52,p);const bolt=mesh(new THREE.CylinderGeometry(.034,.034,.03,14),mM,p.x+sd*.006,p.y,p.z-.01);bolt.rotation.z=Math.PI/2;head.add(bolt)}}
     if(hs==='horns'){
       head.add(mesh(geo('cap'+hk,()=>tintG(capG('capt',.2,.46,.006).clone(),hc(.8),hc(1))),mHair));
       head.add(mesh(geo('knot'+hk,()=>{const p=new THREE.Vector3();hf(.75,.22,p);const k=blobG(.045,.04,.045);k.translate(p.x,p.y+.03,p.z-.02);return tintG(k,hc(1),hc(1))}),mHair));
@@ -2191,8 +2210,8 @@ class Boxer{
     this.rimU.uRimK.value=ref?.1:rage?.9+.45*Math.sin(this.anT*14):this.meter>=100?.55+.25*Math.sin(this.anT*6):.4;
     this.flashT=Math.max(0,this.flashT-dt);this.rimU.uFlash.value=this.flashT>0?Math.min(1,this.flashT/.035)*.62:0;
     const chg=this.act&&this.act.k==='charge'?clamp(this.act.c||0,0,1):0;
-    const gm=this.gloveMat;const ge=(b&FX.firefist)?0xff5a10:(b&FX.icefist)?0x5fdcff:(b&FX.drain)?0x3dff5a:(b&FX.colossus)?0x9be05a:chg>0?(this.look.glow||0xffc83a):0;
-    gm.emissive.setHex(ge);gm.emissiveIntensity=chg>0&&!(b&(FX.firefist|FX.icefist|FX.drain|FX.colossus))?.15+chg*.9+(chg>.97?Math.sin(this.anT*40)*.25:0):ge?.55+Math.sin(this.anT*12)*.2:0;
+    const gm=this.gloveMat;const ge=(b&FX.overclock)?0xffd23a:(b&FX.firefist)?0xff5a10:(b&FX.icefist)?0x5fdcff:(b&FX.drain)?0x3dff5a:(b&FX.colossus)?0x9be05a:chg>0?(this.look.glow||0xffc83a):0;
+    gm.emissive.setHex(ge);gm.emissiveIntensity=chg>0&&!(b&(FX.firefist|FX.icefist|FX.drain|FX.colossus|FX.overclock))?.15+chg*.9+(chg>.97?Math.sin(this.anT*40)*.25:0):ge?.55+Math.sin(this.anT*12)*.2:0;
     if(phase){this.allMats.forEach(m=>{if(m.emissive){m.emissive.setHex(0x7a3aff);m.emissiveIntensity=.6}})}
     else if(this._ph2){this.allMats.forEach(m=>{if(m.emissive&&m!==gm&&!m.userData.glow){m.emissive.setHex(0);m.emissiveIntensity=0}})}
     this._ph2=phase;
@@ -2222,7 +2241,7 @@ function foxTail(b,n){if(!b.f||!b.root.visible)return;const sd=n%2?1:-1,yaw=b.ya
   const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:n===8?0xffffff:0xff4fd8,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
   fxAdd(m,.28,(o,k)=>{o.material.opacity=1-k;o.scale.setScalar(1+k*.15)});if(PA)for(let i=0;i<10;i++){const p=pts[2];PA.emit(p.x,p.y,p.z,(Math.random()-.5)*2,(Math.random()-.5)*2,(Math.random()-.5)*2,.4,.08,1,.4,.9,1,0,1)}}
 function bez(out,a,c,b,t){const u=1-t;out.set(u*u*a.x+2*u*t*c.x+t*t*b.x,u*u*a.y+2*u*t*c.y+t*t*b.y,u*u*a.z+2*u*t*c.z+t*t*b.z);return out}
-const FX={burn:1,poison:2,slow:4,stun:8,freeze:16,sealed:32,phase:64,iron:128,colossus:256,firefist:512,icefist:1024,shield:2048,drain:4096,rage:8192,charm:16384,cape:32768};
+const FX={burn:1,poison:2,slow:4,stun:8,freeze:16,sealed:32,phase:64,iron:128,colossus:256,firefist:512,icefist:1024,shield:2048,drain:4096,rage:8192,charm:16384,cape:32768,overclock:65536};
 
 // ── the referee: a boxer rig in a white shirt that keeps out of the way ──
 const REF={b:null,x:0,z:2.4,yaw:0,count:-1,beat:0,mode:'idle'};
@@ -2275,7 +2294,7 @@ const fighting=()=>G.phase==='fight';
 function fxBitsOf(b){const s=b.st;let m=0;
   if(s.burn>0)m|=FX.burn;if(s.pstk>0&&s.poison>0)m|=FX.poison;if(s.slow>0)m|=FX.slow;if(s.stun>0)m|=FX.stun;if(s.freeze>0)m|=FX.freeze;if(s.sealed>0)m|=FX.sealed;
   if(s.phase>0)m|=FX.phase;if(s.iron>0)m|=FX.iron;if(s.colossus>0)m|=FX.colossus;if(s.firefist>0)m|=FX.firefist;if(s.icefist>0)m|=FX.icefist;if(s.shield>0)m|=FX.shield;if(s.drain>0)m|=FX.drain;
-  if(s.charm>0)m|=FX.charm;if(s.cape>0)m|=FX.cape;if(rage(b))m|=FX.rage;return m}
+  if(s.charm>0)m|=FX.charm;if(s.cape>0)m|=FX.cape;if(s.overclock>0)m|=FX.overclock;if(rage(b))m|=FX.rage;return m}
 const rage=b=>b.hp>0&&b.hp<b.hpMax*RAGE_AT&&!b.down;
 const locked=b=>b.down||b.st.stun>0||b.st.freeze>0||(b.act&&((b.act.k==='hurt'&&b.act.t<b.act.d*.8)||(b.act.k==='cast'&&b.act.lock)||b.act.k==='getup'||b.act.k==='down'||b.act.k==='ko'));
 function punchTimes(a){const p=PUNCH[a.p],sp=a.sp||1;return {w:p.w/sp,a:p.a/sp,r:p.r/sp}}
@@ -2284,7 +2303,7 @@ function inRecovery(a){if(!a)return true;if(a.k==='punch'){const T=punchTimes(a)
 // ════════════════════ OWNED-BOXER SIMULATION ════════════════════
 function logicBoxer(b,it,dt){
   const o=other(b),st=b.st,f=b.f;
-  for(const k of ['burn','slow','stun','freeze','sealed','phase','iron','colossus','drain','charm','cape'])if(st[k]>0)st[k]=Math.max(0,st[k]-dt);
+  for(const k of ['burn','slow','stun','freeze','sealed','phase','iron','colossus','drain','charm','cape','overclock'])if(st[k]>0)st[k]=Math.max(0,st[k]-dt);
   if(st.poison>0){st.poison-=dt;if(st.poison<=0)st.pstk=0}
   if(st.shieldT>0){st.shieldT-=dt;if(st.shieldT<=0){st.shield=0;st.shieldT=0}}
   // damage over time — burn and poison tick twice a second
@@ -2362,7 +2381,7 @@ function ropeVisuals(dt){
 
 // ════════════════════ ATTACKS ════════════════════
 function startPunch(b,kind,body,c=0){
-  const p=PUNCH[kind],hay=kind==='hay',sp=(b.f.pspd||b.f.spd)*(b.sta<20?(hay?.88:.78):1);
+  const p=PUNCH[kind],hay=kind==='hay',sp=(b.f.pspd||b.f.spd)*(b.sta<20?(hay?.88:.78):1)*(b.st.overclock>0&&!hay?1.3:1);
   if(hay){c=clamp(c,.15,1);body=false;if(b.idx===G.ME&&!G.attract&&!SMOKE&&owned(b)&&!G.bots[b.idx]){try{localStorage.setItem('haymaker.tip','1')}catch(e){}}}
   b.act={k:'punch',p:kind,t:0,sp,d:(p.w+p.a+p.r)/sp,id:nid(b),body,c};
   b.sta=Math.max(0,b.sta-p.st);b.stats.thrown++;b.blocking=false;
@@ -2446,6 +2465,7 @@ function applyResult(res){
     if(res.r==='break')v.st.stun=Math.max(v.st.stun,.45);
     if(res.shatter){v.st.freeze=0;netAb(v,'shatter')}
     for(const e of res.fx){
+      if(v.f.id==='unit'&&/burn|chill|poison/.test(e))continue;   // Chrome Plating
       if(e==='burn')v.st.burn=3;if(e==='chill')v.st.slow=Math.max(v.st.slow,1.5);
       if(e==='poison'||e==='poison3'){v.st.pstk=Math.min(8,v.st.pstk+(e==='poison3'?3:1));v.st.poison=4}
       if(e==='freeze'){v.st.freeze=Math.max(v.st.freeze,res.freezeT||.9);v.act=null}
@@ -2535,6 +2555,13 @@ const ABIL={
     r(b){b.act={k:'cast',anim:'cast',t:0,d:1.25,lock:1};
       for(let i=0;i<9;i++)launch({id:nid(b),a:b.idx,k:'melee',cue:'tails',dmg:(i===8?7:3)*b.f.pow,range:2.3,guard:.55,hs:i===8?.5:.12,kb:i===8?3.2:.1,meter:1,fx:[],delay:.15+i*.11});netAb(b,'r')},
   },
+  unit:{
+    q(b,o){const t=toward(b,o),sp=1.3;b.act={k:'punch',p:'cross',t:0,sp,d:(PUNCH.cross.w+PUNCH.cross.a+PUNCH.cross.r)/sp};
+      launch({id:nid(b),a:b.idx,k:'proj',cue:'rocket',x:b.x+t.x*.5,z:b.z+t.z*.5,y:1.35*(b.f.size||1),vx:t.x*11,vz:t.z*11,dmg:9*b.f.pow,guard:.7,hs:.35,kb:2.6,meter:5,fx:[],delay:9});netAb(b,'q')},
+    e(b){b.st.overclock=4;b.act={k:'cast',anim:'charge',t:0,d:.3};netAb(b,'e')},
+    r(b,o){b.yaw=Math.atan2(o.x-b.x,o.z-b.z);b.act={k:'cast',anim:'charge',t:0,d:.8,lock:1};
+      launch({id:nid(b),a:b.idx,k:'zone',shape:'cone',cue:'beam',x:b.x,z:b.z,yaw:b.yaw,ang:.15,r:5.6,delay:.55,dmg:20*b.f.pow,unblock:1,hs:.55,kb:2.4,meter:0,fx:[]})},
+  },
   toro:{
     q(b,o){bullRush(b,o,1)},
     e(b){b.st.cape=1.2;b.act={k:'cast',anim:'cast',t:0,d:.3};netAb(b,'e')},
@@ -2562,7 +2589,7 @@ function stepWorld(dt){
   if(due.length){G.pending=G.pending.filter(p=>!due.includes(p));due.sort((a,b)=>a.at-b.at);for(const p of due)resolve(p.spec)}
   for(let i=G.zones.length-1;i>=0;i--){const z=G.zones[i];z.t+=dt;if(z.upd)z.upd(z,dt);if(z.t>=z.d){zoneBoom(z);if(z.mesh){scene.remove(z.mesh);z.mesh.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose()})}G.zones.splice(i,1)}}
   const PR=G.projs;for(let i=PR.length-1;i>=0;i--){if(G.projs!==PR)break;const p=PR[i];if(!p)continue;p.t+=dt;p.x+=p.vx*dt;p.z+=p.vz*dt;
-    if(PA&&Math.random()<.9){const pc=p.spec.cue==='spit'?[.45,1,.2]:[1,.32,.85];PA.emit(p.x,p.y,p.z,(Math.random()-.5)*.3,(Math.random()-.5)*.3,(Math.random()-.5)*.3,.35,.14,pc[0],pc[1],pc[2],.9,0,2)}
+    if(PA&&Math.random()<.9){const pc=p.spec.cue==='spit'?[.45,1,.2]:p.spec.cue==='rocket'?[1,.6,.15]:[1,.32,.85];PA.emit(p.x,p.y,p.z,(Math.random()-.5)*.3,(Math.random()-.5)*.3,(Math.random()-.5)*.3,.35,.14,pc[0],pc[1],pc[2],.9,0,2)}
     if(p.mesh)p.mesh.position.set(p.x,p.y,p.z);
     const v=G.B[1-p.spec.a];const d=Math.hypot(v.x-p.x,v.z-p.z);let gone=p.t>1.2||Math.abs(p.x)>RING+1||Math.abs(p.z)>RING+1;
     if(d<.42*v.worldScale+.1){if(owned(v)&&!p.done){p.done=1;resolve(p.spec)}gone=true}
@@ -2637,7 +2664,7 @@ function setPhase(ph,x={}){
     for(const b of G.B){if(!owned(b))continue;
       if(G.rnd>1)b.hp=Math.min(b.hpMax,b.hp+(b.hpMax-b.hp)*.35);
       b.sta=100;b.act=null;b.combo=0;b.counterT=0;b.cd.q=b.cd.e=0;b.dash=null;b.kx=b.kz=0;
-      Object.assign(b.st,{burn:0,poison:0,pstk:0,slow:0,stun:0,freeze:0,sealed:0,charm:0,cape:0,phase:0,iron:0,colossus:0,firefist:0,icefist:0,shield:0,shieldT:0,drain:0});
+      Object.assign(b.st,{burn:0,poison:0,pstk:0,slow:0,stun:0,freeze:0,sealed:0,charm:0,overclock:0,cape:0,phase:0,iron:0,colossus:0,firefist:0,icefist:0,shield:0,shieldT:0,drain:0});
       b.x=b.home[0];b.z=b.home[1];b.yaw=Math.atan2(-b.x,-b.z)}
     hideOv('cardOv');if(!G.attract){announce('ROUND '+G.rnd,'gold',1.4);say(G.rnd===ROUNDS?'Final round!':'Round '+['','one','two','three','four','five'][G.rnd])}
   }
@@ -2723,6 +2750,9 @@ const ICONS={
   rush:()=>SVG(`<g>${AT('translate','-4 0;4 0;-4 0',.4)}<path d="M2 16h12M4 24h10M2 32h12" stroke="#ff3b3f" stroke-width="3.5"/>${GLOVE('#b3121c',4,4,.85)}</g>`),
   cape:()=>SVG(`<path d="M10 8h4v34h-4z" fill="#c9a24a" stroke="${K}" stroke-width="2"/><g>${AT('skewY','-6;6;-6',.9)}<path d="M14 9c10 2 20 0 28-3-2 12 0 26 2 36-10-4-20-4-30 0z" fill="#e01b24" stroke="${K}" stroke-width="2.6"/><path d="M14 22c10 1 20-1 28-4" stroke="#ffd23a" stroke-width="2" fill="none"/></g>`),
   stampede:()=>SVG(`<g>${AT('translate','0 2;0 -2;0 2',.35)}<path d="M8 22c-6-6-4-14 2-16-1 6 2 10 8 12M40 22c6-6 4-14-2-16 1 6-2 10-8 12" fill="#f4ead2" stroke="${K}" stroke-width="2.6"/><path d="M12 22c0-5 5-8 12-8s12 3 12 8v8c0 7-5 12-12 12s-12-5-12-12z" fill="#7a3a22" stroke="${K}" stroke-width="2.6"/><circle cx="24" cy="36" r="4" fill="none" stroke="#ffd23a" stroke-width="2.4"/><path d="M17 26l4 2M31 26l-4 2" stroke="${K}" stroke-width="3"/></g>`),
+  rocket:()=>SVG(`<g>${AT('translate','-6 0;6 0;-6 0',.5)}<path d="M2 20h10M0 27h12M4 34h8" stroke="#ffb02e" stroke-width="3.5"/>${GLOVE('#2a3240',6,4,.82)}</g>`),
+  overclock:()=>SVG(`<circle cx="24" cy="26" r="16" fill="#1c2230" stroke="${K}" stroke-width="2.6"/><circle cx="24" cy="26" r="16" fill="none" stroke="#ffd23a" stroke-width="3" stroke-dasharray="6 4"><animateTransform attributeName="transform" type="rotate" values="0 24 26;360 24 26" dur=".8s" repeatCount="indefinite"/></circle><path d="M24 26l7-8" stroke="#ffd23a" stroke-width="3.5"/><circle cx="24" cy="26" r="3" fill="#ffd23a"/>`),
+  beam:()=>SVG(`<circle cx="10" cy="24" r="7" fill="#ffd23a" stroke="${K}" stroke-width="2.4"/><g>${AO('1;.4;1',.3)}<path d="M14 21h32v6H14z" fill="#fff6c8" stroke="#ffd23a" stroke-width="2"/></g>`),
   // status chips
   burn:()=>SVG(FLAME(24,44,.95)), poison:()=>SVG(`<g>${AT('translate','0 -2;0 2;0 -2',.9)}${DROP('#7dff4a',24,26,1.15)}</g>`),
   slow:()=>SVG(FLAKE('#bff0ff',24,24,1,7)), stun:()=>SVG(STARS()), freeze:()=>SVG(`<rect x="8" y="8" width="32" height="32" rx="5" fill="#9fe6ff" stroke="${K}" stroke-width="2.6"/><path d="M14 14l8 3M14 22l5 1" stroke="#fff" stroke-width="3">${'<animate attributeName="stroke-opacity" values=".2;1;.2" dur="1.2s" repeatCount="indefinite"/>'}</path>`),
@@ -2738,7 +2768,7 @@ const ICONS={
 };
 const ABICON={blaze:{q:'firefist',e:'comet',r:'inferno'},volt:{q:'blink',e:'shock',r:'sandy'},titan:{q:'iron',e:'pound',r:'colossus'},
   shade:{q:'phase',e:'seal',r:'fists'},frost:{q:'icefist',e:'frostshield',r:'zero'},viper:{q:'spit',e:'coil',r:'kiss'},
-  kitsune:{q:'foxfire',e:'charm',r:'tails'},toro:{q:'rush',e:'cape',r:'stampede'}};
+  kitsune:{q:'foxfire',e:'charm',r:'tails'},toro:{q:'rush',e:'cape',r:'stampede'},unit:{q:'rocket',e:'overclock',r:'beam'}};
 const ICO=(k)=>(ICONS[k]||ICONS.random)();
 const abIcon=(f,k)=>ICO(ABICON[f.id][k]);
 
@@ -2781,7 +2811,7 @@ function makePortraits(){
 }
 
 // ════════════════════ COMBAT VISUALS ════════════════════
-const CUECOL={jab:0xfff1c8,cross:0xfff1c8,hook:0xffe0a0,upper:0xffe0a0,hay:0xffd27a,flamedash:0xff6a1f,inferno:0xff5a10,shock:0x5fdcff,bolt:0x9fe8ff,pound:0xd9c27b,seal:0xc26bff,flurry:0xc78bff,zero:0x9fe6ff,spit:0x7dff4a,coil:0x7dff4a,foxfire:0xff4fd8,charm:0xff7ad8,tails:0xff4fd8,rush:0xff3b3f};
+const CUECOL={jab:0xfff1c8,cross:0xfff1c8,hook:0xffe0a0,upper:0xffe0a0,hay:0xffd27a,flamedash:0xff6a1f,inferno:0xff5a10,shock:0x5fdcff,bolt:0x9fe8ff,pound:0xd9c27b,seal:0xc26bff,flurry:0xc78bff,zero:0x9fe6ff,spit:0x7dff4a,coil:0x7dff4a,foxfire:0xff4fd8,charm:0xff7ad8,tails:0xff4fd8,rush:0xff3b3f,rocket:0xffd23a,beam:0xffd23a};
 const _hp=new THREE.Vector3(),_hd=new THREE.Vector3();
 function hitVisual(res,a,v,rp){
   if(!v.f)return;const quiet=G.attract;
@@ -2884,7 +2914,7 @@ function attackVisual(spec){
     if(!G.attract){if(spec.cue==='inferno')SFX.fire(.5,P);if(spec.cue==='bolt'){SFX.zap(.6,P);SFX.rumble()}if(spec.cue==='zero')SFX.ice(.5,P);if(spec.cue==='pound')SFX.roar(P)}
     if(spec.a!==G.ME&&!G.attract&&spec.shape!=='ring')sub(spec.shape==='cone'?'GET OUT OF THE CONE!':'MOVE!',spec.delay);
   }else if(spec.k==='proj'){
-    const m=new THREE.Mesh(new THREE.SphereGeometry(spec.cue==='charm'?.1:.13,14,10),new THREE.MeshBasicMaterial({color:spec.cue==='spit'?0xb8ff7a:spec.cue==='charm'?0xffb8ec:0xff7ae0}));m.position.set(spec.x,spec.y,spec.z);scene.add(m);
+    const m=new THREE.Mesh(new THREE.SphereGeometry(spec.cue==='charm'?.1:.13,14,10),new THREE.MeshBasicMaterial({color:spec.cue==='spit'?0xb8ff7a:spec.cue==='charm'?0xffb8ec:spec.cue==='rocket'?0xffd23a:0xff7ae0}));m.position.set(spec.x,spec.y,spec.z);scene.add(m);
     const o=new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),outlineMat(1));m.add(o);
     G.projs.push({spec,x:spec.x,y:spec.y,z:spec.z,vx:spec.vx,vz:spec.vz,t:0,mesh:m});if(!G.attract)SFX.hiss(_hp.set(spec.x,spec.y,spec.z));
   }
@@ -2900,6 +2930,11 @@ function iceSpikes(s){
   after(1.6,()=>{mat.dispose();om.dispose()});return n}
 function zoneBoom(z){
   const s=z.spec,P=new THREE.Vector3(s.x,.1,s.z);const near=Math.hypot(G.B[G.ME].x-s.x,G.B[G.ME].z-s.z)<3;const q=G.attract;
+  if(s.cue==='beam'){const g=new THREE.CylinderGeometry(.16,.16,s.r,16,1,true);g.rotateX(Math.PI/2);g.translate(0,0,s.r/2);
+    for(const [w,c,o] of [[1,0xffd23a,.9],[.45,0xffffff,1]]){const m=new THREE.Mesh(g.clone(),new THREE.MeshBasicMaterial({color:c,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:o}));
+      m.position.set(s.x+Math.sin(s.yaw)*.4,1.35,s.z+Math.cos(s.yaw)*.4);m.rotation.y=s.yaw;m.scale.set(w,w,1);fxAdd(m,.45,(o2,k)=>{o2.material.opacity=o*(1-k);o2.scale.set(w*(1+k*2.2),w*(1+k*2.2),1)})}
+    g.dispose();for(let i=0;i<40;i++){const d=Math.random()*s.r;PA&&PA.emit(s.x+Math.sin(s.yaw)*d,1.35,s.z+Math.cos(s.yaw)*d,(Math.random()-.5)*3,Math.random()*3,(Math.random()-.5)*3,.6,.08,1,.85,.3,1,4,1)}
+    if(!q){SFX.zap(1,P);SFX.boom(P);shake(near?.5:.25);impactFrame(0xffd23a);comic('zap',P.setY(2),1.3,true)}return}
   if(s.cue==='inferno'){
     const fm=infernoMat();
     const m=new THREE.Mesh(new THREE.CylinderGeometry(s.r*.55,s.r*1.05,6,32,1,true),fm);
@@ -2980,6 +3015,7 @@ function abilityVisual(i,k,x){
     if(k==='e'){burst(b.headW,16,0xffb8ec,1.6,.5,.07,{});if(!q)SFX.whoosh(.5,P,'dodge')}
     if(k==='r'){if(!q)SFX.whoosh(1,P,'dodge');for(let n=0;n<9;n++)after(.15+n*.11,()=>foxTail(b,n))}
     if(k==='taunt'){}}
+  if(id==='unit'){if(k==='q'){burst(b.gW[1],24,0xffd23a,3,.4,.08,{});if(!q)SFX.whoosh(1,P,'cross')}if(k==='e'){b.gW.forEach(g=>burst(g,18,0xffd23a,2,.4,.07,{}));if(!q)SFX.zap(.5,P)}if(k==='r'&&!q)SFX.zap(.8,P)}
   if(id==='toro'){if(k==='rush'){b.trail={c:0xff3b3f,t:.45};b.ghostT=.45;b.ghostC=0xff3b3f;burst(_hp.set(b.x,.1,b.z),26,0xc9a27a,2.6,.6,.1,{up:1});if(!q)SFX.roar(P)}
     if(k==='e'){b.capeT=1.2;if(!q)SFX.whoosh(.6,P,'dodge')}
     if(k==='olé'){b.capeT=Math.min(b.capeT||0,.35);burst(b.gW[0],30,0xff3b3f,3,.5,.08,{});if(!q){comic('olé',b.headW,1.1,true);SFX.ooh(1)}}}
@@ -3107,7 +3143,7 @@ const SFX={
   splat(p){if(!sOK())return;const pan=panOf(p);noise({dur:.12,vol:.3,lp:900,pan});tone({type:'sine',f:300,f2:80,dur:.1,vol:.25,pan})},
   heal(p){if(!sOK())return;const pan=panOf(p);[72,76,79,84].forEach((m,i)=>tone({at:i*.06,type:'sine',f:440*Math.pow(2,(m-69)/12),dur:.4,vol:.06,pan,rev:.5}))},
   pyro(d=1.5){if(!sOK())return;for(let i=0;i<Math.round(16*d);i++)noise({at:rr(0,d),dur:.01,vol:rr(.03,.07),hp:rr(2500,6000),pan:rr(-.8,.8)});tone({type:'sine',f:90,f2:45,dur:.4,vol:.3,rev:.4})},
-  taunt(id,p){if(!sOK())return;({blaze:()=>SFX.fire(.8,p),volt:()=>SFX.zap(.7,p),titan:()=>SFX.roar(p),shade:()=>SFX.shadow(p),frost:()=>SFX.ice(.7,p),viper:()=>SFX.hiss(p),kitsune:()=>SFX.fire(.45,p),toro:()=>SFX.roar(p)}[id]||(()=>{}))()},
+  taunt(id,p){if(!sOK())return;({blaze:()=>SFX.fire(.8,p),volt:()=>SFX.zap(.7,p),titan:()=>SFX.roar(p),shade:()=>SFX.shadow(p),frost:()=>SFX.ice(.7,p),viper:()=>SFX.hiss(p),kitsune:()=>SFX.fire(.45,p),toro:()=>SFX.roar(p),unit:()=>SFX.clang(p)}[id]||(()=>{}))()},
   rage(){if(!sOK())return;tone({type:'sine',f:60,f2:40,dur:.5,vol:.55,rev:.3});SFX.roar()},
   heart(){if(!sOK())return;tone({type:'sine',f:62,f2:40,dur:.14,vol:.27});tone({at:.19,type:'sine',f:56,f2:38,dur:.12,vol:.19})},
   clapper(){if(!sOK())return;for(let k=0;k<3;k++){noise({at:k*.16,dur:.035,vol:.4,bp:2300,q:3,rev:.3});tone({at:k*.16,type:'triangle',f:1300,f2:800,dur:.03,vol:.1})}},
@@ -3228,6 +3264,7 @@ const AIAB={
   frost:(b,o,d)=>b.meter>=100&&d<3?'r':b.cd.q<=0&&d<1.9?'q':b.cd.e<=0&&d<2.2&&b.hp<b.hpMax*.85?'e':null,
   viper:(b,o,d)=>b.meter>=100&&d<2.2?'r':b.cd.q<=0&&d>1.7&&d<5?'q':b.cd.e<=0&&d>1.7&&d<3.7?'e':null,
   kitsune:(b,o,d)=>b.meter>=100&&d<2.1?'r':b.cd.e<=0&&d>1.5&&d<4.5&&!o.st.charm?'e':b.cd.q<=0&&d>1.6&&d<5?'q':null,
+  unit:(b,o,d)=>b.meter>=100&&d<4.5&&!o.act?'r':b.cd.q<=0&&d>2&&d<5.5?'q':b.cd.e<=0&&d<2?'e':null,
   toro:(b,o,d)=>b.meter>=100&&d>1.5&&d<4.2?'r':b.cd.q<=0&&d>1.7&&d<3.8?'q':b.cd.e<=0&&o.act&&o.act.k==='punch'&&d<1.9?'e':null,
 };
 
@@ -3422,7 +3459,7 @@ function showHUD(on){
   for(const k in HUDC)delete HUDC[k];
 }
 const setC=(key,el,prop,val)=>{if(HUDC[key]!==val){HUDC[key]=val;if(prop==='text')el.textContent=val;else if(prop==='html')el.innerHTML=val;else if(prop.startsWith('--'))el.style.setProperty(prop,val);else el.style[prop]=val}};
-const STATUS_ICONS=[['charm','charm'],['cape','cape'],['rage','rage'],['burn','burn'],['poison','poison'],['slow','slow'],['stun','stun'],['freeze','freeze'],['sealed','sealed'],['phase','ghost'],['iron','iron'],['colossus','grow'],['firefist','firefist'],['icefist','icefist'],['shield','shield'],['drain','heart']];
+const STATUS_ICONS=[['overclock','overclock'],['charm','charm'],['cape','cape'],['rage','rage'],['burn','burn'],['poison','poison'],['slow','slow'],['stun','stun'],['freeze','freeze'],['sealed','sealed'],['phase','ghost'],['iron','iron'],['colossus','grow'],['firefist','firefist'],['icefist','icefist'],['shield','shield'],['drain','heart']];
 function updateHUD(dt){
   if($('hud').classList.contains('hide'))return;
   G.B.forEach((b,i)=>{const el=$('hb'+i);
@@ -3923,7 +3960,7 @@ function runSmoke(){
   const near=(a,b,e=.01)=>Math.abs(a-b)<=e;
   const abil=(f0,f1,key,d=1)=>{solo(f0,f1);place(d);G.B[0].meter=100;return castAbility(G.B[0],key)};
   try{
-    ok(FIGHTERS.length===8,'eight fighters');
+    ok(FIGHTERS.length===9,'nine fighters');
     for(const f of FIGHTERS){ok(ABIL[f.id]&&ABIL[f.id].q&&ABIL[f.id].e&&ABIL[f.id].r,f.id+' has three abilities');ok(!!AIAB[f.id],f.id+' has CPU ability rules');ok(f.q.cd>0&&f.e.cd>0,f.id+' has cooldowns')}
     // ── rig ──
     for(const f of FIGHTERS){const b=G.B[0];b.build(f);b.reset();b.x=0;b.z=0;b.yaw=0;b.act=null;b.override=null;for(let i=0;i<40;i++)b.animate(1/60,null);
@@ -3994,6 +4031,10 @@ function runSmoke(){
     abil('kitsune','frost','r',1.2);sim(1.6);ok(G.B[1].hp<80,'Nine Tails lashes ('+G.B[1].hp.toFixed(1)+')');
     abil('toro','frost','q',3);G.forced[1]={...EMPTY,block:true};sim(.5);ok(G.B[1].hp<100&&G.B[1].st.stun>0,'Bull Rush breaks a raised guard');G.forced[1]=EMPTY;
     abil('toro','frost','e',1);startPunch(G.B[1],'jab');sim(.45);ok(G.B[0].hp===G.B[0].hpMax&&G.B[0].counterT>0,'Red Cape: the jab whiffs and sets up a counter');
+    abil('unit','frost','q',3);sim(.6);ok(G.B[1].hp<100,'Rocket Fist flies across the ring ('+G.B[1].hp.toFixed(1)+')');
+    abil('unit','frost','e');startPunch(G.B[0],'jab');ok(near(G.B[0].act.sp,(FBY.unit.pspd||1)*1.3,.01),'Overclock speeds punches up 30%');
+    abil('unit','frost','r',2.5);G.forced[1]={...EMPTY,block:true};sim(.9);ok(G.B[1].hp<100-12,'Hyper Beam burns through a guard ('+G.B[1].hp.toFixed(1)+')');G.forced[1]=EMPTY;
+    abil('blaze','unit','q',1);G.B[0].st.firefist=3;startPunch(G.B[0],'jab');sim(.4);ok(G.B[1].hp<FBY.unit.hp&&G.B[1].st.burn===0,'Chrome Plating: fire doesn\'t stick to UNIT-7');
     abil('toro','frost','r',3);sim(2.4);ok(G.B[1].hp<85,'Stampede charges again and again ('+G.B[1].hp.toFixed(1)+')');
     // ── the haymaker ──
     solo('titan','frost');place(1.1);{const A=G.B[0],V=G.B[1];G.forced[0]={...EMPTY,hay:true};sim(.5);
