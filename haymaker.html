@@ -773,7 +773,7 @@ function buildArena(){
   const ledM=new THREE.MeshStandardMaterial({color:0x000000,emissive:0xffffff,emissiveMap:led,emissiveIntensity:1.25,roughness:.4});
   for(const [nx,nz,yaw] of SIDE_DEFS){const b=new THREE.Mesh(new THREE.BoxGeometry(13,.75,.12),[0,0,0,0,ledM,ledM].map(m=>m||new THREE.MeshStandardMaterial({color:0x101014})));
     b.position.set(nx*6.6,-.75,nz*6.6);b.rotation.y=yaw+Math.PI;scene.add(b)}
-  buildCrowd();buildRig();buildJumbo();buildBeams();buildRingside();buildCorners();
+  buildCrowd();buildRig();buildJumbo();buildBeams();buildRingside();buildCorners();ARENA.merged=mergeStatic();
   // lights
   scene.add(new THREE.HemisphereLight(0x6f7cff,0x140806,.42));
   const amb=new THREE.AmbientLight(0x221a2a,.4);scene.add(amb);
@@ -865,10 +865,10 @@ function crowdMats(){
 // one fan, merged into a single geometry; colour.r tags the part, colour.g runs down the arm (sleeve vs skin)
 function fanGeo(legs){
   const tag=(g,part)=>{const n=g.attributes.position.count,uv=g.attributes.uv.array,c=new Float32Array(n*3);for(let i=0;i<n;i++){c[i*3]=part/8;c[i*3+1]=part>2?1-uv[i*2+1]:0;c[i*3+2]=0}g.setAttribute('color',new THREE.BufferAttribute(c,3));return g};
-  const torso=blobG(.2,.27,.135,.75,.85,{nu:12,nv:9,bumps:[{u:.25,v:.32,su:.2,sv:.15,a:.05}]});torso.translate(0,.5,0);
-  const head=blobG(.105,.124,.112,1,1,{nu:10,nv:8});head.translate(0,.96,.005);
-  const hair=blobG(.114,.085,.12,.9,1,{nu:10,nv:6});hair.translate(0,1.0,-.012);
-  const arm=sd=>{const g=limbG(.52,[[0,.062,.062],[.35,.05,.052],[.8,.042,.044],[1,.05,.05]],{capT:.04,capB:.05,nu:7,nv:6});g.translate(sd*.205,.76,0);return g};
+  const torso=blobG(.2,.27,.135,.75,.85,{nu:10,nv:7,bumps:[{u:.25,v:.32,su:.2,sv:.15,a:.05}]});torso.translate(0,.5,0);
+  const head=blobG(.105,.124,.112,1,1,{nu:8,nv:6});head.translate(0,.96,.005);
+  const hair=blobG(.114,.085,.12,.9,1,{nu:8,nv:5});hair.translate(0,1.0,-.012);
+  const arm=sd=>{const g=limbG(.52,[[0,.062,.062],[.35,.05,.052],[.8,.042,.044],[1,.05,.05]],{capT:.04,capB:.05,nu:6,nv:5});g.translate(sd*.205,.76,0);return g};
   const parts=[tag(torso,0),tag(head,1),tag(hair,2),tag(arm(-1),3),tag(arm(1),4)];
   if(legs)for(const sd of [-1,1]){
     if(legs==='stand'){const l=limbG(.84,[[0,.08,.08],[.5,.062,.064],[1,.05,.052]],{capT:.05,capB:.03,nu:8,nv:6});l.translate(sd*.09,.26,0);parts.push(tag(l,5));
@@ -885,6 +885,18 @@ function signTex(){return canvasTex(1024,512,(x,w,h)=>{
     x.fillStyle='#d9c39a';x.fillRect(14,40,228,176);x.fillStyle=bg;x.fillRect(22,48,212,160);
     x.fillStyle=fg;x.textAlign='center';x.textBaseline='middle';const ls=t.split('\n');x.font=`${ls.length>1?48:t.length>6?44:76}px ${FONT}`;
     ls.forEach((l,j)=>x.fillText(l,128,128+(j-(ls.length-1)/2)*52));x.restore()})})}
+// Hundreds of static arena props (risers, step lights, tables, steps…) would each be a draw call every frame.
+// Anything static with a plain material gets baked into one merged mesh per material.
+function mergeStatic(){
+  const plain=THREE.Material.prototype.onBeforeCompile,skip=new Set((ARENA.banners||[]).map(b=>b.m)),by=new Map();
+  for(const o of scene.children){if(!o.isMesh||o.isInstancedMesh||Array.isArray(o.material)||o.material.isShaderMaterial||o.material.onBeforeCompile!==plain||skip.has(o)||o.children.length||!o.geometry.index||!o.geometry.attributes.uv)continue;
+    const k=o.material.uuid+(o.castShadow?'c':'')+(o.receiveShadow?'r':'');if(!by.has(k))by.set(k,[]);by.get(k).push(o)}
+  let saved=0;
+  for(const list of by.values()){if(list.length<2)continue;
+    const geos=list.map(o=>{o.updateMatrixWorld(true);const g=o.geometry.clone().applyMatrix4(o.matrixWorld);for(const a of Object.keys(g.attributes))if(!['position','normal','uv'].includes(a))g.deleteAttribute(a);return g});
+    const m=new THREE.Mesh(mergeG(geos),list[0].material);m.castShadow=list[0].castShadow;m.receiveShadow=list[0].receiveShadow;scene.add(m);
+    for(const o of list){scene.remove(o);o.geometry.dispose()}saved+=list.length-1}
+  return saved}
 function buildCrowd(){
   const U=ARENA.crowdU;Object.assign(U,{uWave:{value:0},uCh0:{value:0},uCh1:{value:0},uTeam0:{value:new THREE.Color(0xff6a1f)},uTeam1:{value:new THREE.Color(0x3fd4ff)},
     uSweep:{value:new THREE.Vector4(0,0,0,.6)},uSweepC:{value:[new THREE.Color(0xff3bd0),new THREE.Color(0x3fd4ff),new THREE.Color(0xffc83a)]}});
