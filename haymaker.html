@@ -78,6 +78,9 @@ body.touch #train{top:auto;bottom:8px;right:auto;left:50%;transform:translateX(-
 #vs .side .vport{position:absolute;top:6vh;left:8%;filter:drop-shadow(10px 10px 0 rgba(0,0,0,.6));-webkit-mask-image:linear-gradient(#000 62%,transparent 98%);mask-image:linear-gradient(#000 62%,transparent 98%)}
 #vs .r .vport{left:auto;right:8%}
 #vs .nm{position:relative;font:400 clamp(48px,9.5vw,132px) Anton;line-height:.88;color:#fff;-webkit-text-stroke:3px #000;paint-order:stroke fill;text-shadow:7px 7px 0 #000;letter-spacing:.02em}
+#vs .qt{position:relative;font:italic 700 clamp(12px,1.5vw,18px) Rubik;color:#fff;opacity:0;margin-top:10px;max-width:34vw;text-shadow:0 2px 0 #000;animation:qIn .4s .5s both}
+#vs .r .qt{margin-left:auto}
+@keyframes qIn{from{opacity:0;transform:translateY(8px)}to{opacity:.95;transform:none}}
 #vs .nk{position:relative;font:900 clamp(11px,1.3vw,16px) Rubik;letter-spacing:.42em;color:#fff;text-shadow:0 2px 0 #000;margin-top:8px;opacity:.85}
 #vs .tag{position:relative;font:900 11px Rubik;letter-spacing:.3em;color:#000;background:#fff;padding:3px 8px;align-self:flex-start;margin-bottom:10px;transform:skewX(-10deg)}
 #vs .r .tag{align-self:flex-end}
@@ -3434,7 +3437,16 @@ function cutin(b){if(G.attract||SMOKE)return;const el=$('cutin'),f=b.f,right=b.i
   clearTimeout(cutin.t);cutin.t=setTimeout(()=>el.classList.remove('on'),1050);
   if(!G.online){CAM.freeze=.6}PFX.dimT=.55;SFX.slide()}
 // fighter VS splash over the ring-walk camera
-function vsShow(){if(G.attract||SMOKE)return;const el=$('vs'),[A,B]=G.B,side=(b,i)=>`<div class="vport">${portrait(b.f.id,Math.min(300,innerHeight*.42)|0,i===1)}</div><div class="tag">${i===G.ME?'YOU':G.online?'RIVAL':'CPU'} · ${i?'BLUE':'RED'} CORNER</div><div class="nm">${(b.name||b.f.name).replace(/[<>&]/g,'')}</div><div class="nk">“${b.f.nick}”</div>`;
+const QUOTES={blaze:['Hope you brought a fire extinguisher.','I\'m already warmed up.','Things are about to get heated.'],
+  volt:['Blink and you\'ll miss it.','Ten thousand volts with your name on them.','Too slow.'],
+  titan:['Mountains don\'t move.','Hit me. I dare you.','Gravity\'s on my side.'],
+  shade:['You never see the one that gets you.','…','I\'m already behind you.'],
+  frost:['Chill. This won\'t take long.','Cold hands. Colder heart.','Let it go? Never.'],
+  viper:['One bite is all it takes.','Sssseems you\'re nervous.','I can taste your fear.'],
+  kitsune:['Catch me if you can~','Which one of me is real?','Nine tails. Zero mercy.'],
+  toro:['Olé.','I see red.','You\'ll get the horns.'],
+  unit:['TARGET ACQUIRED.','14,000,605 SIMULATIONS. YOU LOSE IN ALL OF THEM.','RESISTANCE IS INEFFICIENT.']};
+function vsShow(){if(G.attract||SMOKE)return;const el=$('vs'),[A,B]=G.B,side=(b,i)=>`<div class="vport">${portrait(b.f.id,Math.min(300,innerHeight*.42)|0,i===1)}</div><div class="tag">${i===G.ME?'YOU':G.online?'RIVAL':'CPU'} · ${i?'BLUE':'RED'} CORNER</div><div class="nm">${(b.name||b.f.name).replace(/[<>&]/g,'')}</div><div class="nk">“${b.f.nick}”</div><div class="qt">${pick(QUOTES[b.f.id]||['…'])}</div>`;
   const l=el.querySelector('.l'),r=el.querySelector('.r');l.style.setProperty('--c',A.f.col);r.style.setProperty('--c',B.f.col);l.innerHTML=side(A,0);r.innerHTML=side(B,1);
   el.className='';void el.offsetWidth;el.classList.add('on');SFX.slide();clearTimeout(vsShow.t);clearTimeout(vsShow.t2);vsShow.t2=setTimeout(()=>SFX.vs(),300);
   vsShow.t=setTimeout(vsHide,2300)}
@@ -3515,7 +3527,7 @@ function renderSelect(){
   const on=SEL.mode==='online';
   $('selTitle').textContent=on?'ROOM '+NET.code:SEL.mode==='ladder'?'ARCADE LADDER':'CHOOSE YOUR FIGHTER';
   $('grid').innerHTML=FIGHTERS.map(f=>{const opp=(SEL.mode==='quick'&&SEL.opp===f.id)||(on&&NET.peerPick===f.id);
-    return `<button class="card ${SEL.f===f.id?'sel':''} ${opp?'opp'+(on?' netopp':''):''}" style="--c:${f.col}" data-f="${f.id}"><div class="em">${portrait(f.id,64)}</div><div class="cn">${f.name}</div>${SEL.mode==='ladder'&&REC.champ[f.id]?'<div style="position:absolute;top:3px;left:4px;width:22px;height:22px">'+ICO('trophy')+'</div>':''}</button>`}).join('');
+    return `<button class="card ${SEL.f===f.id?'sel':''} ${opp?'opp'+(on?' netopp':''):''}" style="--c:${f.col}" data-f="${f.id}"><div class="em">${portrait(f.id,64)}</div><div class="cn">${f.name}</div>${REC.champ[f.id]?'<div title="Arcade ladder champion" style="position:absolute;top:3px;left:4px;width:22px;height:22px">'+ICO('trophy')+'</div>':''}</button>`}).join('');
   $('finfo').innerHTML=fighterInfo(FBY[SEL.f]);
   {const f=FBY[SEL.f],hx=c=>'#'+new THREE.Color(c).getHexString();$('altSeg').innerHTML=[0,1,2].map(a=>{const L=Object.assign({},f.look,f.alts[a]);return `<button data-a="${a}" class="${SEL.alt===a?'on':''}" style="--a:${hx(L.shorts)};--b:${hx(L.glove)}" title="Colour ${a+1}"></button>`}).join('')}
   $('oppBox').classList.toggle('hide',SEL.mode!=='quick');
