@@ -1020,7 +1020,7 @@ function buildCrowd(){
 }
 // the corners' colours change per match: fans in team shirts follow their fighter
 function crowdTeams(c0,c1){const U=ARENA.crowdU;if(!U.uTeam0||!ARENA.fans)return;ARENA.B0=c0;ARENA.B1=c1;U.uTeam0.value.set(c0);U.uTeam1.value.set(c1);
-  if(ARENA.roof&&ARENA.roof.fans){const ra=ARENA.roof.fans.geometry.attributes.aShirt;for(const [i,t] of ARENA.roof.teamShirts){const c=t?U.uTeam1.value:U.uTeam0.value;ra.array[i*3]=c.r*.85;ra.array[i*3+1]=c.g*.85;ra.array[i*3+2]=c.b*.85}ra.needsUpdate=true}
+  for(const V of [ARENA.roof,ARENA.pit])if(V&&V.fans){const ra=V.fans.geometry.attributes.aShirt;for(const [i,t] of V.teamShirts){const c=t?U.uTeam1.value:U.uTeam0.value;ra.array[i*3]=c.r*.85;ra.array[i*3+1]=c.g*.85;ra.array[i*3+2]=c.b*.85}ra.needsUpdate=true}
   const a=ARENA.fans.geometry.attributes.aShirt;for(const [i,t] of ARENA.teamShirts||[]){const c=t?U.uTeam1.value:U.uTeam0.value;a.array[i*3]=c.r*.85;a.array[i*3+1]=c.g*.85;a.array[i*3+2]=c.b*.85}a.needsUpdate=true}
 // tiered risers with lit step edges, aisle stairs, a back wall and the fighters' banners hanging from the rafters
 function buildStands(rows){
@@ -1072,7 +1072,8 @@ function drawBanner(x,w,h,f){
   x.fillStyle='rgba(255,255,255,.7)';x.font=`${w*.07}px ${FONT}`;x.fillText('GLITCHBOX CHAMPIONS',w/2,h*.9)}
 // called every frame: wave scheduling, cheers decaying, the moving-head beams sweeping
 function crowdTick(rdt){const U=ARENA.crowdU;if(!U.uWave)return;
-  const hi=SET.q==='high',roof=ARENA.venue==='roof';ARENA.fans.count=hi?ARENA.fanN:Math.floor(ARENA.fanN*.55);ARENA.fanLine.visible=hi&&!roof;
+  const hi=SET.q==='high',roof=ARENA.venue==='roof';ARENA.fans.count=hi?ARENA.fanN:Math.floor(ARENA.fanN*.55);ARENA.fanLine.visible=hi&&ARENA.venue==='arena';
+  if(ARENA.pit)ARENA.pit.fanLine.visible=hi&&ARENA.venue==='pit';
   if(ARENA.roof){ARENA.roof.fanLine.visible=hi&&roof;if(roof&&ARENA.roof.search){const t2=U.uT.value;ARENA.roof.search.rotation.set(Math.sin(t2*.23)*.5,0,.35+Math.sin(t2*.17)*.3)}}
   ARENA.cheer[0]=Math.max(0,ARENA.cheer[0]-rdt*.8);ARENA.cheer[1]=Math.max(0,ARENA.cheer[1]-rdt*.8);
   U.uCh0.value=lerp(U.uCh0.value,ARENA.cheer[0],damp(6,rdt));U.uCh1.value=lerp(U.uCh1.value,ARENA.cheer[1],damp(6,rdt));
@@ -1253,14 +1254,78 @@ function rainTick(dt){const R=ARENA.rain;if(!R||!R.on)return;R.next-=dt;
   R.flash=Math.max(0,R.flash-dt*2.6);R.m.uniforms.uFl.value=R.flash;if(ARENA.hemi)ARENA.hemi.intensity=.5+R.flash*2.2;
   if(PA&&!G.attract&&Math.random()<dt*40){const x=(Math.random()-.5)*7,z=(Math.random()-.5)*7;PA.emit(x,.03,z,(Math.random()-.5)*.6,.6+Math.random()*.6,(Math.random()-.5)*.6,.25,.025,.7,.8,1,.6,6,1)}}
 function setRain(on){const R=buildRain();R.on=on;R.L.visible=on;if(!on&&ARENA.hemi&&ARENA.venue==='roof')ARENA.hemi.intensity=.62}
-function setVenue(v){v=v==='roof'?'roof':'arena';if(ARENA.venue===v)return;ARENA.venue=v;
-  const roof=v==='roof';for(const o of ARENA.dress||[])o.visible=!roof;
-  if(roof)buildRoof();if(ARENA.roof)ARENA.roof.g.visible=roof;if(!roof&&ARENA.rain)setRain(false);
-  ARENA.tunnel=roof?ARENA.roof.door:ARENA.tunnel0;
-  scene.background=null;if(ARENA.hemi)ARENA.hemi.intensity=roof?.62:.42;
+// THE PIT: an underground fight club in a warehouse — brick and graffiti, a chain-link pen, fire barrels, swinging bulbs
+function buildPit(){if(ARENA.pit)return ARENA.pit;
+  const g=new THREE.Group();g.visible=false;scene.add(g);const P={g,door:new THREE.Vector3(-11.2,-1.15,0),bulbs:[],fires:[]};ARENA.pit=P;
+  const W=12,H=9;
+  // brick walls with spray paint
+  const wt=canvasTex(1024,512,(x,w,h)=>{x.fillStyle='#2a1a16';x.fillRect(0,0,w,h);
+    for(let r=0;r<32;r++)for(let c=0;c<20;c++){const bx=c*52+(r%2?26:0),by=r*16;x.fillStyle=`hsl(${8+Math.random()*10},${35+Math.random()*15}%,${16+Math.random()*9}%)`;x.fillRect(bx+1,by+1,50,14)}
+    x.fillStyle='rgba(0,0,0,.35)';x.fillRect(0,h*.78,w,h*.22);
+    const tags=[['HAYMAKER','#ff3bd0'],['NO RULES','#3fd4ff'],['GLITCH','#ffd23a'],['KO','#7dff4a'],['PIT','#ff6a1f']];
+    tags.forEach(([t,c],i)=>{x.save();x.translate(90+i*200+Math.random()*30,h*(.35+Math.random()*.25));x.rotate((Math.random()-.5)*.25);x.font=`${70+Math.random()*30}px ${FONT}`;
+      x.lineWidth=10;x.strokeStyle='#0b0b0b';x.strokeText(t,0,0);x.fillStyle=c;x.fillText(t,0,0);x.restore()})});
+  wt.wrapS=THREE.RepeatWrapping;wt.repeat.x=2;ARENA.texs.push(wt);
+  const wm=new THREE.MeshStandardMaterial({map:wt,roughness:.95});
+  for(const [nx,nz,yaw] of SIDE_DEFS){const m=new THREE.Mesh(new THREE.PlaneGeometry(2*W,H),wm);m.position.set(nx*W,-1.15+H/2,nz*W);m.rotation.y=yaw+Math.PI;g.add(m)}
+  const ceil=new THREE.Mesh(new THREE.PlaneGeometry(2*W,2*W),new THREE.MeshStandardMaterial({color:0x0b0b0e,roughness:1}));ceil.rotation.x=Math.PI/2;ceil.position.y=-1.15+H;g.add(ceil);
+  // oil-stained concrete
+  const ft=canvasTex(1024,1024,(x,w,h)=>{x.fillStyle='#3a3836';x.fillRect(0,0,w,h);for(let i=0;i<60;i++){x.fillStyle=`rgba(0,0,0,${.05+Math.random()*.15})`;x.beginPath();x.ellipse(Math.random()*w,Math.random()*h,20+Math.random()*90,10+Math.random()*50,Math.random()*3,0,6.3);x.fill()}
+    x.strokeStyle='rgba(0,0,0,.4)';x.lineWidth=3;for(let i=0;i<=8;i++){x.beginPath();x.moveTo(i*w/8,0);x.lineTo(i*w/8,h);x.stroke();x.beginPath();x.moveTo(0,i*h/8);x.lineTo(w,i*h/8);x.stroke()}
+    x.fillStyle='rgba(255,210,58,.6)';for(let i=0;i<16;i++)x.fillRect(i*64,h*.06,32,10)});
+  const fl=new THREE.Mesh(new THREE.PlaneGeometry(2*W,2*W),new THREE.MeshStandardMaterial({map:ft,roughness:.8}));fl.rotation.x=-Math.PI/2;fl.position.y=-1.145;fl.receiveShadow=true;g.add(fl);
+  // pillars and steel beams
+  const conc=new THREE.MeshStandardMaterial({color:0x55524e,roughness:.95}),steel=new THREE.MeshStandardMaterial({color:0x22242a,roughness:.6,metalness:.6});
+  for(const x of [-7.5,7.5])for(const z of [-7.5,7.5]){const p=new THREE.Mesh(new THREE.BoxGeometry(.7,H,.7),conc);p.position.set(x,-1.15+H/2,z);p.castShadow=true;g.add(p)}
+  for(const z of [-7.5,0,7.5]){const b=new THREE.Mesh(new THREE.BoxGeometry(2*W,.5,.35),steel);b.position.set(0,-1.15+H-.4,z);g.add(b)}
+  // a chain-link pen round the ring
+  const ct=canvasTex(128,128,(x,w,h)=>{x.clearRect(0,0,w,h);x.strokeStyle='#b8bcc4';x.lineWidth=3;for(let i=-w;i<w*2;i+=16){x.beginPath();x.moveTo(i,0);x.lineTo(i+h,h);x.stroke();x.beginPath();x.moveTo(i+h,0);x.lineTo(i,h);x.stroke()}});
+  ct.wrapS=ct.wrapT=THREE.RepeatWrapping;
+  const F=6.95,FH=2.6;for(const [nx,nz,yaw] of SIDE_DEFS){const t=ct.clone();t.repeat.set(26,5);t.needsUpdate=true;
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(2*F,FH),new THREE.MeshStandardMaterial({map:t,transparent:true,alphaTest:.4,side:THREE.DoubleSide,metalness:.5,roughness:.5}));
+    m.position.set(nx*F,-1.15+FH/2,nz*F);m.rotation.y=yaw;if(nx===-1){m.scale.x=.999}g.add(m);
+    const rail=new THREE.Mesh(new THREE.BoxGeometry(2*F,.05,.05),steel);rail.position.set(nx*F,-1.15+FH,nz*F);rail.rotation.y=yaw;g.add(rail)}
+  // the roller door the fighters walk in through
+  {const d=new THREE.Mesh(new THREE.PlaneGeometry(3.2,3.4),new THREE.MeshStandardMaterial({map:canvasTex(256,256,(x,w,h)=>{x.fillStyle='#4a4f58';x.fillRect(0,0,w,h);x.fillStyle='rgba(0,0,0,.35)';for(let i=0;i<h;i+=12)x.fillRect(0,i,w,3);x.fillStyle='#ffd23a';x.fillRect(0,h-20,w,20)}),roughness:.6,metalness:.4}));
+    d.position.set(-W+.02,-1.15+1.7,0);d.rotation.y=Math.PI/2;g.add(d);
+    const lamp=new THREE.Mesh(new THREE.BoxGeometry(.1,.25,.6),new THREE.MeshBasicMaterial({color:0xff3b3f}));lamp.position.set(-W+.06,-1.15+3.7,0);g.add(lamp);P.lamp=lamp}
+  // swinging bare bulbs
+  const bm=new THREE.MeshBasicMaterial({color:0xfff0c0});
+  for(const [x,z] of [[-3,-3],[3,-3],[-3,3],[3,3],[0,-9],[0,9],[-9,0],[9,0],[-9,-9],[9,9]]){const piv=new THREE.Group();piv.position.set(x,-1.15+H,z);g.add(piv);
+    const len=2.4+Math.random()*1.2,cord=new THREE.Mesh(new THREE.CylinderGeometry(.008,.008,len,4),steel);cord.position.y=-len/2;piv.add(cord);
+    const b=new THREE.Mesh(new THREE.SphereGeometry(.07,10,8),bm);b.position.y=-len;piv.add(b);
+    const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:flashTex(),color:0xffd28a,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.55}));glow.scale.setScalar(1.3);glow.position.y=-len;piv.add(glow);
+    P.bulbs.push({piv,ph:Math.random()*6,amp:.04+Math.random()*.05})}
+  // burning barrels
+  const barM=new THREE.MeshStandardMaterial({color:0x3a2a1e,roughness:.7,metalness:.5});
+  for(const [x,z] of [[-8.6,-5],[8.6,-5],[8.6,5],[-8.6,5],[0,-10.4],[5,10.4]]){const b=new THREE.Mesh(new THREE.CylinderGeometry(.32,.3,.9,14),barM);b.position.set(x,-1.15+.45,z);b.castShadow=true;g.add(b);
+    const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:flashTex(),color:0xff7a2a,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.7}));glow.scale.setScalar(2.2);glow.position.set(x,-1.15+1.2,z);g.add(glow);
+    P.fires.push({p:new THREE.Vector3(x,-1.15+.95,z),glow})}
+  // the crowd stands three deep outside the fence
+  {const spots=[];for(let r=0;r<3;r++){const d=7.2+r*.8;for(let s=-d;s<d;s+=.6)for(const [nx,nz] of SIDE_DEFS){if(nx===-1&&Math.abs(s)<1.8)continue;if(Math.random()<.12)continue;
+      const j=(Math.random()-.5)*.2,x=nx?nx*(d+j):s+j,z=nz?nz*(d+j):s+j;if(Math.max(Math.abs(x),Math.abs(z))>W-.6)continue;if(Math.abs(Math.abs(x)-7.5)<.5&&Math.abs(Math.abs(z)-7.5)<.5)continue;spots.push([x,z])}}
+    const n=spots.length,geo=fanGeo('stand'),fm=new THREE.InstancedMesh(geo,ARENA.crowdMat,n),c=new THREE.Color(),m=new THREE.Matrix4(),q=new THREE.Quaternion(),Y=new THREE.Vector3(0,1,0);
+    const a={aShirt:new Float32Array(n*3),aSkin:new Float32Array(n*3),aHair:new Float32Array(n*3),aInfo:new Float32Array(n*4)};P.teamShirts=[];
+    const shirts=[0x1a1a1a,0x2a2a2a,0x3a2a22,0x5a1f24,0x1d2a3a,0x4a4a4a,0x6a5a3a,0x222831];
+    spots.forEach(([x,z],i)=>{const sc=.92+Math.random()*.16;q.setFromAxisAngle(Y,Math.atan2(-x,-z)+(Math.random()-.5)*.3);m.compose(new THREE.Vector3(x,-1.15+.6,z),q,new THREE.Vector3(sc,sc,sc));fm.setMatrixAt(i,m);
+      const team=Math.random()<.4?0:Math.random()<.67?1:.5,ts=team!==.5&&Math.random()<.35;if(ts)P.teamShirts.push([i,team]);c.setHex(pick(shirts));a.aShirt.set([c.r,c.g,c.b],i*3);
+      c.setHex(pick([0xf1c9a5,0xd9a37c,0xb47b54,0x8a5a3c,0x5c3a26,0xe0b48f]));a.aSkin.set([c.r,c.g,c.b],i*3);c.setHex(pick([0x1a1410,0x2a1c12,0x4a3020,0x101010,0x7a2a1a]));a.aHair.set([c.r,c.g,c.b],i*3);
+      a.aInfo.set([Math.random()*100,team,.3+Math.random()*.7,Math.atan2(z,x)],i*4)});
+    for(const k in a)geo.setAttribute(k,new THREE.InstancedBufferAttribute(a[k],k==='aInfo'?4:3));fm.frustumCulled=false;g.add(fm);
+    const ol=new THREE.InstancedMesh(geo,ARENA.crowdLine,n);ol.instanceMatrix=fm.instanceMatrix;ol.frustumCulled=false;g.add(ol);P.fans=fm;P.fanLine=ol}
+  return P}
+function pitTick(rdt){const P=ARENA.pit;if(!P||!P.g.visible)return;const t=ARENA.crowdU.uT.value;
+  for(const b of P.bulbs)b.piv.rotation.set(Math.sin(t*1.3+b.ph)*b.amp,0,Math.cos(t*1.1+b.ph)*b.amp);
+  for(const f of P.fires){f.glow.material.opacity=.55+.25*Math.sin(t*13+f.p.x)+.1*Math.random();if(PA&&Math.random()<rdt*30)PA.emit(f.p.x+(Math.random()-.5)*.3,f.p.y,f.p.z+(Math.random()-.5)*.3,(Math.random()-.5)*.3,1+Math.random(),(Math.random()-.5)*.3,.6,.16,1,.45,.12,1,-1,1)}
+  if(P.lamp)P.lamp.visible=G.phase!=='walk'||Math.sin(t*12)>0}
+function setVenue(v){v=v==='roof'||v==='pit'?v:'arena';if(ARENA.venue===v)return;ARENA.venue=v;
+  const roof=v==='roof',pit=v==='pit';for(const o of ARENA.dress||[])o.visible=v==='arena';
+  if(roof)buildRoof();if(pit)buildPit();if(ARENA.roof)ARENA.roof.g.visible=roof;if(ARENA.pit)ARENA.pit.g.visible=pit;if(!roof&&ARENA.rain)setRain(false);
+  ARENA.tunnel=roof?ARENA.roof.door:pit?ARENA.pit.door:ARENA.tunnel0;
+  scene.background=null;if(ARENA.hemi)ARENA.hemi.intensity=roof?.62:pit?.3:.42;
   if(ARENA.B0)crowdTeams(ARENA.B0,ARENA.B1)}
-function pickVenue(v){const r=v==='random'?(Math.random()<.5?'roof':'arena'):v||'arena';return r==='roof'&&Math.random()<.5?'roof-rain':r}
-function applyVenue(v){v=v||'arena';setVenue(v.startsWith('roof')?'roof':'arena');setRain(v==='roof-rain')}
+function pickVenue(v){const r=v==='random'?pick(['arena','roof','pit']):v||'arena';return r==='roof'&&Math.random()<.5?'roof-rain':r}
+function applyVenue(v){v=v||'arena';setVenue(v.startsWith('roof')?'roof':v==='pit'?'pit':'arena');setRain(v==='roof-rain')}
 // moving-head lights on the truss: long additive beams that sweep over the crowd
 function buildBeams(){
   ARENA.beams=[];const g=new THREE.CylinderGeometry(.06,1.1,16,20,1,true);g.translate(0,-8,0);g.rotateX(-Math.PI/2);
@@ -3558,7 +3623,7 @@ addEventListener('pagehide',()=>{if(NET.mode!=='off')netSend({t:'bye'})});
 const SEL={mode:'quick',f:'blaze',opp:'random',diff:'contender',alt:0,venue:'arena',mut:{}};
 const MUT={};   // the mutators live for this match: big (heads), dmg (double damage), ult (meter ×3)
 const mutOn=k=>!!MUT[k]&&!G.online;
-try{const s=JSON.parse(localStorage.getItem('haymaker.sel')||'{}');if(FBY[s.f])SEL.f=s.f;if(s.opp==='random'||FBY[s.opp])SEL.opp=s.opp;if(DIFF[s.diff])SEL.diff=s.diff;if(['arena','roof','random'].includes(s.venue))SEL.venue=s.venue;if(s.mut&&typeof s.mut==='object')SEL.mut={big:!!s.mut.big,dmg:!!s.mut.dmg,ult:!!s.mut.ult};SEL.alt=(s.alt|0)%3}catch(e){}
+try{const s=JSON.parse(localStorage.getItem('haymaker.sel')||'{}');if(FBY[s.f])SEL.f=s.f;if(s.opp==='random'||FBY[s.opp])SEL.opp=s.opp;if(DIFF[s.diff])SEL.diff=s.diff;if(['arena','roof','pit','random'].includes(s.venue))SEL.venue=s.venue;if(s.mut&&typeof s.mut==='object')SEL.mut={big:!!s.mut.big,dmg:!!s.mut.dmg,ult:!!s.mut.ult};SEL.alt=(s.alt|0)%3}catch(e){}
 const saveSel=()=>{try{localStorage.setItem('haymaker.sel',JSON.stringify({f:SEL.f,opp:SEL.opp,diff:SEL.diff,alt:SEL.alt,venue:SEL.venue,mut:SEL.mut}))}catch(e){}};
 function showOv(id){$(id).classList.add('on')}
 function hideOv(id){$(id).classList.remove('on')}
@@ -3684,7 +3749,7 @@ function renderSelect(){
   {const f=FBY[SEL.f],hx=c=>'#'+new THREE.Color(c).getHexString();$('altSeg').innerHTML=[0,1,2].map(a=>{const L=Object.assign({},f.look,f.alts[a]);return `<button data-a="${a}" class="${SEL.alt===a?'on':''}" style="--a:${hx(L.shorts)};--b:${hx(L.glove)}" title="Colour ${a+1}"></button>`}).join('')}
   $('oppBox').classList.toggle('hide',SEL.mode!=='quick');
   $('oppSeg').innerHTML=`<button data-o="random" class="${SEL.opp==='random'?'on':''}"><span style="width:20px;height:20px;display:block">${ICO('random')}</span>RANDOM</button>`+FIGHTERS.map(f=>`<button data-o="${f.id}" class="${SEL.opp===f.id?'on':''}" title="${f.name}">${portrait(f.id,25)}</button>`).join('');
-  $('venueSeg').innerHTML=[['arena','ARENA'],['roof','ROOFTOP'],['random','RANDOM']].map(([k,n])=>`<button data-v="${k}" class="${SEL.venue===k?'on':''}">${n}</button>`).join('');
+  $('venueSeg').innerHTML=[['arena','ARENA'],['roof','ROOFTOP'],['pit','THE PIT'],['random','RANDOM']].map(([k,n])=>`<button data-v="${k}" class="${SEL.venue===k?'on':''}">${n}</button>`).join('');
   $('selWatch').style.display=SEL.mode==='quick'?'':'none';
   $('mutSeg').innerHTML=[['big','BIG HEADS'],['dmg','DOUBLE DMG'],['ult','ULT RUSH']].map(([k,n])=>`<button data-m="${k}" class="${SEL.mut[k]?'on':''}">${n}</button>`).join('');
   $('mutBox').style.display=SEL.mode==='online'?'none':'';
@@ -4084,7 +4149,7 @@ function visuals(rdt,adt){
   ropeVisuals(adt);PA.update(adt);PN.update(adt);fxUpdate(adt);updEmit(adt);updConfetti(adt);extras(rdt,adt);updPFX(rdt);
   ARENA.excite=Math.max(0,(ARENA.excite||0)-rdt*.22);
   const ex=G.mode==='fight'?.12+ARENA.excite*.9:.18;ARENA.crowdU.uEx.value=lerp(ARENA.crowdU.uEx.value,ex,damp(3,rdt));ARENA.crowdU.uT.value+=rdt;
-  crowdTick(rdt);cornerTick(rdt);trainTick(rdt);rainTick(rdt);ARENA.flashU.uT.value+=rdt;ARENA.flashU.uRate.value=1+ARENA.excite*7+(G.phase==='kd'||G.phase==='end'?5:0);
+  crowdTick(rdt);cornerTick(rdt);trainTick(rdt);rainTick(rdt);pitTick(rdt);ARENA.flashU.uT.value+=rdt;ARENA.flashU.uRate.value=1+ARENA.excite*7+(G.phase==='kd'||G.phase==='end'?5:0);
   ARENA.impact.intensity*=Math.exp(-16*rdt);if(ARENA.impact.intensity<.05)ARENA.impact.intensity=0;ARENA.led.offset.x+=rdt*.035;
   // the big screen only redraws (and re-uploads) when what it shows has changed
   jumboT-=rdt;if(jumboT<=0){jumboT=.25;const t=Math.max(0,Math.ceil(G.tl));
@@ -4217,7 +4282,7 @@ function runSmoke(){
     abil('viper','frost','r');G.B[0].hp=50;startPunch(G.B[0],'cross');sim(.5);ok(G.B[0].hp>50,'Serpent\'s Kiss heals on hit');
     abil('viper','frost','e',3);sim(.7);ok(G.B[1].hp<100,'Coil Strike lunges in');
     solo('blaze','frost');place(1);G.bag=true;TR.dummy='stand';G.B[1].hp=3;startPunch(G.B[0],'hook');sim(.8);ok(G.B[1].hp>=1&&!G.B[1].down&&TR.last>0,'training: the standing dummy takes the hit but never goes down');G.bag=false;
-    setVenue('roof');ok(ARENA.roof&&ARENA.roof.g.visible&&ARENA.dress.every(o=>!o.visible)&&Math.abs(ARENA.tunnel.x+13.2)<.01,'the rooftop venue swaps in (and its stairwell becomes the walk-out door)');applyVenue('roof-rain');ok(ARENA.rain.L.visible,'rain falls on a wet rooftop night');applyVenue('arena');ok(!ARENA.roof.g.visible&&!ARENA.rain.L.visible&&ARENA.dress.every(o=>o.visible),'…and swaps back to a dry arena');
+    setVenue('roof');ok(ARENA.roof&&ARENA.roof.g.visible&&ARENA.dress.every(o=>!o.visible)&&Math.abs(ARENA.tunnel.x+13.2)<.01,'the rooftop venue swaps in (and its stairwell becomes the walk-out door)');applyVenue('roof-rain');ok(ARENA.rain.L.visible,'rain falls on a wet rooftop night');applyVenue('pit');ok(ARENA.pit.g.visible&&!ARENA.roof.g.visible&&!ARENA.rain.L.visible&&Math.abs(ARENA.tunnel.x+11.2)<.01,'THE PIT swaps in, dry, with its roller door');applyVenue('arena');ok(!ARENA.roof.g.visible&&!ARENA.pit.g.visible&&!ARENA.rain.L.visible&&ARENA.dress.every(o=>o.visible),'…and swaps back to a dry arena');
     solo('blaze','frost');photoOn();ok(PHOTO.on&&G.paused&&document.body.classList.contains('photo')&&CAM.lock===null||PHOTO.on,'photo mode freezes the fight and hides the UI');photoTick();ok(Array.isArray(CAM.lock),'…and drives a free camera');photoOff();hideOv('pauseOv');G.paused=false;ok(!PHOTO.on&&!document.body.classList.contains('photo')&&CAM.lock===null,'…and hands everything back');
     {const w0=REC.w,l0=REC.l;startSolo('volt','titan','contender',true);ok(G.watch&&G.bots[0]&&G.bots[1],'WATCH: both corners are CPUs');G.forced=null;G.phase='fight';let n=0;while(G.phase!=='end'&&n<60*300){step(1/60);n++}ok(G.phase==='end'&&REC.w===w0&&REC.l===l0,'…the exhibition finishes and doesn\'t touch your record');G.watch=false;document.body.classList.remove('watching');G.forced=[EMPTY,EMPTY]}
     {const P0=JSON.stringify(REC.per);showRecords();ok($('recOv').classList.contains('on')&&$('recBody').querySelectorAll('.rc').length===FIGHTERS.length,'RECORDS lists every fighter');hideOv('recOv');ok(JSON.stringify(REC.per)===P0,'…and smoke fights never touch your career stats')}
