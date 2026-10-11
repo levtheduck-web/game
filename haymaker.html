@@ -52,6 +52,13 @@ body.replay #hud,body.replay #floats,body.replay #touch{opacity:0;transition:opa
 @keyframes ciTxt{0%{opacity:0;transform:translate(-60px,-50%) skewX(-18deg)}14%{opacity:1;transform:translate(0,-50%) skewX(-8deg)}82%{opacity:1;transform:translate(14px,-50%) skewX(-8deg)}100%{opacity:0;transform:translate(60px,-50%) skewX(-8deg)}}
 /* fighter VS splash */
 body.cine #sub{opacity:0!important}
+#train{position:fixed;right:14px;top:96px;z-index:8;width:230px;background:rgba(10,10,16,.86);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:none;font:700 12px Rubik;color:#ddd}
+body.training #train{display:block}
+#train .th{font:400 22px Anton;letter-spacing:.06em;color:var(--gold)}#train .tl{font:900 10px Rubik;letter-spacing:.3em;color:var(--dim);margin:8px 0 4px}
+#train .tst{display:grid;grid-template-columns:1fr auto;gap:2px 8px;margin-top:4px}#train .tst b{color:#fff;font:400 16px Anton;text-align:right}
+#train .tseg{display:flex;flex-wrap:wrap;gap:4px}#train button{flex:1;min-width:46%;border:1px solid var(--line);background:#16161e;color:#bbb;border-radius:8px;padding:6px 4px;font:800 10px Rubik;letter-spacing:.08em;cursor:pointer}
+#train button.on{background:var(--gold);color:#000}#train .tk{margin-top:8px;font:700 9.5px Rubik;color:var(--dim);letter-spacing:.06em}
+body.touch #train{top:auto;bottom:8px;right:auto;left:50%;transform:translateX(-50%) scale(.82);transform-origin:bottom center}body.touch #train .tk{display:none}
 #walk{position:fixed;left:0;right:0;bottom:12vh;z-index:9;pointer-events:none;display:none}
 #walk.on{display:block}
 #walk .bar{position:relative;margin-left:5vw;padding:14px 46px 16px 26px;display:inline-block;background:linear-gradient(100deg,var(--c) 0 8px,rgba(8,8,12,.9) 8px 70%,rgba(8,8,12,0));clip-path:polygon(0 0,100% 0,94% 100%,0 100%);animation:wIn .5s cubic-bezier(.2,1.4,.4,1) both}
@@ -340,6 +347,7 @@ body.touch #abil,body.touch #keys{display:none}
 </div>
 <div id="floats"></div>
 <div id="cutin"><div class="band"></div><div class="cport"></div><div class="ctxt"></div></div>
+<div id="train"><div class="th">TRAINING</div><div class="tst" id="trStats"></div><div class="tl">DUMMY</div><div class="tseg" id="trDummy"></div><div class="tseg" id="trOpts"></div><div class="tk">1–4 dummy · 5 meter · 6 cooldowns · ESC pause</div></div>
 <div id="walk"><div class="bar"></div><div class="skip">PRESS ANY KEY TO SKIP</div></div>
 <div id="vs"><div class="side l"></div><div class="side r"></div><div class="mid">VS</div></div>
 <div id="replayTag"><i></i>REPLAY<small>ANY KEY TO SKIP</small></div>
@@ -367,6 +375,7 @@ body.touch #abil,body.touch #keys{display:none}
     <button class="primary" data-go="quick">QUICK FIGHT</button>
     <button data-go="ladder">ARCADE LADDER</button>
     <button data-go="online">PLAY ONLINE · 1v1</button>
+    <button data-go="train">TRAINING</button>
     <button data-go="help">HOW TO PLAY</button>
     <a class="ghost" href="index.html">QUIT TO ARCADE</a>
   </div>
@@ -553,7 +562,7 @@ const FIGHTERS=[
 ];
 const FBY=Object.fromEntries(FIGHTERS.map(f=>[f.id,f]));
 const DIFF={
-  bag:      {name:'BAG',      react:9,  block:0,  dodge:0,  aggr:0,  abil:0,  think:9,  getup:1,  parry:0,  hay:0},
+  bag:      {name:'TRAINING',      react:9,  block:0,  dodge:0,  aggr:0,  abil:0,  think:9,  getup:1,  parry:0,  hay:0},
   rookie:   {name:'ROOKIE',   react:.4, block:.22,dodge:.06,aggr:.42,abil:.3, think:.75,getup:.72,parry:0,  hay:.15},
   contender:{name:'CONTENDER',react:.25,block:.48,dodge:.2, aggr:.62,abil:.6, think:.42,getup:.8, parry:.07,hay:.35},
   champion: {name:'CHAMPION', react:.14,block:.66,dodge:.36,aggr:.82,abil:.95,think:.22,getup:.9, parry:.18,hay:.55},
@@ -2391,6 +2400,7 @@ function resolve(spec){
     if(v.act&&v.act.k==='taunt'){dmg*=1.25;taunted=1}
     if(v.act&&v.act.k==='charge'&&!spec.unblock)interrupted=1;
     const blk=v.blocking&&!spec.unblock&&v.st.sealed<=0&&v.st.stun<=0&&v.st.freeze<=0;
+    if(G.bag&&v.idx!==G.ME&&TR.dummy==='stand'&&dmg>=v.hp)dmg=Math.max(0,v.hp-1);   // the training dummy can't be knocked out
     // PERFECT block: the guard went up within PARRY_W of the punch landing
     if(blk&&v.parryOK&&G.time-(v.blockT0??-9)<=PARRY_W&&spec.k==='melee'){r='parry';dmg=0;v.parryOK=false;
       if(spec.cue==='flurry')G.pending=G.pending.filter(q=>!(q.spec.a===spec.a&&q.spec.cue==='flurry'))}
@@ -2415,6 +2425,7 @@ function resolve(spec){
   if(G.online)netSend({t:'res',res});
 }
 function applyResult(res){
+  trainHit(res);
   const a=G.B[res.a],v=G.B[1-res.a];const hitLike=res.r==='hit'||res.r==='break';
   if(owned(v)){
     if(res.dmg>0)v.hp=Math.max(res.r==='block'?Math.min(v.hp,1):0,v.hp-res.dmg);  // only clean shots put you down
@@ -3220,6 +3231,7 @@ addEventListener('keydown',e=>{
   if(RP.play&&!e.repeat){rpEnd();e.preventDefault();return}
   if(G.phase==='walk'&&G.mode==='fight'&&!e.repeat&&e.code!=='Escape'){hostPhase('intro');e.preventDefault();return}
   if(e.code==='KeyM'&&!e.repeat){toggleMute();return}
+  if(G.bag&&G.mode==='fight'&&/^Digit[1-6]$/.test(e.code)){const n=+e.code[5];if(n<=4)trainSet(['stand','block','dodge','fight'][n-1]);else if(n===5){TR.meter=!TR.meter;trainUI()}else{TR.cds=!TR.cds;trainUI()}SFX.ui();return}
   if(e.code==='Escape'||e.code==='KeyP'){if(G.mode==='fight'){togglePause();e.preventDefault()}return}
   if(e.code==='KeyV'){SET.cam=SET.cam==='tv'?'back':'tv';saveSet();sub(SET.cam==='tv'?'CAMERA: BROADCAST':'CAMERA: BEHIND YOU',1.2);return}
   if(e.code==='Space'||e.code.startsWith('Arrow'))e.preventDefault();
@@ -3481,10 +3493,11 @@ function selectStep(dt){
 }
 function setupUI(){
   document.querySelectorAll('#titleOv [data-go]').forEach(b=>b.addEventListener('click',()=>{auInit();if(AU.ctx&&AU.ctx.state!=='running')AU.ctx.resume();SFX.ui();const g=b.dataset.go;
-    if(g==='quick')openSelect('quick');else if(g==='ladder')openSelect('ladder');else if(g==='online'){showOv('mpOv');mpErr('');$('nameIn').value=NAME;$('codeIn').value=''}else if(g==='help')showOv('helpOv')}));
+    if(g==='train'){SEL.diff='bag';openSelect('quick')}else if(g==='quick'){if(SEL.diff==='bag')SEL.diff='contender';openSelect('quick')}else if(g==='ladder')openSelect('ladder');else if(g==='online'){showOv('mpOv');mpErr('');$('nameIn').value=NAME;$('codeIn').value=''}else if(g==='help')showOv('helpOv')}));
   $('qBtn').onclick=()=>{SET.q=SET.q==='high'?'low':'high';saveSet();$('qBtn').textContent=SET.q==='high'?'HIGH':'LOW';setupPost();prewarmFX()};
   $('cBtn').onclick=()=>{SET.cam=SET.cam==='tv'?'back':'tv';saveSet();$('cBtn').textContent=SET.cam==='tv'?'BROADCAST':'BEHIND'};
   $('helpBack').onclick=()=>hideOv('helpOv');
+  $('train').addEventListener('click',e=>{const k=e.target.closest('[data-k]'),o=e.target.closest('[data-o]');if(k)trainSet(k.dataset.k);if(o){TR[o.dataset.o]=!TR[o.dataset.o];trainUI()}SFX.ui()});trainUI();
   $('grid').addEventListener('click',e=>{const c=e.target.closest('[data-f]');if(!c)return;SFX.ui();
     if(e.shiftKey&&SEL.mode==='quick'){SEL.opp=c.dataset.f}else{SEL.f=c.dataset.f;if(SEL.mode==='online'){NET.myReady=false;netSend({t:'pick',f:SEL.f,a:SEL.alt,ready:false})}}
     saveSel();renderSelect();placePreview()});
@@ -3516,6 +3529,7 @@ function startSolo(myF,oppF,diff){rpStop();
   G.online=false;G.attract=false;G.ME=0;G.bag=diff==='bag';G.paused=false;
   const oa=G.ladder?Math.floor(Math.random()*3):myF===oppF?(SEL.alt+1)%3:0;setupMatch([myF,oppF],[FBY[myF].name,FBY[oppF].name],[SEL.alt,oa]);G.bots=[null,new Bot(1,diff)];G.diff=diff;
   G.mode='fight';hideAllOv();showHUD(true);REF.b.root.visible=true;setPhase(G.bag||SMOKE||!SET.walk?'intro':'walk');
+  if(G.bag){Object.assign(TR,{last:0,combo:0,comboT:0,log:[],perfect:0});trainSet(TR.dummy)}
 }
 const LAD_DIFF=['rookie','rookie','contender','contender','champion'];
 function showLadder(){rpStop();vsHide();clearConfetti();
@@ -3671,6 +3685,24 @@ function step(dt){
   }else if(G.mode==='select')selectStep(dt);
   if(G.mode!=='fight')PRESS.length=0;
 }
+// ════════════════════ TRAINING ════════════════════
+// The BAG difficulty becomes a training room: pick how the dummy behaves, refill meter/cooldowns, and read your damage.
+const TR={dummy:'stand',meter:true,cds:true,last:0,combo:0,comboT:0,log:[],perfect:0,hpT:0};
+const TR_D={stand:DIFF.bag,block:Object.assign({},DIFF.bag,{name:'BLOCK',react:.05,block:1,think:9}),dodge:Object.assign({},DIFF.bag,{name:'DODGE',react:.08,dodge:.85,think:9}),fight:DIFF.contender};
+function trainUI(){const dm=$('trDummy');if(!dm)return;
+  dm.innerHTML=[['stand','STAND'],['block','BLOCK'],['dodge','DODGE'],['fight','FIGHT BACK']].map(([k,n])=>`<button data-k="${k}" class="${TR.dummy===k?'on':''}">${n}</button>`).join('');
+  $('trOpts').innerHTML=`<button data-o="meter" class="${TR.meter?'on':''}">∞ METER</button><button data-o="cds" class="${TR.cds?'on':''}">NO COOLDOWNS</button>`}
+function trainSet(k){TR.dummy=k;const bt=G.bots[1];if(bt){bt.D=TR_D[k];bt.react=null}trainUI()}
+function trainTick(dt){const on=G.mode==='fight'&&G.bag&&!G.attract;document.body.classList.toggle('training',on);if(!on)return;
+  const me=G.B[G.ME],d=G.B[1-G.ME];if(TR.meter)me.meter=100;if(TR.cds){me.cd.q=Math.min(me.cd.q,.25);me.cd.e=Math.min(me.cd.e,.25)}
+  TR.comboT-=dt;if(TR.comboT<=0)TR.combo=0;TR.hpT-=dt;
+  // the dummy patches itself up after a breather and never stays down
+  if(TR.hpT<=0&&d.hp<d.hpMax&&!d.down){d.hp=Math.min(d.hpMax,d.hp+d.hpMax*dt*.8)}
+  const now=G.time;TR.log=TR.log.filter(e=>now-e.t<5);const dps=TR.log.reduce((a,e)=>a+e.d,0)/5;
+  const S=`<span>LAST HIT</span><b>${TR.last.toFixed(1)}</b><span>COMBO DAMAGE</span><b>${TR.combo.toFixed(1)}</b><span>DAMAGE / SEC (5s)</span><b>${dps.toFixed(1)}</b><span>PERFECT BLOCKS</span><b>${TR.perfect}</b>`;
+  if(S!==TR.html){TR.html=S;$('trStats').innerHTML=S}}
+function trainHit(res){if(!G.bag)return;const v=G.B[1-res.a];if(res.a===G.ME&&res.dmg>0){TR.last=res.dmg;TR.combo=(TR.comboT>0?TR.combo:0)+res.dmg;TR.comboT=1.4;TR.log.push({t:G.time,d:res.dmg});TR.hpT=2.2;if(v.hp<=1){v.hp=Math.max(v.hp,1)}}
+  if(res.r==='parry'&&res.a!==G.ME)TR.perfect++}
 // ════════════════════ RING WALK ════════════════════
 // Before the first bell of a solo fight: the opponent, then you, jog out of the tunnel under a follow-spot, vault the
 // top rope and throw their arms up in their corner while their fans lose it. Any key (or a tap) skips it.
@@ -3811,7 +3843,7 @@ function visuals(rdt,adt){
   ropeVisuals(adt);PA.update(adt);PN.update(adt);fxUpdate(adt);updEmit(adt);updConfetti(adt);extras(rdt,adt);updPFX(rdt);
   ARENA.excite=Math.max(0,(ARENA.excite||0)-rdt*.22);
   const ex=G.mode==='fight'?.12+ARENA.excite*.9:.18;ARENA.crowdU.uEx.value=lerp(ARENA.crowdU.uEx.value,ex,damp(3,rdt));ARENA.crowdU.uT.value+=rdt;
-  crowdTick(rdt);cornerTick(rdt);ARENA.flashU.uT.value+=rdt;ARENA.flashU.uRate.value=1+ARENA.excite*7+(G.phase==='kd'||G.phase==='end'?5:0);
+  crowdTick(rdt);cornerTick(rdt);trainTick(rdt);ARENA.flashU.uT.value+=rdt;ARENA.flashU.uRate.value=1+ARENA.excite*7+(G.phase==='kd'||G.phase==='end'?5:0);
   ARENA.impact.intensity*=Math.exp(-16*rdt);if(ARENA.impact.intensity<.05)ARENA.impact.intensity=0;ARENA.led.offset.x+=rdt*.035;
   // the big screen only redraws (and re-uploads) when what it shows has changed
   jumboT-=rdt;if(jumboT<=0){jumboT=.25;const t=Math.max(0,Math.ceil(G.tl));
@@ -3943,6 +3975,7 @@ function runSmoke(){
     abil('viper','frost','q',2.5);sim(.6);ok(G.B[1].st.pstk>=3&&G.B[1].hp<100,'Venom Spit poisons');sim(2);ok(G.B[1].hp<100-6-1,'poison ticks');
     abil('viper','frost','r');G.B[0].hp=50;startPunch(G.B[0],'cross');sim(.5);ok(G.B[0].hp>50,'Serpent\'s Kiss heals on hit');
     abil('viper','frost','e',3);sim(.7);ok(G.B[1].hp<100,'Coil Strike lunges in');
+    solo('blaze','frost');place(1);G.bag=true;TR.dummy='stand';G.B[1].hp=3;startPunch(G.B[0],'hook');sim(.8);ok(G.B[1].hp>=1&&!G.B[1].down&&TR.last>0,'training: the standing dummy takes the hit but never goes down');G.bag=false;
     abil('kitsune','frost','q',2.5);sim(.7);ok(G.B[1].hp<100&&G.B[1].st.burn>0,'Foxfire wisps burn ('+G.B[1].hp.toFixed(1)+')');
     abil('kitsune','frost','e',2.5);sim(.6);ok(G.B[1].st.charm>0,'Charm lands');{const d0=Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z);G.forced[1]={...EMPTY,mz:1};sim(.4);
       ok(Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z)>d0+.2,'…and a charmed fighter walking in backs off instead');G.forced[1]=EMPTY}
