@@ -56,6 +56,7 @@ body.cine #sub{opacity:0!important}
 body.training #train{display:block}
 #train .th{font:400 22px Anton;letter-spacing:.06em;color:var(--gold)}#train .tl{font:900 10px Rubik;letter-spacing:.3em;color:var(--dim);margin:8px 0 4px}
 #train .tst{display:grid;grid-template-columns:1fr auto;gap:2px 8px;margin-top:4px}#train .tst b{color:#fff;font:400 16px Anton;text-align:right}
+#tut{margin-top:8px;border-top:1px solid var(--line);padding-top:8px}#tut .ts{font:700 11px Rubik;color:#888;padding:2px 0}#tut .ts.done{color:#7dff4a}#tut .ts.cur{color:#fff;font-size:12.5px}#tut .ts small{display:block;color:var(--gold);font-size:10.5px;margin:2px 0 3px 12px}
 #train .tseg{display:flex;flex-wrap:wrap;gap:4px}#train button{flex:1;min-width:46%;border:1px solid var(--line);background:#16161e;color:#bbb;border-radius:8px;padding:6px 4px;font:800 10px Rubik;letter-spacing:.08em;cursor:pointer}
 #train button.on{background:var(--gold);color:#000}#train .tk{margin-top:8px;font:700 9.5px Rubik;color:var(--dim);letter-spacing:.06em}
 body.touch #train{top:auto;bottom:8px;right:auto;left:50%;transform:translateX(-50%) scale(.82);transform-origin:bottom center}body.touch #train .tk{display:none}
@@ -360,7 +361,7 @@ body.touch #abil,body.touch #keys{display:none}
 </div>
 <div id="floats"></div>
 <div id="cutin"><div class="band"></div><div class="cport"></div><div class="ctxt"></div></div>
-<div id="train"><div class="th">TRAINING</div><div class="tst" id="trStats"></div><div class="tl">DUMMY</div><div class="tseg" id="trDummy"></div><div class="tseg" id="trOpts"></div><div class="tk">1–4 dummy · 5 meter · 6 cooldowns · ESC pause</div></div>
+<div id="train"><div class="th">TRAINING</div><div class="tst" id="trStats"></div><div class="tl">DUMMY</div><div class="tseg" id="trDummy"></div><div class="tseg" id="trOpts"></div><div class="tk">1–4 dummy · 5 meter · 6 cooldowns · ESC pause</div><div id="tut"></div></div>
 <div id="photoBar"><b>PHOTO MODE</b><span>DRAG orbit · WHEEL / Q E zoom · F filter: <i id="phF">NONE</i> · S save · ESC back</span><button id="phSave">SAVE PNG</button><button id="phFilt">FILTER</button><button id="phExit">DONE</button></div>
 <div id="walk"><div class="bar"></div><div class="skip">PRESS ANY KEY TO SKIP</div></div>
 <div id="vs"><div class="side l"></div><div class="side r"></div><div class="mid">VS</div></div>
@@ -2704,6 +2705,7 @@ function castAbility(b,key){
   const fn=ABIL[f.id][key];if(!fn)return false;
   cancelPunch(b);
   const ok=fn(b,o);if(ok===false)return false;
+  if(b.idx===G.ME)tutDone(key==='r'?'ult':'abil');
   if(key==='r'){b.meter=0;netAb(b,'ult')}else b.cd[key]=f[key].cd;
   b.blocking=false;b.fxBits=fxBitsOf(b);
   return true;
@@ -2872,7 +2874,7 @@ function setPhase(ph,x={}){
     hideOv('cardOv');if(!G.attract){announce(G.title&&G.rnd===1?'TITLE FIGHT':'ROUND '+G.rnd,'gold',1.4);say(G.rnd===ROUNDS?'Final round!':'Round '+['','one','two','three','four','five'][G.rnd])}
   }
   if(ph==='fight'){clearTimeout(sub.t);$('sub').style.opacity=0}
-  if(ph==='fight'&&!G.attract&&!G.watch&&G.rnd===1&&!SMOKE){let seen=0;try{seen=+localStorage.getItem('haymaker.tip')||0}catch(e){}
+  if(ph==='fight'&&!G.attract&&!G.watch&&!G.bag&&G.rnd===1&&!SMOKE){let seen=0;try{seen=+localStorage.getItem('haymaker.tip')||0}catch(e){}
     if(seen<1)setTimeout(()=>{if(G.phase==='fight')sub(TOUCH?'TIP: HOLD HAYMAKER TO CHARGE · TAP BLOCK AS A PUNCH LANDS = PERFECT':'TIP: HOLD H TO CHARGE A HAYMAKER · TAP SPACE AS A PUNCH LANDS = PERFECT BLOCK',4.5)},1100)}
   if(ph==='fight'&&!G.attract){announce('FIGHT!','',.8);SFX.bell(G.rnd===1&&G.phT===0?3:1);pyro(.9,G.rnd%2?[0,2]:[1,3],.8);ARENA.excite=Math.max(ARENA.excite||0,.7)}
   if(ph==='rest'){clearCombat();if(!G.attract){SFX.bell(1);G.cards=x.cards||G.cards;setTimeout(()=>{if(G.phase==='rest')showRoundCard(x)},900)}}
@@ -3786,7 +3788,7 @@ function setupUI(){
   addEventListener('pointermove',e=>{const d=PHOTO.drag;if(!PHOTO.on||!d)return;PHOTO.a-=(e.clientX-d.x)*.008;PHOTO.e=clamp(PHOTO.e+(e.clientY-d.y)*.006,-.2,1.35);d.x=e.clientX;d.y=e.clientY});
   addEventListener('pointerup',()=>{PHOTO.drag=null});
   addEventListener('wheel',e=>{if(PHOTO.on){PHOTO.r=clamp(PHOTO.r+e.deltaY*.004,1,10);e.preventDefault()}},{passive:false});
-  $('train').addEventListener('click',e=>{const k=e.target.closest('[data-k]'),o=e.target.closest('[data-o]');if(k)trainSet(k.dataset.k);if(o){TR[o.dataset.o]=!TR[o.dataset.o];trainUI()}SFX.ui()});trainUI();
+  $('train').addEventListener('click',e=>{if(e.target.id==='tutGo'){tutStart();SFX.ui();return}if(e.target.id==='tutStop'){TUT.on=false;tutUI();SFX.ui();return}const k=e.target.closest('[data-k]'),o=e.target.closest('[data-o]');if(k)trainSet(k.dataset.k);if(o){TR[o.dataset.o]=!TR[o.dataset.o];trainUI()}SFX.ui()});trainUI();
   $('grid').addEventListener('click',e=>{const c=e.target.closest('[data-f]');if(!c)return;SFX.ui();
     if(e.shiftKey&&SEL.mode==='quick'){SEL.opp=c.dataset.f}else{SEL.f=c.dataset.f;if(SEL.mode==='online'){NET.myReady=false;netSend({t:'pick',f:SEL.f,a:SEL.alt,ready:false})}}
     saveSel();renderSelect();placePreview()});
@@ -3821,7 +3823,7 @@ function startSolo(myF,oppF,diff,watch){rpStop();for(const k of ['big','dmg','ul
   G.online=false;G.attract=false;G.ME=0;G.bag=diff==='bag';G.paused=false;
   const oa=G.ladder?Math.floor(Math.random()*3):myF===oppF?(SEL.alt+1)%3:0;setupMatch([myF,oppF],[FBY[myF].name,FBY[oppF].name],[SEL.alt,oa]);G.bots=[null,new Bot(1,diff)];G.diff=diff;
   applyVenue(pickVenue(SEL.venue));G.mode='fight';hideAllOv();showHUD(true);REF.b.root.visible=true;setPhase(G.bag||SMOKE||!SET.walk?'intro':'walk');
-  if(G.bag){Object.assign(TR,{last:0,combo:0,comboT:0,log:[],perfect:0});trainSet(TR.dummy)}
+  if(G.bag){Object.assign(TR,{last:0,combo:0,comboT:0,log:[],perfect:0});TUT.on=false;trainSet(TR.dummy);tutUI()}
   if(G.watch){G.bots[0]=new Bot(0,diff==='bag'?'contender':diff);if(G.bots[1].diff==='bag')G.bots[1]=new Bot(1,'contender')}
   // the last bout of the ladder is for the belt: the champion walks out wearing it
   G.title=!!(G.ladder&&G.ladder.i===G.ladder.opps.length-1);if(G.title&&G.phase==='walk')giveBelt(G.B[1],true);
@@ -4007,7 +4009,22 @@ function trainTick(dt){const on=G.mode==='fight'&&G.bag&&!G.attract;document.bod
   const now=G.time;TR.log=TR.log.filter(e=>now-e.t<5);const dps=TR.log.reduce((a,e)=>a+e.d,0)/5;
   const S=`<span>LAST HIT</span><b>${TR.last.toFixed(1)}</b><span>COMBO DAMAGE</span><b>${TR.combo.toFixed(1)}</b><span>DAMAGE / SEC (5s)</span><b>${dps.toFixed(1)}</b><span>PERFECT BLOCKS</span><b>${TR.perfect}</b>`;
   if(S!==TR.html){TR.html=S;$('trStats').innerHTML=S}}
-function trainHit(res){if(!G.bag)return;const v=G.B[1-res.a];if(res.a===G.ME&&res.dmg>0){TR.last=res.dmg;TR.combo=(TR.comboT>0?TR.combo:0)+res.dmg;TR.comboT=1.4;TR.log.push({t:G.time,d:res.dmg});TR.hpT=2.2;if(v.hp<=1){v.hp=Math.max(v.hp,1)}}
+// the guided tutorial: one step at a time, each ticked off by what actually happens in the ring
+const TUT={on:false,i:0,steps:[
+  {k:'jab',t:'Throw a JAB',h:'J (or left mouse)',d:'stand'},{k:'cross',t:'Land a CROSS',h:'K (or right mouse)',d:'stand'},
+  {k:'hook',t:'Land a HOOK',h:'L — short range, big damage',d:'stand'},{k:'upper',t:'Land an UPPERCUT',h:'I — get in close',d:'stand'},
+  {k:'block',t:'BLOCK a punch',h:'Hold SPACE as the dummy swings',d:'fight'},{k:'parry',t:'PERFECT block',h:'Tap SPACE just as a punch lands',d:'fight'},
+  {k:'dodge',t:'DODGE a punch',h:'SHIFT as it comes in',d:'fight'},{k:'hay',t:'Land a full HAYMAKER',h:'Hold H until it glows, then let go',d:'stand'},
+  {k:'abil',t:'Use an ABILITY',h:'Q or E',d:'stand'},{k:'ult',t:'Fire your ULTIMATE',h:'R — the meter is full',d:'stand'}]};
+function tutStart(){TUT.on=true;TUT.i=0;TR.meter=false;TR.cds=true;tutStep()}
+function tutStep(){const S=TUT.steps[TUT.i];if(!S){TUT.on=false;sub('TUTORIAL COMPLETE — YOU\'RE READY',3);SFX.fanfare&&SFX.fanfare(true);confetti();TR.meter=true;trainUI();tutUI();return}
+  trainSet(S.d);if(S.k==='ult')G.B[G.ME].meter=100;tutUI()}
+function tutDone(k){if(!TUT.on||!G.bag)return;const S=TUT.steps[TUT.i];if(!S||S.k!==k)return;TUT.i++;SFX.ui();floatAt('✓',G.B[G.ME].headW,'heal',-30);setTimeout(tutStep,650)}
+function tutUI(){const el=$('tut');if(!el)return;if(!TUT.on){el.innerHTML='<button id="tutGo">▶ TUTORIAL</button>';return}
+  el.innerHTML=TUT.steps.map((S,i)=>`<div class="ts ${i<TUT.i?'done':i===TUT.i?'cur':''}">${i<TUT.i?'✓':i+1}. ${S.t}${i===TUT.i?`<small>${S.h}</small>`:''}</div>`).join('')+'<button id="tutStop">STOP</button>'}
+function trainHit(res){if(!G.bag)return;
+  if(TUT.on){if(res.a===G.ME&&(res.r==='hit'||res.r==='break')){if(['jab','cross','hook','upper'].includes(res.cue))tutDone(res.cue);if(res.cue==='hay'&&res.hay>=.97)tutDone('hay')}
+    if(res.a!==G.ME){if(res.r==='block')tutDone('block');if(res.r==='parry')tutDone('parry');if(res.r==='dodge')tutDone('dodge')}}const v=G.B[1-res.a];if(res.a===G.ME&&res.dmg>0){TR.last=res.dmg;TR.combo=(TR.comboT>0?TR.combo:0)+res.dmg;TR.comboT=1.4;TR.log.push({t:G.time,d:res.dmg});TR.hpT=2.2;if(v.hp<=1){v.hp=Math.max(v.hp,1)}}
   if(res.r==='parry'&&res.a!==G.ME)TR.perfect++}
 // ════════════════════ RING WALK ════════════════════
 // Before the first bell of a solo fight: the opponent, then you, jog out of the tunnel under a follow-spot, vault the
@@ -4289,6 +4306,7 @@ function runSmoke(){
     {solo('blaze','frost');place(1);startPunch(G.B[0],'cross');sim(.6);const d1=100-G.B[1].hp;solo('blaze','frost');place(1);MUT.dmg=true;startPunch(G.B[0],'cross');sim(.6);const d2=100-G.B[1].hp;MUT.dmg=false;
      ok(d1>0&&near(d2,d1*2,.6),'DOUBLE DAMAGE mutator doubles a cross ('+d1.toFixed(1)+' → '+d2.toFixed(1)+')');
      solo('blaze','frost');place(1);MUT.ult=true;const m0=G.B[0].meter;startPunch(G.B[0],'cross');sim(.6);const g3=G.B[0].meter-m0;MUT.ult=false;solo('blaze','frost');place(1);startPunch(G.B[0],'cross');sim(.6);ok(near(g3,G.B[0].meter*3,.5),'ULT RUSH fills the meter 3× faster')}
+    solo('blaze','frost');G.bag=true;tutStart();G.forced[1]=EMPTY;place(1);startPunch(G.B[0],'jab');sim(.5);ok(TUT.on&&TUT.i===1,'tutorial: landing a jab ticks off step one');startPunch(G.B[0],'hook');sim(.6);ok(TUT.i===1,'…and steps must go in order');TUT.on=false;G.bag=false;
     abil('kitsune','frost','q',2.5);sim(.7);ok(G.B[1].hp<100&&G.B[1].st.burn>0,'Foxfire wisps burn ('+G.B[1].hp.toFixed(1)+')');
     abil('kitsune','frost','e',2.5);sim(.6);ok(G.B[1].st.charm>0,'Charm lands');{const d0=Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z);G.forced[1]={...EMPTY,mz:1};sim(.4);
       ok(Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z)>d0+.2,'…and a charmed fighter walking in backs off instead');G.forced[1]=EMPTY}
