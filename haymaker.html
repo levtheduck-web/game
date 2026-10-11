@@ -257,7 +257,7 @@ input.txt:focus{border-color:var(--gold)}
 .seg{display:flex;gap:4px;background:#0b0b10;border:1px solid var(--line);border-radius:10px;padding:3px}
 .seg button{flex:1;border:0;background:transparent;border-radius:8px;padding:8px 4px;font:800 11px Rubik;letter-spacing:.1em;color:var(--dim)}
 .seg button.on{background:var(--gold);color:#000}
-#oppSeg button{display:grid;place-items:center;padding:2px}#oppSeg button .isvg{width:22px;height:22px}#oppSeg button[data-o=random]{display:flex;gap:4px;padding:4px 8px}
+#oppSeg button{display:grid;place-items:center;padding:2px;min-width:0}#oppSeg button .isvg{width:22px;height:22px}#oppSeg button[data-o=random]{display:flex;gap:4px;padding:4px 8px;flex:none}
 .lbl{font:800 11px Rubik;letter-spacing:.2em;color:var(--dim);margin-top:4px}
 .vsbox{font:400 22px Anton;letter-spacing:.06em;text-align:center;padding:6px;border-radius:10px;background:rgba(0,0,0,.5)}
 .ready{color:#7dff4a}
@@ -3425,7 +3425,7 @@ function renderSelect(){
   $('finfo').innerHTML=fighterInfo(FBY[SEL.f]);
   {const f=FBY[SEL.f],hx=c=>'#'+new THREE.Color(c).getHexString();$('altSeg').innerHTML=[0,1,2].map(a=>{const L=Object.assign({},f.look,f.alts[a]);return `<button data-a="${a}" class="${SEL.alt===a?'on':''}" style="--a:${hx(L.shorts)};--b:${hx(L.glove)}" title="Colour ${a+1}"></button>`}).join('')}
   $('oppBox').classList.toggle('hide',SEL.mode!=='quick');
-  $('oppSeg').innerHTML=`<button data-o="random" class="${SEL.opp==='random'?'on':''}"><span style="width:20px;height:20px;display:block">${ICO('random')}</span>RANDOM</button>`+FIGHTERS.map(f=>`<button data-o="${f.id}" class="${SEL.opp===f.id?'on':''}" title="${f.name}">${portrait(f.id,30)}</button>`).join('');
+  $('oppSeg').innerHTML=`<button data-o="random" class="${SEL.opp==='random'?'on':''}"><span style="width:20px;height:20px;display:block">${ICO('random')}</span>RANDOM</button>`+FIGHTERS.map(f=>`<button data-o="${f.id}" class="${SEL.opp===f.id?'on':''}" title="${f.name}">${portrait(f.id,25)}</button>`).join('');
   $('diffSeg').innerHTML=Object.entries(DIFF).map(([k,d])=>`<button data-d="${k}" class="${SEL.diff===k?'on':''}">${d.name}</button>`).join('');
   $('netBox').classList.toggle('hide',!on);
   if(on){const peer=NET.peer!=null?`${NET.peer||'RIVAL'}: ${NET.peerPick?FBY[NET.peerPick].name:'choosing…'} <span class="${NET.peerReady?'ready':'notready'}">${NET.peerReady?'READY':'NOT READY'}</span>`:`WAITING FOR A RIVAL…<br><span style="font:700 13px Rubik;color:var(--dim)">TELL THEM THE CODE: <b style="color:var(--gold);font-size:18px;letter-spacing:.2em">${NET.code}</b></span>`;
