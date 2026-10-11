@@ -717,7 +717,7 @@ function buildArena(){
   const ledM=new THREE.MeshStandardMaterial({color:0x000000,emissive:0xffffff,emissiveMap:led,emissiveIntensity:1.25,roughness:.4});
   for(const [nx,nz,yaw] of SIDE_DEFS){const b=new THREE.Mesh(new THREE.BoxGeometry(13,.75,.12),[0,0,0,0,ledM,ledM].map(m=>m||new THREE.MeshStandardMaterial({color:0x101014})));
     b.position.set(nx*6.6,-.75,nz*6.6);b.rotation.y=yaw+Math.PI;scene.add(b)}
-  buildCrowd();buildRig();buildJumbo();
+  buildCrowd();buildRig();buildJumbo();buildBeams();
   // lights
   scene.add(new THREE.HemisphereLight(0x6f7cff,0x140806,.42));
   const amb=new THREE.AmbientLight(0x221a2a,.4);scene.add(amb);
@@ -732,38 +732,150 @@ function buildArena(){
   // The fighter's white-out flash and the glowing sparks do the job; this stand-in keeps the old calls harmless.
   ARENA.impact={intensity:0,position:new THREE.Vector3(),color:new THREE.Color()};
 }
+// ════════════════════ CROWD ════════════════════
+// Thousands of fans as one instanced mesh: a sculpted torso, head, hair and two arms whose poses all happen in the
+// vertex shader — sway, clapping, fist pumps, both arms up and jumping, and the Mexican wave rolling around the bowl.
+// Each fan backs one corner (and often wears that fighter's colours) and goes off when their fighter lands.
+const CROWD_GLSL=`
+attribute vec3 aShirt;attribute vec3 aSkin;attribute vec3 aHair;attribute vec4 aInfo;
+uniform float uT;uniform float uEx;uniform float uWave;uniform float uCh0;uniform float uCh1;uniform vec3 uTeam0;uniform vec3 uTeam1;
+float cHash(float n){return fract(sin(n*12.9898)*43758.5453);}
+mat3 cRx(float a){float c=cos(a),s=sin(a);return mat3(1.,0.,0.,0.,c,s,0.,-s,c);}
+mat3 cRy(float a){float c=cos(a),s=sin(a);return mat3(c,0.,-s,0.,1.,0.,s,0.,c);}
+mat3 cRz(float a){float c=cos(a),s=sin(a);return mat3(c,s,0.,-s,c,0.,0.,0.,1.);}
+// how hyped this fan is right now (0 calm … 1.5 losing it), and how high their arms are
+void crowdMood(out float e,out float up,out float clap,out float jump){
+  float s=aInfo.x,team=aInfo.y,mood=aInfo.z,ang=aInfo.w;
+  float ch=team<.25?uCh0:team>.75?uCh1:.45*(uCh0+uCh1);
+  e=clamp(uEx*(.45+mood*.9)+ch*(.7+mood*.6),0.,1.6);
+  float wv=uWave*smoothstep(.55,1.,sin(ang-uT*2.4));
+  up=clamp(max(e-.55,0.)*1.7+wv+step(.93,cHash(s*7.1))*.25*uEx,0.,1.);
+  clap=smoothstep(.12,.32,e)*(1.-up)*step(.35,mood);
+  jump=max(0.,sin(uT*(6.5+mood*3.)+s*40.))*.2*max(0.,e-.6)+wv*.3;
+}
+// pose one vertex: part = 0 torso, 1 head, 2 hair, 3/4 left/right arm (k runs shoulder→hand)
+vec3 crowdPose(vec3 p,inout vec3 n,float part,out float e){
+  float up,clap,jump;crowdMood(e,up,clap,jump);float s=aInfo.x;
+  if(part>2.5){float sd=part<3.5?-1.:1.;vec3 piv=vec3(sd*.205,.76,0.);
+    float pump=step(.5,cHash(s*3.3))*smoothstep(.7,1.,up);
+    float th=up*(2.7+.25*sin(uT*7.+s*9.))+clap*1.0+.12*sin(uT*1.1+s*5.);
+    if(pump>0.&&sd>0.)th=mix(th,1.8+.9*max(0.,sin(uT*9.+s*11.)),pump);
+    float yw=-sd*clap*(.16+.13*sin(uT*15.+s*20.));float rz=sd*(up*.32+(1.-up)*.06);
+    mat3 R=cRz(rz)*cRy(yw)*cRx(-th);p=piv+R*(p-piv);n=R*n;}
+  if(part>.5&&part<2.5){vec3 piv=vec3(0.,.86,0.);mat3 R=cRx(.12*sin(uT*2.+s*13.)*(.4+e)-.1*up)*cRz(.06*sin(uT*1.3+s*4.));p=piv+R*(p-piv);n=R*n;}
+  float sw=sin(uT*(1.2+cHash(s)*.8)+s*10.)*(.025+.03*e);mat3 B=cRz(sw);p=B*p;n=B*n;
+  p.y+=jump;return p;}
+vec3 crowdBase(float part,float k){
+  if(part<.5)return aShirt;if(part<1.5)return aSkin;if(part<2.5)return aHair;
+  return k<.32?aShirt:aSkin;}`;
+function crowdMats(){
+  const U=ARENA.crowdU;
+  const uni={uT:U.uT,uEx:U.uEx,uWave:U.uWave,uCh0:U.uCh0,uCh1:U.uCh1,uTeam0:U.uTeam0,uTeam1:U.uTeam1,uSweep:U.uSweep,uSweepC:U.uSweepC};
+  const body=new THREE.ShaderMaterial({uniforms:uni,vertexColors:true,
+    vertexShader:CROWD_GLSL+`
+      uniform vec4 uSweep;varying vec3 vC;varying vec3 vN;varying vec3 vW;varying float vE;
+      void main(){vec3 n=normal;float e;vec3 p=crowdPose(position,n,floor(color.r*8.+.5),e);
+        vC=crowdBase(floor(color.r*8.+.5),color.g);vE=e;
+        vec4 w=modelMatrix*instanceMatrix*vec4(p,1.);vW=w.xyz;vN=normalize(mat3(modelMatrix*instanceMatrix)*n);
+        gl_Position=projectionMatrix*viewMatrix*w;}`,
+    fragmentShader:`uniform float uT;uniform float uEx;uniform vec4 uSweep;uniform vec3 uSweepC[3];varying vec3 vC;varying vec3 vN;varying vec3 vW;varying float vE;
+      void main(){vec3 N=normalize(vN);
+        // the ring lights spill onto the front rows; further back the bowl falls into the dark
+        float r=length(vW.xz);float spill=clamp(1.15-(r-7.5)*.085,.18,1.15);
+        float top=smoothstep(.15,.3,N.y*.5+.5+.1);
+        vec3 toRing=normalize(vec3(-vW.x,4.-vW.y,-vW.z));float face=smoothstep(-.1,.15,dot(N,toRing));
+        vec3 col=vC*(.07+.13*top*spill+.2*face*spill);
+        // sweeping moving-head beams wash over sections of the crowd
+        float a=atan(vW.z,vW.x);vec3 sw=vec3(0.);
+        for(int i=0;i<3;i++){float c=uSweep[i]+float(i)*2.094;float d=abs(mod(a-c+3.14159,6.28318)-3.14159);sw+=uSweepC[i]*smoothstep(.32,.05,d)*(.35+.65*smoothstep(.0,.4,N.y+.3));}
+        col+=(vC*.6+.06)*sw*uSweep.w*.55;
+        // rim from the ring
+        float rim=pow(1.-clamp(abs(dot(N,normalize(cameraPosition-vW))),0.,1.),3.);col+=vec3(1.,.85,.7)*rim*.1*spill;
+        col*=.85*mix(1.,.45,smoothstep(9.,20.,r));gl_FragColor=vec4(col,1.);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`});
+  // outline hull, deformed the same way
+  const line=new THREE.ShaderMaterial({side:THREE.BackSide,vertexColors:true,uniforms:Object.assign({uW:OUTLINE_U.uW,uRes:OUTLINE_U.uRes},uni),
+    vertexShader:CROWD_GLSL+`uniform float uW;uniform vec2 uRes;
+      void main(){vec3 n=normal;float e;vec3 p=crowdPose(position,n,floor(color.r*8.+.5),e);
+        mat4 mm=modelMatrix*instanceMatrix;vec4 cp=projectionMatrix*viewMatrix*mm*vec4(p,1.);vec3 vn=mat3(viewMatrix)*(mat3(mm)*n);
+        vec4 cn=projectionMatrix*vec4(vn,0.);vec2 d=cn.xy;float l=length(d);d=l>1e-5?d/l:vec2(0.);
+        float k=clamp(5./max(cp.w,.1),.35,1.6);cp.xy+=d*uW*.5*k*cp.w*2./max(uRes,vec2(1.));gl_Position=cp;}`,
+    fragmentShader:`void main(){gl_FragColor=vec4(.02,.02,.03,1.);}`});
+  return {body,line}}
+// one fan, merged into a single geometry; colour.r tags the part, colour.g runs down the arm (sleeve vs skin)
+function fanGeo(){
+  const tag=(g,part)=>{const n=g.attributes.position.count,uv=g.attributes.uv.array,c=new Float32Array(n*3);for(let i=0;i<n;i++){c[i*3]=part/8;c[i*3+1]=part>2?1-uv[i*2+1]:0;c[i*3+2]=0}g.setAttribute('color',new THREE.BufferAttribute(c,3));return g};
+  const torso=blobG(.2,.27,.135,.75,.85,{nu:12,nv:9,bumps:[{u:.25,v:.32,su:.2,sv:.15,a:.05}]});torso.translate(0,.5,0);
+  const head=blobG(.105,.124,.112,1,1,{nu:10,nv:8});head.translate(0,.96,.005);
+  const hair=blobG(.114,.085,.12,.9,1,{nu:10,nv:6});hair.translate(0,1.0,-.012);
+  const arm=sd=>{const g=limbG(.52,[[0,.062,.062],[.35,.05,.052],[.8,.042,.044],[1,.05,.05]],{capT:.04,capB:.05,nu:7,nv:6});g.translate(sd*.205,.76,0);return g};
+  return mergeG([tag(torso,0),tag(head,1),tag(hair,2),tag(arm(-1),3),tag(arm(1),4)])}
+// cardboard signs: an atlas of 8 messages, raised overhead when the fan gets loud
+function signTex(){return canvasTex(1024,512,(x,w,h)=>{
+  const S=[['KO!','#ff3b3f','#fff'],['HAYMAKER','#ffc83a','#16110f'],['10/10','#ffffff','#16110f'],['GLITCHBOX','#3fd4ff','#16110f'],
+    ['ONE MORE\nROUND','#7dff4a','#16110f'],['HIT HIM!','#ff6a1f','#fff'],['CHAMP','#b06bff','#fff'],['WOOO!','#ffe14a','#16110f']];
+  S.forEach(([t,bg,fg],i)=>{const cx=(i%4)*256,cy=Math.floor(i/4)*256;x.save();x.translate(cx,cy);
+    x.fillStyle='#d9c39a';x.fillRect(14,40,228,176);x.fillStyle=bg;x.fillRect(22,48,212,160);
+    x.fillStyle=fg;x.textAlign='center';x.textBaseline='middle';const ls=t.split('\n');x.font=`${ls.length>1?48:t.length>6?44:76}px ${FONT}`;
+    ls.forEach((l,j)=>x.fillText(l,128,128+(j-(ls.length-1)/2)*52));x.restore()})})}
 function buildCrowd(){
-  const spots=[];
-  for(const [nx,nz] of SIDE_DEFS)for(let r=0;r<10;r++){
+  const U=ARENA.crowdU;Object.assign(U,{uWave:{value:0},uCh0:{value:0},uCh1:{value:0},uTeam0:{value:new THREE.Color(0xff6a1f)},uTeam1:{value:new THREE.Color(0x3fd4ff)},
+    uSweep:{value:new THREE.Vector4(0,0,0,.6)},uSweepC:{value:[new THREE.Color(0xff3bd0),new THREE.Color(0x3fd4ff),new THREE.Color(0xffc83a)]}});
+  ARENA.cheer=[0,0];ARENA.wave=0;ARENA.waveT=18;
+  const rows=TOUCH?9:13,spots=[],gap=.66;
+  for(const [nx,nz] of SIDE_DEFS)for(let r=0;r<rows;r++){
     const d=7.6+r*.95,y=-.9+r*.46;
-    for(let s=-d+.4;s<d-.4;s+=.7){if(Math.random()<.08)continue;
-      const j=(Math.random()-.5)*.14,x=nx?nx*(d+j):s+j,z=nz?nz*(d+j):s+j;spots.push([x,y,z,r])}
-  }
-  const n=spots.length;
-  const bodyG=new THREE.CapsuleGeometry(.2,.36,2,7);bodyG.translate(0,.48,0);
-  const headG=new THREE.SphereGeometry(.13,8,6);headG.translate(0,.98,0);
-  const mk=()=>{const m=new THREE.MeshToonMaterial({color:0xffffff,gradientMap:toonGrad()});
-    m.onBeforeCompile=sh=>{sh.uniforms.uT=ARENA.crowdU.uT;sh.uniforms.uEx=ARENA.crowdU.uEx;
-      sh.vertexShader='uniform float uT;uniform float uEx;\n'+sh.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
-        float fi=float(gl_InstanceID);float ph=fract(sin(fi*12.9898)*43758.5453);
-        transformed.y+=uEx*.26*max(0.,sin(uT*(5.5+ph*4.)+ph*40.));`)};return m};
-  const bodies=new THREE.InstancedMesh(bodyG,mk(),n),heads=new THREE.InstancedMesh(headG,mk(),n);
-  const shirts=[0x2b2f45,0x5a1f24,0x1d3d5a,0x3a3a3a,0x6b5a2a,0x1f4a2f,0x8a8a8a,0x4a2a5a,0xa03030,0x203070,0xd0d0d0,0x111111];
-  const skins=[0xf1c9a5,0xd9a37c,0xb47b54,0x8a5a3c,0x5c3a26,0xe0b48f];
-  const m=new THREE.Matrix4(),c=new THREE.Color(),flashPos=[],seeds=[],glowPos=[],glowCol=[],glowSeed=[];
+    for(let s=-d+.4;s<d-.4;s+=gap){if(Math.abs(s)>3.1&&Math.abs(Math.abs(s)-5.2)<.45)continue;  // aisles
+      if(Math.random()<.06)continue;
+      const j=(Math.random()-.5)*.12,x=nx?nx*(d+j):s+j,z=nz?nz*(d+j):s+j;spots.push([x,y,z,r,nx,nz])}}
+  for(let i=spots.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[spots[i],spots[j]]=[spots[j],spots[i]]}  // shuffled, so LOW can draw a thinner crowd
+  const n=spots.length,geo=fanGeo(),{body,line}=crowdMats();ARENA.crowdMat=body;
+  const fans=new THREE.InstancedMesh(geo,body,n);fans.frustumCulled=false;
+  const shirt=new Float32Array(n*3),skin=new Float32Array(n*3),hair=new Float32Array(n*3),info=new Float32Array(n*4);
+  const shirts=[0x2b2f45,0x7a2228,0x1d4d7a,0x3a3a3a,0x8a7a3a,0x1f5a35,0x9a9a9a,0x5a2a6a,0xc03a3a,0x2a40a0,0xe0e0e0,0x151515,0xd08a20,0x2a8a8a];
+  const skins=[0xf1c9a5,0xd9a37c,0xb47b54,0x8a5a3c,0x5c3a26,0xe0b48f,0xf5d6bd];
+  const hairs=[0x1a1410,0x2a1c12,0x4a3020,0x7a5530,0xc8a060,0x101010,0x8a8a8a,0xb0401a];
+  const m=new THREE.Matrix4(),q=new THREE.Quaternion(),c=new THREE.Color(),Y=new THREE.Vector3(0,1,0),one=new THREE.Vector3(1,1,1),P=new THREE.Vector3();
+  const flashPos=[],seeds=[],glowPos=[],glowCol=[],glowSeed=[],signs=[];
   const neon=[0x3fd4ff,0xff3bd0,0xffe14a,0x7dff4a,0xff6a1f,0xffffff,0xb06bff];
-  spots.forEach(([x,y,z,r],i)=>{m.makeTranslation(x,y,z);bodies.setMatrixAt(i,m);heads.setMatrixAt(i,m);
-    // the crowd sits in the dark: muted shirts so the lit ring pops
-    bodies.setColorAt(i,c.setHex(pick(shirts)).multiplyScalar(.66));heads.setColorAt(i,c.setHex(pick(skins)).multiplyScalar(.8));
-    if(Math.random()<.35){flashPos.push(x,y+1.05,z);seeds.push(Math.random()*100)}
-    if(Math.random()<.2){glowPos.push(x+(Math.random()-.5)*.2,y+1.3,z+(Math.random()-.5)*.2);c.setHex(pick(neon));glowCol.push(c.r,c.g,c.b);glowSeed.push(Math.random()*100)}});
-  scene.add(bodies,heads);
-  // crowd silhouettes get the same black outline, thinner
-  const om=outlineMat(.55,true);for(const src of [bodies,heads]){const o=new THREE.InstancedMesh(src.geometry,om,n);o.instanceMatrix=src.instanceMatrix;o.frustumCulled=false;scene.add(o)}
-  // benches
-  const benchM=new THREE.MeshStandardMaterial({color:0x121218,roughness:.9});
-  for(const [nx,nz,yaw] of SIDE_DEFS)for(let r=0;r<10;r++){const d=7.6+r*.95,y=-.9+r*.46;
-    const b=new THREE.Mesh(new THREE.BoxGeometry(2*d+1,.46,.95),benchM);b.position.set(nx*(d+.15),y-.23,nz*(d+.15));b.rotation.y=yaw;scene.add(b)}
+  spots.forEach(([x,y,z,r,nx,nz],i)=>{
+    const yaw=Math.atan2(-x,-z)+(Math.random()-.5)*.25,sc=.9+Math.random()*.2;
+    q.setFromAxisAngle(Y,yaw);m.compose(P.set(x,y,z),q,one.set(sc,sc*(.92+Math.random()*.16),sc));fans.setMatrixAt(i,m);
+    // a fan backs the red corner, the blue corner, or nobody in particular — and often dresses the part
+    const team=Math.random()<.4?0:Math.random()<.67?1:.5,fanShirt=team!==.5&&Math.random()<.5;
+    if(fanShirt){c.copy(team?U.uTeam1.value:U.uTeam0.value)}else c.setHex(pick(shirts));
+    shirt[i*3]=c.r;shirt[i*3+1]=c.g;shirt[i*3+2]=c.b;
+    c.setHex(pick(skins));skin[i*3]=c.r;skin[i*3+1]=c.g;skin[i*3+2]=c.b;
+    if(Math.random()<.12)c.copy(c);else c.setHex(pick(hairs));hair[i*3]=c.r;hair[i*3+1]=c.g;hair[i*3+2]=c.b;
+    info[i*4]=Math.random()*100;info[i*4+1]=team;info[i*4+2]=Math.random();info[i*4+3]=Math.atan2(z,x);
+    ARENA.teamShirts=ARENA.teamShirts||[];if(fanShirt)ARENA.teamShirts.push([i,team]);
+    if(Math.random()<.3){flashPos.push(x,y+1.05,z);seeds.push(Math.random()*100)}
+    if(Math.random()<.16){glowPos.push(x+(Math.random()-.5)*.2,y+1.3,z+(Math.random()-.5)*.2);c.setHex(pick(neon));glowCol.push(c.r,c.g,c.b);glowSeed.push(Math.random()*100)}
+    if(r<9&&Math.random()<.05)signs.push([x,y,z,yaw,i])});
+  geo.setAttribute('aShirt',new THREE.InstancedBufferAttribute(shirt,3));geo.setAttribute('aSkin',new THREE.InstancedBufferAttribute(skin,3));
+  geo.setAttribute('aHair',new THREE.InstancedBufferAttribute(hair,3));geo.setAttribute('aInfo',new THREE.InstancedBufferAttribute(info,4));
+  ARENA.fans=fans;scene.add(fans);
+  const ol=new THREE.InstancedMesh(geo,line,n);ol.instanceMatrix=fans.instanceMatrix;ol.frustumCulled=false;scene.add(ol);ARENA.fanLine=ol;ARENA.fanN=n;
+  // signs share the fan's mood maths through the same per-instance info
+  if(signs.length){const sg=new THREE.PlaneGeometry(.62,.42);sg.setAttribute('color',new THREE.Float32BufferAttribute(new Array(sg.attributes.position.count*3).fill(0),3));
+    const sn=signs.length,si=new Float32Array(sn*4),cell=new Float32Array(sn),sm2=new THREE.InstancedMesh(sg,null,sn);
+    signs.forEach(([x,y,z,yaw,i],k)=>{q.setFromAxisAngle(Y,yaw);m.compose(P.set(x,y,z),q,one.set(1,1,1));sm2.setMatrixAt(k,m);for(let j=0;j<4;j++)si[k*4+j]=info[i*4+j];cell[k]=k%8});
+    sg.setAttribute('aInfo',new THREE.InstancedBufferAttribute(si,4));sg.setAttribute('aCell',new THREE.InstancedBufferAttribute(cell,1));
+    for(const nm of ['aShirt','aSkin','aHair'])sg.setAttribute(nm,new THREE.InstancedBufferAttribute(new Float32Array(sn*3),3));
+    sm2.material=new THREE.ShaderMaterial({side:THREE.DoubleSide,uniforms:Object.assign({uMap:{value:signTex()}},{uT:U.uT,uEx:U.uEx,uWave:U.uWave,uCh0:U.uCh0,uCh1:U.uCh1,uTeam0:U.uTeam0,uTeam1:U.uTeam1}),
+      vertexShader:CROWD_GLSL+`attribute float aCell;varying vec2 vUv;varying float vL;
+        void main(){float e,up,clap,jump;crowdMood(e,up,clap,jump);
+          vec3 p=position;p.xy*=.55+.45*up;p+=vec3(0.,.78+up*.62+jump+.03*sin(uT*8.+aInfo.x),.2-up*.1);
+          p.x+=sin(uT*3.+aInfo.x)*.06*up;
+          vUv=vec2((mod(aCell,4.)+uv.x)/4.,(floor(aCell/4.)>.5?0.:.5)+uv.y*.5);
+          vec4 w=modelMatrix*instanceMatrix*vec4(p,1.);vL=clamp(1.25-(length(w.xz)-7.5)*.075,.3,1.2);gl_Position=projectionMatrix*viewMatrix*w;}`,
+      fragmentShader:`uniform sampler2D uMap;varying vec2 vUv;varying float vL;void main(){vec4 t=texture2D(uMap,vUv);gl_FragColor=vec4(t.rgb*(.22+.32*vL),1.);
+        #include <colorspace_fragment>
+      }`});
+    sm2.frustumCulled=false;scene.add(sm2)}
+  buildStands(rows);
   // camera flashes in the crowd
   const fg=new THREE.BufferGeometry();fg.setAttribute('position',new THREE.Float32BufferAttribute(flashPos,3));fg.setAttribute('aSeed',new THREE.Float32BufferAttribute(seeds,1));
   const fm=new THREE.ShaderMaterial({uniforms:ARENA.flashU,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
@@ -772,16 +884,70 @@ function buildCrowd(){
         float f=fract(sin(aSeed*12.9898+floor(uT*9.+aSeed)*78.233)*43758.5453);
         vA=step(1.-.012*uRate,f);gl_PointSize=clamp(uPx*.5/max(-mv.z,.05),0.,64.);}`,
     fragmentShader:`varying float vA;void main(){float d=length(gl_PointCoord-.5);if(vA<.5)discard;gl_FragColor=vec4(vec3(1.,.97,.9)*vA*(1.-smoothstep(0.,.5,d))*2.,1.);}`});
-  scene.add(new THREE.Points(fg,fm));
+  const fp=new THREE.Points(fg,fm);fp.frustumCulled=false;scene.add(fp);
   // glow sticks and phone lights, waved harder as the crowd gets excited
   const gg=new THREE.BufferGeometry();gg.setAttribute('position',new THREE.Float32BufferAttribute(glowPos,3));gg.setAttribute('aC',new THREE.Float32BufferAttribute(glowCol,3));gg.setAttribute('aSeed',new THREE.Float32BufferAttribute(glowSeed,1));
-  const gm=new THREE.ShaderMaterial({uniforms:{uT:ARENA.crowdU.uT,uEx:ARENA.crowdU.uEx,uPx:ARENA.flashU.uPx},transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+  const gm=new THREE.ShaderMaterial({uniforms:{uT:U.uT,uEx:U.uEx,uPx:ARENA.flashU.uPx},transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
     vertexShader:`uniform float uT;uniform float uEx;uniform float uPx;attribute vec3 aC;attribute float aSeed;varying vec3 vC;
       void main(){vec3 p=position;float w=sin(uT*(2.2+fract(aSeed)*2.)+aSeed);p.x+=w*(.08+.22*uEx);p.y+=abs(w)*.05+uEx*.18*max(0.,sin(uT*7.+aSeed*3.));
         vC=aC*(.55+.45*sin(uT*1.7+aSeed*5.));vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp(uPx*.32/max(-mv.z,.05),1.5,14.);}`,
     fragmentShader:`varying vec3 vC;void main(){float d=length(gl_PointCoord-.5);float a=clamp(1.-d*2.,0.,1.);a=a*a;gl_FragColor=vec4(vC*a*1.4,1.);}`});
   const gp=new THREE.Points(gg,gm);gp.frustumCulled=false;scene.add(gp);
 }
+// the corners' colours change per match: fans in team shirts follow their fighter
+function crowdTeams(c0,c1){const U=ARENA.crowdU;if(!U.uTeam0||!ARENA.fans)return;U.uTeam0.value.set(c0);U.uTeam1.value.set(c1);
+  const a=ARENA.fans.geometry.attributes.aShirt;for(const [i,t] of ARENA.teamShirts||[]){const c=t?U.uTeam1.value:U.uTeam0.value;a.array[i*3]=c.r*.85;a.array[i*3+1]=c.g*.85;a.array[i*3+2]=c.b*.85}a.needsUpdate=true}
+// tiered risers with lit step edges, aisle stairs, a back wall and the fighters' banners hanging from the rafters
+function buildStands(rows){
+  const riserM=new THREE.MeshStandardMaterial({color:0x101016,roughness:.85,metalness:.1});
+  const edgeM=new THREE.MeshBasicMaterial({color:0x3a2a60});ARENA.edgeM=edgeM;
+  const aisleM=new THREE.MeshBasicMaterial({color:0xffc83a});
+  for(const [nx,nz,yaw] of SIDE_DEFS)for(let r=0;r<rows;r++){const d=7.6+r*.95,y=-.9+r*.46,h=y+1.15;
+    const b=new THREE.Mesh(new THREE.BoxGeometry(2*d+1,h,.95),riserM);b.position.set(nx*(d+.15),y-h/2,nz*(d+.15));b.rotation.y=yaw;scene.add(b);
+    const e=new THREE.Mesh(new THREE.BoxGeometry(2*d+1,.025,.03),edgeM);e.position.set(nx*(d-.33),y+.005,nz*(d-.33));e.rotation.y=yaw;scene.add(e);
+    for(const s of [-5.2,5.2]){const a=new THREE.Mesh(new THREE.BoxGeometry(.05,.02,.05),aisleM);const t=nx?[nx*(d-.3),y+.02,s]:[s,y+.02,nz*(d-.3)];a.position.set(...t);scene.add(a)}}
+  // back wall
+  const D=7.6+rows*.95+.6,wallM=new THREE.MeshStandardMaterial({color:0x0a0a10,roughness:.9});
+  for(const [nx,nz,yaw] of SIDE_DEFS){const w=new THREE.Mesh(new THREE.BoxGeometry(2*D+2,14,.4),wallM);w.position.set(nx*D,4,nz*D);w.rotation.y=yaw;scene.add(w)}
+  ARENA.banners=[];let k=0;
+  for(const [nx,nz,yaw] of SIDE_DEFS)for(const off of [-5,5]){const f=FIGHTERS[k++%FIGHTERS.length];
+    const tex=canvasTex(256,640,(x,w,h)=>drawBanner(x,w,h,f));ARENA.texs.push(tex);
+    const mat=new THREE.MeshStandardMaterial({map:tex,emissive:0xffffff,emissiveMap:tex,emissiveIntensity:.4,roughness:.8,side:THREE.DoubleSide});
+    const ban=new THREE.Mesh(new THREE.PlaneGeometry(2.1,5.25),mat),dd=D-1.2;
+    ban.position.set(nx?nx*dd:off,7.6,nz?nz*dd:off);ban.rotation.y=yaw+Math.PI;scene.add(ban);ARENA.banners.push({m:ban,ph:Math.random()*6})}
+}
+function drawBanner(x,w,h,f){
+  const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,'#0c0c12');g.addColorStop(.55,f.col);g.addColorStop(1,'#0c0c12');x.fillStyle=g;x.fillRect(0,0,w,h);
+  x.fillStyle='rgba(0,0,0,.35)';for(let i=0;i<h;i+=6)x.fillRect(0,i,w,2);
+  x.strokeStyle=f.col;x.lineWidth=10;x.strokeRect(8,8,w-16,h-16);x.strokeStyle='#ffc83a';x.lineWidth=3;x.strokeRect(20,20,w-40,h-40);
+  const st=STYLE[f.id]||{};x.save();x.translate(w/2,h*.33);emblem(x,st.emblem||'flame',f.col,70);x.restore();
+  x.textAlign='center';x.textBaseline='middle';x.fillStyle='#fff';x.font=`${w*.26}px ${FONT}`;x.save();x.translate(w/2,h*.68);x.fillText(f.name,0,0);x.restore();
+  x.fillStyle='#ffc83a';x.font=`${w*.09}px ${FONT}`;x.fillText('"'+f.nick+'"',w/2,h*.76);
+  x.fillStyle='rgba(255,255,255,.7)';x.font=`${w*.07}px ${FONT}`;x.fillText('GLITCHBOX CHAMPIONS',w/2,h*.9)}
+// called every frame: wave scheduling, cheers decaying, the moving-head beams sweeping
+function crowdTick(rdt){const U=ARENA.crowdU;if(!U.uWave)return;
+  const hi=SET.q==='high';ARENA.fans.count=hi?ARENA.fanN:Math.floor(ARENA.fanN*.55);ARENA.fanLine.visible=hi;
+  ARENA.cheer[0]=Math.max(0,ARENA.cheer[0]-rdt*.8);ARENA.cheer[1]=Math.max(0,ARENA.cheer[1]-rdt*.8);
+  U.uCh0.value=lerp(U.uCh0.value,ARENA.cheer[0],damp(6,rdt));U.uCh1.value=lerp(U.uCh1.value,ARENA.cheer[1],damp(6,rdt));
+  // the wave starts up when things get quiet (and on the title screen)
+  ARENA.waveT-=rdt;const quiet=(ARENA.excite||0)<.25;if(ARENA.waveT<=0&&quiet){ARENA.wave=7;ARENA.waveT=24+Math.random()*20}
+  ARENA.wave=Math.max(0,ARENA.wave-rdt);if(!quiet&&ARENA.wave>1)ARENA.wave=1;U.uWave.value=lerp(U.uWave.value,ARENA.wave>0?Math.min(1,ARENA.wave):0,damp(2,rdt));
+  const t=U.uT.value,ex=ARENA.excite||0;U.uSweep.value.set(t*.35,-t*.27+1,t*.21+2,.35+.65*ex);
+  for(let i=0;i<3;i++)U.uSweepC.value[i].setHSL(((t*.03+i/3)%1),1,.55);
+  if(ARENA.beams)ARENA.beams.forEach((b,i)=>{const a=U.uSweep.value.getComponent(i%3)+(i%3)*2.094+(i>2?Math.PI:0);
+    b.m.lookAt(Math.cos(a)*12,-1+Math.sin(t*.7+i)*1.5,Math.sin(a)*12);b.m.material.uniforms.uC.value.copy(U.uSweepC.value[i%3]);b.m.material.uniforms.uA.value=.05+.11*ex});
+  if(ARENA.banners)for(const b of ARENA.banners)b.m.rotation.z=Math.sin(t*.6+b.ph)*.015;
+}
+// moving-head lights on the truss: long additive beams that sweep over the crowd
+function buildBeams(){
+  ARENA.beams=[];const g=new THREE.CylinderGeometry(.06,1.1,16,20,1,true);g.translate(0,-8,0);g.rotateX(-Math.PI/2);
+  for(let i=0;i<6;i++){const a=i/6*TAU+.5,r=5.4;
+    const m=new THREE.Mesh(g,new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,uniforms:{uC:{value:new THREE.Color()},uA:{value:.06}},
+      vertexShader:`varying float vL;varying vec3 vN;varying vec3 vV;void main(){vL=clamp(position.z/16.,0.,1.);vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,
+      fragmentShader:`uniform vec3 uC;uniform float uA;varying float vL;varying vec3 vN;varying vec3 vV;void main(){float f=pow(clamp(abs(dot(vN,vV)),0.,1.),2.);gl_FragColor=vec4(uC*uA*f*(1.-vL)*(1.-vL),1.);}`}));
+    m.position.set(Math.cos(a)*r,6.6,Math.sin(a)*r);m.frustumCulled=false;scene.add(m);
+    const head=new THREE.Mesh(new THREE.CylinderGeometry(.16,.2,.3,10),new THREE.MeshStandardMaterial({color:0x111114,metalness:.6,roughness:.4}));head.position.copy(m.position);head.position.y+=.1;scene.add(head);
+    ARENA.beams.push({m})}}
 function buildRig(){
   const trussM=new THREE.MeshStandardMaterial({color:0x2a2a30,metalness:.8,roughness:.4});
   const H=6.8,S=4.6;
@@ -2179,6 +2345,7 @@ function setupMatch(fids,names,alts){
   G.rnd=1;G.tl=ROUND_T;G.rdmg=[[],[]];G.rkd=[[],[]];G.result=null;G.kdInfo=null;G.cards=null;clearCombat();rpReset();clearDecals();clearConfetti();
   alts=(alts||[0,0]).map(a=>a|0);if(fids[0]===fids[1]&&alts[0]===alts[1])alts[1]=(alts[0]+1)%3;   // mirror match: never the same colours
   G.B.forEach((b,i)=>{if(!b.f||b.f.id!==fids[i]||b.alt!==alts[i])b.build(FBY[fids[i]],alts[i]);b.reset();if(b.ribs)b.ribs.forEach(r=>r.clear());b.name=(names&&names[i])||b.f.name;b.x=HOME[i][0]*1.6;b.z=HOME[i][1]*1.6;b.home=HOME[i];b.yaw=Math.atan2(-b.x,-b.z);b.root.visible=true});
+  crowdTeams(G.B[0].look.glow||G.B[0].f.col,G.B[1].look.glow||G.B[1].f.col);
 }
 function setPhase(ph,x={}){
   G.phase=ph;G.phT=0;
@@ -2363,7 +2530,7 @@ function hitVisual(res,a,v,rp){
       CAM.fovKick=Math.max(CAM.fovKick||0,heavy?2+pw*1.5:.6);
       if(heavy){wave(p,pw);PFX.ca=Math.max(PFX.ca,.35*pw)}
       if(pw>=2){zoomBlur(p,.85);impactFrame(col)}
-      ARENA.excite=Math.min(1,(ARENA.excite||0)+res.dmg/30);
+      ARENA.excite=Math.min(1,(ARENA.excite||0)+res.dmg/30);if(ARENA.cheer&&res.dmg>0)ARENA.cheer[a.idx]=Math.min(1.2,ARENA.cheer[a.idx]+res.dmg/14+(heavy?.3:0));
       if(heavy&&res.dmg>0&&res.k!=='zone')comic(full?'boom':res.r==='break'?'smash':res.counter?'krak':pick(['pow','bam','wham','pow','bam']),p,full?1.5:pw>=1.4?1.15:.9,full);
       if(rp)return;
       if(res.dmg>0)floatAt(String(Math.round(res.dmg*10)/10),p,heavy?'big':'',0,'d'+v.idx);
@@ -3269,7 +3436,7 @@ function visuals(rdt,adt){
   ropeVisuals(adt);PA.update(adt);PN.update(adt);fxUpdate(adt);updEmit(adt);updConfetti(adt);extras(rdt,adt);updPFX(rdt);
   ARENA.excite=Math.max(0,(ARENA.excite||0)-rdt*.22);
   const ex=G.mode==='fight'?.12+ARENA.excite*.9:.18;ARENA.crowdU.uEx.value=lerp(ARENA.crowdU.uEx.value,ex,damp(3,rdt));ARENA.crowdU.uT.value+=rdt;
-  ARENA.flashU.uT.value+=rdt;ARENA.flashU.uRate.value=1+ARENA.excite*7+(G.phase==='kd'||G.phase==='end'?5:0);
+  crowdTick(rdt);ARENA.flashU.uT.value+=rdt;ARENA.flashU.uRate.value=1+ARENA.excite*7+(G.phase==='kd'||G.phase==='end'?5:0);
   ARENA.impact.intensity*=Math.exp(-16*rdt);if(ARENA.impact.intensity<.05)ARENA.impact.intensity=0;ARENA.led.offset.x+=rdt*.035;
   // the big screen only redraws (and re-uploads) when what it shows has changed
   jumboT-=rdt;if(jumboT<=0){jumboT=.25;const t=Math.max(0,Math.ceil(G.tl));
