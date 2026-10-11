@@ -2651,7 +2651,7 @@ function onOut(i,tko){
 // ════════════════════ MATCH FLOW (host decides) ════════════════════
 const HOME=[[-1.35,-1.35],[1.35,1.35]];
 function setupMatch(fids,names,alts){
-  dropBelts();
+  dropBelts();G.title=false;
   G.rnd=1;G.tl=ROUND_T;G.rdmg=[[],[]];G.rkd=[[],[]];G.result=null;G.kdInfo=null;G.cards=null;clearCombat();rpReset();clearDecals();clearConfetti();
   alts=(alts||[0,0]).map(a=>a|0);if(fids[0]===fids[1]&&alts[0]===alts[1])alts[1]=(alts[0]+1)%3;   // mirror match: never the same colours
   G.B.forEach((b,i)=>{if(!b.f||b.f.id!==fids[i]||b.alt!==alts[i])b.build(FBY[fids[i]],alts[i]);b.reset();if(b.ribs)b.ribs.forEach(r=>r.clear());b.name=(names&&names[i])||b.f.name;b.x=HOME[i][0]*1.6;b.z=HOME[i][1]*1.6;b.home=HOME[i];b.yaw=Math.atan2(-b.x,-b.z);b.root.visible=true});
@@ -2670,7 +2670,7 @@ function setPhase(ph,x={}){
       b.sta=100;b.act=null;b.combo=0;b.counterT=0;b.cd.q=b.cd.e=0;b.dash=null;b.kx=b.kz=0;
       Object.assign(b.st,{burn:0,poison:0,pstk:0,slow:0,stun:0,freeze:0,sealed:0,charm:0,overclock:0,cape:0,phase:0,iron:0,colossus:0,firefist:0,icefist:0,shield:0,shieldT:0,drain:0});
       b.x=b.home[0];b.z=b.home[1];b.yaw=Math.atan2(-b.x,-b.z)}
-    hideOv('cardOv');if(!G.attract){announce('ROUND '+G.rnd,'gold',1.4);say(G.rnd===ROUNDS?'Final round!':'Round '+['','one','two','three','four','five'][G.rnd])}
+    hideOv('cardOv');if(!G.attract){announce(G.title&&G.rnd===1?'TITLE FIGHT':'ROUND '+G.rnd,'gold',1.4);say(G.rnd===ROUNDS?'Final round!':'Round '+['','one','two','three','four','five'][G.rnd])}
   }
   if(ph==='fight'){clearTimeout(sub.t);$('sub').style.opacity=0}
   if(ph==='fight'&&!G.attract&&G.rnd===1&&!SMOKE){let seen=0;try{seen=+localStorage.getItem('haymaker.tip')||0}catch(e){}
@@ -3592,6 +3592,8 @@ function startSolo(myF,oppF,diff){rpStop();
   const oa=G.ladder?Math.floor(Math.random()*3):myF===oppF?(SEL.alt+1)%3:0;setupMatch([myF,oppF],[FBY[myF].name,FBY[oppF].name],[SEL.alt,oa]);G.bots=[null,new Bot(1,diff)];G.diff=diff;
   G.mode='fight';hideAllOv();showHUD(true);REF.b.root.visible=true;setPhase(G.bag||SMOKE||!SET.walk?'intro':'walk');
   if(G.bag){Object.assign(TR,{last:0,combo:0,comboT:0,log:[],perfect:0});trainSet(TR.dummy)}
+  // the last bout of the ladder is for the belt: the champion walks out wearing it
+  G.title=!!(G.ladder&&G.ladder.i===G.ladder.opps.length-1);if(G.title&&G.phase==='walk')giveBelt(G.B[1],true);
 }
 const LAD_DIFF=['rookie','rookie','contender','contender','champion'];
 function showLadder(){rpStop();vsHide();clearConfetti();
@@ -3631,7 +3633,7 @@ function beltTex(){return BELT_TEX||(BELT_TEX=canvasTex(256,256,(x,w,h)=>{
   for(let i=0;i<16;i++){const a=i/16*6.283;x.fillStyle=i%2?'#ff3b3f':'#3fd4ff';x.beginPath();x.arc(w/2+Math.cos(a)*w*.4,h/2+Math.sin(a)*w*.4,5,0,6.3);x.fill()}
   x.fillStyle='#16110f';x.font=`${w*.13}px ${FONT}`;x.textAlign='center';x.textBaseline='middle';x.save();x.translate(w/2,h*.44);x.scale(-1,1);x.fillText('WORLD',0,0);x.translate(0,h*.13);x.fillText('CHAMPION',0,0);x.restore();
   x.fillStyle='#ffc83a';x.strokeStyle='#16110f';x.lineWidth=3;x.beginPath();for(let i=0;i<5;i++){const a=-Math.PI/2+i*1.2566,b=a+.628;x.lineTo(w/2+Math.cos(a)*24,h*.25+Math.sin(a)*24);x.lineTo(w/2+Math.cos(b)*10,h*.25+Math.sin(b)*10)}x.closePath();x.fill();x.stroke()}))}
-function giveBelt(b){if(!b||!b.pelvis||b.belt)return;
+function giveBelt(b,quiet){if(!b||!b.pelvis||b.belt)return;
   const gold=new THREE.MeshStandardMaterial({color:0xf2c43a,metalness:.9,roughness:.25,envMap:ENV,envMapIntensity:1.4,emissive:0x3a2400}),strap=new THREE.MeshStandardMaterial({color:0x16110f,roughness:.5,metalness:.2});
   const g=new THREE.Group();g.position.y=.07;
   const band=new THREE.Mesh(new THREE.CylinderGeometry(.228,.232,.09,40,1,true),strap);band.scale.z=.76;band.material.side=THREE.DoubleSide;g.add(band);
@@ -3640,7 +3642,7 @@ function giveBelt(b){if(!b||!b.pelvis||b.belt)return;
   for(const sd of [-1,1]){const sp=new THREE.Mesh(new THREE.BoxGeometry(.07,.075,.02),gold);sp.position.set(sd*.17,0,.12);sp.rotation.y=sd*.75;g.add(sp)}
   g.traverse(o=>{if(o.isMesh){o.castShadow=true;b.mats.push(o.material)}});b.pelvis.add(g);b.belt=g;g.scale.setScalar(.01);
   emitter(.45,(dt,k)=>{g.scale.setScalar(Math.min(1,easeOut(k)*1.15))});
-  if(!G.attract){const P=b.chestW.clone();P.y-=.35;burst(P,40,0xffd24a,3.5,.6,.06,{up:1});impactFlash(P,0xffd24a,1.2);photoFlash(5)}}
+  if(!G.attract&&!quiet){const P=b.chestW.clone();P.y-=.35;burst(P,40,0xffd24a,3.5,.6,.06,{up:1});impactFlash(P,0xffd24a,1.2);photoFlash(5)}}
 function dropBelts(){for(const b of G.B)if(b.belt){b.pelvis.remove(b.belt);b.belt=null}}
 function showEnd(r){
   const me=G.ME,w=r.w,A=G.B[0],B=G.B[1];
@@ -3781,10 +3783,10 @@ function walkStart(){
   WALK.who=-1;const el=$('walk');el.classList.add('on');showHUD(false);walkSpot().g.visible=true;
   for(const b of G.B){b.root.visible=false;b.act=null;b.blocking=false}
   if(REF.b){REF.b.x=0;REF.b.z=0}}
-function walkEnd(){if(!WALK.spot)return;if(ARENA.key){ARENA.key.position.set(0,9.5,0);ARENA.key.target.position.set(0,0,0)}WALK.spot.g.visible=false;$('walk').classList.remove('on');WALK.cam=null;
+function walkEnd(){if(G.title&&G.phase!=='walk'&&G.B[1].belt)dropBelts();if(!WALK.spot)return;if(ARENA.key){ARENA.key.position.set(0,9.5,0);ARENA.key.target.position.set(0,0,0)}WALK.spot.g.visible=false;$('walk').classList.remove('on');WALK.cam=null;
   if(G.mode==='fight'&&G.B[0].f)for(const b of G.B){b.y=0;b.root.visible=true;if(b.act&&b.act.k==='win')b.act=null;if(b.home&&G.phase!=='walk'){b.x=b.home[0]*1.6;b.z=b.home[1]*1.6;b.yaw=Math.atan2(-b.x,-b.z)}}}
 function walkCard(b){const f=b.f,el=$('walk').querySelector('.bar'),you=b.idx===G.ME;
-  const rec=G.ladder?`ARCADE LADDER · BOUT ${G.ladder.i+1}`:you?'YOUR FIGHTER':'YOUR OPPONENT';
+  const rec=G.title?(you?'THE CHALLENGER':'THE REIGNING CHAMPION')+' · TITLE FIGHT':G.ladder?`ARCADE LADDER · BOUT ${G.ladder.i+1}`:you?'YOUR FIGHTER':'YOUR OPPONENT';
   el.style.setProperty('--c',b.look.glow?'#'+new THREE.Color(b.look.glow).getHexString():f.col);
   el.innerHTML=`<div class="cr">${b.idx?'BLUE':'RED'} CORNER · ${rec}</div><div class="nm">${f.name}</div><div class="nk">"${f.nick}"</div><div class="st">POWER ${'▮'.repeat(f.stats[0])} · SPEED ${'▮'.repeat(f.stats[1])} · TOUGH ${'▮'.repeat(f.stats[2])}</div>`;
   el.style.animation='none';void el.offsetWidth;el.style.animation=''}
@@ -3909,7 +3911,7 @@ function visuals(rdt,adt){
   ARENA.impact.intensity*=Math.exp(-16*rdt);if(ARENA.impact.intensity<.05)ARENA.impact.intensity=0;ARENA.led.offset.x+=rdt*.035;
   // the big screen only redraws (and re-uploads) when what it shows has changed
   jumboT-=rdt;if(jumboT<=0){jumboT=.25;const t=Math.max(0,Math.ceil(G.tl));
-    const J=G.mode==='fight'&&!G.attract?{top:RP.play?'REPLAY':G.phase==='kd'?'KNOCKDOWN!':G.phase==='end'?'FINAL':'ROUND '+G.rnd,mid:G.bag?'∞':Math.floor(t/60)+':'+String(t%60).padStart(2,'0'),bot:'GLITCHBOX WORLD TITLE'}:{top:'HAYMAKER',mid:'VS',bot:'GLITCHBOX ARCADE'};
+    const J=G.mode==='fight'&&!G.attract?{top:RP.play?'REPLAY':G.phase==='kd'?'KNOCKDOWN!':G.phase==='end'?'FINAL':'ROUND '+G.rnd,mid:G.bag?'∞':Math.floor(t/60)+':'+String(t%60).padStart(2,'0'),bot:G.title?'★ TITLE FIGHT ★':'GLITCHBOX WORLD TITLE'}:{top:'HAYMAKER',mid:'VS',bot:'GLITCHBOX ARCADE'};
     const key=J.top+J.mid+G.B.map(b=>b.f?b.f.id+Math.round(b.hp/b.hpMax*40):'').join();
     if(G.B[0].f&&key!==ARENA.jumboKey){ARENA.jumboKey=key;ARENA.jumboData=J;redrawTex(ARENA.jumbo)}}
   updateCamera(rdt);updateHUD(rdt);updateFloats(rdt);
