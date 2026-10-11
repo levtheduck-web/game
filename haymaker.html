@@ -504,8 +504,8 @@ const FIGHTERS=[
  {id:'titan',name:'TITAN',nick:'THE MOUNTAIN',col:'#9be05a',
   look:{skin:0x5c3a26,shorts:0x3d5a2a,trim:0xd9c27b,glove:0x70757c,hair:'bald',beard:1,hairCol:0x1a1008,glow:0x9be05a},
   taunt:'beat',alts:[{},{shorts:0x7a1d1d,trim:0xffc83a,glove:0xc8a032},{shorts:0x1a1a1e,trim:0x9be05a,glove:0x2a2a30}],
-  size:1.12,hp:135,pow:1.13,spd:.88,pspd:.94,reach:1.06,stats:[5,1,5],
-  passive:{name:'Granite Chin',desc:'135 health, and jabs never stagger him.'},
+  size:1.12,hp:140,pow:1.13,spd:.88,pspd:.94,reach:1.06,stats:[5,1,5],
+  passive:{name:'Granite Chin',desc:'140 health, and jabs never stagger him.'},
   q:{name:'Iron Skin',cd:13,desc:'For 4 seconds take half damage and shrug off stagger.'},
   e:{name:'Ground Pound',cd:11,desc:'Slam the canvas: a shockwave hits anyone close and throws them back. Dodge it!'},
   r:{name:'Colossus',desc:'Grow huge for 7 seconds: +60% damage, more reach, and nothing staggers you.'}},
@@ -513,7 +513,7 @@ const FIGHTERS=[
   look:{skin:0xc9bdd4,shorts:0x4b1f7a,trim:0xb06bff,glove:0x2a1438,hair:'hood',hairCol:0x1c1026,mask:1,glow:0xb06bff},
   taunt:'beckon',alts:[{},{shorts:0x141414,trim:0xff3b6b,glove:0x5a0f22,hairCol:0x2a0a12},{shorts:0xd9d2e8,trim:0x6b2bd9,glove:0xece6f6,hairCol:0x3a2a5a}],
   size:.98,hp:100,pow:1.04,spd:1.06,reach:1,stats:[3,4,2],
-  passive:{name:'Smoke Step',desc:'Dodges recharge twice as fast and give stamina back.'},
+  passive:{name:'Smoke Step',desc:'Dodges recharge 60% faster and give stamina back.'},
   q:{name:'Phase',cd:8,desc:'Go intangible for 1.3 seconds. Punches pass straight through you.'},
   e:{name:'Guard Seal',cd:12,desc:'Chain your opponent\'s gloves: they can\'t block for 3 seconds.'},
   r:{name:'Thousand Fists',desc:'A blur of 12 shadow punches. Blocking only stops half of each.'}},
@@ -1002,6 +1002,14 @@ function buildStands(rows){
       x.font=`${h*.56}px ${FONT}`;x.textAlign='center';x.textBaseline='middle';x.fillStyle='#ffc83a';x.shadowColor='#ff8a1a';x.shadowBlur=18;x.fillText('HAYMAKER',w/2,h*.54)});ARENA.texs.push(st);
     const sign=new THREE.Mesh(new THREE.PlaneGeometry(4,1),new THREE.MeshBasicMaterial({map:st,toneMapped:false}));sign.position.set(X+.03,-1.15+4.1,0);sign.rotation.y=Math.PI/2;scene.add(sign);
     ARENA.tunnel=new THREE.Vector3(X+.6,-1.15,0)}
+  // up in the gods: scrolling LED ribbons round the bowl, ceiling trusses studded with stage lamps, speaker stacks, exit signs
+  {const lt=ARENA.led.clone();lt.repeat.x=3;lt.wrapS=THREE.RepeatWrapping;ARENA.ledHi=lt;const rib=new THREE.MeshBasicMaterial({map:lt,toneMapped:false,color:0xb0b0b0}),truss=new THREE.MeshBasicMaterial({color:0x1b1b24}),lamp=new THREE.MeshBasicMaterial({color:0xfff0d0}),
+     spk=new THREE.MeshStandardMaterial({color:0x0e0e12,roughness:.8}),exitM=new THREE.MeshBasicMaterial({color:0x2bff6a});
+    for(const [nx,nz,yaw] of SIDE_DEFS){for(const y of [6.2,11]){const r=new THREE.Mesh(new THREE.PlaneGeometry(2*D-1,.62),rib);r.position.set(nx*(D-.22),y,nz*(D-.22));r.rotation.y=yaw+Math.PI;scene.add(r)}
+      for(const s2 of [-12,12]){const e=new THREE.Mesh(new THREE.BoxGeometry(.7,.28,.05),exitM);e.position.set(nx?nx*(D-.23):s2,5.2,nz?nz*(D-.23):s2);e.rotation.y=yaw;scene.add(e)}}
+    for(let i=-4;i<=4;i++){const a=new THREE.Mesh(new THREE.BoxGeometry(2*D,.22,.22),truss);a.position.set(0,13.2,i*4.4);scene.add(a);const b=new THREE.Mesh(new THREE.BoxGeometry(.22,.22,2*D),truss);b.position.set(i*4.4,13.4,0);scene.add(b)
+      for(let j=-4;j<=4;j++){if(Math.abs(i)<2&&Math.abs(j)<2)continue;const l=new THREE.Mesh(new THREE.CylinderGeometry(.09,.12,.16,8),lamp);l.position.set(j*4.4+((i+j)%2?.9:-.9),12.98,i*4.4);scene.add(l)}}
+    for(const [x,z] of [[-3.4,0],[3.4,0],[0,-3.4],[0,3.4]]){const b=new THREE.Mesh(new THREE.BoxGeometry(.9,1.8,.9),spk);b.position.set(x,11.6,z);scene.add(b)}}
   ARENA.banners=[];let k=0;
   for(const [nx,nz,yaw] of SIDE_DEFS)for(const off of [-5,5]){const f=FIGHTERS[k++%FIGHTERS.length];
     const tex=canvasTex(256,640,(x,w,h)=>drawBanner(x,w,h,f));ARENA.texs.push(tex);
@@ -1029,6 +1037,7 @@ function crowdTick(rdt){const U=ARENA.crowdU;if(!U.uWave)return;
   for(let i=0;i<3;i++)U.uSweepC.value[i].setHSL(((t*.03+i/3)%1),1,.55);
   if(ARENA.beams)ARENA.beams.forEach((b,i)=>{const a=U.uSweep.value.getComponent(i%3)+(i%3)*2.094+(i>2?Math.PI:0);
     b.m.lookAt(Math.cos(a)*12,-1+Math.sin(t*.7+i)*1.5,Math.sin(a)*12);b.m.material.uniforms.uC.value.copy(U.uSweepC.value[i%3]);b.m.material.uniforms.uA.value=.05+.11*ex});
+  if(ARENA.ledHi)ARENA.ledHi.offset.x=-ARENA.led.offset.x*1.5;
   if(ARENA.banners)for(const b of ARENA.banners)b.m.rotation.z=Math.sin(t*.6+b.ph)*.015;
 }
 // ════════════════════ RINGSIDE ════════════════════
@@ -2310,7 +2319,7 @@ function logicBoxer(b,it,dt){
   if(b.dbuf&&G.time-b.dbuf.t>.4)b.dbuf=null;if(b.abuf&&G.time-b.abuf.t>.55)b.abuf=null;
   if(fight&&b.dbuf&&!lk&&b.dodgeCd<=0&&!b.dash&&(!b.act||inRecovery(b.act)||b.act.k==='charge')&&b.sta>=6){
     const dm=b.dbuf;b.dbuf=null;const dir=dm.mx<-.35?'L':dm.mx>.35?'R':dm.mz<-.35?'back':'duck';
-    cancelPunch(b);b.act={k:'dodge',dir,t:0,d:.42,n:(b.dgN=(b.dgN||0)+1)};b.dodgeCd=f.id==='shade'?.38:.72;b.sta-=6;b.blocking=false;
+    cancelPunch(b);b.act={k:'dodge',dir,t:0,d:.42,n:(b.dgN=(b.dgN||0)+1)};b.dodgeCd=f.id==='shade'?.45:.72;b.sta-=6;b.blocking=false;
     if(!G.attract)SFX.whoosh(.6,b.chestW,'dodge');if(dir!=='duck'&&dir!=='back')afterimage(b,b.look.glow||0xffffff,.28,.6)}
   if(fight&&b.abuf&&!lk&&!b.dash&&(!b.act||inRecovery(b.act))){const k=b.abuf.k;b.abuf=null;castAbility(b,k)}
   b.fxBits=fxBitsOf(b);
@@ -3912,7 +3921,7 @@ function runSmoke(){
     abil('volt','frost','r',1);G.B[1].hp=1;startPunch(G.B[0],'cross');sim(.6);ok(!sdvOn(),'a knockdown ends the Sandevistan');
     solo('volt','frost');G.B[0].meter=50;ok(castAbility(G.B[0],'r')===false,'no ultimate without a full meter');
     abil('titan','frost','e',1.6);sim(.6);ok(G.B[1].hp<=88,'Ground Pound hits within 2.3m ('+G.B[1].hp.toFixed(1)+')');
-    abil('titan','frost','q');G.B[0].act=null;startPunch(G.B[1],'cross');sim(.5);ok(near(G.B[0].hp,135-PUNCH.cross.dmg*FBY.frost.pow*.5,.2),'Iron Skin halves damage ('+G.B[0].hp.toFixed(2)+')');
+    abil('titan','frost','q');G.B[0].act=null;startPunch(G.B[1],'cross');sim(.5);ok(near(G.B[0].hp,FBY.titan.hp-PUNCH.cross.dmg*FBY.frost.pow*.5,.2),'Iron Skin halves damage ('+G.B[0].hp.toFixed(2)+')');
     abil('titan','frost','r');ok(G.B[0].st.colossus>0,'Colossus');G.B[0].act=null;startPunch(G.B[0],'jab');sim(.4);ok(near(100-G.B[1].hp,PUNCH.jab.dmg*FBY.titan.pow*1.6,.3),'Colossus hits 60% harder');
     abil('shade','frost','q');startPunch(G.B[1],'cross');sim(.5);ok(G.B[0].hp===G.B[0].hpMax,'Phase: punches pass through');
     abil('shade','frost','e');G.forced[1]={...EMPTY,block:true};sim(.4);ok(G.B[1].st.sealed>0&&!G.B[1].blocking,'Guard Seal stops blocking');
@@ -3983,11 +3992,11 @@ function runSmoke(){
     const wins={};FIGHTERS.forEach(f=>wins[f.id]=[0,0]);let ended=0,bad=0,kos=0;
     const REPS=+((HASH.match(/balance(\d+)/)||[])[1]||1);   // #smoke-balance5 = every pairing five times, for tuning
     for(let rep=0;rep<REPS;rep++)for(const a of FIGHTERS)for(const b of FIGHTERS){if(a===b)continue;
-      solo(a.id,b.id);G.forced=null;G.bots=[new Bot(0,'contender'),new Bot(1,'contender')];G.phase='ready';
+      solo(a.id,b.id);G.forced=null;{const BD=/champ/.test(HASH)?'champion':'contender';G.bots=[new Bot(0,BD),new Bot(1,BD)]}G.phase='ready';
       let n=0;while(G.phase!=='end'&&n<60*300){step(SIM);n++;if(!isFinite(G.B[0].x+G.B[1].x+G.B[0].hp+G.B[1].hp)){bad++;break}}
       if(G.phase==='end'){ended++;const w=G.result.w;if(/KO/.test(G.result.how))kos++;if(w>=0){wins[[a.id,b.id][w]][0]++;wins[[a.id,b.id][1-w]][1]++}}}
     const NP=REPS*FIGHTERS.length*(FIGHTERS.length-1);ok(ended===NP,NP+' CPU-vs-CPU fights finish ('+ended+')');ok(bad===0,'no NaN anywhere');
-    out.push('balance (contender CPUs, W-L): '+FIGHTERS.map(f=>f.id+' '+wins[f.id][0]+'-'+wins[f.id][1]).join(' · ')+' · KOs '+kos+'/'+NP);
+    out.push('balance ('+(/champ/.test(HASH)?'champion':'contender')+' CPUs, W-L): '+FIGHTERS.map(f=>f.id+' '+wins[f.id][0]+'-'+wins[f.id][1]).join(' · ')+' · KOs '+kos+'/'+NP);
   }catch(e){fail++;out.push('EXCEPTION '+e.message+'\n'+e.stack)}
   G.forced=null;
   out.unshift(`SMOKE ${fail?'FAIL':'PASS'} ${pass}/${pass+fail}`);document.title=out[0];
