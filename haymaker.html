@@ -453,6 +453,7 @@ body.touch #abil,body.touch #keys{display:none}
       <kbd>T</kbd><span>Taunt. Finish it untouched for a chunk of meter — get hit and it hurts more.</span>
       <kbd>V · M</kbd><span>Switch camera (broadcast or behind you) · mute everything.</span>
       <kbd>ESC</kbd><span>Pause</span>
+      <kbd>🎮 PAD</kbd><span>Stick moves · A B X Y punch · RB block · RT haymaker · LB dodge · LT duck · D-pad ← → abilities, ↑ ultimate, ↓ taunt · START pause. In menus A confirms, B goes back, D-pad picks a fighter.</span>
     </div>
     <h3>THE FIGHT</h3>
     <p>Three rounds of a minute. Drop to zero health and you're down — mash punch to beat the ten-count. Three knockdowns is a TKO. Still standing at the end? The judges score each round on damage and knockdowns.</p>
@@ -3507,10 +3508,33 @@ addEventListener('blur',()=>{for(const k in KEYS)KEYS[k]=false;touchBlock=false;
 $('cv').addEventListener('mousedown',e=>{auResume();if(RP.play){rpEnd();return}if(G.mode!=='fight')return;if(e.button===0)PRESS.push('jab');else if(e.button===2)PRESS.push('cross');else if(e.button===1){mouseHay=true;e.preventDefault()}mashGetup()});
 addEventListener('mouseup',e=>{if(e.button===1)mouseHay=false});
 $('cv').addEventListener('contextmenu',e=>e.preventDefault());
+// ── gamepads (standard mapping): stick moves, face buttons punch, shoulders guard/dodge, triggers haymaker/duck,
+//    d-pad abilities/ultimate/taunt, START pauses; in menus A confirms and the d-pad picks a fighter ──
+const PAD={on:false,prev:[],x:0,y:0,block:false,hay:false};
+function padPoll(){const ps=navigator.getGamepads?navigator.getGamepads():[];let gp=null;for(const p of ps)if(p&&p.connected&&p.mapping==='standard'){gp=p;break}
+  if(!gp){if(PAD.on){PAD.on=false;PAD.x=PAD.y=0;PAD.block=PAD.hay=false}return}
+  const b=gp.buttons.map(x=>x.pressed||x.value>.5),pr=PAD.prev,down=i=>b[i]&&!pr[i];PAD.prev=b;
+  if(!PAD.on){PAD.on=true;sub('CONTROLLER CONNECTED',1.6)}
+  let x=gp.axes[0]||0,y=gp.axes[1]||0;if(Math.hypot(x,y)<.22){x=0;y=0}
+  const inFight=G.mode==='fight'&&!$('pauseOv').classList.contains('on')&&!PHOTO.on;
+  if(inFight){PAD.x=x;PAD.y=y;PAD.block=!!b[5];PAD.hay=!!b[7];
+    if(G.phase==='walk'&&b.some((v,i)=>v&&!pr[i])){hostPhase('intro');return}
+    if(RP.play&&b.some((v,i)=>v&&!pr[i])){rpEnd();return}
+    if(G.watch&&[0,1,2,3].some(down)){G.watch=false;G.bots[0]=null;document.body.classList.remove('watching');showHUD(true)}
+    const map={0:'jab',1:'cross',2:'hook',3:'upper',4:'dodge',6:'duck',14:'q',15:'e',12:'r',13:'taunt'};for(const i in map)if(down(+i))PRESS.push(map[i]);
+    if(G.phase==='kd'&&[0,1,2,3].some(down))mashGetup();
+    if(down(9))togglePause()}
+  else{PAD.x=PAD.y=0;PAD.block=PAD.hay=false;
+    if(PHOTO.on){PHOTO.a-=x*.04;PHOTO.e=clamp(PHOTO.e-y*.03,-.2,1.35);if(b[4])PHOTO.r=Math.max(1,PHOTO.r-.05);if(b[5])PHOTO.r=Math.min(10,PHOTO.r+.05);if(down(3))PHOTO.film=(PHOTO.film+1)%FILMS.length;if(down(0))photoSave();if(down(1)||down(9))photoOff();return}
+    if(down(9)&&G.mode==='fight'){togglePause();return}
+    if(G.mode==='select'&&(down(14)||down(15))){const i=FIGHTERS.findIndex(f=>f.id===SEL.f),n=(i+(down(15)?1:-1)+FIGHTERS.length)%FIGHTERS.length;const c=document.querySelector(`#grid [data-f=${FIGHTERS[n].id}]`);if(c)c.click()}
+    if(down(1)){const bk=document.querySelector('.ov.on #selBack, .ov.on #helpBack, .ov.on #recBack, .ov.on #resume');if(bk)bk.click()}
+    if(down(0)){const go=document.querySelector('.ov.on .primary, .ov.on #selGo');if(go)go.click()}}}
 function playerIntent(){
   const it={mx:0,mz:0,block:false,punch:null,dodge:false,abil:null};
   let up=(KEYS.KeyW||KEYS.ArrowUp?1:0)-(KEYS.KeyS||KEYS.ArrowDown?1:0),rt=(KEYS.KeyD||KEYS.ArrowRight?1:0)-(KEYS.KeyA||KEYS.ArrowLeft?1:0);
   if(STICK.on){rt=STICK.x;up=-STICK.y}
+  if(PAD.on&&(PAD.x||PAD.y)){rt=PAD.x;up=-PAD.y}
   if(up||rt){
     // turn the screen direction into the boxer's own frame (toward the opponent / circle around them)
     camera.getWorldDirection(_U);let cx=_U.x,cz=_U.z;const cl=Math.hypot(cx,cz)||1;cx/=cl;cz/=cl;
@@ -3518,7 +3542,7 @@ function playerIntent(){
     const me=G.B[G.ME],o=other(me),dx=o.x-me.x,dz=o.z-me.z,dl=Math.hypot(dx,dz)||1,fx=dx/dl,fz=dz/dl;
     it.mz=wx*fx+wz*fz;it.mx=wx*fz-wz*fx;const l=Math.hypot(it.mx,it.mz);if(l>1){it.mx/=l;it.mz/=l}
   }
-  it.block=!!(KEYS.Space||touchBlock);it.hay=!!(KEYS.KeyH||touchHay||mouseHay);
+  it.block=!!(KEYS.Space||touchBlock||PAD.block);it.hay=!!(KEYS.KeyH||touchHay||mouseHay||PAD.hay);
   let duck=false;
   while(PRESS.length){const k=PRESS.shift();if(PUNCH[k]){if(!it.punch)it.punch=k}else if(k==='dodge')it.dodge=true;else if(k==='duck'){it.dodge=true;duck=true}else if(k==='q'||k==='e'||k==='r')it.abil=k;else if(k==='taunt')it.taunt=true}
   if(duck){it.mx=0;it.mz=0}
@@ -4194,7 +4218,7 @@ function blackWatch(rdt){
 let last=performance.now();const PERF={t:0,n:0,checked:false};
 function frame(now){
   requestAnimationFrame(frame);
-  const raw=Math.max(0,(now-last)/1000),rdt=Math.min(.05,raw);last=now;
+  const raw=Math.max(0,(now-last)/1000),rdt=Math.min(.05,raw);last=now;padPoll();
   if(!PERF.checked&&G.mode==='fight'&&!document.hidden&&raw<.5){PERF.t+=raw;PERF.n++;if(PERF.t>4){PERF.checked=true;if(PERF.n/PERF.t<32&&SET.q==='high'){SET.q='low';saveSet();setupPost();prewarmFX();sub('GRAPHICS SET TO LOW FOR A SMOOTHER FIGHT',2.5)}}}
   let sdt=rdt;if(CAM.slowT>0){CAM.slowT-=rdt;sdt*=CAM.slow}
   let adt=sdt;if(CAM.hitstop>0){CAM.hitstop-=rdt;if(!G.online)sdt*=.07;adt*=.07}
@@ -4312,6 +4336,11 @@ function runSmoke(){
      solo('blaze','frost');place(1);MUT.ult=true;const m0=G.B[0].meter;startPunch(G.B[0],'cross');sim(.6);const g3=G.B[0].meter-m0;MUT.ult=false;solo('blaze','frost');place(1);startPunch(G.B[0],'cross');sim(.6);ok(near(g3,G.B[0].meter*3,.5),'ULT RUSH fills the meter 3× faster')}
     solo('blaze','frost');G.bag=true;tutStart();G.forced[1]=EMPTY;place(1);startPunch(G.B[0],'jab');sim(.5);ok(TUT.on&&TUT.i===1,'tutorial: landing a jab ticks off step one');startPunch(G.B[0],'hook');sim(.6);ok(TUT.i===1,'…and steps must go in order');TUT.on=false;G.bag=false;
     {const had=REC.champ.volt;delete REC.champ.volt;ok(!altOK('volt',3)&&altOK('volt',2),'LEGEND colours are locked until you win the ladder');REC.champ.volt=1;ok(altOK('volt',3),'…and unlock once you have');if(!had)delete REC.champ.volt;solo('volt','frost');G.B[0].build(FBY.volt,3);ok(G.B[0].look.legend===1,'…and the legend kit builds')}
+    {solo('blaze','frost');const real=navigator.getGamepads,btn=Array.from({length:17},()=>({pressed:false,value:0}));const pad={connected:true,mapping:'standard',axes:[.9,0,0,0],buttons:btn};
+     try{Object.defineProperty(navigator,'getGamepads',{value:()=>[pad],configurable:true})}catch(e){}
+     PRESS.length=0;padPoll();btn[0]={pressed:true,value:1};btn[5]={pressed:true,value:1};padPoll();ok(PAD.on&&PRESS.includes('jab')&&PAD.block&&PAD.x>.8,'gamepad: A jabs, RB blocks, the stick moves');
+     padPoll();ok(PRESS.filter(k=>k==='jab').length===1,'…and a held button only fires once');
+     try{Object.defineProperty(navigator,'getGamepads',{value:real,configurable:true})}catch(e){}PAD.on=false;PAD.x=PAD.y=0;PAD.block=false;PRESS.length=0}
     abil('kitsune','frost','q',2.5);sim(.7);ok(G.B[1].hp<100&&G.B[1].st.burn>0,'Foxfire wisps burn ('+G.B[1].hp.toFixed(1)+')');
     abil('kitsune','frost','e',2.5);sim(.6);ok(G.B[1].st.charm>0,'Charm lands');{const d0=Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z);G.forced[1]={...EMPTY,mz:1};sim(.4);
       ok(Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z)>d0+.2,'…and a charmed fighter walking in backs off instead');G.forced[1]=EMPTY}
