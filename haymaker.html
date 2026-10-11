@@ -411,6 +411,7 @@ body.touch #abil,body.touch #keys{display:none}
       <div class="seg" id="diffSeg"></div>
     </div>
     <div id="venueBox"><div class="lbl">VENUE</div><div class="seg" id="venueSeg"></div></div>
+    <div id="mutBox"><div class="lbl">MUTATORS</div><div class="seg" id="mutSeg"></div></div>
   </div>
   <div class="selR">
     <div class="finfo" id="finfo"></div>
@@ -2270,7 +2271,7 @@ class Boxer{
     this.spine.rotation.set(P.lean-h.x*.55,P.twist*.65,P.roll*.7+h.z*.4);
     this.head.rotation.set(P.headP-h.x*1.1,-P.twist*.9+h.y*1.4+P.headY,headR+h.z*.8);
     // squash-and-stretch springs (head on a hit taken, gloves on a hit landed)
-    {const d=Math.min(rdt0,.033);this.sqV=(this.sqV||0)+(-300*(this.sqX||0)-16*(this.sqV||0))*d;this.sqX=(this.sqX||0)+this.sqV*d;const q=this.sqX;this.head.scale.set(1+q*.7,1-q,1+q*.5);
+    {const d=Math.min(rdt0,.033);this.sqV=(this.sqV||0)+(-300*(this.sqX||0)-16*(this.sqV||0))*d;this.sqX=(this.sqX||0)+this.sqV*d;const q=this.sqX;const bh=mutOn('big')&&this.idx<2&&G.mode==='fight'?1.75:1;this.head.scale.set(bh*(1+q*.7),bh*(1-q),bh*(1+q*.5));
       if(!this.gsq)this.gsq=[[0,0],[0,0]];this.arm.forEach((A,i)=>{const g=this.gsq[i];g[1]+=(-420*g[0]-18*g[1])*d;g[0]+=g[1]*d;A.gl.scale.set(1+g[0]*.6,1-g[0],1+g[0]*.6)})}
     if(this.pony){this.pony.rotation.x=Math.sin(this.anT*5)*.12-h.x*1.4+P.lean*.6;this.pony.rotation.z=Math.sin(this.anT*3.1)*.08-h.z}
     if(this.foxTails){this.foxTails.rotation.x=Math.sin(this.anT*2.6)*.1-P.lean*.5+h.x*.6;this.foxTails.rotation.y=Math.sin(this.anT*1.9)*.28+P.twist*.2;this.foxTails.rotation.z=Math.sin(this.anT*3.3)*.08}
@@ -2559,7 +2560,7 @@ function resolve(spec){
   if(r==='hit'&&v.f.id==='kitsune'&&!spec.unblock&&Math.random()<1/6)r='phase';   // Illusion
   if(r==='hit'&&v.st.cape>0&&spec.k==='melee'){r='dodge';v.st.cape=0;netAb(v,'olé')}   // Red Cape
   if(r==='hit'&&v.act&&v.act.k==='dodge'&&v.act.t>.02&&v.act.t<.38&&!spec.undodge){if(spec.antiDuck&&v.act.dir==='duck')caught=true;else r='dodge'}
-  let dmg=spec.dmg;
+  let dmg=spec.dmg*(mutOn('dmg')?2:1);
   let shatter=0,taunted=0,interrupted=0;
   if(r==='hit'){
     if(caught)dmg*=1.4;
@@ -2623,7 +2624,7 @@ function applyResult(res){
   if(res.r==='parry'){if(owned(a)){cancelPunch(a);a.combo=0;a.blocking=false;a.buf=null;a.dash=null}a.act={k:'hurt',t:0,d:.55,big:true,parried:true}}
   if(owned(a)){
     if(hitLike&&a.idx===G.ME&&!G.online&&!G.watch&&!G.bag&&!G.attract&&!SMOKE){const P=recOf(a.f.id);if(res.dmg>P.big)P.big=res.dmg;if(a.combo+1>P.combo)P.combo=a.combo+1;}
-    if(hitLike){a.combo++;a.comboT=1.1;a.meter=Math.min(100,a.meter+res.meter);a.stats.landed++;a.stats.dmg+=res.dmg;
+    if(hitLike){a.combo++;a.comboT=1.1;a.meter=Math.min(100,a.meter+res.meter*(mutOn('ult')?3:1));a.stats.landed++;a.stats.dmg+=res.dmg;
       if(a.st.drain>0&&res.dmg>0){const h=res.dmg*.6;a.hp=Math.min(a.hpMax,a.hp+h);floatAt('+'+Math.round(h),a.headW,'heal')}}
     else if(res.r==='block'){a.meter=Math.min(100,a.meter+2);a.combo=0}else if(res.r!=='phase'&&res.r!=='parry')a.combo=0;
   }
@@ -3516,6 +3517,7 @@ function checkStart(){if(NET.mode==='host'&&NET.myReady&&NET.peerReady&&NET.peer
 function checkRematch(){if(NET.mode==='host'&&NET.rm&&NET.peerRm)hostGo()}
 function hostGo(){const m={t:'go',v:pickVenue(SEL.venue),f:[SEL.f,NET.peerPick],n:[myName()||FBY[SEL.f].name,NET.peer||FBY[NET.peerPick].name],a:[SEL.alt|0,NET.peerAlt|0]};netSend(m);startOnlineMatch(m)}
 function startOnlineMatch(m){
+  for(const k in MUT)MUT[k]=false;
   G.watch=false;document.body.classList.remove('watching');
   applyVenue(m.v);
   G.online=true;G.attract=false;G.bag=false;G.ME=NET.mode==='host'?0:1;G.bots=[null,null];G.ladder=null;G.paused=false;
@@ -3553,9 +3555,11 @@ function netTick(dt){
 addEventListener('pagehide',()=>{if(NET.mode!=='off')netSend({t:'bye'})});
 
 // ════════════════════ UI ════════════════════
-const SEL={mode:'quick',f:'blaze',opp:'random',diff:'contender',alt:0,venue:'arena'};
-try{const s=JSON.parse(localStorage.getItem('haymaker.sel')||'{}');if(FBY[s.f])SEL.f=s.f;if(s.opp==='random'||FBY[s.opp])SEL.opp=s.opp;if(DIFF[s.diff])SEL.diff=s.diff;if(['arena','roof','random'].includes(s.venue))SEL.venue=s.venue;SEL.alt=(s.alt|0)%3}catch(e){}
-const saveSel=()=>{try{localStorage.setItem('haymaker.sel',JSON.stringify({f:SEL.f,opp:SEL.opp,diff:SEL.diff,alt:SEL.alt,venue:SEL.venue}))}catch(e){}};
+const SEL={mode:'quick',f:'blaze',opp:'random',diff:'contender',alt:0,venue:'arena',mut:{}};
+const MUT={};   // the mutators live for this match: big (heads), dmg (double damage), ult (meter ×3)
+const mutOn=k=>!!MUT[k]&&!G.online;
+try{const s=JSON.parse(localStorage.getItem('haymaker.sel')||'{}');if(FBY[s.f])SEL.f=s.f;if(s.opp==='random'||FBY[s.opp])SEL.opp=s.opp;if(DIFF[s.diff])SEL.diff=s.diff;if(['arena','roof','random'].includes(s.venue))SEL.venue=s.venue;if(s.mut&&typeof s.mut==='object')SEL.mut={big:!!s.mut.big,dmg:!!s.mut.dmg,ult:!!s.mut.ult};SEL.alt=(s.alt|0)%3}catch(e){}
+const saveSel=()=>{try{localStorage.setItem('haymaker.sel',JSON.stringify({f:SEL.f,opp:SEL.opp,diff:SEL.diff,alt:SEL.alt,venue:SEL.venue,mut:SEL.mut}))}catch(e){}};
 function showOv(id){$(id).classList.add('on')}
 function hideOv(id){$(id).classList.remove('on')}
 function hideAllOv(){document.querySelectorAll('.ov').forEach(o=>o.classList.remove('on'))}
@@ -3653,6 +3657,7 @@ function showTitle(){
   startAttract();
 }
 function startAttract(){
+  for(const k in MUT)MUT[k]=false;
   G.watch=false;document.body.classList.remove('watching');
   applyVenue(Math.random()<.35?(Math.random()<.5?'roof-rain':'roof'):'arena');
   G.online=false;G.attract=true;G.ME=0;G.bag=false;const a=pick(FIGHTERS).id;let b;do b=pick(FIGHTERS).id;while(b===a);
@@ -3681,6 +3686,8 @@ function renderSelect(){
   $('oppSeg').innerHTML=`<button data-o="random" class="${SEL.opp==='random'?'on':''}"><span style="width:20px;height:20px;display:block">${ICO('random')}</span>RANDOM</button>`+FIGHTERS.map(f=>`<button data-o="${f.id}" class="${SEL.opp===f.id?'on':''}" title="${f.name}">${portrait(f.id,25)}</button>`).join('');
   $('venueSeg').innerHTML=[['arena','ARENA'],['roof','ROOFTOP'],['random','RANDOM']].map(([k,n])=>`<button data-v="${k}" class="${SEL.venue===k?'on':''}">${n}</button>`).join('');
   $('selWatch').style.display=SEL.mode==='quick'?'':'none';
+  $('mutSeg').innerHTML=[['big','BIG HEADS'],['dmg','DOUBLE DMG'],['ult','ULT RUSH']].map(([k,n])=>`<button data-m="${k}" class="${SEL.mut[k]?'on':''}">${n}</button>`).join('');
+  $('mutBox').style.display=SEL.mode==='online'?'none':'';
   $('venueBox').style.display=SEL.mode==='online'&&NET.mode!=='host'?'none':'';
   $('diffSeg').innerHTML=Object.entries(DIFF).map(([k,d])=>`<button data-d="${k}" class="${SEL.diff===k?'on':''}">${d.name}</button>`).join('');
   $('netBox').classList.toggle('hide',!on);
@@ -3719,6 +3726,7 @@ function setupUI(){
     if(e.shiftKey&&SEL.mode==='quick'){SEL.opp=c.dataset.f}else{SEL.f=c.dataset.f;if(SEL.mode==='online'){NET.myReady=false;netSend({t:'pick',f:SEL.f,a:SEL.alt,ready:false})}}
     saveSel();renderSelect();placePreview()});
   $('oppSeg').addEventListener('click',e=>{const c=e.target.closest('[data-o]');if(!c)return;SEL.opp=c.dataset.o;saveSel();renderSelect();placePreview()});
+  $('mutSeg').addEventListener('click',e=>{const c=e.target.closest('[data-m]');if(!c)return;SFX.ui();SEL.mut[c.dataset.m]=!SEL.mut[c.dataset.m];saveSel();renderSelect()});
   $('venueSeg').addEventListener('click',e=>{const c=e.target.closest('[data-v]');if(!c)return;SFX.ui();SEL.venue=c.dataset.v;saveSel();renderSelect();if(SEL.venue!=='random')setVenue(SEL.venue)});
   $('diffSeg').addEventListener('click',e=>{const c=e.target.closest('[data-d]');if(!c)return;SEL.diff=c.dataset.d;saveSel();renderSelect()});
   $('selBack').onclick=()=>{if(SEL.mode==='online')netLeave();showTitle()};
@@ -3744,7 +3752,7 @@ function saveName(){NAME=$('nameIn').value.trim().toUpperCase().slice(0,12);try{
 // ── fights ──
 function rpStop(){if(RP.play){RP.play.done=null;rpEnd()}}
 function renderToggles(){document.querySelectorAll('.tgl').forEach(b=>{const on=!!SET[b.dataset.s]&&!(SET.mute&&b.dataset.s!=='flash'&&b.dataset.s!=='walk');b.textContent=on?'ON':'OFF';b.classList.toggle('off',!on)})}
-function startSolo(myF,oppF,diff,watch){rpStop();G.watch=!!watch;document.body.classList.toggle('watching',G.watch);
+function startSolo(myF,oppF,diff,watch){rpStop();for(const k of ['big','dmg','ult'])MUT[k]=!!(SEL.mut[k]&&diff!=='bag'&&!SMOKE);G.watch=!!watch;document.body.classList.toggle('watching',G.watch);
   G.online=false;G.attract=false;G.ME=0;G.bag=diff==='bag';G.paused=false;
   const oa=G.ladder?Math.floor(Math.random()*3):myF===oppF?(SEL.alt+1)%3:0;setupMatch([myF,oppF],[FBY[myF].name,FBY[oppF].name],[SEL.alt,oa]);G.bots=[null,new Bot(1,diff)];G.diff=diff;
   applyVenue(pickVenue(SEL.venue));G.mode='fight';hideAllOv();showHUD(true);REF.b.root.visible=true;setPhase(G.bag||SMOKE||!SET.walk?'intro':'walk');
@@ -4213,6 +4221,9 @@ function runSmoke(){
     solo('blaze','frost');photoOn();ok(PHOTO.on&&G.paused&&document.body.classList.contains('photo')&&CAM.lock===null||PHOTO.on,'photo mode freezes the fight and hides the UI');photoTick();ok(Array.isArray(CAM.lock),'…and drives a free camera');photoOff();hideOv('pauseOv');G.paused=false;ok(!PHOTO.on&&!document.body.classList.contains('photo')&&CAM.lock===null,'…and hands everything back');
     {const w0=REC.w,l0=REC.l;startSolo('volt','titan','contender',true);ok(G.watch&&G.bots[0]&&G.bots[1],'WATCH: both corners are CPUs');G.forced=null;G.phase='fight';let n=0;while(G.phase!=='end'&&n<60*300){step(1/60);n++}ok(G.phase==='end'&&REC.w===w0&&REC.l===l0,'…the exhibition finishes and doesn\'t touch your record');G.watch=false;document.body.classList.remove('watching');G.forced=[EMPTY,EMPTY]}
     {const P0=JSON.stringify(REC.per);showRecords();ok($('recOv').classList.contains('on')&&$('recBody').querySelectorAll('.rc').length===FIGHTERS.length,'RECORDS lists every fighter');hideOv('recOv');ok(JSON.stringify(REC.per)===P0,'…and smoke fights never touch your career stats')}
+    {solo('blaze','frost');place(1);startPunch(G.B[0],'cross');sim(.6);const d1=100-G.B[1].hp;solo('blaze','frost');place(1);MUT.dmg=true;startPunch(G.B[0],'cross');sim(.6);const d2=100-G.B[1].hp;MUT.dmg=false;
+     ok(d1>0&&near(d2,d1*2,.6),'DOUBLE DAMAGE mutator doubles a cross ('+d1.toFixed(1)+' → '+d2.toFixed(1)+')');
+     solo('blaze','frost');place(1);MUT.ult=true;const m0=G.B[0].meter;startPunch(G.B[0],'cross');sim(.6);const g3=G.B[0].meter-m0;MUT.ult=false;solo('blaze','frost');place(1);startPunch(G.B[0],'cross');sim(.6);ok(near(g3,G.B[0].meter*3,.5),'ULT RUSH fills the meter 3× faster')}
     abil('kitsune','frost','q',2.5);sim(.7);ok(G.B[1].hp<100&&G.B[1].st.burn>0,'Foxfire wisps burn ('+G.B[1].hp.toFixed(1)+')');
     abil('kitsune','frost','e',2.5);sim(.6);ok(G.B[1].st.charm>0,'Charm lands');{const d0=Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z);G.forced[1]={...EMPTY,mz:1};sim(.4);
       ok(Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z)>d0+.2,'…and a charmed fighter walking in backs off instead');G.forced[1]=EMPTY}
