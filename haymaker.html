@@ -1055,7 +1055,11 @@ function crowdTick(rdt){const U=ARENA.crowdU;if(!U.uWave)return;
   ARENA.waveT-=rdt;const quiet=(ARENA.excite||0)<.25;if(ARENA.waveT<=0&&quiet){ARENA.wave=7;ARENA.waveT=24+Math.random()*20}
   ARENA.wave=Math.max(0,ARENA.wave-rdt);if(!quiet&&ARENA.wave>1)ARENA.wave=1;U.uWave.value=lerp(U.uWave.value,ARENA.wave>0?Math.min(1,ARENA.wave):0,damp(2,rdt));
   const t=U.uT.value,ex=ARENA.excite||0;U.uSweep.value.set(t*.35,-t*.27+1,t*.21+2,.35+.65*ex);
-  for(let i=0;i<3;i++)U.uSweepC.value[i].setHSL(((t*.03+i/3)%1),1,.55);
+  // a fighter walking out paints the whole bowl in their colour
+  const th=G.phase==='walk'&&WALK.who>=0&&G.B[WALK.who]&&G.B[WALK.who].f?G.B[WALK.who].look.glow||0xffc83a:null;ARENA.thK=lerp(ARENA.thK||0,th!=null?1:0,damp(3,rdt));if(th!=null)(ARENA.thC||(ARENA.thC=new THREE.Color())).set(th);
+  for(let i=0;i<3;i++){U.uSweepC.value[i].setHSL(((t*.03+i/3)%1),1,.55);if(ARENA.thK>.01)U.uSweepC.value[i].lerp(ARENA.thC,ARENA.thK)}
+  if(ARENA.edgeM){if(!ARENA.edge0)ARENA.edge0=ARENA.edgeM.color.clone();ARENA.edgeM.color.copy(ARENA.edge0);if(ARENA.thK>.01)ARENA.edgeM.color.lerp(ARENA.thC,ARENA.thK*.8)}
+  if(G.phase==='walk')U.uSweep.value.w=Math.max(U.uSweep.value.w,.9);
   if(ARENA.beams)ARENA.beams.forEach((b,i)=>{const a=U.uSweep.value.getComponent(i%3)+(i%3)*2.094+(i>2?Math.PI:0);
     b.m.lookAt(Math.cos(a)*12,-1+Math.sin(t*.7+i)*1.5,Math.sin(a)*12);b.m.material.uniforms.uC.value.copy(U.uSweepC.value[i%3]);b.m.material.uniforms.uA.value=.05+.11*ex});
   if(ARENA.ledHi)ARENA.ledHi.offset.x=-ARENA.led.offset.x*1.5;
