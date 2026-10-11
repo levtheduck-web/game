@@ -1146,13 +1146,15 @@ function drawJumbo(x,w,h){
   x.textBaseline='middle';x.textAlign='center';
   if(!b[0]||!b[0].f){x.fillStyle='#ffc83a';x.font=`${h*.36}px ${FONT}`;x.fillText('HAYMAKER',w/2,h/2);return}
   x.font=`${h*.2}px ${FONT}`;x.fillStyle='#ffc83a';x.fillText(J.top||'',w/2,h*.16);
-  for(let i=0;i<2;i++){const bx=b[i],cx=i?w*.75:w*.25;
-    x.fillStyle=bx.f.col;x.font=`${h*.2}px ${FONT}`;x.fillText(bx.f.name,cx,h*.42);
+  for(let i=0;i<2;i++){const bx=b[i],cx=i?w*.73:w*.27;
+    const im=jumboFace(bx.f.id);if(im&&im.complete&&im.naturalWidth){const s2=h*.46;x.drawImage(im,0,0,im.naturalHeight,im.naturalHeight,(i?w*.895:w*.105)-s2/2,h*.2,s2,s2)}
+    x.fillStyle=bx.f.col;x.font=`${h*.2}px ${FONT}`;const nw=x.measureText(bx.f.name).width;if(nw>w*.26)x.font=`${h*.2*w*.26/nw}px ${FONT}`;x.fillText(bx.f.name,cx,h*.42);
     const bw=w*.38,bx0=cx-bw/2;x.fillStyle='#222';x.fillRect(bx0,h*.6,bw,h*.1);x.fillStyle=bx.hp/bx.hpMax<.3?'#ff3b2a':'#ffc21a';x.fillRect(bx0,h*.6,bw*clamp(bx.hp/bx.hpMax,0,1),h*.1)}
   x.fillStyle='#fff';x.font=`${h*.2}px ${FONT}`;x.fillText(J.mid||'VS',w/2,h*.42);
   x.fillStyle='#fff';x.font=`${h*.16}px ${FONT}`;x.fillText(J.bot||'',w/2,h*.86);
   x.fillStyle='rgba(0,0,0,.3)';for(let y=0;y<h;y+=3)x.fillRect(0,y,w,1);
 }
+const JFACE={};function jumboFace(id){if(!PORT[id])return null;let im=JFACE[id];if(!im||im._src!==PORT[id]){im=new Image();im._src=PORT[id];im.onload=()=>{ARENA.jumboKey=''};im.src=PORT[id];JFACE[id]=im}return im}
 function buildJumbo(){
   const tex=canvasTex(512,256,drawJumbo,true);ARENA.jumbo=tex;
   const scr=new THREE.MeshStandardMaterial({color:0x000000,emissive:0xffffff,emissiveMap:tex,emissiveIntensity:1.1});
@@ -1859,6 +1861,8 @@ class Boxer{
     const chest=this.chest=g(0,.4,0);spine.add(chest);
     const neck=g(0,.05,0);chest.add(neck);
     neck.add(mesh(geo('neck',()=>{const n=A.neck,s=limbG(.22,[[0,n*.9,n*.86],[.5,n*.95,n*.92],[1,n*1.05,n*1.02]],{capT:.01,capB:.01,nu:18,nv:6,bumps:[{u:.25+.08,t:.6,su:.05,st:.3,a:.06},{u:.25-.08,t:.6,su:.05,st:.3,a:.06}]});s.rotateZ(Math.PI);s.translate(0,-.07,.005);return s}),mSkin));
+    if(ref){const bm=tm({color:0x111116},{shade:SHADE.dark,spec:.4,gloss:.9}),bow=g(0,-.035,.072);neck.add(bow);
+      for(const sd of [-1,1]){const w=mesh(new THREE.ConeGeometry(.026,.055,4),bm,sd*.03,0,0);w.rotation.z=sd*Math.PI/2;w.scale.z=.5;bow.add(w)}bow.add(mesh(new THREE.SphereGeometry(.014,8,6),bm))}
     // ── head: sculpted skull, jaw and cheekbones; the face is painted on separate layers ──
     const head=this.head=g(0,.13,0);neck.add(head);
     const H=Object.assign({},HEAD0,A.head),hf=headFn(H);this.headH=H;
