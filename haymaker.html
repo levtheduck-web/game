@@ -398,6 +398,7 @@ body.touch #abil,body.touch #keys{display:none}
       <div class="lbl">DIFFICULTY</div>
       <div class="seg" id="diffSeg"></div>
     </div>
+    <div id="venueBox"><div class="lbl">VENUE</div><div class="seg" id="venueSeg"></div></div>
   </div>
   <div class="selR">
     <div class="finfo" id="finfo"></div>
@@ -796,9 +797,11 @@ function buildArena(){
   const ledM=new THREE.MeshStandardMaterial({color:0x000000,emissive:0xffffff,emissiveMap:led,emissiveIntensity:1.25,roughness:.4});
   for(const [nx,nz,yaw] of SIDE_DEFS){const b=new THREE.Mesh(new THREE.BoxGeometry(13,.75,.12),[0,0,0,0,ledM,ledM].map(m=>m||new THREE.MeshStandardMaterial({color:0x101014})));
     b.position.set(nx*6.6,-.75,nz*6.6);b.rotation.y=yaw+Math.PI;scene.add(b)}
-  buildCrowd();buildRig();buildJumbo();buildBeams();buildRingside();buildCorners();ARENA.merged=mergeStatic();
+  {const tag=fn=>{const pre=new Set(scene.children);fn();for(const o of scene.children)if(!pre.has(o))o.userData.venue='arena'};
+    floor.userData.venue='arena';tag(buildCrowd);buildRig();tag(buildJumbo);tag(buildBeams);buildRingside();buildCorners();ARENA.merged=mergeStatic();
+    ARENA.dress=scene.children.filter(o=>o.userData.venue==='arena');ARENA.tunnel0=ARENA.tunnel;ARENA.venue='arena'}
   // lights
-  scene.add(new THREE.HemisphereLight(0x6f7cff,0x140806,.42));
+  ARENA.hemi=new THREE.HemisphereLight(0x6f7cff,0x140806,.42);scene.add(ARENA.hemi);
   const amb=new THREE.AmbientLight(0x221a2a,.4);scene.add(amb);
   const key=new THREE.SpotLight(0xfff0dc,2.55,0,.55,.6,0);key.position.set(0,9.5,0);key.target.position.set(0,0,0);
   key.castShadow=true;key.shadow.mapSize.set(SET.q==='high'?2048:1024,SET.q==='high'?2048:1024);key.shadow.camera.near=4;key.shadow.camera.far=14;key.shadow.bias=-.0004;key.shadow.normalBias=.025;
@@ -913,11 +916,11 @@ function signTex(){return canvasTex(1024,512,(x,w,h)=>{
 function mergeStatic(){
   const plain=THREE.Material.prototype.onBeforeCompile,skip=new Set((ARENA.banners||[]).map(b=>b.m)),by=new Map();
   for(const o of scene.children){if(!o.isMesh||o.isInstancedMesh||Array.isArray(o.material)||o.material.isShaderMaterial||o.material.onBeforeCompile!==plain||skip.has(o)||o.children.length||!o.geometry.index||!o.geometry.attributes.uv)continue;
-    const k=o.material.uuid+(o.castShadow?'c':'')+(o.receiveShadow?'r':'');if(!by.has(k))by.set(k,[]);by.get(k).push(o)}
+    const k=o.material.uuid+(o.castShadow?'c':'')+(o.receiveShadow?'r':'')+(o.userData.venue||'');if(!by.has(k))by.set(k,[]);by.get(k).push(o)}
   let saved=0;
   for(const list of by.values()){if(list.length<2)continue;
     const geos=list.map(o=>{o.updateMatrixWorld(true);const g=o.geometry.clone().applyMatrix4(o.matrixWorld);for(const a of Object.keys(g.attributes))if(!['position','normal','uv'].includes(a))g.deleteAttribute(a);return g});
-    const m=new THREE.Mesh(mergeG(geos),list[0].material);m.castShadow=list[0].castShadow;m.receiveShadow=list[0].receiveShadow;scene.add(m);
+    const m=new THREE.Mesh(mergeG(geos),list[0].material);m.userData.venue=list[0].userData.venue;m.castShadow=list[0].castShadow;m.receiveShadow=list[0].receiveShadow;scene.add(m);
     for(const o of list){scene.remove(o);o.geometry.dispose()}saved+=list.length-1}
   return saved}
 function buildCrowd(){
@@ -996,7 +999,8 @@ function buildCrowd(){
   const gp=new THREE.Points(gg,gm);gp.frustumCulled=false;scene.add(gp);
 }
 // the corners' colours change per match: fans in team shirts follow their fighter
-function crowdTeams(c0,c1){const U=ARENA.crowdU;if(!U.uTeam0||!ARENA.fans)return;U.uTeam0.value.set(c0);U.uTeam1.value.set(c1);
+function crowdTeams(c0,c1){const U=ARENA.crowdU;if(!U.uTeam0||!ARENA.fans)return;ARENA.B0=c0;ARENA.B1=c1;U.uTeam0.value.set(c0);U.uTeam1.value.set(c1);
+  if(ARENA.roof&&ARENA.roof.fans){const ra=ARENA.roof.fans.geometry.attributes.aShirt;for(const [i,t] of ARENA.roof.teamShirts){const c=t?U.uTeam1.value:U.uTeam0.value;ra.array[i*3]=c.r*.85;ra.array[i*3+1]=c.g*.85;ra.array[i*3+2]=c.b*.85}ra.needsUpdate=true}
   const a=ARENA.fans.geometry.attributes.aShirt;for(const [i,t] of ARENA.teamShirts||[]){const c=t?U.uTeam1.value:U.uTeam0.value;a.array[i*3]=c.r*.85;a.array[i*3+1]=c.g*.85;a.array[i*3+2]=c.b*.85}a.needsUpdate=true}
 // tiered risers with lit step edges, aisle stairs, a back wall and the fighters' banners hanging from the rafters
 function buildStands(rows){
@@ -1048,7 +1052,8 @@ function drawBanner(x,w,h,f){
   x.fillStyle='rgba(255,255,255,.7)';x.font=`${w*.07}px ${FONT}`;x.fillText('GLITCHBOX CHAMPIONS',w/2,h*.9)}
 // called every frame: wave scheduling, cheers decaying, the moving-head beams sweeping
 function crowdTick(rdt){const U=ARENA.crowdU;if(!U.uWave)return;
-  const hi=SET.q==='high';ARENA.fans.count=hi?ARENA.fanN:Math.floor(ARENA.fanN*.55);ARENA.fanLine.visible=hi;
+  const hi=SET.q==='high',roof=ARENA.venue==='roof';ARENA.fans.count=hi?ARENA.fanN:Math.floor(ARENA.fanN*.55);ARENA.fanLine.visible=hi&&!roof;
+  if(ARENA.roof){ARENA.roof.fanLine.visible=hi&&roof;if(roof&&ARENA.roof.search){const t2=U.uT.value;ARENA.roof.search.rotation.set(Math.sin(t2*.23)*.5,0,.35+Math.sin(t2*.17)*.3)}}
   ARENA.cheer[0]=Math.max(0,ARENA.cheer[0]-rdt*.8);ARENA.cheer[1]=Math.max(0,ARENA.cheer[1]-rdt*.8);
   U.uCh0.value=lerp(U.uCh0.value,ARENA.cheer[0],damp(6,rdt));U.uCh1.value=lerp(U.uCh1.value,ARENA.cheer[1],damp(6,rdt));
   // the wave starts up when things get quiet (and on the title screen)
@@ -1132,6 +1137,92 @@ function cornerTick(dt){if(!ARENA.corner)return;const on=G.mode==='fight'&&G.pha
 // a photographer's flash on a big shot
 function photoFlash(n=1){if(!ARENA.cams||G.attract&&Math.random()<.5)return;
   for(let i=0;i<n;i++){const p=pick(ARENA.cams);after(Math.random()*.25,()=>spr(flashTex(),p,.9+Math.random()*.5,{add:true,life:.12,top:false,upd:(o,k)=>{o.material.opacity=1-k}}))}}
+// ════════════════════ VENUES: the arena, or a rooftop at night ════════════════════
+// The arena dressing (stands, crowd, banners, ceiling, jumbotron, moving heads) is tagged when it is built;
+// the rooftop is built the first time it is needed and the two swap by visibility.
+function buildRoof(){if(ARENA.roof)return ARENA.roof;
+  const g=new THREE.Group();g.visible=false;scene.add(g);const R={g,fans:null,door:new THREE.Vector3(-13.2,-1.15,0)};ARENA.roof=R;
+  // night sky: deep blue fading to a city-glow horizon, with stars
+  const sky=new THREE.Mesh(new THREE.SphereGeometry(160,32,16),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,uniforms:{uT:ARENA.crowdU.uT},
+    vertexShader:`varying vec3 vD;void main(){vD=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`uniform float uT;varying vec3 vD;float h(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
+      void main(){float y=clamp(vD.y,0.,1.);vec3 c=mix(vec3(.32,.13,.26),vec3(.02,.03,.09),smoothstep(0.,.35,y));c=mix(c,vec3(.01,.01,.04),smoothstep(.35,1.,y));
+        vec2 q=vec2(atan(vD.z,vD.x)*80.,y*160.);vec2 id=floor(q);float s=h(id);float tw=.6+.4*sin(uT*2.+s*40.);
+        float star=step(.985,s)*smoothstep(.45,.0,length(fract(q)-.5))*tw*smoothstep(.08,.3,y);c+=vec3(star);
+        gl_FragColor=vec4(c,1.);
+        #include <colorspace_fragment>
+      }`}));sky.renderOrder=-10;sky.frustumCulled=false;g.add(sky);
+  // the skyline: instanced towers whose windows are drawn in the shader
+  const N=TOUCH?140:240,bg=new THREE.BoxGeometry(1,1,1);bg.translate(0,.5,0);
+  const bm=new THREE.ShaderMaterial({uniforms:{uT:ARENA.crowdU.uT},
+    vertexShader:`attribute float aSeed;varying vec3 vW;varying vec3 vN;varying float vS;void main(){vS=aSeed;vec4 w=modelMatrix*instanceMatrix*vec4(position,1.);vW=w.xyz;vN=normalize(mat3(modelMatrix*instanceMatrix)*normal);gl_Position=projectionMatrix*viewMatrix*w;}`,
+    fragmentShader:`uniform float uT;varying vec3 vW;varying vec3 vN;varying float vS;float h(vec3 p){return fract(sin(dot(p,vec3(12.9898,78.233,37.719)))*43758.5453);}
+      void main(){vec3 n=normalize(vN);vec3 c=vec3(.025,.03,.055);
+        if(abs(n.y)<.5){float u=abs(n.x)>.5?vW.z:vW.x;vec2 g2=vec2(u/1.5,vW.y/2.1);vec2 id=floor(g2),f=fract(g2);
+          float win=step(.18,f.x)*step(f.x,.78)*step(.22,f.y)*step(f.y,.8);float on=step(.55,h(vec3(id,vS)));float fl=.85+.15*sin(uT*.7+h(vec3(id,vS+1.))*30.);
+          vec3 wc=mix(vec3(1.,.78,.45),vec3(.55,.75,1.),step(.75,h(vec3(id.yx,vS))));c=mix(c,wc*fl*.9,win*on);}
+        float d=length(vW.xz);c=mix(c,vec3(.12,.05,.12),smoothstep(60.,150.,d)*.7);gl_FragColor=vec4(c,1.);
+        #include <colorspace_fragment>
+      }`});
+  const bi=new THREE.InstancedMesh(bg,bm,N),m=new THREE.Matrix4(),q=new THREE.Quaternion(),Y=new THREE.Vector3(0,1,0),seeds=new Float32Array(N);
+  for(let i=0;i<N;i++){const a=Math.random()*TAU,r=45+Math.random()*75,h=-6+Math.random()*(r>80?55:30),w=6+Math.random()*10;
+    q.setFromAxisAngle(Y,Math.round(a/(Math.PI/2))*Math.PI/2+(Math.random()-.5)*.3);m.compose(new THREE.Vector3(Math.cos(a)*r,-45,Math.sin(a)*r),q,new THREE.Vector3(w,h+44,w*(.7+Math.random()*.6)));bi.setMatrixAt(i,m);seeds[i]=Math.random()*100}
+  bg.setAttribute('aSeed',new THREE.InstancedBufferAttribute(seeds,1));bi.frustumCulled=false;g.add(bi);
+  // the roof: a parapet, rooftop clutter, a water tower and the stairwell the fighters come out of
+  const wallM=new THREE.MeshStandardMaterial({color:0x2a2a33,roughness:.9}),capM=new THREE.MeshStandardMaterial({color:0x3a3a46,roughness:.7}),dark=new THREE.MeshStandardMaterial({color:0x17171d,roughness:.8,metalness:.3});
+  {const ft=canvasTex(1024,1024,(x,w,h)=>{x.fillStyle='#24242c';x.fillRect(0,0,w,h);for(let i=0;i<1400;i++){x.fillStyle=`rgba(${Math.random()<.5?255:0},${Math.random()<.5?255:0},255,${Math.random()*.03})`;x.fillRect(Math.random()*w,Math.random()*h,2+Math.random()*6,2+Math.random()*6)}
+      x.strokeStyle='rgba(0,0,0,.35)';x.lineWidth=3;for(let i=0;i<=16;i++){x.beginPath();x.moveTo(i*w/16,0);x.lineTo(i*w/16,h);x.stroke()}
+      const g2=x.createRadialGradient(w/2,h/2,w*.12,w/2,h/2,w*.55);g2.addColorStop(0,'rgba(255,220,170,.35)');g2.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g2;x.fillRect(0,0,w,h);
+      for(const [cx,cy,rw,rh] of [[.2,.75,.12,.05],[.78,.22,.09,.07],[.65,.82,.14,.04]]){x.fillStyle='rgba(120,150,200,.12)';x.beginPath();x.ellipse(cx*w,cy*h,rw*w,rh*h,.3,0,6.3);x.fill()}});
+    const fl=new THREE.Mesh(new THREE.PlaneGeometry(30,30),new THREE.MeshStandardMaterial({map:ft,roughness:.85,emissive:0xffffff,emissiveMap:ft,emissiveIntensity:.35}));fl.rotation.x=-Math.PI/2;fl.position.y=-1.145;fl.receiveShadow=true;g.add(fl)}
+  const E=15;for(const [nx,nz,yaw] of SIDE_DEFS){const w=new THREE.Mesh(new THREE.BoxGeometry(2*E+.6,1.1,.3),wallM);w.position.set(nx*E,-1.15+.55,nz*E);w.rotation.y=yaw;g.add(w);
+    const c=new THREE.Mesh(new THREE.BoxGeometry(2*E+.8,.08,.42),capM);c.position.set(nx*E,-.02,nz*E);c.rotation.y=yaw;g.add(c)}
+  for(const [x,z,sx,sy,sz] of [[10,-10,2.4,1.4,1.6],[11,6,1.6,1,3],[-9,11,3,1.2,1.4],[6,12,1.4,2.2,1.4]]){const b=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),dark);b.position.set(x,-1.15+sy/2,z);b.castShadow=true;g.add(b)}
+  {const t=new THREE.Group();t.position.set(11,-1.15,-11);g.add(t);const tank=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,2.4,20),new THREE.MeshStandardMaterial({color:0x5a3a28,roughness:.9}));tank.position.y=4.6;t.add(tank);
+    const roofC=new THREE.Mesh(new THREE.ConeGeometry(1.55,.9,20),new THREE.MeshStandardMaterial({color:0x3a2a20,roughness:.9}));roofC.position.y=6.25;t.add(roofC);
+    for(let k=0;k<4;k++){const a=k*Math.PI/2+.78,l=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,3.4,6),dark);l.position.set(Math.cos(a)*1.1,1.7,Math.sin(a)*1.1);t.add(l)}}
+  {const hut=new THREE.Mesh(new THREE.BoxGeometry(2.6,3.2,3.6),wallM);hut.position.set(-14.1,-1.15+1.6,0);g.add(hut);
+    const door=new THREE.Mesh(new THREE.PlaneGeometry(1.3,2.3),new THREE.MeshBasicMaterial({color:0xffd9a0}));door.position.set(-12.79,-1.15+1.15,0);door.rotation.y=Math.PI/2;g.add(door);
+    const sign=new THREE.Mesh(new THREE.BoxGeometry(.08,.3,1.2),new THREE.MeshBasicMaterial({color:0x2bff6a}));sign.position.set(-12.78,-1.15+2.6,0);g.add(sign)}
+  // a big neon HAYMAKER on the tower behind the ring
+  {const tex=canvasTex(1024,256,(x,w,h)=>{x.fillStyle='#05050a';x.fillRect(0,0,w,h);x.strokeStyle='#ff3bd0';x.lineWidth=10;x.shadowColor='#ff3bd0';x.shadowBlur=30;x.strokeRect(14,14,w-28,h-28);
+      x.font=`${h*.62}px ${FONT}`;x.textAlign='center';x.textBaseline='middle';x.shadowColor='#ffc83a';x.shadowBlur=40;x.fillStyle='#ffd86a';x.fillText('HAYMAKER',w/2,h*.55)});ARENA.texs.push(tex);
+    const n=new THREE.Mesh(new THREE.PlaneGeometry(22,5.5),new THREE.MeshBasicMaterial({map:tex,toneMapped:false}));n.position.set(0,13,-42);g.add(n);
+    const fr=new THREE.Mesh(new THREE.BoxGeometry(23,6.3,.5),dark);fr.position.set(0,13,-42.35);g.add(fr);
+    const tw=new THREE.Mesh(new THREE.BoxGeometry(26,58,14),new THREE.MeshStandardMaterial({color:0x0c0c14,roughness:1}));tw.position.set(0,-19,-50);g.add(tw)}
+  // string lights round the roof: warm bulbs along sagging wires
+  {const pts=[],P=[[-E,-E],[E,-E],[E,E],[-E,E],[-E,-E]];for(let s=0;s<4;s++){const [x0,z0]=P[s],[x1,z1]=P[s+1];for(let i=0;i<=40;i++){const t=i/40;pts.push(lerp(x0,x1,t),2.4-Math.sin(t*Math.PI)*1.1,lerp(z0,z1,t))}}
+    for(let s=0;s<6;s++){const z=-E+s*(2*E)/5;for(let i=0;i<=30;i++){const t=i/30;pts.push(lerp(-E,E,t),3.2-Math.sin(t*Math.PI)*1.4,z)}}
+    const gg=new THREE.BufferGeometry();gg.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+    const pm=new THREE.ShaderMaterial({uniforms:{uPx:ARENA.flashU.uPx,uT:ARENA.crowdU.uT},transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+      vertexShader:`uniform float uPx;uniform float uT;varying float vA;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);vA=.75+.25*sin(uT*2.+position.x*3.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp(uPx*.09/max(-mv.z,.05),1.5,16.);}`,
+      fragmentShader:`varying float vA;void main(){float d=length(gl_PointCoord-.5);float a=clamp(1.-d*2.,0.,1.);gl_FragColor=vec4(vec3(1.,.78,.45)*a*a*1.6*vA,1.);}`});
+    const sp=new THREE.Points(gg,pm);sp.frustumCulled=false;g.add(sp)}
+  // a searchlight sweeping the sky from a nearby tower
+  {const cg=new THREE.CylinderGeometry(.3,5,90,24,1,true);cg.translate(0,45,0);const sm=new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,
+      vertexShader:`varying float vY;varying vec3 vN;varying vec3 vV;void main(){vY=position.y/90.;vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,
+      fragmentShader:`varying float vY;varying vec3 vN;varying vec3 vV;void main(){float f=pow(clamp(abs(dot(vN,vV)),0.,1.),2.);gl_FragColor=vec4(vec3(.8,.85,1.)*.12*f*(1.-vY),1.);}`});
+    const s=new THREE.Mesh(cg,sm);s.position.set(38,6,30);s.frustumCulled=false;g.add(s);R.search=s}
+  // the rooftop crowd: standing fans packed round the ring, cheering like the arena does
+  {const spots=[];for(let r=0;r<4;r++){const d=7.1+r*.85;for(let s=-d;s<d;s+=.62)for(const [nx,nz] of SIDE_DEFS){if(nx===-1&&Math.abs(s)<1.5)continue;if(Math.random()<.1)continue;
+      const j=(Math.random()-.5)*.2,x=nx?nx*(d+j):s+j,z=nz?nz*(d+j):s+j;if(Math.max(Math.abs(x),Math.abs(z))>E-.5)continue;spots.push([x,z,r])}}
+    const n=spots.length,geo=fanGeo('stand'),fm=new THREE.InstancedMesh(geo,ARENA.crowdMat,n),c=new THREE.Color();
+    const a={aShirt:new Float32Array(n*3),aSkin:new Float32Array(n*3),aHair:new Float32Array(n*3),aInfo:new Float32Array(n*4)};R.teamShirts=[];
+    const shirts=[0x2b2f45,0x7a2228,0x1d4d7a,0x3a3a3a,0x8a7a3a,0x1f5a35,0x9a9a9a,0x5a2a6a,0xc03a3a,0x2a40a0,0xe0e0e0,0x151515];
+    spots.forEach(([x,z,r],i)=>{const sc=.92+Math.random()*.16;q.setFromAxisAngle(Y,Math.atan2(-x,-z)+(Math.random()-.5)*.3);m.compose(new THREE.Vector3(x,-1.15+.6+r*.04,z),q,new THREE.Vector3(sc,sc,sc));fm.setMatrixAt(i,m);
+      const team=Math.random()<.4?0:Math.random()<.67?1:.5,ts=team!==.5&&Math.random()<.5;if(ts)R.teamShirts.push([i,team]);c.setHex(pick(shirts));a.aShirt.set([c.r,c.g,c.b],i*3);
+      c.setHex(pick([0xf1c9a5,0xd9a37c,0xb47b54,0x8a5a3c,0x5c3a26,0xe0b48f]));a.aSkin.set([c.r,c.g,c.b],i*3);c.setHex(pick([0x1a1410,0x2a1c12,0x4a3020,0xc8a060,0x101010]));a.aHair.set([c.r,c.g,c.b],i*3);
+      a.aInfo.set([Math.random()*100,team,Math.random(),Math.atan2(z,x)],i*4)});
+    for(const k in a)geo.setAttribute(k,new THREE.InstancedBufferAttribute(a[k],k==='aInfo'?4:3));fm.frustumCulled=false;g.add(fm);
+    const ol=new THREE.InstancedMesh(geo,ARENA.crowdLine,n);ol.instanceMatrix=fm.instanceMatrix;ol.frustumCulled=false;g.add(ol);R.fans=fm;R.fanLine=ol}
+  return R}
+function setVenue(v){v=v==='roof'?'roof':'arena';if(ARENA.venue===v)return;ARENA.venue=v;
+  const roof=v==='roof';for(const o of ARENA.dress||[])o.visible=!roof;
+  if(roof)buildRoof();if(ARENA.roof)ARENA.roof.g.visible=roof;
+  ARENA.tunnel=roof?ARENA.roof.door:ARENA.tunnel0;
+  scene.background=null;if(ARENA.hemi)ARENA.hemi.intensity=roof?.62:.42;
+  if(ARENA.B0)crowdTeams(ARENA.B0,ARENA.B1)}
+function pickVenue(v){return v==='random'?(Math.random()<.5?'roof':'arena'):v||'arena'}
 // moving-head lights on the truss: long additive beams that sweep over the crowd
 function buildBeams(){
   ARENA.beams=[];const g=new THREE.CylinderGeometry(.06,1.1,16,20,1,true);g.translate(0,-8,0);g.rotateX(-Math.PI/2);
@@ -3381,8 +3472,9 @@ function onNet(m){
 }
 function checkStart(){if(NET.mode==='host'&&NET.myReady&&NET.peerReady&&NET.peerPick&&G.mode==='select')hostGo()}
 function checkRematch(){if(NET.mode==='host'&&NET.rm&&NET.peerRm)hostGo()}
-function hostGo(){const m={t:'go',f:[SEL.f,NET.peerPick],n:[myName()||FBY[SEL.f].name,NET.peer||FBY[NET.peerPick].name],a:[SEL.alt|0,NET.peerAlt|0]};netSend(m);startOnlineMatch(m)}
+function hostGo(){const m={t:'go',v:pickVenue(SEL.venue),f:[SEL.f,NET.peerPick],n:[myName()||FBY[SEL.f].name,NET.peer||FBY[NET.peerPick].name],a:[SEL.alt|0,NET.peerAlt|0]};netSend(m);startOnlineMatch(m)}
 function startOnlineMatch(m){
+  setVenue(m.v);
   G.online=true;G.attract=false;G.bag=false;G.ME=NET.mode==='host'?0:1;G.bots=[null,null];G.ladder=null;G.paused=false;
   Object.assign(NET,{myReady:false,peerReady:false,rm:false,peerRm:false});
   rpStop();setupMatch(m.f,m.n,m.a);G.mode='fight';hideAllOv();showHUD(true);REF.b.root.visible=true;setPhase('intro');
@@ -3418,9 +3510,9 @@ function netTick(dt){
 addEventListener('pagehide',()=>{if(NET.mode!=='off')netSend({t:'bye'})});
 
 // ════════════════════ UI ════════════════════
-const SEL={mode:'quick',f:'blaze',opp:'random',diff:'contender',alt:0};
-try{const s=JSON.parse(localStorage.getItem('haymaker.sel')||'{}');if(FBY[s.f])SEL.f=s.f;if(s.opp==='random'||FBY[s.opp])SEL.opp=s.opp;if(DIFF[s.diff])SEL.diff=s.diff;SEL.alt=(s.alt|0)%3}catch(e){}
-const saveSel=()=>{try{localStorage.setItem('haymaker.sel',JSON.stringify({f:SEL.f,opp:SEL.opp,diff:SEL.diff,alt:SEL.alt}))}catch(e){}};
+const SEL={mode:'quick',f:'blaze',opp:'random',diff:'contender',alt:0,venue:'arena'};
+try{const s=JSON.parse(localStorage.getItem('haymaker.sel')||'{}');if(FBY[s.f])SEL.f=s.f;if(s.opp==='random'||FBY[s.opp])SEL.opp=s.opp;if(DIFF[s.diff])SEL.diff=s.diff;if(['arena','roof','random'].includes(s.venue))SEL.venue=s.venue;SEL.alt=(s.alt|0)%3}catch(e){}
+const saveSel=()=>{try{localStorage.setItem('haymaker.sel',JSON.stringify({f:SEL.f,opp:SEL.opp,diff:SEL.diff,alt:SEL.alt,venue:SEL.venue}))}catch(e){}};
 function showOv(id){$(id).classList.add('on')}
 function hideOv(id){$(id).classList.remove('on')}
 function hideAllOv(){document.querySelectorAll('.ov').forEach(o=>o.classList.remove('on'))}
@@ -3512,6 +3604,7 @@ function showTitle(){
   startAttract();
 }
 function startAttract(){
+  setVenue(Math.random()<.35?'roof':'arena');
   G.online=false;G.attract=true;G.ME=0;G.bag=false;const a=pick(FIGHTERS).id;let b;do b=pick(FIGHTERS).id;while(b===a);
   setupMatch([a,b]);G.bots=[new Bot(0,'contender'),new Bot(1,'contender')];REF.b.root.visible=true;setPhase('intro');
 }
@@ -3536,6 +3629,8 @@ function renderSelect(){
   {const f=FBY[SEL.f],hx=c=>'#'+new THREE.Color(c).getHexString();$('altSeg').innerHTML=[0,1,2].map(a=>{const L=Object.assign({},f.look,f.alts[a]);return `<button data-a="${a}" class="${SEL.alt===a?'on':''}" style="--a:${hx(L.shorts)};--b:${hx(L.glove)}" title="Colour ${a+1}"></button>`}).join('')}
   $('oppBox').classList.toggle('hide',SEL.mode!=='quick');
   $('oppSeg').innerHTML=`<button data-o="random" class="${SEL.opp==='random'?'on':''}"><span style="width:20px;height:20px;display:block">${ICO('random')}</span>RANDOM</button>`+FIGHTERS.map(f=>`<button data-o="${f.id}" class="${SEL.opp===f.id?'on':''}" title="${f.name}">${portrait(f.id,25)}</button>`).join('');
+  $('venueSeg').innerHTML=[['arena','ARENA'],['roof','ROOFTOP'],['random','RANDOM']].map(([k,n])=>`<button data-v="${k}" class="${SEL.venue===k?'on':''}">${n}</button>`).join('');
+  $('venueBox').style.display=SEL.mode==='online'&&NET.mode!=='host'?'none':'';
   $('diffSeg').innerHTML=Object.entries(DIFF).map(([k,d])=>`<button data-d="${k}" class="${SEL.diff===k?'on':''}">${d.name}</button>`).join('');
   $('netBox').classList.toggle('hide',!on);
   if(on){const peer=NET.peer!=null?`${NET.peer||'RIVAL'}: ${NET.peerPick?FBY[NET.peerPick].name:'choosing…'} <span class="${NET.peerReady?'ready':'notready'}">${NET.peerReady?'READY':'NOT READY'}</span>`:`WAITING FOR A RIVAL…<br><span style="font:700 13px Rubik;color:var(--dim)">TELL THEM THE CODE: <b style="color:var(--gold);font-size:18px;letter-spacing:.2em">${NET.code}</b></span>`;
@@ -3568,6 +3663,7 @@ function setupUI(){
     if(e.shiftKey&&SEL.mode==='quick'){SEL.opp=c.dataset.f}else{SEL.f=c.dataset.f;if(SEL.mode==='online'){NET.myReady=false;netSend({t:'pick',f:SEL.f,a:SEL.alt,ready:false})}}
     saveSel();renderSelect();placePreview()});
   $('oppSeg').addEventListener('click',e=>{const c=e.target.closest('[data-o]');if(!c)return;SEL.opp=c.dataset.o;saveSel();renderSelect();placePreview()});
+  $('venueSeg').addEventListener('click',e=>{const c=e.target.closest('[data-v]');if(!c)return;SFX.ui();SEL.venue=c.dataset.v;saveSel();renderSelect();if(SEL.venue!=='random')setVenue(SEL.venue)});
   $('diffSeg').addEventListener('click',e=>{const c=e.target.closest('[data-d]');if(!c)return;SEL.diff=c.dataset.d;saveSel();renderSelect()});
   $('selBack').onclick=()=>{if(SEL.mode==='online')netLeave();showTitle()};
   $('selGo').onclick=()=>{SFX.ui();
@@ -3594,7 +3690,7 @@ function renderToggles(){document.querySelectorAll('.tgl').forEach(b=>{const on=
 function startSolo(myF,oppF,diff){rpStop();
   G.online=false;G.attract=false;G.ME=0;G.bag=diff==='bag';G.paused=false;
   const oa=G.ladder?Math.floor(Math.random()*3):myF===oppF?(SEL.alt+1)%3:0;setupMatch([myF,oppF],[FBY[myF].name,FBY[oppF].name],[SEL.alt,oa]);G.bots=[null,new Bot(1,diff)];G.diff=diff;
-  G.mode='fight';hideAllOv();showHUD(true);REF.b.root.visible=true;setPhase(G.bag||SMOKE||!SET.walk?'intro':'walk');
+  setVenue(pickVenue(SEL.venue));G.mode='fight';hideAllOv();showHUD(true);REF.b.root.visible=true;setPhase(G.bag||SMOKE||!SET.walk?'intro':'walk');
   if(G.bag){Object.assign(TR,{last:0,combo:0,comboT:0,log:[],perfect:0});trainSet(TR.dummy)}
   // the last bout of the ladder is for the belt: the champion walks out wearing it
   G.title=!!(G.ladder&&G.ladder.i===G.ladder.opps.length-1);if(G.title&&G.phase==='walk')giveBelt(G.B[1],true);
@@ -4044,6 +4140,7 @@ function runSmoke(){
     abil('viper','frost','r');G.B[0].hp=50;startPunch(G.B[0],'cross');sim(.5);ok(G.B[0].hp>50,'Serpent\'s Kiss heals on hit');
     abil('viper','frost','e',3);sim(.7);ok(G.B[1].hp<100,'Coil Strike lunges in');
     solo('blaze','frost');place(1);G.bag=true;TR.dummy='stand';G.B[1].hp=3;startPunch(G.B[0],'hook');sim(.8);ok(G.B[1].hp>=1&&!G.B[1].down&&TR.last>0,'training: the standing dummy takes the hit but never goes down');G.bag=false;
+    setVenue('roof');ok(ARENA.roof&&ARENA.roof.g.visible&&ARENA.dress.every(o=>!o.visible)&&Math.abs(ARENA.tunnel.x+13.2)<.01,'the rooftop venue swaps in (and its stairwell becomes the walk-out door)');setVenue('arena');ok(!ARENA.roof.g.visible&&ARENA.dress.every(o=>o.visible),'…and swaps back to the arena');
     abil('kitsune','frost','q',2.5);sim(.7);ok(G.B[1].hp<100&&G.B[1].st.burn>0,'Foxfire wisps burn ('+G.B[1].hp.toFixed(1)+')');
     abil('kitsune','frost','e',2.5);sim(.6);ok(G.B[1].st.charm>0,'Charm lands');{const d0=Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z);G.forced[1]={...EMPTY,mz:1};sim(.4);
       ok(Math.hypot(G.B[0].x-G.B[1].x,G.B[0].z-G.B[1].z)>d0+.2,'…and a charmed fighter walking in backs off instead');G.forced[1]=EMPTY}
