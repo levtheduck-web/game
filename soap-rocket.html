@@ -196,6 +196,7 @@ table.res.trophy th{font-size:13px;text-transform:uppercase;letter-spacing:.04em
 #hTags .tag3{position:absolute;transform:translate(-50%,-100%);font-family:var(--font);font-weight:700;font-size:13px;background:#fff;border:3px solid var(--ink);border-radius:10px;padding:1px 8px;white-space:nowrap;box-shadow:0 3px 0 var(--ink)}
 #hTags .tag3.emo{animation:popIn .35s cubic-bezier(.2,1.8,.4,1) both;padding:0 8px 2px}
 #hTags .tag3 i{display:inline-block;width:10px;height:10px;border-radius:3px;border:2px solid var(--ink);margin-right:5px;vertical-align:-1px}
+#hCtrl{position:absolute;left:0;right:0;bottom:24%;display:flex;justify-content:center;pointer-events:none}
 .ctrlcard{display:grid;grid-template-columns:auto auto;gap:6px 14px;font-family:var(--font);font-weight:700;font-size:15px;background:rgba(255,255,255,.94);border:4px solid var(--ink);border-radius:18px;padding:12px 18px;box-shadow:0 6px 0 var(--ink);animation:popIn .45s cubic-bezier(.2,1.6,.4,1) both}
 .ctrlcard b{background:var(--ink);color:#fff;border-radius:7px;padding:1px 8px;text-align:center;font-weight:700}
 #hCenter{position:absolute;left:0;right:0;top:24%;display:flex;flex-direction:column;align-items:center;gap:6px}
@@ -275,6 +276,7 @@ body.touch #hMap{width:104px;top:58px;right:10px}
   </div>
   <div id="hDrops"></div>
   <div id="hCenter"></div>
+  <div id="hCtrl"></div>
   <div id="hFeed"></div>
 </div>
 <div id="hTags"></div>
@@ -1307,11 +1309,14 @@ function renderMirror() {
   pm.elements[2] = v.clip.x; pm.elements[6] = v.clip.y; pm.elements[10] = v.clip.z + 1 - 0.003; pm.elements[14] = v.clip.w;
   for (const o of HIDE_IN_MIRROR) o.visible = false;
   for (const o of HIDE_ALWAYS) o.visible = false;
+  // Nothing may sample the mirror while drawing into it (WebGL feedback loop).
+  for (const f of FLOORS) f.userData.U.tRefl.value = null;
   const prevT = renderer.getRenderTarget();
   renderer.setRenderTarget(MIRROR.rt); renderer.clear(); renderer.render(scene, vc);
   renderer.setRenderTarget(prevT);
   for (const o of HIDE_IN_MIRROR) o.visible = true;
   for (const o of HIDE_ALWAYS) o.visible = true;
+  for (const f of FLOORS) f.userData.U.tRefl.value = MIRROR.rt.texture;
 }
 
 // Soft studio environment for glossy floors.
@@ -1537,7 +1542,7 @@ function foamMat(col = 0xfaf7ff) { return tm('foam' + col, col, { spec: 0.75, sh
 const LOOKS = {
   shower: { bg: 0xd6eeff, floor: { kind: 'acrylic', a: 0xe9f1fb, b: 0xf6f0fb, rough: 0.32 }, wall: { kind: 'tile', a: 0xffffff, b: 0xe3f1ff, grout: 0xc4d3e8, tile: 2.1, check: 1, rough: 0.25 },
     bench: { kind: 'tile', a: 0xe8f4ff, b: 0xffffff, grout: 0xbfcfe6, tile: 1.6, check: 1, rough: 0.3 }, room: { kind: 'tile', a: 0xfff4ea, b: 0xffe9ef, grout: 0xd8c8d2, tile: 3.2, check: 1 }, paint: 0xd9ecff, outY: -0.75 },
-  tub: { bg: 0xffe9f2, floor: { kind: 'porcelain', a: 0xfbf1f3, rough: 0.22 }, room: { kind: 'tile', a: 0xf7f1ff, b: 0xe8e0ff, grout: 0xcfc5e4, tile: 3.4, check: 1 }, paint: 0xffe0ec, outY: -6.6 },
+  tub: { bg: 0xffe9f2, floor: { kind: 'porcelain', a: 0xf1dfee, rough: 0.22 }, room: { kind: 'tile', a: 0xf7f1ff, b: 0xe8e0ff, grout: 0xcfc5e4, tile: 3.4, check: 1 }, paint: 0xffe0ec, outY: -6.6 },
   floor: { bg: 0xe8f7ef, floor: { kind: 'tile', a: 0xfffaf2, b: 0xd5f3e8, grout: 0xc9c2d8, tile: 3, check: 1, rough: 0.42 }, wall: { kind: 'tile', a: 0xffffff, b: 0xffffff, grout: 0xd0d7e6, tile: 1.4, rough: 0.3 },
     bench: { kind: 'tile', a: 0xfff3e0, b: 0xffe7c7, grout: 0xd8c7ad, tile: 1.5, check: 1, rough: 0.35 }, paint: 0xc9ecdf, outY: -0.02 },
   paper: { bg: 0xfff1e4, floor: { kind: 'tile', a: 0xfff4dc, b: 0xffdfe9, grout: 0xd9c4cf, tile: 2.6, check: 1, rough: 0.4 }, wall: { kind: 'tile', a: 0xffffff, b: 0xffffff, grout: 0xd6cbe0, tile: 1.4, rough: 0.3 },
@@ -1627,6 +1632,25 @@ function capRun(G, pts, prof, mat, run) {
     const m = new THREE.Mesh(g, mat); m.receiveShadow = true; G.add(m);
   }
 }
+// True if any part of the object's footprint is inside the track corridor (plus a margin).
+function inLane(T, o, margin) {
+  o.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(o);
+  const pts = [];
+  for (let a = 0; a <= 4; a++) for (let c = 0; c <= 4; c++) pts.push([lerp(b.min.x, b.max.x, a / 4), lerp(b.min.z, b.max.z, c / 4)]);
+  const tmp = {};
+  for (const [x, z] of pts) { const L = T.locate(x, z, -1, tmp); if (Math.abs(L.d) < L.hw + margin) return true; }
+  return false;
+}
+function keepOutOfLane(T, o, cx, cz) {
+  for (let k = 0; k < 40 && inLane(T, o, 0.7); k++) {
+    const dx = cx - o.position.x, dz = cz - o.position.z, d = Math.hypot(dx, dz);
+    if (d > 0.6) { o.position.x += dx / d * 0.5; o.position.z += dz / d * 0.5; }
+    else o.scale.multiplyScalar(0.9);
+    if (k > 14) o.scale.multiplyScalar(0.94);
+  }
+  if (inLane(T, o, 0.7)) o.visible = false;
+}
 // Contiguous runs of one wall style along one side.
 function wallRuns(T, left) {
   const N = T.N, st = left ? T.wallL : T.wallR;
@@ -1687,7 +1711,7 @@ function buildWorld(T) {
     for (const left of [true, false]) {
       const pts = []; for (let i = 0; i < N; i++) { const j = left ? M : 0; const k = i * (M + 1) + j; pts.push({ x: pos[k * 3], z: pos[k * 3 + 2], y0: pos[k * 3 + 1], ox: 0, oz: 0, s: i * T.ds }); }
       const sk = new THREE.Mesh(sweep(pts, [[0, 0], [0, -14]], true, null, !left), T.def.base === 'vanity' ? patMat({ ...look.floor }) : fm);
-      sk.receiveShadow = true; G.add(sk);
+      sk.receiveShadow = true; G.add(sk); HIDE_IN_MIRROR.push(sk);   // uses the floor material, which reads the mirror
     }
   }
 
@@ -1876,6 +1900,7 @@ function buildWorld(T) {
     const m = new THREE.Mesh(g, mat); m.receiveShadow = true; m.castShadow = !!castShadow; G.add(m); return m;
   };
   const icx = contour.reduce((a, p) => a + p.x, 0) / contour.length, icz = contour.reduce((a, p) => a + p.y, 0) / contour.length;
+  const islandProps = [];
   WORLD.island = { cx: icx, cz: icz, contour };
   if (T.def.base === 'shower') {
     fillPoly(2.4, patMat({ ...look.bench }), false);
@@ -1905,20 +1930,21 @@ function buildWorld(T) {
     // A few iridescent show-off bubbles on top.
     WORLD.foam = pts;
   } else if (T.def.base === 'floor') {
-    const toilet = makeToilet(1.25); at(toilet, icx + 6, 0, icz - 2, Math.PI * 0.95); G.add(toilet);
-    const plant = makePlant(7); at(plant, icx - 10, 0, icz - 2); G.add(plant);
-    if (PGLB.ok) { const tub = makeModel('bubble_bath_tub', 0.92); at(tub, icx - 5, 0, icz + 1.2, Math.PI * 0.02); G.add(tub); }
-    else { const scale = inked(new RoundedBoxGeometry(5, 0.8, 5.6, 3, 0.4), tm('scale', 0xc9b6ff, { spec: 0.6 })); scale.position.set(icx - 3.5, 0.4, icz + 3.5); scale.rotation.y = 0.3; G.add(scale); }
-    const basket = inked(latheG([[0, 0], [2.6, 0], [3.0, 5.5], [3.2, 5.6], [0, 5.6]], 24), tm('basket', 0xffd6a0, { spec: 0.2 })); basket.position.set(icx - 20, 0, icz + 4.5); G.add(basket);
-    if (PGLB.ok) { const tp = makeModel('toilet_paper', 1.6); at(tp, icx + 12, 0, icz + 3.5, 0.6); G.add(tp); const pl = makeModel('plunger', 1.4); at(pl, icx + 2, 0, icz - 3.6, 0); G.add(pl); }
+    const toilet = makeToilet(1.25); at(toilet, icx + 6, 0, icz - 2, Math.PI * 0.95); G.add(toilet); islandProps.push(toilet);
+    const plant = makePlant(7); at(plant, icx - 10, 0, icz - 2); G.add(plant); islandProps.push(plant);
+    if (PGLB.ok) { const tub = makeModel('bubble_bath_tub', 0.92); at(tub, icx - 5, 0, icz + 1.2, Math.PI * 0.02); G.add(tub); islandProps.push(tub); }
+    else { const scale = inked(new RoundedBoxGeometry(5, 0.8, 5.6, 3, 0.4), tm('scale', 0xc9b6ff, { spec: 0.6 })); scale.position.set(icx - 3.5, 0.4, icz + 3.5); scale.rotation.y = 0.3; G.add(scale); islandProps.push(scale); }
+    const basket = inked(latheG([[0, 0], [2.6, 0], [3.0, 5.5], [3.2, 5.6], [0, 5.6]], 24), tm('basket', 0xffd6a0, { spec: 0.2 })); basket.position.set(icx - 20, 0, icz + 4.5); G.add(basket); islandProps.push(basket);
+    if (PGLB.ok) { const tp = makeModel('toilet_paper', 1.6); at(tp, icx + 12, 0, icz + 3.5, 0.6); G.add(tp); islandProps.push(tp); const pl = makeModel('plunger', 1.4); at(pl, icx + 2, 0, icz - 3.6, 0); G.add(pl); islandProps.push(pl); }
   } else if (T.def.base === 'paper') {
-    const toilet = makeToilet(1.6); at(toilet, icx + 2, 0, icz - 1.5, Math.PI); G.add(toilet);
+    const toilet = makeToilet(1.6); at(toilet, icx + 2, 0, icz - 1.5, Math.PI); G.add(toilet); islandProps.push(toilet);
     if (PGLB.ok) {
-      for (let k = 0; k < 3; k++) { const tp = makeModel('toilet_paper', 1.5); at(tp, icx - 12 + k * 0.2, k * 1.7, icz + 1 + (k % 2) * 0.3, k * 0.9); const sh = tp.userData.parts; G.add(tp); }
-      const pl = makeModel('plunger', 1.3); at(pl, icx + 13, 0, icz + 2.5, 0.4); G.add(pl);
-      const pf = makeModel('bath_pouf', 1.4); at(pf, icx - 6, 0, icz - 2.5, 0); G.add(pf);
+      const stack = new THREE.Group(); for (let k = 0; k < 3; k++) { const tp = makeModel('toilet_paper', 1.5); at(tp, k * 0.2, k * 1.7, (k % 2) * 0.3, k * 0.9); stack.add(tp); }
+      stack.position.set(icx - 12, 0, icz + 1); G.add(stack); islandProps.push(stack);
+      const pl = makeModel('plunger', 1.3); at(pl, icx + 13, 0, icz + 2.5, 0.4); G.add(pl); islandProps.push(pl);
+      const pf = makeModel('bath_pouf', 1.4); at(pf, icx - 6, 0, icz - 2.5, 0); G.add(pf); islandProps.push(pf);
     }
-    const plant = makePlant(6); at(plant, icx + 10, 0, icz - 2.5); G.add(plant);
+    const plant = makePlant(6); at(plant, icx + 10, 0, icz - 2.5); G.add(plant); islandProps.push(plant);
   } else if (T.def.base === 'vanity') {
     // The sink basin: rings shrinking toward the middle and dropping into a bowl.
     const K = 7, rings = [];
@@ -2069,9 +2095,12 @@ function buildWorld(T) {
     const uv = g.attributes.uv; const pa = g.attributes.position; for (let k = 0; k < uv.count; k++) uv.setXY(k, pa.getX(k) * 0.35, pa.getZ(k) * 0.35);
     const cols = mt.kind === 'rug' ? [0xc9b6ff, 0xffffff] : mt.kind === 'towel' ? [0xffe066, 0xffffff] : [0xff9f80, 0xfff1e6];
     const m = inked(g, fabricMat(cols[0], cols[1], { sc: 1.6 }), 0.8);
-    m.position.y = 0.0; m.castShadow = false; G.add(m);
+    m.position.y = -0.1; m.castShadow = false; G.add(m);   // top sits 2 cm proud of the floor, so soaps ride on it
   }
 
+  // Keep island props out of the racing lane: nudge toward the island middle, shrink, or drop.
+  for (const o of islandProps) keepOutOfLane(T, o, icx, icz);
+  WORLD.islandProps = islandProps;
   // Big static pieces don't need to cast shadows (they'd only darken the track).
   G.traverse((o) => { if (o.isMesh && o.castShadow) { if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); const sc = Math.max(o.scale.x, o.scale.y, o.scale.z) * (o.parent && o.parent.scale ? o.parent.scale.x : 1); if (o.geometry.boundingSphere.radius * sc > 6) o.castShadow = false; } });
   scene.add(G);
@@ -2083,7 +2112,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040851";
+const ASSET_V = "202611041019";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2507,7 +2536,7 @@ class Racer {
   reset(x, z, yaw, i = -1) {
     Object.assign(this, { x, z, y: 0, vy: 0, vx: 0, vz: 0, yaw, w: 0, air: false, size: 1, vis: 1, boost: this.S.startBoost ? 100 : 35,
       sudsCd: 0, hornCd: 0, hopCd: 0, spin: 0, shieldLap: -9, alive: true, deadT: 0, ghost: 0, ti: i, lastGoodI: i, prevS: -1, lap: -1, progress: 0,
-      finished: false, finishT: 0, lapStart: 0, backed: 0, halfway: false, cpuSpinLap: -9, lapTimes: [], bestLap: Infinity, place: 0, wrongT: 0, stuckT: 0, draft: 0, slideT: 0,
+      finished: false, finishT: 0, lapStart: 0, backed: 0, halfway: false, cpuSpinLap: -9, wallHit: 0, wallNx: 0, wallNz: 0, lapTimes: [], bestLap: Infinity, place: 0, wrongT: 0, stuckT: 0, draft: 0, slideT: 0,
       thr: 0, brk: 0, boosting: false, gnx: 0, gnz: 0, gx: 0, gz: 0, accLong: 0, lean: 0, land: 0, lastVf: 0, sliding: 0, onSurface: 'wet',
       stat: { slides: 0, sudsHits: 0, sudsDropped: 0, walls: 0, drains: 0, bumps: 0, airT: 0, topSpeed: 0 }, events: [], dropT: 0, fall: null });
   }
@@ -2603,6 +2632,14 @@ class Racer {
     // Hands off on a wet floor, a knocked bar keeps turning a little (like the soap in the video).
     const resp = Math.abs(st) > 0.01 ? CFG.turnResp : lerp(3.0, CFG.turnResp, clamp((1 - wet) * 0.6 + mat, 0, 1));
     this.w = damp(this.w, wt, this.air ? resp * 0.35 : resp, dt);
+    // Nose pushed into a wall with the throttle on: turn gently back toward the track.
+    if (this.wallHit > 0 && thr > 0 && spd < 2.5 && !this.air && control === 1) {
+      if (fx * this.wallNx + fz * this.wallNz < -0.35) {
+        const err = wrapA(Math.atan2(L.tx, L.tz) - this.yaw);
+        this.w = damp(this.w, clamp(err * 4, -3, 3), 12, dt);
+      }
+    }
+    if (this.wallHit > 0) this.wallHit -= dt;
     this.yaw = wrapA(this.yaw + this.w * dt);
     this.lean = lerp(this.lean, -st * Math.min(1, spd / 6) + clamp(vl * 0.25, -1, 1), 0.1);
     // Move.
@@ -2660,6 +2697,7 @@ class Racer {
     if (pen <= 0) return;
     if (W.open) { if (Math.abs(L.d) > L.hw + 0.12 && racing !== null) this.die('edge', T); return; }
     this.x += nwx * pen; this.z += nwz * pen;
+    this.wallHit = 0.25; this.wallNx = nwx; this.wallNz = nwz;
     const vn = this.vx * nwx + this.vz * nwz;
     if (vn >= 0) return;
     const S = this.S;
@@ -2793,7 +2831,7 @@ function collideRacers(a, b) {
 // and drop suds on whoever is tailgating them.
 // ---------------------------------------------------------------------------
 const DIFF = {
-  rinse:  { name: 'Rinse', pace: 0.62, aim: 0.55, boost: 70, suds: 0.08, mult: 0.8, rubK: 0.004, rubMin: 0.62, rubMax: 0.96, corner: 1 },
+  rinse:  { name: 'Rinse', pace: 0.62, aim: 0.55, boost: 70, suds: 0.08, mult: 0.8, rubK: 0.005, rubMin: 0.5, rubMax: 0.96, corner: 1 },
   lather: { name: 'Lather', pace: 0.8, aim: 0.8, boost: 55, suds: 0.16, mult: 1, rubK: 0.002, rubMin: 0.85, rubMax: 1.03, corner: 1.04 },
   scrub:  { name: 'Scrub', pace: 0.95, aim: 1, boost: 40, suds: 0.26, mult: 1.35, rubK: 0.0008, rubMin: 0.95, rubMax: 1.05, corner: 1.1 },
 };
@@ -3407,7 +3445,7 @@ function raceSetup(opts) {
 function raceStep(dt) {
   const T = RACE.T; if (!T) return;
   if (RACE.phase === 'podium') return;
-  if (RACE.phase === 'intro') { if (RACE.me && RACE.me.kind === 'me' && RACE.me.in.thr > 0 && RACE.introT < 2.2 && !RACE.online) RACE.introT = Math.min(RACE.introT, 0.05); RACE.introT -= dt; if (RACE.introT <= 0) { RACE.phase = 'count'; RACE.t = -3; countBeat(3); } return; }
+  if (RACE.phase === 'intro') { if (RACE.me && RACE.me.kind === 'me' && RACE.me.in.thr > 0 && RACE.introT < 2.2 && !RACE.online && (P.st.races || 0) >= 2) RACE.introT = Math.min(RACE.introT, 0.05); RACE.introT -= dt; if (RACE.introT <= 0) { RACE.phase = 'count'; RACE.t = -3; countBeat(3); } return; }
   const prevT = RACE.t;
   RACE.t += dt;
   if (RACE.phase === 'count') {
@@ -3451,7 +3489,7 @@ function raceStep(dt) {
   for (const r of R) {
     if (r.kind === 'net') continue;
     const s = r.trackS ?? 0;
-    if (r.prevS >= 0 && r.alive) {
+    if (r.prevS >= 0 && r.alive && !r.finished) {
       if (r.prevS > L * 0.7 && s < L * 0.3) {
         // Forward over the line. Undoing a backwards crossing gives no lap time,
         // and a real lap only counts after going round past halfway.
@@ -3562,7 +3600,7 @@ function tryHorn(r) {
 
 function countBeat(n) {
   if (n > 0) { center(String(n), n === 3 ? 'c3' : n === 2 ? 'c2' : 'c4', 0.9); sfx('duck', 0.9, 1); }
-  else { center('GO!', 'c2', 0.9); sfx('whistle', 0.7); sfx('whoosh', 0.6); }
+  else { center('GO!', 'c2', 0.9); sfx('whistle', 0.7); sfx('whoosh', 0.6); const cc = $('hCtrl'); if (cc && cc.firstChild) { setTimeout(() => { cc.querySelectorAll('div').forEach((x) => x.classList.add('fadeout')); setTimeout(() => { cc.innerHTML = ''; }, 450); }, 1800); } }
 }
 
 // Racer events -> sound, effects and messages.
@@ -3685,8 +3723,8 @@ function hints(r) {
 }
 // Lap medals per track: [gold, silver, bronze] best-lap times in seconds.
 const MEDALS = {
-  shower: [14.2, 15.5, 17.3], tub: [15.8, 17.3, 19.3], floor: [22.0, 24.0, 27.0], vanity: [16.2, 17.6, 19.7], paper: [16.3, 17.7, 19.8],
-  'shower-r': [14.2, 15.5, 17.2], 'tub-r': [15.7, 17.2, 19.2], 'floor-r': [22.2, 24.3, 27.3], 'vanity-r': [15.4, 16.8, 18.7], 'paper-r': [16.6, 18.1, 20.3],
+  shower: [14.2, 15.5, 17.3], tub: [15.8, 17.3, 19.3], floor: [20.8, 22.8, 25.5], vanity: [16.2, 17.6, 19.7], paper: [16.3, 17.7, 19.8],
+  'shower-r': [14.2, 15.5, 17.2], 'tub-r': [15.7, 17.2, 19.2], 'floor-r': [21.0, 23.0, 25.8], 'vanity-r': [15.4, 16.8, 18.7], 'paper-r': [16.6, 18.1, 20.3],
 };
 const MEDAL_ICON = ['', '🥇', '🥈', '🥉'], MEDAL_NAME = ['', 'Gold', 'Silver', 'Bronze'], MEDAL_PAY = [0, 120, 70, 40];
 function medalFor(id, lap) { const m = MEDALS[id]; if (!m || !isFinite(lap)) return 0; return lap <= m[0] ? 1 : lap <= m[1] ? 2 : lap <= m[2] ? 3 : 0; }
@@ -3863,10 +3901,11 @@ function ghostFrame(dt, t) {
   if (!me || RACE.attract) return;
   const racing = RACE.phase === 'race' && !me.finished;
   if (racing) {
-    GHOST.recT += dt;
-    while (GHOST.recT >= 1 / GHOST_HZ) {
-      GHOST.recT -= 1 / GHOST_HZ;
+    // Sample on the race clock, so pauses and hidden tabs never stretch the ghost.
+    const lapT = RACE.t - me.lapStart;
+    while (GHOST.rec.length <= lapT * GHOST_HZ) {
       GHOST.rec.push([Math.round(me.x * 100) / 100, Math.round(me.z * 100) / 100, Math.round(me.y * 100) / 100, Math.round(me.yaw * 1000) / 1000, Math.round(me.vis * 100) / 100, me.boosting ? 1 : 0]);
+      if (GHOST.rec.length > 9000) break;
     }
   }
   const v = GHOST.view, g = GHOST.play;
@@ -4193,7 +4232,7 @@ ACT.trophies = () => showTrophies();
 const HUD = { mapImg: null, mapT: null, last: {}, centerT: 0 };
 function hudReset() {
   $('hud').classList.toggle('off', !RACE.me || RACE.attract);
-  $('hCenter').innerHTML = ''; $('hFeed').innerHTML = '';
+  $('hCenter').innerHTML = ''; $('hFeed').innerHTML = ''; $('hCtrl').innerHTML = '';
   const T = RACE.T;
   const cv = document.createElement('canvas'); cv.width = 240; cv.height = 240;
   HUD.mapT = T.drawMap(cv.getContext('2d'), 240, 240, { pad: 16, fill: 'rgba(255,255,255,.95)' });
@@ -4293,7 +4332,7 @@ function tagsUpdate() {
 }
 function controlsCard() {
   const touch = document.body.classList.contains('touch');
-  const c = $('hCenter'); c.innerHTML = touch
+  const c = $('hCtrl'); c.innerHTML = touch
     ? `<div class="ctrlcard"><b>GO</b><span>Hold to thrust</span><b>◀ ▶</b><span>Steer</span><b>BOOST</b><span>Rocket boost</span><b>SUDS</b><span>Drop a slick behind you</span></div>`
     : `<div class="ctrlcard"><b>W / ↑</b><span>Hold to thrust</span><b>A D</b><span>Steer</span><b>SPACE</b><span>Rocket boost</span><b>SHIFT</b><span>Drop a slick behind you</span><b>S / ↓</b><span>Brake</span></div>`;
 }
@@ -4521,7 +4560,7 @@ ACT.gtab = (k) => { UI.tab = k; UI.sel = null; showGarage(); };
 ACT.gsel = (arg) => { const [k, id] = arg.split(':'); UI.sel = { kind: k, id: k === 'paint' ? +id : id }; showGarage(); };
 ACT.gbuy = () => {
   const s = UI.sel; if (!s) return;
-  if (s.kind === 'paint') { P.eq.paint = s.id; saveProfile(); showGarage(); return; }
+  if (s.kind === 'paint') { P.eq.paint = s.id; saveProfile(); showGarage(); netLoadoutChanged(); return; }
   const it = partList(s.kind)[s.id];
   if (!owns(s.kind, s.id)) {
     if (P.bubbles < it.price) return;
@@ -4538,7 +4577,7 @@ ACT.gbuy = () => {
     while (P.eq.mods.length < 2) P.eq.mods.push('');
   } else P.eq[s.kind] = s.id;
   sfx('equip', 0.7);
-  saveProfile(); showGarage();
+  saveProfile(); showGarage(); netLoadoutChanged();
 };
 
 // ==== 15-net.js ====
@@ -4596,6 +4635,8 @@ function netFail(msg, why) {
 }
 function netStatus(t) { NET.status = t; const el = $('netStatus'); if (el) el.textContent = t; }
 const netHello = () => netSend({ t: 'hi', cid: NET.cid, name: myName(), lo: myLoadout() });
+// Tell the room straight away when your soap changes (so a part bought just before the start comes along).
+function netLoadoutChanged() { if (!NET.on) return; if (NET.role === 'guest') netHello(); else { const me = NET.players.get(NET.cid); if (me) { me.lo = myLoadout(); me.name = myName(); } netRoster(); } }
 function netRoster() {
   if (NET.role !== 'host') return;
   netSend({ t: 'ros', ps: [...NET.players.values()].map((p) => [p.cid, p.name, p.lo, p.host ? 1 : 0]), L: NET.lobby, race: RACE.online && !RACE.results ? NET.raceId : 0 });
@@ -4633,6 +4674,7 @@ function netHandle(m) {
       const seen = new Set();
       for (const [cid, name, lo, host] of m.ps) { seen.add(cid); const p = NET.players.get(cid) || { cid }; Object.assign(p, { name, lo: cleanLoadout(lo), host: !!host, seen: t }); NET.players.set(cid, p); }
       for (const cid of [...NET.players.keys()]) if (!seen.has(cid) && cid !== NET.cid) NET.players.delete(cid);
+      NET.hostRacing = !!m.race;
       if (UI.cur === 'lobby') showLobby();
       break;
     }
@@ -4670,7 +4712,8 @@ function netHandle(m) {
     }
     case 'fin': {
       const r = RACE.racers.find((x) => x.netId === m.c);
-      if (r && !r.finished) { r.finished = true; r.finishT = m.ft; r.bestLap = m.bl ?? Infinity; RACE.finishOrder.push(r); feed(r.name + ' finished ' + ord(RACE.finishOrder.length)); }
+      // The host times every finish on its own clock, so a frozen tab can't win a race it lost.
+      if (r && !r.finished) { r.finished = true; r.finishT = NET.role === 'host' ? RACE.t : m.ft; r.bestLap = m.bl ?? Infinity; RACE.finishOrder.push(r); feed(r.name + ' finished ' + ord(RACE.finishOrder.length)); }
       break;
     }
     case 'bye': {
@@ -4818,11 +4861,15 @@ ACT.copyInvite = () => {
   const done = () => toast('Invite link copied! Paste it to a friend.');
   try { navigator.clipboard.writeText(link).then(done, () => toast(link)); } catch (e) { toast(link); }
 };
-ACT.lobbyBack = () => { setMode('attract'); showLobby(); };
+ACT.lobbyBack = () => { setMode('attract'); NET.lobbySig = ''; showLobby(); };
 ACT.lobbyStart = () => netHostStart();
 ACT.lobbyTrack = (id) => { NET.lobby.track = id; netRoster(); showLobby(); };
 function netLobbySet(k, v) { if (NET.role !== 'host') return; NET.lobby[k] = isNaN(+v) ? v : +v; netRoster(); showLobby(); }
 function showLobby() {
+  // Only rebuild when something visible changed: a rebuild resets scrolling and eats clicks.
+  const sig = JSON.stringify([NET.code, NET.role, NET.hostRacing, NET.lobby, [...NET.players.values()].map((p) => [p.cid, p.name, p.lo, p.host])]);
+  if (UI.cur === 'lobby' && NET.lobbySig === sig && document.getElementById('s-lobby')) return;
+  NET.lobbySig = sig;
   if (MODE !== 'attract') setMode('attract');
   const host = NET.role === 'host', L = NET.lobby;
   const ps = [...NET.players.values()];
@@ -4831,7 +4878,7 @@ function showLobby() {
     return `<div class="pill" style="justify-content:flex-start;gap:8px">${th ? `<img src="${th}" alt="" style="width:54px;height:30px;object-fit:cover;border-radius:8px;border:2px solid var(--ink)">` : `<span class="chip" style="background:${hex(barColor(lo))}"></span>`}${esc(p.name)} ${p.host ? '<span class="tag">host</span>' : ''}${p.cid === NET.cid ? '<span class="tag" style="background:var(--pink);color:var(--ink)">you</span>' : ''}</div>`; }).join('');
   const t = TRACK_BY[L.track] || TRACKS[0];
   screen('lobby', `${topbar()}<div class="panel card"><header><h2>Room <span style="background:var(--lemon);border:4px solid var(--ink);border-radius:14px;padding:0 12px;box-shadow:0 4px 0 var(--ink)">${esc(NET.code)}</span></h2>
-    ${host ? `<button class="btn big" data-act="lobbyStart" style="--c:var(--mint)">Start race</button>` : '<span class="tag" style="font-size:16px">Waiting for the host to start</span>'}
+    ${host ? `<button class="btn big" data-act="lobbyStart" style="--c:var(--mint)">Start race</button>` : `<span class="tag" style="font-size:16px">${NET.hostRacing ? 'A race is on right now. You join the next one!' : 'Waiting for the host to start'}</span>`}
     <button class="btn sm" data-act="garage" style="--c:var(--sky)">Garage</button>
     <button class="btn sm ghost" data-act="leaveOnline">Leave</button></header>
     <p style="margin:0;font-weight:600;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Friends join with the code <b>${esc(NET.code)}</b>. ${ps.length} of 8 here.</span><button class="btn sm" data-act="copyInvite" style="--c:var(--lemon)">Copy invite link</button></p>
@@ -5036,7 +5083,7 @@ boot();
 // ---------------------------------------------------------------------------
 // Self-tests (#smoke) and a debug hook (#debug -> window.__SR).
 // ---------------------------------------------------------------------------
-if (DEBUG || SMOKE) window.__SR = { GAR, GHOST, ghostLoad, CpuDriver, tryDropSuds, __raceStep: (dt) => { raceStep(dt); handleEvents(); }, RACE, P, CFG, TRACKS, getTrack, startRace, showTitle, showGarage, showQuick, showResults, setQuality, CAM, Racer, SUDS, FX, WORLD, NET, netConnect, netHostStart, ACT, statsFor, displayStats, BARS, ROCKETS, MODS, UI, INPUT, KEYS, setMode, camera, renderer, scene, get MODE() { return MODE; } };
+if (DEBUG || SMOKE) window.__SR = { inLane, GAR, GHOST, ghostLoad, CpuDriver, tryDropSuds, __raceStep: (dt) => { raceStep(dt); handleEvents(); }, RACE, P, CFG, TRACKS, getTrack, startRace, showTitle, showGarage, showQuick, showResults, setQuality, CAM, Racer, SUDS, FX, get WORLD() { return WORLD; }, NET, netConnect, netHostStart, ACT, statsFor, displayStats, BARS, ROCKETS, MODS, UI, INPUT, KEYS, setMode, camera, renderer, scene, get MODE() { return MODE; } };
 
 // Drive one racer with fixed inputs on a fresh track and report what happened.
 function simRun(trackId, setup, secs, ctrl) {
