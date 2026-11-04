@@ -250,6 +250,7 @@ body.touch #hMap{width:104px;top:58px;right:10px}
 // ==== 00-core.js ====
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -1914,13 +1915,13 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040648";
+const ASSET_V = "202611040650";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
 
 async function loadModels(onProg) {
-  const loader = new GLTFLoader();
+  const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
   const keys = Object.keys(LODS);
   let done = 0;
   await Promise.all(keys.map(async (k) => {
@@ -1944,10 +1945,7 @@ function digest(root) {
     let node = m; while (node.parent && !/^(Soap|Soap_Suds|Booster_Right|Booster_Left|Flame_Right|Flame_Left|Booster_Brackets)$/.test(node.name)) node = node.parent;
     const name = node.name, mat = m.material.name || '';
     if (name === 'Booster_Left' || name === 'Flame_Left') return;   // rebuilt from the right one
-    let g = new THREE.BufferGeometry();
-    for (const k of ['position', 'normal']) { const a = m.geometry.attributes[k]; if (a) g.setAttribute(k, a.isInterleavedBufferAttribute ? a.clone() : a.clone()); }
-    if (m.geometry.index) g.setIndex(m.geometry.index.clone());
-    if (!g.attributes.normal) g.computeVertexNormals();
+    let g = floatGeo(m.geometry, new THREE.Matrix4());
     if (name === 'Flame_Right') g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(invF, m.matrixWorld));
     else if (name === 'Booster_Right') g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(invB, m.matrixWorld));
     else g.applyMatrix4(m.matrixWorld);
@@ -2161,7 +2159,8 @@ function initSoapMats() {
 const PGLB = { ok: false, proto: {} };
 const SPECIAL = new Set(['Jet_Flame', 'Shower_Water', 'Gold_Sparkles', 'Tub_Water', 'Tub_Duck', 'Tub_Foam', 'Shield', 'Shield_Mini_Bubbles', 'Sponge_Pores']);
 async function loadPropModels() {
-  const g = await new GLTFLoader().loadAsync('models/soap-props.glb?v=' + ASSET_V);
+  const ld = new GLTFLoader(); ld.setMeshoptDecoder(MeshoptDecoder);
+  const g = await ld.loadAsync('models/soap-props.glb?v=' + ASSET_V);
   g.scene.updateMatrixWorld(true);
   for (const node of g.scene.children) PGLB.proto[node.name] = digestModel(node);
   PGLB.ok = true;
@@ -3164,7 +3163,7 @@ function raceSetup(opts) {
   if (WORLD.T !== T) buildWorld(T);
   RACE.T = T; RACE.trackId = T.def.id;
   clearRacers();
-  Object.assign(RACE, { endT: undefined, endSec: undefined, laps: opts.laps || 3, mode: opts.mode || 'quick', diff: opts.diff || 'lather', t: -3, phase: opts.attract ? 'race' : 'intro', introT: opts.attract ? 0 : 2.4, doneT: 0, paused: false, seed: opts.seed || ((Math.random() * 1e9) | 0), startBonus: 0, online: !!opts.online, attract: !!opts.attract, gp: opts.gp || null, frame: 0, acc: 0, results: null, lastCpuCount: opts.cpus });
+  Object.assign(RACE, { heldEarly: false, endT: undefined, endSec: undefined, laps: opts.laps || 3, mode: opts.mode || 'quick', diff: opts.diff || 'lather', t: -3, phase: opts.attract ? 'race' : 'intro', introT: opts.attract ? 0 : 2.4, doneT: 0, paused: false, seed: opts.seed || ((Math.random() * 1e9) | 0), startBonus: 0, online: !!opts.online, attract: !!opts.attract, gp: opts.gp || null, frame: 0, acc: 0, results: null, lastCpuCount: opts.cpus });
   const rnd = mulberry(RACE.seed);
   const entries = [];
   if (opts.grid) for (const g of opts.grid) entries.push(g);
@@ -3204,8 +3203,8 @@ function raceStep(dt) {
   RACE.t += dt;
   if (RACE.phase === 'count') {
     for (const b of [2, 1]) if (prevT < -b && RACE.t >= -b) countBeat(b);
-    if (RACE.me && RACE.me.in.thr > 0 && RACE.t > -0.55 && RACE.t < -0.05 && !RACE.startBonus) RACE.startBonus = 1;
-    if (RACE.me && RACE.me.in.thr > 0 && RACE.t < -1.2) RACE.startBonus = -1;
+    if (RACE.me && RACE.me.in.thr > 0 && RACE.t < -0.8) RACE.heldEarly = true;
+    if (RACE.me && RACE.me.in.thr > 0 && !RACE.heldEarly && RACE.t > -0.55 && RACE.t < -0.05 && !RACE.startBonus) RACE.startBonus = 1;
     if (RACE.t >= 0) { RACE.phase = 'race'; countBeat(0); for (const r of RACE.racers) { r.lapStart = 0; if (r.S.startBoost) { r.boost = 100; r.vx += Math.sin(r.yaw) * 4; r.vz += Math.cos(r.yaw) * 4; } }
       if (RACE.me && RACE.startBonus === 1) { const m = RACE.me; m.boost = Math.min(100, m.boost + 45); m.vx += Math.sin(m.yaw) * 4.5; m.vz += Math.cos(m.yaw) * 4.5; feed('ROCKET START!', 'c2'); sfx('whoosh', 0.8); FX.sparkle(m.x, m.y + 0.5, m.z, 6, [1, 0.85, 0.3]); }
       for (const c of RACE.cpus) { if (Math.random() < (RACE.diff === 'scrub' ? 0.6 : 0.3)) { const r = c.r; r.vx += Math.sin(r.yaw) * 3; r.vz += Math.cos(r.yaw) * 3; } }
@@ -3217,8 +3216,7 @@ function raceStep(dt) {
   for (const c of RACE.cpus) c.think(dt, T, RACE);
   for (const r of RACE.racers) {
     if (r.kind === 'net') continue;
-    const canGo = racing && !(r === RACE.me && RACE.startBonus === -1 && RACE.t < 0.6);
-    r.step(dt, T, canGo);
+    r.step(dt, T, racing);
   }
   // Racer bumps.
   const R = RACE.racers;
@@ -3252,6 +3250,12 @@ function raceStep(dt) {
     r.progress = r.lap * L + s;
     // Wrong way.
     const L2 = r._L; if (L2 && L2.tx !== undefined && r.speed > 2) { const fwd = r.vx * L2.tx + r.vz * L2.tz; r.wrongT = fwd < -1.5 ? r.wrongT + dt : 0; } else r.wrongT = 0;
+  }
+  // Player stuck with the throttle held: put them back on the track.
+  const me = RACE.me;
+  if (me && RACE.phase === 'race' && me.alive && !me.finished && me.kind === 'me') {
+    if (me.in.thr > 0 && me.speed < 0.8) { me.stuckT = (me.stuckT || 0) + dt; } else me.stuckT = Math.max(0, (me.stuckT || 0) - dt * 2);
+    if (me.stuckT > 3.5) { me.stuckT = 0; me.respawn(T); feed('Back on track!'); }
   }
   // Places.
   const sorted = [...R].sort((a, b) => (b.finished - a.finished) || (a.finished && b.finished ? a.finishT - b.finishT : b.progress - a.progress));
@@ -3842,7 +3846,7 @@ function showHelp() {
   screen('help', `${topbar('title')}<div class="panel card"><header><h2>How to play</h2><button class="btn sm" data-act="title" style="--c:var(--mint)">Got it</button></header>
     <div class="scroll" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;font-weight:600;line-height:1.35">
       <div style="display:flex;flex-direction:column;gap:8px"><h3 style="font-size:24px">Controls</h3>
-        ${row('W / ↑', 'Rocket thrust (hold)')}${row('A D / ← →', 'Steer')}${row('S / ↓', 'Brake, then reverse')}${row('SPACE', 'Boost')}${row('SHIFT', 'Drop a suds slick behind you')}${row('E', 'Honk or hop (Duck Horn or Spring Sole upgrade)')}${row('R', 'Back on track')}${row('ESC', 'Pause')}
+        ${row('W / ↑', 'Rocket thrust (hold)')}${row('A D / ← →', 'Steer')}${row('S / ↓', 'Brake, then reverse')}${row('SPACE', 'Boost')}${row('SHIFT', 'Drop a suds slick behind you')}${row('E', 'Honk or hop (Duck Horn or Spring Sole upgrade)')}${row('R', 'Back on track')}${row('Start', 'Tap thrust just as GO! appears for a rocket start')}${row('ESC', 'Pause')}
         <p style="margin:4px 0 0">Gamepads work too: stick to steer, RT go, LT brake, X boost, B suds.</p></div>
       <div style="display:flex;flex-direction:column;gap:10px"><h3 style="font-size:24px">Soap physics</h3>
         <p style="margin:0">💧 <b>Wet floor is fast but slippery.</b> You keep sliding the way you were going. Shiny = wet.</p>
