@@ -2055,7 +2055,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040751";
+const ASSET_V = "202611040800";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -4585,9 +4585,14 @@ function netHandle(m) {
 function netState(m) {
   if (!RACE.online || m.r !== NET.raceId) return;
   if (m.c === NET.cid) return;
-  const r = RACE.racers.find((x) => x.netId === m.c);
-  if (!r || r.kind !== 'net') return;
+  let r = RACE.racers.find((x) => x.netId === m.c);
   const p = NET.players.get(m.c); if (p) p.seen = now();
+  // A player we dropped for going quiet (tab switched away) is back: put their soap back.
+  if (!r && p && !RACE.results && !String(m.c).startsWith('bot')) {
+    r = new Racer(p.name || 'Racer', p.lo || m.lo || {}, 'net'); r.netId = m.c;
+    r.reset(m.p[0], m.p[1], m.yw, -1); addRacer(r, 'mid');
+  }
+  if (!r || r.kind !== 'net') return;
   const buf = r.buf || (r.buf = []);
   buf.push({ t: now() / 1000, x: m.p[0], z: m.p[1], y: m.p[2], vx: m.v[0], vz: m.v[1], yaw: m.yw, size: m.sz, f: m.f, b: m.b });
   if (buf.length > 24) buf.shift();
@@ -4597,7 +4602,7 @@ function netState(m) {
 // Interpolate remote racers ~110 ms in the past.
 function netInterp() {
   const rt = now() / 1000 - 0.11;
-  for (const r of RACE.racers) {
+  for (const r of [...RACE.racers]) {
     if (r.kind !== 'net' || !r.buf || !r.buf.length) continue;
     const B = r.buf; let a = B[0], b = B[B.length - 1];
     for (let i = 0; i < B.length - 1; i++) if (B[i].t <= rt && B[i + 1].t >= rt) { a = B[i]; b = B[i + 1]; break; }
@@ -4607,7 +4612,8 @@ function netInterp() {
     r.vx = b.vx; r.vz = b.vz; r.size = b.size; r.vis = lerp(0.56, 1, (r.size - CFG.minSize) / (1 - CFG.minSize));
     r.thr = b.f & 1 ? 1 : 0.2; r.boosting = !!(b.f & 2); r.brk = b.f & 4 ? 1 : 0; r.alive = !(b.f & 8); r.air = !!(b.f & 16); r.sliding = (b.f & 32) ? 3 : 0;
     r.trackS = 0; r.ti = RACE.T.locate(r.x, r.z, r.ti, r._L).i;
-    if (now() - r.seen > 7000 && !r.finished) { r.left = true; }
+    // Gone quiet (closed the tab, lost Wi-Fi): take their soap off the track.
+    if (now() - r.seen > 7000 && !r.finished) { r.left = true; removeRacer(r); }
   }
 }
 function netTick(dt) {
