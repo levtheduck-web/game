@@ -353,16 +353,25 @@ const defProfile = () => ({
   st: { races: 0, wins: 0, podiums: 0, suds: 0 },
   help: 0,
 });
+// Merge a stored profile over the defaults and repair anything missing or broken.
+function sanitizeProfile(o) {
+  const d = defProfile();
+  if (!o || typeof o !== 'object' || o.v !== 1) return d;
+  const obj = (x) => (x && typeof x === 'object' && !Array.isArray(x) ? x : {});
+  const out = Object.assign(d, o, { set: Object.assign(d.set, obj(o.set)), own: Object.assign(d.own, obj(o.own)), eq: Object.assign(d.eq, obj(o.eq)), st: Object.assign(d.st, obj(o.st)) });
+  for (const k of ['best', 'cups', 'wins', 'medals', 'hints']) out[k] = obj(out[k]);
+  for (const k of ['bar', 'rocket', 'mod']) if (!Array.isArray(out.own[k])) out.own[k] = [];
+  if (!Array.isArray(out.eq.mods)) out.eq.mods = ['', ''];
+  while (out.eq.mods.length < 2) out.eq.mods.push('');
+  out.eq.mods = out.eq.mods.slice(0, 2).map((m) => (typeof m === 'string' ? m : ''));
+  out.bubbles = Math.max(0, Math.floor(+out.bubbles || 0));
+  out.eq.paint = Math.max(0, Math.floor(+out.eq.paint || 0));
+  if (typeof out.name !== 'string') out.name = '';
+  return out;
+}
 function loadProfile() {
   if (SMOKE) return defProfile();
-  try {
-    const o = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
-    if (o && o.v === 1) {
-      const d = defProfile();
-      return Object.assign(d, o, { set: Object.assign(d.set, o.set || {}), own: Object.assign(d.own, o.own || {}), eq: Object.assign(d.eq, o.eq || {}), st: Object.assign(d.st, o.st || {}) });
-    }
-  } catch (e) { /* fresh save */ }
-  return defProfile();
+  try { return sanitizeProfile(JSON.parse(localStorage.getItem(SAVE_KEY) || 'null')); } catch (e) { return defProfile(); }
 }
 let P = loadProfile();
 function saveProfile() { if (SMOKE) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(P)); } catch (e) { /* storage full or blocked */ } }
@@ -2016,7 +2025,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040731";
+const ASSET_V = "202611040732";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -4707,7 +4716,7 @@ async function boot() {
   for (const t of TRACKS) getTrack(t.id);
   bootMsg('Ready', 1);
   if (window.GBSave && GBSave.register) {
-    try { GBSave.register({ autosave: 60, save: () => (SMOKE ? null : P), load: (s) => { try { const o = typeof s === 'string' ? JSON.parse(s) : s; if (o && o.v === 1) { P = Object.assign(defProfile(), o); saveProfile(); if (UI.cur === 'title') showTitle(); } } catch (e) { /* bad save */ } } }); } catch (e) { /* no save engine */ }
+    try { GBSave.register({ autosave: 60, save: () => (SMOKE ? null : P), load: (s) => { try { const o = typeof s === 'string' ? JSON.parse(s) : s; if (o && o.v === 1) { P = sanitizeProfile(o); saveProfile(); if (UI.cur === 'title') showTitle(); } } catch (e) { /* bad save */ } } }); } catch (e) { /* no save engine */ }
   }
   requestAnimationFrame(frame);
   setTimeout(() => $('boot').classList.add('gone'), 120);
@@ -4824,6 +4833,12 @@ async function runSmoke() {
       SUDS.list = []; const sx = g.x + Math.sin(g.yaw) * 3, sz = g.z + Math.cos(g.yaw) * 3; const ws = SUDS.add(sx, sz, 0.65, null, 3.5); ws.weak = 1;
       ok('bubble jet trail is slippery but no spin out', SUDS.at(sx, sz, null) <= 0.3);
       SUDS.list = [];
+    }
+    // Broken or ancient saves are repaired, not crashes.
+    {
+      const bad = sanitizeProfile({ v: 1, bubbles: 'lots', eq: { bar: 'nope', mods: null, paint: -3 }, own: { bar: 'rosy' }, best: null, medals: 7 });
+      const lo = (() => { const keep = P; P = bad; try { return myLoadout(); } finally { P = keep; } })();
+      ok('a broken save loads safely', bad.bubbles === 0 && Array.isArray(bad.eq.mods) && Array.isArray(bad.own.bar) && typeof bad.medals === 'object' && cleanLoadout(lo).bar === 'rosy');
     }
     // Fun mods.
     {
