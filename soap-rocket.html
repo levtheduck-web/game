@@ -395,12 +395,16 @@ const MODS = {
   wax:     { name: 'Wax Coat', icon: '🕯️', price: 250, blurb: 'Wears away much slower, but it is slippier.', st: { wear: 0.6, grip: 0.88 } },
   sponge:  { name: 'Sponge Bumper', icon: '🧽', price: 300, blurb: 'Bounce off walls without losing speed or soap. Heavier and slower off the line.', st: { wallKeep: 1.6, mass: 1.1, accel: 0.94, chipless: 1 } },
   lather:  { name: 'Lather Pump', icon: '🫧', price: 300, blurb: 'Bigger suds slicks that last longer. Each one costs more soap.', st: { sudsR: 1.45, sudsT: 1.35, sudsCost: 1.5 } },
-  horn:    { name: 'Duck Horn', icon: '🦆', price: 350, blurb: 'Press E to honk and shove nearby racers away. Costs boost per honk, and the duck adds a little drag.', st: { horn: 1, top: 0.985, mass: 1.04 } },
+  horn:    { name: 'Duck Horn', icon: '🦆', price: 350, act: 1, blurb: 'Press E to honk and shove nearby racers away. Costs boost per honk, and the duck adds a little drag.', st: { horn: 1, top: 0.985, mass: 1.04 } },
   plug:    { name: 'Drain Plug', icon: '🔩', price: 300, blurb: 'Drains can not pull you in. The plug drags a little on your top speed.', st: { plug: 1, top: 0.97 } },
   fins:    { name: 'Hydro Fins', icon: '🐟', price: 350, blurb: 'Faster on wet floor, but much slower on dry floor and mats.', st: { wetTop: 1.07, dryMu: 1.35 } },
   sole:    { name: 'Rubber Sole', icon: '👟', price: 350, blurb: 'Grippy and quick on dry floor, a bit slower on wet.', st: { dryMu: 0.7, wetTop: 0.95, grip: 1.06 } },
   tablet:  { name: 'Fizz Tablet', icon: '💊', price: 300, blurb: 'Start every race with a full tank and a rocket start. Refills slower after.', st: { startBoost: 1, regen: 0.78 } },
   scoop:   { name: 'Slipstream Scoop', icon: '🌀', price: 300, blurb: 'Tailgating charges your boost twice as fast. Normal refill is slower.', st: { draft: 2.2, regen: 0.85 } },
+  hop:     { name: 'Spring Sole', icon: '🦘', price: 350, act: 1, blurb: 'Press E to hop over suds, razors and drains. Each hop costs boost, and the spring grips a bit less.', st: { hop: 1, grip: 0.92 } },
+  magnet:  { name: 'Coin Magnet', icon: '🧲', price: 300, blurb: 'Pulls soap coins to you from a few lengths away. The magnet is heavy.', st: { magnet: 1, mass: 1.06, accel: 0.97 } },
+  cannon:  { name: 'Foam Cannon', icon: '🎯', price: 450, blurb: 'Your suds fly forward and land on whoever is ahead of you. Each shot costs twice the soap.', st: { cannon: 1, sudsCost: 2 } },
+  bumpers: { name: 'Rubber Bumpers', icon: '🛟', price: 350, blurb: 'Bounce rivals away twice as hard. All that rubber drags your top speed down a little.', st: { bumpers: 1, top: 0.975 } },
   wrap:    { name: 'Bubble Wrap', icon: '🛡️', price: 400, blurb: 'Saves you from one spin out or drain every lap. Heavier and a bit slower.', st: { shield: 1, mass: 1.08, top: 0.97 } },
 };
 const PAINTS = [
@@ -410,7 +414,7 @@ const PAINTS = [
 ];
 const MULT = new Set(['accel', 'top', 'grip', 'turn', 'mass', 'wear', 'wallKeep', 'dryMu', 'wetTop', 'regen', 'brake', 'draft', 'sudsR', 'sudsCost', 'sudsT', 'bThrust', 'bUse', 'bTop', 'bubbles']);
 function statsFor(lo) {
-  const s = { accel: 1, top: 1, grip: 1, turn: 1, mass: 1, wear: 1, wallKeep: 1, dryMu: 1, wetTop: 1, regen: 1, brake: 1, draft: 1, sudsR: 1, sudsCost: 1, sudsT: 1, bThrust: 1, bUse: 1, bTop: 1, bubbles: 1, spool: 0, plug: 0, horn: 0, shield: 0, startBoost: 0, bubbleJet: 0, chipless: 0 };
+  const s = { accel: 1, top: 1, grip: 1, turn: 1, mass: 1, wear: 1, wallKeep: 1, dryMu: 1, wetTop: 1, regen: 1, brake: 1, draft: 1, sudsR: 1, sudsCost: 1, sudsT: 1, bThrust: 1, bUse: 1, bTop: 1, bubbles: 1, spool: 0, hop: 0, magnet: 0, cannon: 0, bumpers: 0, plug: 0, horn: 0, shield: 0, startBoost: 0, bubbleJet: 0, chipless: 0 };
   const parts = [BARS[lo.bar] || BARS.rosy, ROCKETS[lo.rocket] || ROCKETS.twin];
   for (const m of lo.mods || []) if (MODS[m]) parts.push(MODS[m]);
   for (const p of parts) for (const k in p.st) { if (MULT.has(k)) s[k] *= p.st[k]; else s[k] += p.st[k]; }
@@ -1908,7 +1912,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040635";
+const ASSET_V = "202611040638";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2268,10 +2272,12 @@ function pickupsCollect(r) {
   if (!r.alive || r.kind === 'net') return;
   for (const it of PICK.items) {
     if (it.cool > 0) continue;
+    if (r.S.magnet && it.kind === 'coin') { const dx = r.x - it.x, dz = r.z - it.z, d = Math.hypot(dx, dz); if (d < 3.6 && d > 0.05) { const k = Math.min(1, CFG.dt * 9); it.x += dx * k; it.z += dz * k; it.y = lerp(it.y, r.y + 0.5, k); it.home = it.home || [it.x - dx * k, it.z - dz * k, it.y]; } }
     const K = PICK_KIND[it.kind];
     const dx = r.x - it.x, dz = r.z - it.z;
     if (dx * dx + dz * dz > (K.r + 0.3 * r.vis) ** 2 || Math.abs(r.y + 0.3 - it.y) > 1.4) continue;
     it.cool = K.cool;
+    if (it.home) { [it.x, it.z, it.y] = it.home; it.home = null; }
     if (it.kind === 'coin') { r.coins = (r.coins || 0) + 1; }
     else if (it.kind === 'star') r.boost = Math.min(100, r.boost + 45);
     else r.boost = 100;
@@ -2326,7 +2332,7 @@ class Racer {
   }
   reset(x, z, yaw, i = -1) {
     Object.assign(this, { x, z, y: 0, vy: 0, vx: 0, vz: 0, yaw, w: 0, air: false, size: 1, vis: 1, boost: this.S.startBoost ? 100 : 35,
-      sudsCd: 0, hornCd: 0, spin: 0, shieldLap: -9, alive: true, deadT: 0, ghost: 0, ti: i, lastGoodI: i, prevS: -1, lap: -1, progress: 0,
+      sudsCd: 0, hornCd: 0, hopCd: 0, spin: 0, shieldLap: -9, alive: true, deadT: 0, ghost: 0, ti: i, lastGoodI: i, prevS: -1, lap: -1, progress: 0,
       finished: false, finishT: 0, lapStart: 0, lapTimes: [], bestLap: Infinity, place: 0, wrongT: 0, stuckT: 0, draft: 0, slideT: 0,
       thr: 0, brk: 0, boosting: false, gnx: 0, gnz: 0, gx: 0, gz: 0, accLong: 0, lean: 0, land: 0, lastVf: 0, sliding: 0, onSurface: 'wet',
       stat: { slides: 0, sudsHits: 0, sudsDropped: 0, walls: 0, drains: 0, bumps: 0, airT: 0, topSpeed: 0 }, events: [], dropT: 0, fall: null });
@@ -2339,6 +2345,7 @@ class Racer {
     if (this.ghost > 0) this.ghost -= dt;
     if (this.sudsCd > 0) this.sudsCd -= dt;
     if (this.hornCd > 0) this.hornCd -= dt;
+    if (this.hopCd > 0) this.hopCd -= dt;
     if (!this.alive) { this.stepDead(dt, T); return; }
     const shr = 1 - (this.size - CFG.minSize) / (1 - CFG.minSize) * 1;   // 0 new .. 1 worn
     const L = T.locate(this.x, this.z, this.ti, this._L); this.ti = L.i;
@@ -2351,7 +2358,7 @@ class Racer {
     grip *= S.grip * (1 - 0.25 * shr);
     if (sud > 0.05) {
       mu = lerp(mu, CFG.muSuds, sud); grip = lerp(grip, CFG.gripSuds, sud);
-      if (this.spin <= 0 && sud > 0.35 && this.speed > 3.5 && racing) this.spinOut(T, sud);
+      if (this.spin <= 0 && sud > 0.35 && this.speed > 3.5 && racing && !this.air) this.spinOut(T, sud);
     }
     this.onSurface = sud > 0.3 ? 'suds' : mat > 0.5 ? 'mat' : pud > 0.4 ? 'puddle' : wet > 0.5 ? 'wet' : 'dry';
     if (this.spin > 0) { grip *= 0.3; this.spin -= dt; }
@@ -2393,7 +2400,7 @@ class Racer {
       if (dist < 3.4 && dist > 1e-3) {
         const pull = CFG.drainPull * (1 - dist / 3.4) ** 2 * (0.55 + 0.9 * shr);
         this.vx += dx / dist * pull * dt; this.vz += dz / dist * pull * dt;
-        if (dist < 0.55 && this.size < 0.74 && this.speed < 9.5 && racing) { if (this.useShield('drain')) { this.vx -= dx / dist * 6; this.vz -= dz / dist * 6; } else { this.die('drain', T); return; } }
+        if (dist < 0.55 && this.size < 0.74 && this.speed < 9.5 && racing && !this.air) { if (this.useShield('drain')) { this.vx -= dx / dist * 6; this.vz -= dz / dist * 6; } else { this.die('drain', T); return; } }
       }
     }
     // Wind (hair dryer).
@@ -2500,6 +2507,7 @@ class Racer {
   collideObstacles(T) {
     const rs = (CFG.hx * this.bs[0] + CFG.hz * this.bs[2]) * 0.5 * this.vis * 1.05;
     for (const o of T.obst) {
+      if (o.cap && this.air && this.y - T.heightAt(o.x, o.z) > 0.22) continue;
       let cx = o.x, cz = o.z;
       if (o.cap) { const ex = o.bx - o.ax, ez = o.bz - o.az; const f = clamp(((this.x - o.ax) * ex + (this.z - o.az) * ez) / (ex * ex + ez * ez), 0, 1); cx = o.ax + ex * f; cz = o.az + ez * f; }
       const dx = this.x - cx, dz = this.z - cz, d = Math.hypot(dx, dz), md = o.r + rs;
@@ -2515,6 +2523,11 @@ class Racer {
         if (-vn > 1) this.emit('obst', { kind: o.kind, v: -vn, o });
       }
     }
+  }
+  hop() {
+    if (!this.S.hop || this.hopCd > 0 || this.air || this.boost < 15 || !this.alive) return false;
+    this.boost -= 15; this.hopCd = 1.1; this.vy = 6.8; this.air = true; this.y += 0.04; this.land = 0.3;
+    this.emit('hop'); return true;
   }
   spinOut(T, k) {
     if (this.useShield('suds')) return;
@@ -2577,13 +2590,14 @@ function collideRacers(a, b) {
     const ma = a.mass, mb = b.mass;
     const la = a.kind !== 'net', lb = b.kind !== 'net';
     const wa = lb ? mb / (ma + mb) : 1, wb = la ? ma / (ma + mb) : 1;
+    const ka = b.S.bumpers ? 1.7 : 1, kb = a.S.bumpers ? 1.7 : 1;
     if (la) { a.x -= nx * pen * wa; a.z -= nz * pen * wa; }
     if (lb) { b.x += nx * pen * wb; b.z += nz * pen * wb; }
     const vr = (b.vx - a.vx) * nx + (b.vz - a.vz) * nz;
     if (vr < 0) {
       const j = -(1 + CFG.soapE) * vr / (1 / ma + 1 / mb);
-      if (la) { a.vx -= j / ma * nx; a.vz -= j / ma * nz; a.w += (i ? -1 : 1) * clamp(j / ma * 0.6, -4, 4) * (Math.random() < 0.5 ? 1 : -1); }
-      if (lb) { b.vx += j / mb * nx; b.vz += j / mb * nz; b.w += (j ? 1 : -1) * clamp(j / mb * 0.6, -4, 4) * (Math.random() < 0.5 ? 1 : -1); }
+      if (la) { a.vx -= j / ma * nx * ka; a.vz -= j / ma * nz * ka; a.w += (i ? -1 : 1) * clamp(j / ma * 0.6, -4, 4) * (Math.random() < 0.5 ? 1 : -1); }
+      if (lb) { b.vx += j / mb * nx * kb; b.vz += j / mb * nz * kb; b.w += (j ? 1 : -1) * clamp(j / mb * 0.6, -4, 4) * (Math.random() < 0.5 ? 1 : -1); }
       if (-vr > 1.4 && !hit) { hit = true; const ev = { other: b, v: -vr, x: (ax + bx) / 2, z: (az + bz) / 2 }; a.emit('bump', ev); a.stat.bumps++; b.emit('bump', { other: a, v: -vr, x: ev.x, z: ev.z }); }
     }
   }
@@ -2657,11 +2671,18 @@ class CpuDriver {
       for (const o of race.racers) {
         if (o === r || !o.alive) continue;
         const ddx = o.x - r.x, ddz = o.z - r.z, d = Math.hypot(ddx, ddz);
-        if (d < 3.4 && (ddx * fx + ddz * fz) / (d || 1) < -0.8 && Math.random() < this.D.suds * 0.5) { I.suds = true; this.sudsT = 7 + Math.random() * 6; break; }
+        const dot = (ddx * fx + ddz * fz) / (d || 1);
+        const target = r.S.cannon ? (d > 4 && d < 9 && dot > 0.93) : (d < 3.4 && dot < -0.8);
+        if (target && Math.random() < this.D.suds * (r.S.cannon ? 0.8 : 0.5)) { I.suds = true; this.sudsT = 7 + Math.random() * 6; break; }
       }
     }
-    // Horn if equipped.
+    // Hop over trouble if equipped (Spring Sole).
     I.horn = false;
+    if (r.S.hop && racing && r.hopCd <= 0 && r.boost > 30) {
+      const ax = r.x + fx * (1.5 + spd * 0.25), az = r.z + fz * (1.5 + spd * 0.25);
+      if (SUDS.at(ax, az, r) > 0.35 || T.drains.some((d) => Math.hypot(d.x - ax, d.z - az) < 1 && r.size < 0.8) || T.obst.some((o) => o.shave && Math.hypot(o.x - ax, o.z - az) < 1.2)) I.horn = true;
+    }
+    // Horn if equipped.
     if (r.S.horn && racing) { this.hornT -= dt; if (this.hornT < 0) { for (const o of race.racers) if (o !== r && Math.hypot(o.x - r.x, o.z - r.z) < 2.6) { I.horn = true; this.hornT = 5 + Math.random() * 4; break; } } }
     // Unstick: back up and turn, then give up and respawn.
     if (racing && spd < 0.7 && !r.air) this.stuckT += dt; else this.stuckT = Math.max(0, this.stuckT - dt * 2);
@@ -3112,7 +3133,7 @@ function randomLoadout(r, tier = 1) {
 function clearRacers() {
   for (const v of RACE.views.values()) scene.remove(v.root);
   RACE.views.clear(); RACE.racers = []; RACE.cpus = []; RACE.me = null; RACE.finishOrder = [];
-  SUDS.list = []; FX.reset();
+  SUDS.list = []; SHOTS.length = 0; FX.reset();
 }
 function addRacer(r, lod) {
   RACE.racers.push(r);
@@ -3203,9 +3224,10 @@ function raceStep(dt) {
   for (const r of R) {
     if (r.kind === 'net') continue;
     if (r.in.suds) { r.in.suds = false; if (racing && r.alive) tryDropSuds(r); }
-    if (r.in.horn) { r.in.horn = false; if (racing && r.alive) tryHorn(r); }
+    if (r.in.horn) { r.in.horn = false; if (racing && r.alive) { if (r.S.horn) tryHorn(r); else if (r.S.hop) r.hop(); } }
   }
   SUDS.update(dt);
+  shotsUpdate(dt);
   // Progress and laps.
   const L = T.L;
   for (const r of R) {
@@ -3269,11 +3291,29 @@ function tryDropSuds(r) {
   const cost = CFG.sudsCost * r.S.sudsCost;
   if (r.size - cost < CFG.minSize + 0.03) { if (r === RACE.me) feed('Too little soap left for suds'); return; }
   r.size -= cost; r.sudsCd = CFG.sudsCd; r.stat.sudsDropped++;
+  if (r.S.cannon) {
+    // Foam Cannon: a blob of suds arcs forward and lands ahead.
+    const fx = Math.sin(r.yaw), fz = Math.cos(r.yaw); const v = r.speed;
+    const tx = r.x + fx * (6 + v * 0.45), tz = r.z + fz * (6 + v * 0.45);
+    sfxAt('suds', r.x, r.y, r.z, 0.9, 1.2); sfxAt('whoosh', r.x, r.y, r.z, 0.5, 1.4);
+    SHOTS.push({ x0: r.x, z0: r.z, y0: r.y + 0.5, x1: tx, z1: tz, t: 0, d: 0.55, r, rad: CFG.sudsR * r.S.sudsR, life: CFG.sudsLife * r.S.sudsT });
+    return;
+  }
   const bx = r.x - Math.sin(r.yaw) * 1.1, bz = r.z - Math.cos(r.yaw) * 1.1;
   const s = SUDS.add(bx, bz, CFG.sudsR * r.S.sudsR, r, CFG.sudsLife * r.S.sudsT);
   sfxAt('suds', bx, r.y, bz, 0.9);
   netSendSuds && netSendSuds(s);
   if (r === RACE.me) P.st.suds++;
+}
+// Foam Cannon shots in flight.
+const SHOTS = [];
+function shotsUpdate(dt) {
+  for (let k = SHOTS.length - 1; k >= 0; k--) {
+    const s = SHOTS[k]; s.t += dt; const f = Math.min(1, s.t / s.d);
+    const x = lerp(s.x0, s.x1, f), z = lerp(s.z0, s.z1, f), y = lerp(s.y0, RACE.T ? RACE.T.heightAt(s.x1, s.z1) : 0, f) + Math.sin(f * Math.PI) * 2.2;
+    if (Math.random() < 0.7) FX.bubbles(x, y, z, 2, 0.3, 0.2, 0.14);
+    if (f >= 1) { SHOTS.splice(k, 1); const p = SUDS.add(s.x1, s.z1, s.rad, s.r, s.life); sfxAt('splash', s.x1, 0, s.z1, 0.7, 1.3); netSendSuds && netSendSuds(p); }
+  }
 }
 function tryHorn(r) {
   if (!r.S.horn || r.hornCd > 0 || r.boost < 20) return;
@@ -3332,6 +3372,7 @@ function handleEvents() {
           break;
         case 'respawn': FX.bubbles(r.x, r.y + 0.2, r.z, 10, 0.8, 0.9, 0.12); FX.sparkle(r.x, r.y + 0.5, r.z, 3); if (isMe) sfx('pop', 0.6); break;
         case 'jump': if (isMe) sfx('whoosh', 0.4, 1.3); break;
+        case 'hop': sfxAt('duck2', r.x, r.y, r.z, 0.6, 1.5); FX.ringAt(r.x, r.y, r.z, 1.2, [1, 1, 1], 0.3); break;
         case 'land': FX.splash(r.x, r.y, r.z, 8 + e.v * 2, 0.5 + e.v * 0.08); FX.ringAt(r.x, r.y, r.z, 1 + e.v * 0.15, [1, 1, 1], 0.45); sfxAt('splash', r.x, r.y, r.z, clamp(e.v / 6, 0.3, 1)); if (isMe) CAM.shake = Math.max(CAM.shake, clamp(e.v / 8, 0.1, 0.6)); break;
         case 'slideDone': if (isMe && e.t > 1.4) { feed(e.t > 2.4 ? 'MEGA SLIDE!' : 'SLIDE!'); sfx('pop', 0.5, 1.3); } break;
         case 'shield': sfxAt('pop', r.x, r.y, r.z, 1, 0.8); FX.bubbles(r.x, r.y + 0.3, r.z, 18, 1, 1, 0.16); if (isMe) feed('Bubble Wrap saved you!'); break;
@@ -3723,7 +3764,7 @@ function showHelp() {
   screen('help', `${topbar('title')}<div class="panel card"><header><h2>How to play</h2><button class="btn sm" data-act="title" style="--c:var(--mint)">Got it</button></header>
     <div class="scroll" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;font-weight:600;line-height:1.35">
       <div style="display:flex;flex-direction:column;gap:8px"><h3 style="font-size:24px">Controls</h3>
-        ${row('W / ↑', 'Rocket thrust (hold)')}${row('A D / ← →', 'Steer')}${row('S / ↓', 'Brake, then reverse')}${row('SPACE', 'Boost')}${row('SHIFT', 'Drop a suds slick behind you')}${row('E', 'Honk (Duck Horn upgrade)')}${row('R', 'Back on track')}${row('ESC', 'Pause')}
+        ${row('W / ↑', 'Rocket thrust (hold)')}${row('A D / ← →', 'Steer')}${row('S / ↓', 'Brake, then reverse')}${row('SPACE', 'Boost')}${row('SHIFT', 'Drop a suds slick behind you')}${row('E', 'Honk or hop (Duck Horn or Spring Sole upgrade)')}${row('R', 'Back on track')}${row('ESC', 'Pause')}
         <p style="margin:4px 0 0">Gamepads work too: stick to steer, RT go, LT brake, X boost, B suds.</p></div>
       <div style="display:flex;flex-direction:column;gap:10px"><h3 style="font-size:24px">Soap physics</h3>
         <p style="margin:0">💧 <b>Wet floor is fast but slippery.</b> You keep sliding the way you were going. Shiny = wet.</p>
@@ -3823,7 +3864,8 @@ function applyTouch() {
   document.body.classList.toggle('touch', !!on);
   const show = on && RACE.me && !RACE.attract && !RACE.results && !$('hud').classList.contains('off');
   $('touch').classList.toggle('off', !show);
-  $('tHo').classList.toggle('off', !(RACE.me && RACE.me.S.horn));
+  $('tHo').classList.toggle('off', !(RACE.me && (RACE.me.S.horn || RACE.me.S.hop)));
+  if (RACE.me) $('tHo').textContent = RACE.me.S.hop ? 'HOP' : 'HONK';
   $('kBoost').textContent = on ? 'BOOST' : 'SPACE'; $('kSuds').textContent = on ? 'SUDS' : 'SHIFT';
 }
 
@@ -3887,7 +3929,7 @@ function swatch(kind, id) {
   if (kind === 'mod') return `<div class="swatch" style="background:linear-gradient(#f3eeff,#e4dbff)">${MODS[id].icon}</div>`;
   return '';
 }
-function previewLoadout() { const lo = myLoadout(); const s = UI.sel; if (!s) return lo; if (s.kind === 'bar') lo.bar = s.id; else if (s.kind === 'rocket') lo.rocket = s.id; else if (s.kind === 'mod') { if (!lo.mods.includes(s.id)) { lo.mods = lo.mods.length >= 2 ? [lo.mods[1], s.id] : [...lo.mods, s.id]; } } else if (s.kind === 'paint') lo.paint = s.id; return lo; }
+function previewLoadout() { const lo = myLoadout(); const s = UI.sel; if (!s) return lo; if (s.kind === 'bar') lo.bar = s.id; else if (s.kind === 'rocket') lo.rocket = s.id; else if (s.kind === 'mod') { if (!lo.mods.includes(s.id)) { if (MODS[s.id].act) lo.mods = lo.mods.filter((x) => !MODS[x].act); lo.mods = lo.mods.length >= 2 ? [lo.mods[1], s.id] : [...lo.mods, s.id]; } } else if (s.kind === 'paint') lo.paint = s.id; return lo; }
 function statsHtml(cur, nxt) {
   const A = displayStats(cur), B = displayStats(nxt);
   return `<div class="stats">${A.map(([n, a], k) => { const b = B[k][1]; const d = b - a; const lo = Math.min(a, b), hi = Math.max(a, b);
@@ -3948,9 +3990,13 @@ ACT.gbuy = () => {
     P.bubbles -= it.price; P.own[s.kind].push(s.id); sfx('coin', 0.8); toast('Bought ' + it.name + '!');
   }
   if (s.kind === 'mod') {
-    const m = P.eq.mods.filter(Boolean);
+    let m = P.eq.mods.filter(Boolean);
     if (m.includes(s.id)) P.eq.mods = m.filter((x) => x !== s.id);
-    else P.eq.mods = m.length >= 2 ? [m[1], s.id] : [...m, s.id];
+    else {
+      // Only one action mod (E key) at a time.
+      if (MODS[s.id].act) m = m.filter((x) => !MODS[x].act);
+      P.eq.mods = m.length >= 2 ? [m[1], s.id] : [...m, s.id];
+    }
     while (P.eq.mods.length < 2) P.eq.mods.push('');
   } else P.eq[s.kind] = s.id;
   sfx('equip', 0.7);
@@ -4404,7 +4450,7 @@ async function runSmoke() {
       const lo = { bar: 'rosy', rocket: 'twin', mods: [] }; if (kind === 'mod') lo.mods = [id]; else lo[kind] = id;
       const s = displayStats(lo); const d = s.map((x, k) => x[1] - base[k][1]);
       const st = (list[id].st || {});
-      const special = st.plug || st.horn || st.shield || st.startBoost || st.bubbleJet || st.chipless || st.draft || st.dryMu || st.sudsR;
+      const special = st.plug || st.horn || st.shield || st.startBoost || st.bubbleJet || st.chipless || st.draft || st.dryMu || st.sudsR || st.hop || st.magnet || st.cannon || st.bumpers || st.spool || st.bubbles || st.bTop;
       ok(kind + ' ' + id + ' has an upside and a downside', (d.some((v) => v > 0.05) || special) && (d.some((v) => v < -0.05) || st.sudsCost > 1 || st.wear > 1 || st.dryMu > 1), d.map((v) => v.toFixed(1)).join(','));
     }
     // The user's extra models load and become usable props.
@@ -4433,6 +4479,23 @@ async function runSmoke() {
       ok('turbo jet boost spools up over time', early < 0.1 && r.spoolK === 1, early.toFixed(2));
       SUDS.list = []; const sx = g.x + Math.sin(g.yaw) * 3, sz = g.z + Math.cos(g.yaw) * 3; const ws = SUDS.add(sx, sz, 0.65, null, 3.5); ws.weak = 1;
       ok('bubble jet trail is slippery but no spin out', SUDS.at(sx, sz, null) <= 0.3);
+      SUDS.list = [];
+    }
+    // Fun mods.
+    {
+      const T = getTrack('floor'); const rz = T.obst.find((o) => o.kind === 'razor');
+      const r = new Racer('h', { bar: 'rosy', rocket: 'twin', mods: ['hop'] }, 'cpu'); r.reset(rz.x + 2.2, rz.z, -Math.PI / 2, -1); r.vx = -7; r.boost = 100; const s0 = r.size;
+      r.step(CFG.dt, T, true); r.hop();
+      for (let k = 0; k < 60; k++) r.step(CFG.dt, T, true);
+      ok('Spring Sole hops clean over a razor', r.size > s0 - 0.01 && r.boost < 90, 'lost ' + (s0 - r.size).toFixed(3));
+      raceSetup({ track: 'shower', laps: 1, cpus: 0, mode: 'quick' }); RACE.phase = 'race';
+      const me = RACE.me; me.setLoadout({ bar: 'rosy', rocket: 'twin', mods: ['cannon'] }); me.sudsCd = 0; const n0 = SUDS.list.length;
+      tryDropSuds(me); for (let k = 0; k < 90; k++) shotsUpdate(CFG.dt);
+      const sp = SUDS.list[SUDS.list.length - 1];
+      ok('Foam Cannon suds land ahead of you', SUDS.list.length === n0 + 1 && sp && ((sp.x - me.x) * Math.sin(me.yaw) + (sp.z - me.z) * Math.cos(me.yaw)) > 4);
+      me.setLoadout({ bar: 'rosy', rocket: 'twin', mods: ['magnet'] }); const c = PICK.items.find((i) => i.kind === 'coin' && i.cool <= 0);
+      me.x = c.x + 2.5; me.z = c.z; me.y = c.y - 0.5; me.coins = 0; for (let k = 0; k < 120; k++) pickupsCollect(me);
+      ok('Coin Magnet pulls coins in from 2.5 away', me.coins >= 1, me.coins + ' coins');
       SUDS.list = [];
     }
     // A full CPU race finishes.
