@@ -1942,7 +1942,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040718";
+const ASSET_V = "202611040719";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -4575,7 +4575,8 @@ onKey = (e) => {
     else if (UI.cur && UI.cur !== 'title' && MODE !== 'race') { if (UI.cur === 'lobby') return; showTitle(); }
   }
   if (e.code === 'Enter') {
-    if (UI.cur === 'quick') ACT.startQuick();
+    if (UI.cur === 'title') ACT.quick();
+    else if (UI.cur === 'quick') ACT.startQuick();
     else if (UI.cur === 'results' && !RACE.online && !(RACE.mode === 'gp')) ACT.again();
   }
   if (e.code === 'KeyR' && MODE === 'race' && RACE.me && RACE.me.alive && RACE.phase === 'race' && !RACE.me.finished) {
