@@ -128,6 +128,10 @@ table.res tr.me td{background:var(--pink2)}
 #hud{position:fixed;inset:0;pointer-events:none;z-index:10;font-family:var(--head)}
 .hcard{position:absolute;background:#fff;border:4px solid var(--ink);border-radius:18px;box-shadow:0 5px 0 var(--ink);padding:4px 14px 6px}
 #hPos{left:16px;top:14px;background:var(--pink);transform:rotate(-3deg);padding:0 16px 4px;display:flex;align-items:baseline;gap:2px}
+#hPos.bump{animation:posUp .45s cubic-bezier(.2,1.8,.4,1)}
+#hPos.bumpd{animation:posDn .35s ease-out}
+@keyframes posUp{0%{transform:rotate(-3deg) scale(1.35)}100%{transform:rotate(-3deg) scale(1)}}
+@keyframes posDn{0%{transform:rotate(-3deg) translateY(6px);filter:saturate(.3)}100%{transform:rotate(-3deg)}}
 #hPos b{font-weight:400;font-size:56px;line-height:1;color:#fff;-webkit-text-stroke:5px var(--ink);paint-order:stroke fill}
 #hPos small{font-size:26px;color:#fff;-webkit-text-stroke:4px var(--ink);paint-order:stroke fill}
 #hPos span{font-size:22px;margin-left:4px}
@@ -203,7 +207,11 @@ body.touch #hMap{width:104px;top:58px;right:10px}
 @media (orientation:portrait) and (max-width:700px){ body.racing #rotate{display:flex} }
 #fps{position:fixed;right:8px;bottom:6px;z-index:70;font:700 12px var(--font);background:#fff;border:2px solid var(--ink);border-radius:8px;padding:1px 6px}
 @media (max-width:760px){ .panel{padding:16px 14px} .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))} #hBoard{display:none} #hMap{width:120px} .meter{width:118px} }
-@media (max-height:520px){ #hPos b{font-size:40px} #hLap{top:76px} #hTime{top:118px} #hBoard{top:170px} }
+@media (max-height:520px){ #hPos.bump{animation:posUp .45s cubic-bezier(.2,1.8,.4,1)}
+#hPos.bumpd{animation:posDn .35s ease-out}
+@keyframes posUp{0%{transform:rotate(-3deg) scale(1.35)}100%{transform:rotate(-3deg) scale(1)}}
+@keyframes posDn{0%{transform:rotate(-3deg) translateY(6px);filter:saturate(.3)}100%{transform:rotate(-3deg)}}
+#hPos b{font-size:40px} #hLap{top:76px} #hTime{top:118px} #hBoard{top:170px} }
 </style>
 <script type="importmap">
 {"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
@@ -1900,7 +1908,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040633";
+const ASSET_V = "202611040635";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2228,7 +2236,7 @@ function pickupsBuild(T) {
   for (const [u0, u1, d0, d1, n] of def.coins || []) for (let k = 0; k < n; k++) { const f = n > 1 ? k / (n - 1) : 0; add(u0 + (u1 - u0) * f, d0 + (d1 - d0) * f, 'coin'); }
   for (const [u, d] of def.stars || []) add(u, d, 'star');
   for (const [u, d] of def.fuel || []) add(u, d, 'fuel');
-  if (!PGLB.ok) return;
+  if (!PGLB.ok) { PICK.items = []; return; }
   for (const kind of Object.keys(PICK_KIND)) {
     const list = PICK.items.filter((i) => i.kind === kind); if (!list.length) continue;
     const P0 = PGLB.proto[PICK_KIND[kind].model]; if (!P0 || !P0.parts.body) continue;
@@ -2902,7 +2910,7 @@ const FX = {
 // ---------------------------------------------------------------------------
 // Chase camera (low and close: you're the size of a bar of soap) and input.
 // ---------------------------------------------------------------------------
-const CAM = { yaw: 0, pos: new THREE.Vector3(0, 3, -6), look: new THREE.Vector3(), shake: 0, fov: 62, mode: 'chase', t: 0, orbit: 0, _L: {} };
+const CAM = { roll: 0, yaw: 0, pos: new THREE.Vector3(0, 3, -6), look: new THREE.Vector3(), shake: 0, fov: 62, mode: 'chase', t: 0, orbit: 0, _L: {} };
 const _cv = new THREE.Vector3(), _cl = new THREE.Vector3();
 function camSnap(r) { CAM.yaw = r.yaw; camChase(r, 1, true); }
 function camChase(r, dt, snap = false) {
@@ -2926,9 +2934,12 @@ function camChase(r, dt, snap = false) {
   _cl.set(r.x + Math.sin(CAM.yaw) * 1.7, r.y + 0.42 * r.vis, r.z + Math.cos(CAM.yaw) * 1.7);
   if (snap) CAM.look.copy(_cl); else CAM.look.lerp(_cl, 1 - Math.exp(-dt * 14));
   const fov = 60 + (r.boosting ? 9 : 0) + Math.min(8, sp * 0.45);
+  const rollT = snap ? 0 : clamp(-r.w * 0.018 * Math.min(1, sp / 6) + (r.lean || 0) * 0.02, -0.07, 0.07);
+  CAM.roll = snap ? 0 : lerp(CAM.roll, rollT, 1 - Math.exp(-dt * 4));
   CAM.fov = snap ? fov : lerp(CAM.fov, fov, 1 - Math.exp(-dt * 4));
 }
 function camOrbit(r, dt, rad = 3.2, h = 1.2, spd = 0.45) {
+  CAM.roll = lerp(CAM.roll, 0, 0.1);
   CAM.orbit += dt * spd;
   const a = r.yaw + Math.PI + CAM.orbit;
   _cv.set(r.x + Math.sin(a) * rad, r.y + h, r.z + Math.cos(a) * rad);
@@ -2945,6 +2956,7 @@ function camApply(dt) {
   }
   CAM.shake = Math.max(0, CAM.shake - dt * 3.5);
   camera.lookAt(CAM.look);
+  if (MODE === 'race' && CAM.roll && P.set.shake) camera.rotateZ(CAM.roll);
   if (Math.abs(camera.fov - CAM.fov) > 0.01) { camera.fov = CAM.fov; camera.updateProjectionMatrix(); }
   // Shadows follow the camera target.
   sun.target.position.copy(CAM.look);
@@ -3296,11 +3308,13 @@ function handleEvents() {
           if (e.v > 3) FX.ringAt(e.x, r.y, e.z, 0.8 + e.v * 0.12, [1, 1, 1], 0.35);
           if (e.style === 'foam') FX.bubbles(e.x, r.y + 0.3, e.z, 5, 0.6, 0.8, 0.14);
           if (isMe) CAM.shake = Math.max(CAM.shake, clamp(e.v / 7, 0.1, 0.9));
+          r.land = Math.max(r.land || 0, clamp(e.v * 0.06, 0, 0.5));
           break;
         }
         case 'bump':
           if (r.id < e.other.id || e.other.kind === 'net') { sfxAt('bump', e.x, r.y, e.z, clamp(e.v / 5, 0.3, 1), 0.9 + Math.random() * 0.3); FX.bubbles(e.x, r.y + 0.3, e.z, 6, 0.5, 0.8, 0.12); FX.sparkle(e.x, r.y + 0.4, e.z, 2); }
           if (isMe) CAM.shake = Math.max(CAM.shake, clamp(e.v / 6, 0.15, 0.8));
+          r.land = Math.max(r.land || 0, clamp(e.v * 0.05, 0, 0.4));
           break;
         case 'obst':
           sfxAt(e.kind === 'duck' ? 'duck' : 'knock', e.o.x, r.y, e.o.z, clamp(e.v / 5, 0.3, 1), e.kind === 'duck' ? 0.9 + Math.random() * 0.4 : 1);
@@ -3752,7 +3766,7 @@ function hudUpdate() {
   const me = RACE.me; if (!me || RACE.attract) return;
   const L = HUD.last, n = RACE.racers.length;
   const pos = me.place;
-  if (L.pos !== pos || L.n !== n) { $('hPos').innerHTML = `<b>${pos}</b><small>${ordS(pos)}</small><span>/${n}</span>`; L.pos = pos; L.n = n; }
+  if (L.pos !== pos || L.n !== n) { const up = L.pos && pos < L.pos; $('hPos').innerHTML = `<b>${pos}</b><small>${ordS(pos)}</small><span>/${n}</span>`; if (L.pos && RACE.phase === 'race') { const el = $('hPos'); el.classList.remove('bump', 'bumpd'); void el.offsetWidth; el.classList.add(up ? 'bump' : 'bumpd'); } L.pos = pos; L.n = n; }
   const lapNo = clamp(me.lap + 1, 1, RACE.laps);
   if (L.lap !== lapNo) { $('hLap').textContent = `LAP ${lapNo}/${RACE.laps}`; L.lap = lapNo; }
   const t = Math.max(0, me.finished ? me.finishT : RACE.t);
