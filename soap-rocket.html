@@ -1918,7 +1918,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040702";
+const ASSET_V = "202611040704";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -4105,7 +4105,7 @@ function showGarage() {
   GAR.view.set(nxt, 'hi');
 }
 ACT.garage = () => {
-  makePartThumbs(); UI.garageBack = UI.cur === 'results' ? (RACE.online ? 'lobbyBack' : RACE.mode === 'gp' && GP.on ? 'gpNext' : 'again') : null; UI.sel = null; showGarage(); };
+  makePartThumbs(); UI.garageBack = UI.cur === 'lobby' ? 'lobbyBack' : UI.cur === 'results' ? (RACE.online ? 'lobbyBack' : RACE.mode === 'gp' && GP.on ? 'gpNext' : 'again') : null; UI.sel = null; showGarage(); };
 ACT.gtab = (k) => { UI.tab = k; UI.sel = null; showGarage(); };
 ACT.gsel = (arg) => { const [k, id] = arg.split(':'); UI.sel = { kind: k, id: k === 'paint' ? +id : id }; showGarage(); };
 ACT.gbuy = () => {
@@ -4304,6 +4304,7 @@ function netHostStart() {
   if (NET.role !== 'host') return;
   NET.raceId++;
   const L = NET.lobby;
+  const mine = NET.players.get(NET.cid); if (mine) { mine.lo = myLoadout(); mine.name = myName(); }
   const grid = [...NET.players.values()].map((p) => ({ c: p.cid, name: p.name, lo: p.lo }));
   const free = Math.max(0, Math.min(MAXP - grid.length, L.cpu | 0));
   const rnd = mulberry((Math.random() * 1e9) | 0);
@@ -4357,6 +4358,7 @@ function showLobby() {
   const t = TRACK_BY[L.track] || TRACKS[0];
   screen('lobby', `${topbar()}<div class="panel card"><header><h2>Room <span style="background:var(--lemon);border:4px solid var(--ink);border-radius:14px;padding:0 12px;box-shadow:0 4px 0 var(--ink)">${esc(NET.code)}</span></h2>
     ${host ? `<button class="btn big" data-act="lobbyStart" style="--c:var(--mint)">Start race</button>` : '<span class="tag" style="font-size:16px">Waiting for the host to start</span>'}
+    <button class="btn sm" data-act="garage" style="--c:var(--sky)">Garage</button>
     <button class="btn sm ghost" data-act="leaveOnline">Leave</button></header>
     <p style="margin:0;font-weight:600">Friends join with the code <b>${esc(NET.code)}</b>. ${ps.length} of 8 here.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${plist}</div>
@@ -4445,6 +4447,7 @@ function frame() {
   }
   if (MODE === 'garage') {
     garageFrame(dt, T);
+    netTick(dt);
     if (composer && !NORENDER) { const rp = composer.passes[0]; rp.scene = GAR.scene; rp.camera = GAR.cam; renderer.shadowMap.needsUpdate = true; const k = MIRROR.rt; MIRROR.rt = null; composer.render(); MIRROR.rt = k; rp.scene = scene; rp.camera = camera; }
     PRESS.clear();
     return;
