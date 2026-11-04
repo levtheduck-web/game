@@ -1093,9 +1093,9 @@ let QN = P.set.quality === 'auto' ? (matchMedia('(pointer:coarse)').matches ? 'l
 let Q = QUAL[QN];
 let composer = null, bloomPass = null, gradePass = null;
 const GradeShader = {
-  uniforms: { tDiffuse: { value: null }, uVig: { value: 0.22 }, uSat: { value: 1.06 }, uFlash: { value: 0 }, uBoost: { value: 0 } },
+  uniforms: { tDiffuse: { value: null }, uVig: { value: 0.22 }, uSat: { value: 1.06 }, uFlash: { value: 0 }, uBoost: { value: 0 }, uT: TIME_U },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform float uVig; uniform float uSat; uniform float uFlash; uniform float uBoost; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float uVig; uniform float uSat; uniform float uFlash; uniform float uBoost; uniform float uT; varying vec2 vUv;
     void main(){
       vec2 uv = vUv;
       vec2 cc = uv - 0.5;
@@ -1105,6 +1105,14 @@ const GradeShader = {
       c.rgb = mix(vec3(l), c.rgb, uSat);
       float v = smoothstep(0.85, 0.2, length(cc * vec2(1.0, 0.85)));
       c.rgb *= mix(1.0 - uVig, 1.0, v);
+      if (uBoost > 0.0) {
+        float ang = atan(cc.y, cc.x); float rad = length(cc * vec2(1.0, 0.75));
+        float id = floor(ang * 34.0);
+        float h = fract(sin(id * 91.7) * 4375.85);
+        float streak = step(0.72, h) * smoothstep(0.32, 0.62, rad) * smoothstep(0.06, 0.0, abs(fract(ang * 34.0) - 0.5) - 0.38);
+        float flow = fract(rad * 3.0 - h * 7.0 - uT * 2.6);
+        c.rgb = mix(c.rgb, vec3(1.0), streak * smoothstep(0.0, 0.6, flow) * 0.35 * uBoost);
+      }
       c.rgb = mix(c.rgb, vec3(1.0), uFlash);
       gl_FragColor = c;
     }`,
@@ -1833,7 +1841,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040627";
+const ASSET_V = "202611040630";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2833,7 +2841,7 @@ function camChase(r, dt, snap = false) {
   const want = r.yaw + wrapA(vyaw - r.yaw) * 0.42;
   CAM.yaw = snap ? want : CAM.yaw + wrapA(want - CAM.yaw) * (1 - Math.exp(-dt * 5.5));
   const far = P.set.cam ? 1.38 : 1;
-  const dist = (2.75 + sp * 0.06) * far * (0.82 + 0.18 * r.vis);
+  const dist = (2.75 + sp * 0.035) * far * (0.82 + 0.18 * r.vis);
   const hgt = (1.05 + sp * 0.025) * far * (0.85 + 0.15 * r.vis);
   _cv.set(r.x - Math.sin(CAM.yaw) * dist, r.y + hgt, r.z - Math.cos(CAM.yaw) * dist);
   // Keep the camera inside the walls and above the floor.
@@ -2843,7 +2851,7 @@ function camChase(r, dt, snap = false) {
     if (Math.abs(L.d) > lim && !WALL[T.wallAt(L.i, L.d > 0)].open) { const k = (Math.abs(L.d) - lim) * Math.sign(L.d); _cv.x -= L.nx * k; _cv.z -= L.nz * k; _cv.y += Math.min(1.2, Math.abs(k) * 0.4); }
     const gy = T.heightAt(_cv.x, _cv.z, L.i) + 0.45; if (_cv.y < gy) _cv.y = gy;
   }
-  if (snap) CAM.pos.copy(_cv); else CAM.pos.lerp(_cv, 1 - Math.exp(-dt * 9));
+  if (snap) CAM.pos.copy(_cv); else CAM.pos.lerp(_cv, 1 - Math.exp(-dt * (9 + sp * 0.55)));
   _cl.set(r.x + Math.sin(CAM.yaw) * 1.7, r.y + 0.42 * r.vis, r.z + Math.cos(CAM.yaw) * 1.7);
   if (snap) CAM.look.copy(_cl); else CAM.look.lerp(_cl, 1 - Math.exp(-dt * 14));
   const fov = 60 + (r.boosting ? 9 : 0) + Math.min(8, sp * 0.45);
@@ -3296,9 +3304,23 @@ function playerLoops(dt) {
   r.wasBoost = r.boosting;
   loopSet('slide', r.alive && !r.air && sp > 1 ? clamp(r.sliding / 6, 0, 0.5) + clamp(sp / 30, 0, 0.12) : 0, 0.8 + sp * 0.04);
   r.sqT = (r.sqT || 0) - dt;
-  if (r.sliding > 3.2 && sp > 5 && r.sqT <= 0 && (r.onSurface === 'wet' || r.onSurface === 'dry')) { r.sqT = 0.5 + Math.random() * 0.6; sfx('squeak', 0.35 + Math.random() * 0.25, 0.9 + Math.random() * 0.3); }
+  const sliding = r.sliding > 3.2 && sp > 5 && !r.air;
+  if (sliding && !r.wasSq && r.sqT <= 0 && (r.onSurface === 'wet' || r.onSurface === 'dry')) { r.sqT = 1.8; sfx('squeak', 0.3 + Math.random() * 0.2, 0.9 + Math.random() * 0.3); }
+  r.wasSq = sliding;
+  hints(r);
 }
 
+// One-time tips for new players.
+function hints(r) {
+  if ((P.st.races || 0) >= 3 || RACE.online || RACE.phase !== 'race') return;
+  const H = P.hints || (P.hints = {});
+  const say = (k, t) => { if (H[k]) return; H[k] = 1; feed(t); saveProfile(); };
+  if (r.boost >= 99 && RACE.t > 2) say('boost', document.body.classList.contains('touch') ? 'Boost is full! Hold BOOST' : 'Boost is full! Hold SPACE');
+  if (r.slideT > 0.6) say('slide', 'Sliding sideways fills your boost');
+  if (r.size < 0.74) say('wear', 'Your bar is wearing down: quicker, but drains can swallow it');
+  if (r.coins) say('coin', 'Soap coins turn into bubbles for the garage');
+  if (r.onSurface === 'mat' && r.speed > 2) say('mat', 'Mats are grippy but slow');
+}
 // Rewards for the player at the end of a race.
 function computeRewards(me, n) {
   const pl = me.place;
@@ -4171,7 +4193,7 @@ function frame() {
   playerLoops(dt);
   hudUpdate();
   tagsUpdate();
-  if (gradePass) { gradePass.uniforms.uBoost.value = me && me.boosting ? 1 : 0; }
+  if (gradePass) { gradePass.uniforms.uT.value = T; const gb = gradePass.uniforms.uBoost; gb.value = damp(gb.value, me && me.boosting && MODE === 'race' ? 1 : 0, 6, dt); }
   if (composer && !NORENDER) { renderer.shadowMap.needsUpdate = true; renderMirror(); composer.render(); }
   RACE.frame++;
 }
