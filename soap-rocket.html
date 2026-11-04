@@ -3362,7 +3362,7 @@ function raceSetup(opts) {
 function raceStep(dt) {
   const T = RACE.T; if (!T) return;
   if (RACE.phase === 'podium') return;
-  if (RACE.phase === 'intro') { RACE.introT -= dt; if (RACE.introT <= 0) { RACE.phase = 'count'; RACE.t = -3; countBeat(3); } return; }
+  if (RACE.phase === 'intro') { if (RACE.me && RACE.me.kind === 'me' && RACE.me.in.thr > 0 && RACE.introT < 2.2 && !RACE.online) RACE.introT = Math.min(RACE.introT, 0.05); RACE.introT -= dt; if (RACE.introT <= 0) { RACE.phase = 'count'; RACE.t = -3; countBeat(3); } return; }
   const prevT = RACE.t;
   RACE.t += dt;
   if (RACE.phase === 'count') {
