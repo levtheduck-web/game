@@ -89,7 +89,8 @@ h1,h2,h3{font-family:var(--head);font-weight:400;margin:0;letter-spacing:.02em}
 .price{font-family:var(--head);font-size:18px}
 .price.cant{opacity:.42}
 .price.can{color:#0f7a4f}
-.newdot{position:absolute;top:-8px;right:-8px;background:var(--red);color:#fff;border:3px solid var(--ink);border-radius:999px;font:700 12px var(--font);padding:1px 7px;box-shadow:0 2px 0 var(--ink)}
+.newdot{position:absolute;top:-12px;right:-12px;background:var(--red);color:#fff;border:3px solid var(--ink);border-radius:999px;font:700 12px var(--font);padding:1px 7px;box-shadow:0 2px 0 var(--ink)}
+@media (max-height:520px){.newdot{font-size:10px;padding:0 5px;border-width:2px;top:-11px;right:-15px}}
 .stats{display:grid;grid-template-columns:auto 1fr auto;gap:5px 10px;align-items:center;font-weight:700;font-size:14px}
 .stats .sb{height:14px;border:3px solid var(--ink);border-radius:9px;background:#fff;position:relative;overflow:hidden}
 .stats .sb i{position:absolute;left:0;top:0;bottom:0;background:var(--mint);border-right:3px solid var(--ink)}
@@ -139,7 +140,18 @@ input.field.name{text-transform:none;font-family:var(--font);font-weight:700;fon
 .trk canvas{width:100%;aspect-ratio:16/10;border-radius:12px;border:3px solid var(--ink);background:#e9f6ff;display:block}
 
 /* results */
-.res-panel{width:min(600px,95vw);margin:70px 22px auto auto;max-height:calc(100vh - 86px)!important}
+.res-panel{width:min(600px,95vw);margin:70px 22px auto auto;max-height:calc(100vh - 86px)!important;transition:transform .5s cubic-bezier(.2,.9,.25,1.12),opacity .35s}
+.screen.peek{background:none;cursor:pointer;pointer-events:auto}
+.screen.peek .res-panel{transform:translateX(calc(100% + 60px));opacity:0;pointer-events:none}
+.res-back{display:none;position:fixed;right:18px;bottom:18px;z-index:3;pointer-events:auto}
+.screen.peek .res-back{display:inline-flex;animation:scrIn .32s both}
+.res-panel .peek{padding:2px 9px;font-size:18px;line-height:1.2}
+@media (min-width:1000px) and (max-height:860px){
+  .res-panel:not(.gp){width:min(720px,60vw)}
+  .res-panel:not(.gp) .res-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:12px;align-items:start}
+  .res-panel:not(.gp) table.res td:nth-child(4){display:none}
+  .res-panel:not(.gp) table.res td:nth-child(3){border-right:3px solid var(--ink);border-radius:0 12px 12px 0;text-align:right}
+}
 .res-panel.gp{width:min(880px,96vw)}
 .res-panel.gp .res-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:12px;align-items:start}
 .res-panel .stand .reward{font-size:13.5px}
@@ -260,6 +272,9 @@ body.touch #hMap{width:104px;top:58px;right:10px}
 #boot .logo{font-size:clamp(54px,10vw,120px);text-align:center}
 #boot .bar{width:min(340px,70vw);height:24px;border:4px solid var(--ink);border-radius:14px;background:#fff;overflow:hidden;box-shadow:0 5px 0 var(--ink)}
 #boot .bar i{display:block;height:100%;width:5%;background:repeating-linear-gradient(-45deg,var(--pink) 0 12px,#ffb3d6 12px 24px);border-right:4px solid var(--ink);transition:width .3s}
+#boot .bar i{animation:bootStripe .9s linear infinite}
+@keyframes bootStripe{to{background-position:33.94px 0}}
+@media (prefers-reduced-motion:reduce){#boot .bar i{animation:none}}
 #boot p{font-weight:700;margin:0}
 #rotate{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:rgba(191,230,255,.96);text-align:center;font-weight:700;padding:30px}
 #rotate .big{font-family:var(--head);font-size:34px}
@@ -574,7 +589,7 @@ const TRACKS = [
     pts: [[-15, 7.8, 10], [0, 8.1, 10], [15, 7.8, 10], [21.2, 5.4, 10.4], [23.6, 0, 10.6], [21.2, -5.6, 10.4], [15, -7.9, 10], [7, -7.4, 9.4], [0, -6.2, 9], [-7, -7.4, 9.4], [-15, -7.9, 10], [-21.2, -5.6, 10.4], [-23.6, 0, 10.6], [-21.2, 5.4, 10.4]],
     floor: 'porcelain', wetBase: 0.62, wetNoise: 0.35, prof: 'tub', cove: 3.6,
     walls: { out: [[0, 'tub']], in: [[0, 'foam']] },
-    drains: [[0.73, -2.8]],
+    drains: [[0.73, -0.9]],   // on the flat bottom of the tub, not the curved side
     rain: [],
     faucet: [0.27],
     puddles: [[0.27, -1.5, 3.4], [0.08, 2.5, 2.2], [0.55, 1, 2.5], [0.9, -1, 2.6]],
@@ -719,6 +734,9 @@ class Track {
     // Features in world space.
     this.drains = (def.drains || []).map(([u, d]) => { const w = this.at(u, d); return { x: w.x, z: w.z, u, d }; });
     this.obst = (def.obstacles || []).map(([u, d, r, kind, ang = 0]) => {
+      // A round obstacle that leaves a gap narrower than a soap would wedge bars in: stand it against the wall instead.
+      const K0 = OBST[kind] || {}, r0 = K0.r ?? r;
+      if (!K0.cap && d) { const i0 = this.at(u, 0).i, gap = this.hw[i0] - Math.abs(d) - r0; if (gap > 0.04 && gap < 0.9 && !WALL[this.wallAt(i0, d > 0)].open) d = Math.sign(d) * (this.hw[i0] - r0 - 0.03); }
       const w = this.at(u, d); const K = OBST[kind] || {}; const yaw = Math.atan2(this.tx[w.i], this.tz[w.i]) + ang;
       const o = { x: w.x, z: w.z, r: K.r ?? r, kind, e: K.e ?? 0.3, u, d, yaw, cap: K.cap || 0, shave: !!K.shave, soft: !!K.soft };
       if (o.cap) { const fx = Math.sin(yaw), fz = Math.cos(yaw); o.ax = o.x - fx * o.cap; o.az = o.z - fz * o.cap; o.bx = o.x + fx * o.cap; o.bz = o.z + fz * o.cap; }
@@ -1427,16 +1445,21 @@ function makeCup(h = 1.6, col = 0x8fd3ff) {
   return g;
 }
 
+// The floor dips 0.22 into each drain over 3.2 m (Track.heightAt); the grate follows that bowl.
+const drainBowl = (rho) => 0.22 * (1 - (1 - Math.min(rho, 3.2) / 3.2) ** 2);
 function makeDrain(r = 0.85) {
   const g = new THREE.Group();
   const ring = inked(new THREE.TorusGeometry(r, r * 0.12, 10, 32), tm('chrome', 0xc9d2e0, { spec: 0.9, shin: 120 }));
-  ring.rotation.x = Math.PI / 2; ring.position.y = 0.02; g.add(ring);
+  ring.rotation.x = Math.PI / 2; ring.position.y = drainBowl(r) + 0.02; g.add(ring);
   const cv = document.createElement('canvas'); cv.width = cv.height = 128;
   const c = cv.getContext('2d'); c.fillStyle = '#1d1630'; c.fillRect(0, 0, 128, 128);
   c.fillStyle = '#c9d2e0'; c.beginPath(); c.arc(64, 64, 63, 0, TAU); c.fill();
   c.fillStyle = '#1d1630'; for (let y = 0; y < 7; y++) for (let x = 0; x < 7; x++) { const X = 16 + x * 16, Y = 16 + y * 16; if ((X - 64) ** 2 + (Y - 64) ** 2 < 50 * 50) { c.beginPath(); c.arc(X, Y, 4.6, 0, TAU); c.fill(); } }
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-  const disk = new THREE.Mesh(new THREE.CircleGeometry(r * 0.95, 32), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.3, metalness: 0.4 }));
+  const dg = new THREE.CircleGeometry(r * 0.95, 32), pa = dg.attributes.position;
+  for (let k = 0; k < pa.count; k++) pa.setZ(k, drainBowl(Math.hypot(pa.getX(k), pa.getY(k))) + 0.035);
+  dg.computeVertexNormals();
+  const disk = new THREE.Mesh(dg, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.3, metalness: 0.4, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
   disk.rotation.x = -Math.PI / 2; disk.position.y = 0.0; disk.receiveShadow = true; g.add(disk);
   return g;
 }
@@ -1754,6 +1777,22 @@ function buildWorld(T) {
     line.receiveShadow = true; G.add(line);
   }
 
+  // A sheet laid over the track from s0 for len metres, inset from the walls, hugging the ground.
+  const trackSheet = (s0, len, inset, lift, step, uvOf) => {
+    const M = 12, K = Math.max(8, Math.round(len / step));
+    const pos = [], uv = [], idx = [];
+    for (let k = 0; k <= K; k++) {
+      const ss = s0 + len * k / K, fi = (((ss % T.L) + T.L) % T.L) / T.ds, i = Math.floor(fi) % T.N, i1 = (i + 1) % T.N, f = fi - Math.floor(fi);
+      const cx = lerp(T.px[i], T.px[i1], f), cz = lerp(T.pz[i], T.pz[i1], f), nx = lerp(T.nx[i], T.nx[i1], f), nz = lerp(T.nz[i], T.nz[i1], f), hw = lerp(T.hw[i], T.hw[i1], f) - inset;
+      for (let j = 0; j <= M; j++) { const d = lerp(-hw, hw, j / M); pos.push(cx + nx * d, T.heightSD(ss, d, i) + lift, cz + nz * d); const q = uvOf(d, len * k / K); uv.push(q[0], q[1]); }
+    }
+    for (let k = 0; k < K; k++) for (let j = 0; j < M; j++) { const a = k * (M + 1) + j, b = a + M + 1; idx.push(a, a + 1, b, b, a + 1, b + 1); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+    // Face up, whichever way the track runs.
+    let ny = 0; const na = g.attributes.normal; for (let k = 0; k < na.count; k++) ny += na.getY(k);
+    if (ny < 0) { const ix = g.index.array; for (let q = 0; q < ix.length; q += 3) { const t = ix[q + 1]; ix[q + 1] = ix[q + 2]; ix[q + 2] = t; } g.index.needsUpdate = true; g.computeVertexNormals(); }
+    return g;
+  };
   // ---- unrolled toilet paper over each raised step -----------------------------
   for (const pl of T.plats) {
     const cv = document.createElement('canvas'); cv.width = 128; cv.height = 256; const c = cv.getContext('2d');
@@ -1761,22 +1800,18 @@ function buildWorld(T) {
     c.fillStyle = 'rgba(200,190,220,.35)'; for (let y = 8; y < 256; y += 16) for (let x = 8; x < 128; x += 16) { c.beginPath(); c.arc(x + ((y / 16) % 2) * 8, y, 2.2, 0, TAU); c.fill(); }
     c.fillStyle = 'rgba(150,140,180,.6)'; for (let x = 4; x < 128; x += 12) c.fillRect(x, 0, 6, 3);
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 4;
-    const len = pl.up + pl.flat, M = 8, K = Math.max(8, Math.round(len / 0.5));
-    const pos = [], uv = [], idx = [];
-    for (let k = 0; k <= K; k++) {
-      const ss = pl.s0 + len * k / K; const i = Math.floor((((ss % T.L) + T.L) % T.L) / T.ds) % T.N;
-      for (let j = 0; j <= M; j++) {
-        const d = lerp(-(T.hw[i] - 0.45), T.hw[i] - 0.45, j / M);
-        pos.push(T.px[i] + T.nx[i] * d, T.heightSD(ss, d, i) + 0.03, T.pz[i] + T.nz[i] * d); uv.push(j / M, (len * k / K) / 3);
-      }
-    }
-    for (let k = 0; k < K; k++) for (let j = 0; j < M; j++) { const a = k * (M + 1) + j, b = a + M + 1; idx.push(a, a + 1, b, b, a + 1, b + 1); }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
-    if (g.attributes.normal.getY(0) < 0) { const ix = g.index.array; for (let q = 0; q < ix.length; q += 3) { const t = ix[q + 1]; ix[q + 1] = ix[q + 2]; ix[q + 2] = t; } g.computeVertexNormals(); }
+    const len = pl.up + pl.flat, hw0 = T.hw[Math.floor((((pl.s0 % T.L) + T.L) % T.L) / T.ds) % T.N] - 0.45;
+    const g = trackSheet(pl.s0, len, 0.45, 0.03, 0.4, (d, s) => [(d + hw0) / (2 * hw0), s / 3]);
     const paper = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, color: 0xe6e2ee, roughness: 0.95, envMapIntensity: 0.15, polygonOffset: true, polygonOffsetFactor: -2 }));
     paper.receiveShadow = true; G.add(paper); HIDE_IN_MIRROR.push(paper);
     // The roll it came from, parked at the bottom of the ramp.
-    if (PGLB.ok) { const i = Math.floor((((pl.s0 % T.L) + T.L) % T.L) / T.ds) % T.N; const sd = -T.inSign * (T.hw[i] + 1.6); const roll = makeModel('toilet_paper', 2.2); at(roll, T.px[i] + T.nx[i] * sd, 0, T.pz[i] + T.nz[i] * sd, Math.atan2(T.tx[i], T.tz[i]) + Math.PI / 2); G.add(roll); }
+    if (PGLB.ok) { const i = Math.floor((((pl.s0 % T.L) + T.L) % T.L) / T.ds) % T.N; const sd = -T.inSign * (T.hw[i] + 1.6); const roll = makeModel('toilet_paper', 2.2); at(roll, T.px[i] + T.nx[i] * sd, 0, T.pz[i] + T.nz[i] * sd, Math.atan2(T.tx[i], T.tz[i]) - Math.PI / 2 * T.inSign); G.add(roll); }
+  }
+  // ---- a striped beach towel thrown over each ramp --------------------------------
+  for (const rp of T.ramps) {
+    const g = trackSheet(rp.s0 - 0.7, rp.len + 1.4, 0.3, 0.04, 0.2, (d, s) => [d * 0.7, s * 1.2]);
+    const fm = fabricMat(0xffd84d, 0xfffaf0, { sc: 1, stripe: 1 }); fm.polygonOffset = true; fm.polygonOffsetFactor = -2;
+    const towel = new THREE.Mesh(g, fm); towel.receiveShadow = true; G.add(towel); HIDE_IN_MIRROR.push(towel);
   }
   // ---- start gantry: two shampoo bottles with a toothbrush laid across ---------
   if (PGLB.ok && !WALL[T.wallAt(1, true)].open && !WALL[T.wallAt(1, false)].open) {
@@ -2132,19 +2167,19 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611041105";
+const ASSET_V = "202611041258";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
 
+// onProg(key, progressEvent) reports download bytes so the boot bar keeps moving on slow Wi-Fi.
 async function loadModels(onProg) {
   const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
   const keys = Object.keys(LODS);
-  let done = 0;
   await Promise.all(keys.map(async (k) => {
-    const g = await loader.loadAsync(LODS[k] + '?v=' + ASSET_V);
+    const g = await loader.loadAsync(LODS[k] + '?v=' + ASSET_V, (e) => onProg && onProg(k, e));
     SRC[k] = digest(g.scene);
-    done++; onProg && onProg(done / keys.length);
+    onProg && onProg(k, null);
   }));
   MODELS_OK = true;
 }
@@ -2379,9 +2414,9 @@ function initSoapMats() {
 // ---------------------------------------------------------------------------
 const PGLB = { ok: false, proto: {} };
 const SPECIAL = new Set(['Jet_Flame', 'Shower_Water', 'Gold_Sparkles', 'Tub_Water', 'Tub_Duck', 'Tub_Foam', 'Shield', 'Shield_Mini_Bubbles', 'Sponge_Pores']);
-async function loadPropModels() {
+async function loadPropModels(onProg) {
   const ld = new GLTFLoader(); ld.setMeshoptDecoder(MeshoptDecoder);
-  const g = await ld.loadAsync('models/soap-props.glb?v=' + ASSET_V);
+  const g = await ld.loadAsync('models/soap-props.glb?v=' + ASSET_V, (e) => onProg && onProg('props', e));
   g.scene.updateMatrixWorld(true);
   for (const node of g.scene.children) PGLB.proto[node.name] = digestModel(node);
   PGLB.ok = true;
@@ -2483,7 +2518,9 @@ function pickupsUpdate(dt, t) {
     const { im, om, list } = PICK.meshes[kind]; const K = PICK_KIND[kind];
     list.forEach((it, k) => {
       const show = it.cool <= 0 ? 1 : it.cool < 0.4 ? 1 - it.cool / 0.4 : 0;
-      const s = K.scale * show * (it.pop ? 1 + Math.max(0, it.pop) : 1);
+      // Shrink away when the camera is right on top of one (no giant coins filling the screen).
+      const dc = Math.hypot(it.x - camera.position.x, it.y - camera.position.y, it.z - camera.position.z);
+      const s = K.scale * show * (it.pop ? 1 + Math.max(0, it.pop) : 1) * sstep(0.9, 2.4, dc);
       _pe.set(kind === 'fuel' ? 0.2 * Math.sin(t * 2 + it.ph) : 0, t * (kind === 'coin' ? 2.6 : 1.6) + it.ph, 0);
       _pq.setFromEuler(_pe); _pv.set(it.x, it.y + Math.sin(t * 2.4 + it.ph) * 0.12, it.z); _ps.setScalar(Math.max(1e-4, s));
       _pm.compose(_pv, _pq, _ps); im.setMatrixAt(k, _pm); om.setMatrixAt(k, _pm);
@@ -2556,7 +2593,7 @@ class Racer {
   reset(x, z, yaw, i = -1) {
     Object.assign(this, { x, z, y: 0, vy: 0, vx: 0, vz: 0, yaw, w: 0, air: false, size: 1, vis: 1, boost: this.S.startBoost ? 100 : 35,
       sudsCd: 0, hornCd: 0, hopCd: 0, spin: 0, shieldLap: -9, alive: true, deadT: 0, ghost: 0, ti: i, lastGoodI: i, prevS: -1, lap: -1, progress: 0,
-      finished: false, finishT: 0, lapStart: 0, backed: 0, halfway: false, cpuSpinLap: -9, wallHit: 0, wallNx: 0, wallNz: 0, lapTimes: [], bestLap: Infinity, place: 0, wrongT: 0, stuckT: 0, draft: 0, slideT: 0,
+      finished: false, finishT: 0, lapStart: 0, backed: 0, halfway: false, cpuSpinLap: -9, wallHit: 0, wallNx: 0, wallNz: 0, wallObst: null, lapTimes: [], bestLap: Infinity, place: 0, wrongT: 0, stuckT: 0, draft: 0, slideT: 0,
       thr: 0, brk: 0, boosting: false, gnx: 0, gnz: 0, gx: 0, gz: 0, accLong: 0, lean: 0, land: 0, lastVf: 0, sliding: 0, onSurface: 'wet',
       stat: { slides: 0, sudsHits: 0, sudsDropped: 0, walls: 0, drains: 0, bumps: 0, airT: 0, topSpeed: 0 }, events: [], dropT: 0, fall: null });
   }
@@ -2652,11 +2689,24 @@ class Racer {
     // Hands off on a wet floor, a knocked bar keeps turning a little (like the soap in the video).
     const resp = Math.abs(st) > 0.01 ? CFG.turnResp : lerp(3.0, CFG.turnResp, clamp((1 - wet) * 0.6 + mat, 0, 1));
     this.w = damp(this.w, wt, this.air ? resp * 0.35 : resp, dt);
-    // Nose pushed into a wall with the throttle on: turn gently back toward the track.
+    // Nose pushed into a wall or obstacle with the throttle on: turn gently toward a way past it.
     const noseUp = fx * this.gx + fz * this.gz;   // how steeply the ground rises ahead
     if (thr > 0 && spd < 2.5 && !this.air && control === 1 && (this.wallHit > 0 || noseUp > 0.45)) {
       if (noseUp > 0.45 || fx * this.wallNx + fz * this.wallNz < -0.35) {
-        const err = wrapA(Math.atan2(L.tx, L.tz) - this.yaw);
+        let ax = L.tx, az = L.tz;
+        const ob = this.wallHit > 0 ? this.wallObst : null;
+        if (ob) {
+          // Go round an obstacle: on the open side (toward the middle if it sits near a wall), then on along the track.
+          const sg = Math.abs(ob.d) > 1 ? -Math.sign(ob.d) : (L.d >= ob.d ? 1 : -1);
+          let px = -this.wallNz, pz = this.wallNx;
+          if (px * L.nx * sg + pz * L.nz * sg < 0) { px = -px; pz = -pz; }
+          ax = px + L.tx * 0.5; az = pz + L.tz * 0.5;
+        } else if (this.wallHit > 0) {
+          // Slide along the wall instead of aiming back into it.
+          const an = ax * this.wallNx + az * this.wallNz;
+          if (an < 0) { ax -= an * this.wallNx; az -= an * this.wallNz; }
+        }
+        const err = wrapA(Math.atan2(ax, az) - this.yaw);
         this.w = damp(this.w, clamp(err * 4, -3, 3), 12, dt);
       }
     }
@@ -2718,7 +2768,7 @@ class Racer {
     if (pen <= 0) return;
     if (W.open) { if (Math.abs(L.d) > L.hw + 0.12 && racing !== null) this.die('edge', T); return; }
     this.x += nwx * pen; this.z += nwz * pen;
-    this.wallHit = 0.25; this.wallNx = nwx; this.wallNz = nwz;
+    this.wallHit = 0.25; this.wallNx = nwx; this.wallNz = nwz; this.wallObst = null;
     const vn = this.vx * nwx + this.vz * nwz;
     if (vn >= 0) return;
     const S = this.S;
@@ -2726,8 +2776,9 @@ class Racer {
     this.vx += jn * nwx; this.vz += jn * nwz;
     // Keep most of the speed along the wall (that's what the soap did on video).
     const tx = -nwz, tz = nwx; let vt = this.vx * tx + this.vz * tz; const vnn = this.vx * nwx + this.vz * nwz;
-    const loss = clamp((W.fr + 0.028 * -vn) / S.wallKeep, 0, 0.55);
-    vt *= 1 - loss;
+    // Friction grows with how hard you hit: a long scrape keeps its speed (like the soap on video), a crash scrubs it.
+    const dvt = Math.min(Math.abs(vt) * 0.55, (0.1 + W.fr * 1.3) * jn / S.wallKeep);
+    vt -= Math.sign(vt) * dvt;
     this.vx = nwx * vnn + tx * vt; this.vz = nwz * vnn + tz * vt;
     // Corner hit makes it spin.
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw), lx = fz, lz = -fx;
@@ -2750,6 +2801,7 @@ class Racer {
       if (d >= md || d < 1e-4) continue;
       const nx = dx / d, nz = dz / d;
       this.x += nx * (md - d); this.z += nz * (md - d);
+      this.wallHit = 0.25; this.wallNx = nx; this.wallNz = nz; this.wallObst = o;
       const vn = this.vx * nx + this.vz * nz;
       if (vn < 0) {
         this.vx -= (1 + o.e) * vn * nx; this.vz -= (1 + o.e) * vn * nz;
@@ -3201,8 +3253,8 @@ function camChase(r, dt, snap = false) {
   const dist = (2.75 + sp * 0.035) * far * (0.82 + 0.18 * r.vis);
   const hgt = (1.05 + sp * 0.025) * far * (0.85 + 0.15 * r.vis);
   _cv.set(r.x - Math.sin(CAM.yaw) * dist, r.y + hgt, r.z - Math.cos(CAM.yaw) * dist);
-  // Keep the camera inside the walls and above the floor.
-  if (T) camInside(T, _cv, r.ti);
+  // Keep the camera inside the walls and above the floor (and ease it off tall walls).
+  if (T) camInside(T, _cv, r.ti, true);
   if (snap) CAM.pos.copy(_cv); else CAM.pos.lerp(_cv, 1 - Math.exp(-dt * (9 + sp * 0.55)));
   _cl.set(r.x + Math.sin(CAM.yaw) * 1.7, r.y + 0.42 * r.vis, r.z + Math.cos(CAM.yaw) * 1.7);
   if (snap) CAM.look.copy(_cl); else CAM.look.lerp(_cl, 1 - Math.exp(-dt * 14));
@@ -3211,11 +3263,17 @@ function camChase(r, dt, snap = false) {
   CAM.roll = snap ? 0 : lerp(CAM.roll, rollT, 1 - Math.exp(-dt * 4));
   CAM.fov = snap ? fov : lerp(CAM.fov, fov, 1 - Math.exp(-dt * 4));
 }
-// Pull a camera position back inside the walls (and above the floor).
-function camInside(T, v, hint) {
+// Pull a camera position back inside the walls (and above the floor). soft: the chase camera
+// also eases toward the middle and up near a wall, so the wall never fills the picture.
+function camInside(T, v, hint, soft) {
   const L = T.locate(v.x, v.z, hint, CAM._L);
-  const lim = L.hw - 0.35;
-  if (Math.abs(L.d) > lim && !WALL[T.wallAt(L.i, L.d > 0)].open) { const k = (Math.abs(L.d) - lim) * Math.sign(L.d); v.x -= L.nx * k; v.z -= L.nz * k; v.y += Math.min(1.2, Math.abs(k) * 0.4); }
+  const W = WALL[T.wallAt(L.i, L.d > 0)];
+  const lim = L.hw - 0.35, z0 = soft ? L.hw - 1.5 : lim, ad = Math.abs(L.d);
+  if (ad > z0 && !W.open) {
+    const nd = Math.min(lim, soft ? z0 + (ad - z0) * 0.4 : lim), k = (ad - nd) * Math.sign(L.d);
+    v.x -= L.nx * k; v.z -= L.nz * k;
+    v.y += Math.min(1.2, Math.max(0, ad - lim) * 0.4) + (soft ? Math.min(1, (ad - z0) / 1.5) * Math.min(0.45, W.h * 0.25) : 0);
+  }
   const gy = T.heightAt(v.x, v.z, L.i) + 0.45; if (v.y < gy) v.y = gy;
 }
 function camOrbit(r, dt, rad = 3.2, h = 1.2, spd = 0.45) {
@@ -3238,6 +3296,10 @@ function camApply(dt) {
   camera.lookAt(CAM.look);
   if (MODE === 'race' && CAM.roll && P.set.shake) camera.rotateZ(CAM.roll);
   if (Math.abs(camera.fov - CAM.fov) > 0.01) { camera.fov = CAM.fov; camera.updateProjectionMatrix(); }
+  // The podium is framed off-centre, beside the results panel.
+  const vo = MODE === 'race' && RACE.phase === 'podium' ? PODIUM.vx || 0 : 0;
+  if (Math.abs(vo) > 0.5) camera.setViewOffset(innerWidth, innerHeight, vo, 0, innerWidth, innerHeight);
+  else if (camera.view && camera.view.enabled) camera.clearViewOffset();
   // Shadows follow the camera target.
   sun.target.position.copy(CAM.look);
   sun.position.copy(CAM.look).addScaledVector(SUN_DIR, 40);
@@ -3411,11 +3473,25 @@ function getTrack(id) { return TRACK_OBJ[id] || (TRACK_OBJ[id] = new Track(TRACK
 const trackId = (base, rev) => base + (rev ? '-r' : '');
 const RACE = { phase: 'idle', t: 0, T: null, racers: [], me: null, cpus: [], views: new Map(), laps: 3, mode: 'quick', diff: 'lather', finishOrder: [], paused: false, introT: 0, doneT: 0, msgs: [], trackId: 'shower', acc: 0, frame: 0, startBonus: 0, online: false, seed: 1, events: [] };
 
-function randomLoadout(r, tier = 1) {
+// used: colours already on the grid, people first (used.hard of them, default 1). A CPU never
+// looks like a person, and looks as unlike the other CPUs as it can.
+const colDist = (a, b) => Math.hypot(((a >> 16) & 255) - ((b >> 16) & 255), ((a >> 8) & 255) - ((b >> 8) & 255), (a & 255) - (b & 255));
+function randomLoadout(r, tier = 1, used) {
   const bars = Object.keys(BARS), rockets = Object.keys(ROCKETS), mods = Object.keys(MODS);
   const lo = { bar: pick(bars, r), rocket: pick(rockets, r), mods: [], paint: 0 };
   const nm = Math.floor(r() * (1 + tier));
   for (let k = 0; k < Math.min(2, nm); k++) { const m = pick(mods, r); if (!lo.mods.includes(m) && m !== 'horn') lo.mods.push(m); }
+  if (used) {
+    let best = null, bestS = -1;
+    for (let k = 0; k < 16; k++) {
+      const c = k ? { bar: pick(bars, r), paint: r() < 0.45 ? 0 : 1 + Math.floor(r() * (PAINTS.length - 1)) } : { bar: lo.bar, paint: 0 };
+      const col = barColor(c);
+      let s = 999; used.forEach((u, j) => { const d = colDist(col, u); s = Math.min(s, j < (used.hard || 1) && d < 80 ? -1 : d); });
+      if (s > bestS) { bestS = s; best = c; }
+      if (s > 150) break;
+    }
+    lo.bar = best.bar; lo.paint = best.paint; used.push(barColor(lo));
+  }
   return lo;
 }
 
@@ -3450,7 +3526,8 @@ function raceSetup(opts) {
   else {
     if (!opts.attract) entries.push({ name: offlineName(), lo: myLoadout(), kind: 'me' });
     const names = [...CPU_NAMES].sort(() => rnd() - 0.5);
-    for (let k = 0; k < (opts.cpus ?? 5); k++) entries.push({ name: names[k % names.length], lo: randomLoadout(rnd, RACE.diff === 'scrub' ? 2 : 1), kind: 'cpu' });
+    const used = opts.attract ? [0x000000] : [barColor(myLoadout())];
+    for (let k = 0; k < (opts.cpus ?? 5); k++) entries.push({ name: names[k % names.length], lo: randomLoadout(rnd, RACE.diff === 'scrub' ? 2 : 1, used), kind: 'cpu' });
   }
   // Grid order: the player starts mid-pack in solo races.
   let order = entries.map((e, k) => k);
@@ -3577,7 +3654,8 @@ function onLap(r) {
     if (r === RACE.me) {
       const pl = RACE.finishOrder.length;
       center(RACE.soloRun ? 'FINISH!' : pl === 1 ? 'YOU WIN!' : ord(pl) + ' PLACE', pl === 1 ? 'c2' : pl <= 3 ? 'c4' : '', 2.6);
-      sfx('fanfare', 0.9); FX.confetti(r.x, r.y + 1.5, r.z, pl <= 3 ? 160 : 60);
+      if (RACE.soloRun || pl <= 3) sfx('fanfare', 0.9); else sfx('chime', 0.75, 0.84);
+      FX.confetti(r.x, r.y + 1.5, r.z, RACE.soloRun || pl <= 3 ? 160 : 30);
       // A CPU takes the wheel for the victory lap.
       RACE.cpus.push(new CpuDriver(r, 'rinse', 5));
       netSendFinish && netSendFinish(r);
@@ -3678,7 +3756,12 @@ function handleEvents() {
         case 'respawn': FX.bubbles(r.x, r.y + 0.2, r.z, 10, 0.8, 0.9, 0.12); FX.sparkle(r.x, r.y + 0.5, r.z, 3); if (isMe) sfx('pop', 0.6); break;
         case 'jump': break;
         case 'hop': sfxAt('duck2', r.x, r.y, r.z, 0.6, 1.5); FX.ringAt(r.x, r.y, r.z, 1.2, [1, 1, 1], 0.3); break;
-        case 'land': if ((e.air || 0) < 0.18 && Math.abs(e.v) < 3 && r.alive) break; FX.splash(r.x, r.y, r.z, 8 + e.v * 2, 0.5 + e.v * 0.08); FX.ringAt(r.x, r.y, r.z, 1 + e.v * 0.15, [1, 1, 1], 0.45); sfxAt(r.alive ? 'splash' : 'splashBig', r.x, r.y, r.z, clamp(e.v / 6, 0.3, 1)); if (isMe) { CAM.shake = Math.max(CAM.shake, clamp(e.v / 8, 0.1, 0.6)); rumble(e.v / 10); if (e.air > 0.3 && r.alive && RACE.phase === 'race') { center('BIG AIR!', 'c2 sm', 0.8); r.boost = Math.min(100, r.boost + 15); sfx('chime', 0.5, 1.3); FX.sparkle(r.x, r.y + 0.4, r.z, 5, [1, 0.9, 0.4], 0.16); } } break;
+        case 'land':
+          // Little skips over steps and seams land quietly; a real jump splashes (or puffs bubbles on a dry floor).
+          if (r.alive && ((e.air || 0) < 0.14 || Math.abs(e.v) < 1.6)) break;
+          if (r.alive && (r.onSurface === 'dry' || r.onSurface === 'mat')) { FX.bubbles(r.x, r.y + 0.12, r.z, 4 + Math.round(e.v), 0.45, 0.5, 0.1); FX.ringAt(r.x, r.y, r.z, 0.8 + e.v * 0.1, [1, 1, 1], 0.35); sfxAt('thud1', r.x, r.y, r.z, clamp(e.v / 7, 0.25, 0.8)); }
+          else { FX.splash(r.x, r.y, r.z, 8 + e.v * 2, 0.5 + e.v * 0.08); FX.ringAt(r.x, r.y, r.z, 1 + e.v * 0.15, [1, 1, 1], 0.45); sfxAt(r.alive ? 'splash' : 'splashBig', r.x, r.y, r.z, clamp(e.v / 6, 0.3, 1)); }
+          if (isMe) { CAM.shake = Math.max(CAM.shake, clamp(e.v / 8, 0.1, 0.6)); rumble(e.v / 10); if (e.air > 0.3 && r.alive && RACE.phase === 'race') { center('BIG AIR!', 'c2 sm', 0.8); r.boost = Math.min(100, r.boost + 15); sfx('chime', 0.5, 1.3); FX.sparkle(r.x, r.y + 0.4, r.z, 5, [1, 0.9, 0.4], 0.16); } } break;
         case 'slideDone': if (isMe && e.t > 1.4) { feed(e.t > 2.4 ? 'MEGA SLIDE!' : 'SLIDE!'); sfx('pop', 0.5, 1.3); } break;
         case 'shield': sfxAt('pop', r.x, r.y, r.z, 1, 0.8); FX.bubbles(r.x, r.y + 0.3, r.z, 18, 1, 1, 0.16); if (isMe) feed('Bubble Wrap saved you!'); break;
         case 'pickup':
@@ -3843,7 +3926,7 @@ function finishRace() {
     saveProfile();
   }
   RACE.results = res;
-  setTimeout(() => { podiumSetup(podiumOrder); showResults(res); if (res.cup && res.cup.pos <= 3) { sfx('fanfare', 0.8); const A = PODIUM.at; if (A) FX.confetti(A.x, A.y + 3, A.z, 200); } }, 700);
+  setTimeout(() => { podiumSetup(podiumOrder); showResults(res, true); if (res.cup && res.cup.pos <= 3) { const A = PODIUM.at; if (A) FX.confetti(A.x, A.y + 3, A.z, 200); } }, 700);
 }
 
 // The top three stand on soap dishes on gold, silver and bronze pedestals.
@@ -3860,7 +3943,7 @@ function podiumSetup(order) {
   const px = T.px[i], pz = T.pz[i], tx = T.tx[i], tz = T.tz[i], nx = T.nx[i], nz = T.nz[i];
   const y0 = T.heightAt(px, pz, i);
   const face = Math.atan2(-tx, -tz);
-  PODIUM.at = { x: px, y: y0, z: pz, tx, tz };
+  PODIUM.at = { x: px, y: y0, z: pz, tx, tz, i }; PODIUM.fw = 0;
   const spots = [[0, 1.05, 0xffd23f], [1.9, 0.7, 0xdfe6f2], [-1.9, 0.4, 0xffb38a]];
   for (let k = 0; k < 3; k++) {
     if (!order[k] && k > 0) continue;   // solo and 2-racer races: no empty pedestals
@@ -3880,22 +3963,44 @@ function podiumSetup(order) {
   }
   for (const r of RACE.racers) { if (!r.podium) { const v = RACE.views.get(r); if (v) v.root.visible = false; r.hidden = true; } else r.hidden = false; }
   scene.add(G);
-  FX.confetti(px, y0 + 3, pz, 160);
-  sfx('fanfare', 0.7);
+  // The fanfare is for the people on the pedestals (or for watching, if you aren't racing).
+  const onIt = !RACE.me || order.slice(0, 3).includes(RACE.me);
+  FX.confetti(px, y0 + 3, pz, onIt ? 160 : 70);
+  if (onIt) sfx('fanfare', 0.7); else sfx('pop2', 0.5);
 }
 function podiumClear() { if (PODIUM.group) { scene.remove(PODIUM.group); disposeGroup(PODIUM.group); PODIUM.group = null; } }
+// How much of the screen, from the left, the results panel leaves free for the podium.
+function podiumFree() {
+  const W = innerWidth, sc = $('s-results');
+  if (!sc || W <= 760 || sc.classList.contains('peek')) return W;
+  const el = sc.querySelector('.res-panel'); if (!el) return W;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.left < W ? clamp(r.left - 10, W * 0.22, W) : W;
+}
 function podiumCam(dt) {
   const A = PODIUM.at; if (!A) return;
   PODIUM.t += dt;
-  const sway = Math.sin(PODIUM.t * 0.4) * 0.6;
-  const wide = innerWidth > 760;
-  // Stand in front of the podium; on wide screens shift it left of the results panel.
-  const sideX = wide ? -(PODIUM.panelFrac || 0.47) / 0.47 : 0;
-  _cv.set(A.x - A.tx * 7.4 + A.tz * (sway + sideX * 2.4), A.y + 2.7, A.z - A.tz * 7.4 - A.tx * (sway + sideX * 2.4));
-  if (PODIUM.t < 0.05) CAM.pos.copy(_cv); else CAM.pos.lerp(_cv, 1 - Math.exp(-dt * 3));
-  _cl.set(A.x + A.tz * sideX * 2.4, A.y + 1.15, A.z - A.tx * sideX * 2.4);
-  if (PODIUM.t < 0.05) { CAM.look.copy(_cl); CAM.fov = 46; } else CAM.look.lerp(_cl, 1 - Math.exp(-dt * 4));
-  CAM.fov = lerp(CAM.fov, 46, 1 - Math.exp(-dt * 3));
+  const snap = PODIUM.t < 0.05, H = innerHeight;
+  const fw = podiumFree();
+  PODIUM.fw = snap || !PODIUM.fw ? fw : lerp(PODIUM.fw, fw, 1 - Math.exp(-dt * 5));
+  // Fit the three pedestals and their soaps (about 6.4 wide) into that free part:
+  // widen the lens first, then step back.
+  const S = 3.2, k = H / PODIUM.fw, tmax = Math.tan(37 * Math.PI / 180);
+  let fov = 46, D = 7.6;
+  const need = S / D * k;
+  if (need > Math.tan(23 * Math.PI / 180)) {
+    if (need <= tmax) fov = 2 * Math.atan(need) * 180 / Math.PI;
+    else { fov = 74; D = Math.min(10.5, S * k / tmax); }
+  }
+  // The view offset puts the centre of the picture in the middle of the free part.
+  PODIUM.vx = (innerWidth - PODIUM.fw) / 2;
+  const kD = D / 7.6, sway = Math.sin(PODIUM.t * 0.4) * 0.6 * kD;
+  _cv.set(A.x - A.tx * 7.4 * kD + A.tz * sway, A.y + 1.15 + 1.55 * kD, A.z - A.tz * 7.4 * kD - A.tx * sway);
+  if (WORLD.T) camInside(WORLD.T, _cv, A.i);
+  if (snap) CAM.pos.copy(_cv); else CAM.pos.lerp(_cv, 1 - Math.exp(-dt * 3));
+  _cl.set(A.x, A.y + 1.15, A.z);
+  if (snap) { CAM.look.copy(_cl); CAM.fov = fov; } else CAM.look.lerp(_cl, 1 - Math.exp(-dt * 4));
+  CAM.fov = lerp(CAM.fov, fov, 1 - Math.exp(-dt * 3));
   if (Math.random() < dt * 0.9) FX.confetti(A.x + (Math.random() - 0.5) * 4, A.y + 4, A.z + (Math.random() - 0.5) * 3, 40);
 }
 
@@ -4100,7 +4205,7 @@ ACT.startGP = () => {
   const d = UI.gpDiff || 'rinse';
   const rnd = mulberry((Math.random() * 1e9) | 0);
   const names = [...CPU_NAMES].sort(() => rnd() - 0.5).slice(0, 7);
-  GP.on = true; GP.diff = d; GP.rev = UI.gpRev; GP.idx = 0; GP.pts = { me: 0 }; GP.roster = names.map((n) => ({ name: n, lo: randomLoadout(rnd, d === 'scrub' ? 2 : 1), kind: 'cpu' }));
+  GP.on = true; GP.diff = d; GP.rev = UI.gpRev; GP.idx = 0; GP.pts = { me: 0 }; const used = [barColor(myLoadout())]; GP.roster = names.map((n) => ({ name: n, lo: randomLoadout(rnd, d === 'scrub' ? 2 : 1, used), kind: 'cpu' }));
   for (const n of names) GP.pts[n] = 0;
   gpNext();
 };
@@ -4121,9 +4226,10 @@ function gpStandings() {
 }
 
 // ---- results ------------------------------------------------------------------------
-function showResults(res) {
+function showResults(res, reveal) {
   const me = RACE.me;
   hudHide();
+  clearTimeout(UI.revealT);
   const tagOf = (r) => r.kind === 'net' ? (String(r.netId).startsWith('bot') ? ' <span class="tag" style="opacity:.6">CPU</span>' : ' <span class="tag">online</span>') : '';
   const rows = res.order.map((r) => `<tr class="${r === me ? 'me' : ''}"><td>${r.place}</td><td><span class="chip" style="background:${hex(r.color)}"></span>${esc(r.name)}${tagOf(r)}</td><td>${r.projected ? '<span style="opacity:.6">still racing</span>' : fmtT(r.finishT)}</td><td>${isFinite(r.bestLap) ? 'best ' + fmtT(r.bestLap) : ''}</td></tr>`).join('');
   const rw = res.rewards.map(([l, v]) => `<div class="reward"><span>${esc(l)}</span><b>+${v}</b></div>`).join('');
@@ -4147,8 +4253,8 @@ function showResults(res) {
     head = g && g.beat ? 'Ghost beaten!' : g && !g.first ? 'Ghost wins this time' : 'Ghost saved';
     trophy = `<div class="hint" style="position:static;transform:none;align-self:flex-start">${g && g.beat ? 'Your best lap beat your ghost by ' + g.by.toFixed(2) + 's' : g && !g.first ? 'Your ghost is still faster. Race it again!' : 'Race this track again to chase your own ghost.'}</div>`;
   }
-  screen('results', `${topbar()}<div class="panel card res-panel ${res.standings ? 'gp' : ''}">
-    <header><h2>${head}</h2>${res.newBest ? '<span class="tag" style="background:var(--pink);color:var(--ink)">NEW BEST LAP</span>' : ''}</header>
+  screen('results', `${topbar()}<button class="btn res-back" data-act="peek" style="--c:var(--lemon)">Results ▸</button><div class="panel card res-panel ${res.standings ? 'gp' : ''}">
+    <header><h2>${head}</h2><span style="display:flex;gap:8px;align-items:center">${res.newBest ? '<span class="tag" style="background:var(--pink);color:var(--ink)">NEW BEST LAP</span>' : ''}<button class="btn sm ghost peek" data-act="peek" title="See the podium">👀</button></span></header>
     ${trophy}
     <div class="res-sum"><span class="big">+${res.total} bubbles</span>${res.rewards.filter(([l]) => /medal|First win|cup|ghost by/i.test(l)).slice(0, 2).map(([l]) => `<span class="tag" style="background:var(--pink);color:var(--ink)">${esc(l)}</span>`).join('')}</div>
     ${easyHint(res)}
@@ -4157,10 +4263,16 @@ function showResults(res) {
       <div style="display:flex;flex-direction:column;gap:12px"><div class="card" style="padding:10px 14px;box-shadow:none"><h3 style="font-size:20px">Bubbles earned</h3>${rw}<div class="reward" style="border:0"><span>Total</span><b style="font-size:22px">+${res.total}</b></div></div>${gpHtml}</div>
     </div>
     <div style="display:flex;gap:12px;flex-wrap:wrap">${buttons}</div></div>`, 'dim');
-  measureResPanel();
+  // A finished race shows the podium on its own first, then slides the results in.
+  if (reveal && RACE.phase === 'podium') { resPeek(true); UI.revealT = setTimeout(() => resPeek(false), 2600); }
 }
-// The podium camera shifts the podium clear of the results panel.
-function measureResPanel() { const el = document.querySelector('.res-panel'); PODIUM.panelFrac = el && innerWidth > 760 ? el.getBoundingClientRect().width / innerWidth : 0.47; }
+// Slide the results panel away to see the podium (any tap or key brings it back).
+function resPeek(on) {
+  const sc = $('s-results'); if (!sc) return;
+  sc.classList.toggle('peek', on);
+  if (on) sc.dataset.act = 'peek'; else delete sc.dataset.act;
+}
+ACT.peek = () => { clearTimeout(UI.revealT); const sc = $('s-results'); if (sc) resPeek(!sc.classList.contains('peek')); };
 ACT.toResults = () => { if (RACE.results) { MODE = 'race'; showResults(RACE.results); } else showTitle(); };
 // After a runaway win on an easy level, suggest the next one up.
 function easyHint(res) {
@@ -4871,7 +4983,8 @@ function netHostStart() {
   const free = Math.max(0, Math.min(MAXP - grid.length, L.cpu | 0));
   const rnd = mulberry((Math.random() * 1e9) | 0);
   const names = [...CPU_NAMES].sort(() => rnd() - 0.5);
-  for (let k = 0; k < free; k++) grid.push({ c: 'bot' + k + '-' + NET.cid, name: names[k], lo: randomLoadout(rnd, 1), bot: 1 });
+  const used = grid.map((g) => barColor(cleanLoadout(g.lo || {}))); used.hard = used.length;
+  for (let k = 0; k < free; k++) grid.push({ c: 'bot' + k + '-' + NET.cid, name: names[k], lo: randomLoadout(rnd, 1, used), bot: 1 });
   // Shuffle the grid a little so the host isn't always on pole.
   for (let i = grid.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [grid[i], grid[j]] = [grid[j], grid[i]]; }
   const m = { t: 'go', race: NET.raceId, track: trackId(L.track, L.rev), laps: L.laps, diff: L.diff, seed: (rnd() * 1e9) | 0, grid };
@@ -5082,6 +5195,8 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) { loopsOff(); if (MODE === 'race' && RACE.me && !RACE.online && !RACE.paused && !RACE.results && RACE.phase !== 'podium') togglePause(true); }
 });
 onKey = (e) => {
+  // Watching the podium: the first key just brings the results back.
+  if (UI.cur === 'results' && $('s-results') && $('s-results').classList.contains('peek') && /^(Enter|Space|Escape|NumpadEnter)$/.test(e.code)) { ACT.peek(); return; }
   if (e.code === 'Escape') {
     if ($('quitAsk')) { $('quitAsk').remove(); return; }
     if (UI.cur === 'settings') { ACT.settingsDone(); return; }
@@ -5108,7 +5223,14 @@ async function boot() {
   bootMsg('Filling the tub', 0.1);
   makeEnv(); setupPost(); initSoapMats(); FX.init(); bindTouch();
   initModelMats();
-  try { await Promise.all([loadModels((p) => bootMsg('Unwrapping the soap', 0.15 + p * 0.45)), loadPropModels().catch((e) => console.warn('props', e))]); }
+  // One bar for all four model files, by bytes (sizes below are the fallback when the server sends no length).
+  const est = { hi: 195000, mid: 141000, lo: 70000, props: 923000 }, got = {}, tot = {};
+  const prog = (k, e) => {
+    if (e) { got[k] = e.loaded || 0; if (e.total) tot[k] = e.total; } else got[k] = tot[k] || est[k];
+    let a = 0, b = 0; for (const j in est) { const t = tot[j] || est[j]; b += t; a += Math.min(got[j] || 0, t); }
+    bootMsg(a / b < 0.55 ? 'Unwrapping the soap' : 'Polishing the rockets', 0.12 + 0.63 * a / b);
+  };
+  try { await Promise.all([loadModels(prog), loadPropModels(prog).catch((e) => { console.warn('props', e); prog('props', null); })]); }
   catch (e) { bootMsg('Could not load the soap models. Check your connection and refresh.'); console.error(e); return; }
   bootMsg('Mopping the floor', 0.8);
   await new Promise((r) => setTimeout(r, 30));
@@ -5135,7 +5257,7 @@ boot();
 // ---------------------------------------------------------------------------
 // Self-tests (#smoke) and a debug hook (#debug -> window.__SR).
 // ---------------------------------------------------------------------------
-if (DEBUG || SMOKE) window.__SR = { inLane, GAR, GHOST, ghostLoad, CpuDriver, tryDropSuds, __raceStep: (dt) => { raceStep(dt); handleEvents(); }, RACE, P, CFG, TRACKS, getTrack, startRace, showTitle, showGarage, showQuick, showResults, setQuality, CAM, Racer, SUDS, FX, get WORLD() { return WORLD; }, NET, netConnect, netHostStart, ACT, statsFor, displayStats, BARS, ROCKETS, MODS, UI, INPUT, KEYS, setMode, camera, renderer, scene, get MODE() { return MODE; } };
+if (DEBUG || SMOKE) window.__SR = { inLane, GAR, GHOST, ghostLoad, CpuDriver, tryDropSuds, __raceStep: (dt) => { raceStep(dt); handleEvents(); }, RACE, P, CFG, TRACKS, WALL, getTrack, startRace, showTitle, showGarage, showQuick, showResults, setQuality, CAM, Racer, SUDS, FX, get WORLD() { return WORLD; }, NET, netConnect, netHostStart, ACT, statsFor, displayStats, BARS, ROCKETS, MODS, UI, INPUT, KEYS, setMode, camera, renderer, scene, get MODE() { return MODE; } };
 
 // Drive one racer with fixed inputs on a fresh track and report what happened.
 function simRun(trackId, setup, secs, ctrl) {
@@ -5273,6 +5395,33 @@ async function runSmoke() {
       me.x = c.x + 2.5; me.z = c.z; me.y = c.y - 0.5; me.coins = 0; for (let k = 0; k < 120; k++) pickupsCollect(me);
       ok('Coin Magnet pulls coins in from 2.5 away', me.coins >= 1, me.coins + ' coins');
       SUDS.list = [];
+    }
+    // Fifth review: obstacles never wedge or pin a bar, scrapes keep speed, rivals never wear your colour.
+    {
+      let wedges = 0; const wl = [];
+      for (const d of [...TRACKS, ...TRACKS.map((t) => TRACK_BY[t.id + '-r'])]) {
+        const T = getTrack(d.id);
+        for (const o of T.obst) { if (o.cap) continue; const L = T.locate(o.x, o.z, -1, {}); const gap = L.hw - Math.abs(L.d) - o.r; if (gap > 0.06 && gap < 0.88 && !WALL[T.wallAt(L.i, L.d > 0)].open) { wedges++; wl.push(d.id + ' ' + o.kind + ' ' + gap.toFixed(2)); } }
+      }
+      ok('no obstacle leaves a soap-trapping gap by a wall', wedges === 0, wl.join(', '));
+      let pinned = 0; const pl = [];
+      for (const [id, kind] of [['vanity', 'cup'], ['vanity', 'bottle'], ['floor', 'cup'], ['floor', 'plunger'], ['shower', 'sponge'], ['paper', 'plunger']]) {
+        for (const off of [0, 0.3]) {
+          const T = getTrack(id), o = T.obst.find((q) => q.kind === kind); if (!o) continue;
+          const L = T.locate(o.x, o.z, -1, {}); const r = new Racer('p', { bar: 'rosy', rocket: 'twin', mods: [] }, 'cpu');
+          const sx = o.x - L.tx * (o.r + 1.2) + L.nx * off, sz = o.z - L.tz * (o.r + 1.2) + L.nz * off;
+          r.reset(sx, sz, Math.atan2(o.x - sx, o.z - sz), L.i); r.y = T.heightAt(sx, sz, L.i); r.vx = Math.sin(r.yaw) * 3; r.vz = Math.cos(r.yaw) * 3;
+          let slow = 0; for (let k = 0; k < 120 * 2.5; k++) { r.in.thr = 1; r.in.steer = 0; r.step(CFG.dt, T, true); r.events.length = 0; if (k > 60 && r.speed < 1) slow += CFG.dt; }
+          if (slow > 1) { pinned++; pl.push(id + ' ' + kind + ' ' + slow.toFixed(1) + 's'); }
+        }
+      }
+      ok('a bar nosed into an obstacle with only the throttle held gets round it', pinned === 0, pl.join(', '));
+      const sc = simRun('floor', (r, T) => { const i = Math.floor(0.2 * T.N); const d = -(T.hw[i] - 0.45); r.reset(T.px[i] + T.nx[i] * d, T.pz[i] + T.nz[i] * d, Math.atan2(T.tx[i], T.tz[i]) - 0.09 * Math.sign(d) * T.inSign, i); r.y = T.heightAt(r.x, r.z, i); r.vx = Math.sin(r.yaw) * 6; r.vz = Math.cos(r.yaw) * 6; }, 2.2, (r) => { r.in.thr = 1; r.in.steer = 0; });
+      ok('scraping along a towel wall keeps your speed', sc.r.speed > 5 && sc.walls > 0, sc.r.speed.toFixed(2) + ' after ' + sc.walls + ' wall touches');
+      const keep = P.eq.bar, keepP = P.eq.paint; P.eq.bar = 'rosy'; P.eq.paint = 0; let twins = 0;
+      for (let k = 0; k < 40; k++) { raceSetup({ track: 'shower', laps: 1, cpus: 7, diff: 'lather', mode: 'quick', seed: 500 + k }); const mc = RACE.me.color; if (RACE.racers.some((r) => r !== RACE.me && colDist(r.color, mc) < 80)) twins++; }
+      P.eq.bar = keep; P.eq.paint = keepP;
+      ok('no CPU ever wears your colour', twins === 0, twins + ' of 40 grids');
     }
     // A full CPU race finishes.
     raceSetup({ track: 'tub', laps: 1, cpus: 5, diff: 'scrub', mode: 'quick' });
