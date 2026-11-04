@@ -403,7 +403,7 @@ const MODS = {
   grooves: { name: 'Grip Grooves', icon: '〰️', price: 250, blurb: 'Grooves bite into the wet floor. More grip, a bit less top speed.', st: { grip: 1.25, top: 0.96 } },
   wax:     { name: 'Wax Coat', icon: '🕯️', price: 250, blurb: 'Skates over dry floor and mats and wears away slower. Corners get slippier.', st: { dryMu: 0.7, wear: 0.7, grip: 0.88 } },
   sponge:  { name: 'Sponge Bumper', icon: '🧽', price: 300, blurb: 'Bounce off walls without losing speed or soap. Heavier and slower off the line.', st: { wallKeep: 1.6, mass: 1.1, accel: 0.94, chipless: 1 } },
-  lather:  { name: 'Lather Pump', icon: '🫧', price: 300, blurb: 'Bigger suds slicks that last longer. Each one costs more soap.', st: { sudsR: 1.45, sudsT: 1.35, sudsCost: 1.5 } },
+  lather:  { name: 'Lather Pump', icon: '🧴', price: 300, blurb: 'Bigger suds slicks that last longer. Each one costs more soap.', st: { sudsR: 1.45, sudsT: 1.35, sudsCost: 1.5 } },
   horn:    { name: 'Duck Horn', icon: '🦆', price: 350, act: 1, blurb: 'Press E to honk and shove nearby racers away. Costs boost per honk, and the duck adds a little drag.', st: { horn: 1, top: 0.985, mass: 1.04 } },
   plug:    { name: 'Drain Plug', icon: '🔩', price: 300, blurb: 'Drains can not pull you in. The plug drags a little on your top speed.', st: { plug: 1, top: 0.97 } },
   fins:    { name: 'Hydro Fins', icon: '🐟', price: 350, blurb: 'Faster on wet floor, but much slower on dry floor and mats.', st: { wetTop: 1.09, dryMu: 1.35 } },
@@ -413,7 +413,7 @@ const MODS = {
   hop:     { name: 'Spring Sole', icon: '🦘', price: 350, act: 1, blurb: 'Press E to hop over suds, razors and drains. Each hop costs boost, and the spring grips a bit less.', st: { hop: 1, grip: 0.92 } },
   magnet:  { name: 'Coin Magnet', icon: '🧲', price: 300, blurb: 'Pulls soap coins to you from a few lengths away. The magnet is heavy.', st: { magnet: 1, mass: 1.06, accel: 0.97 } },
   cannon:  { name: 'Foam Cannon', icon: '🎯', price: 450, blurb: 'Your suds fly forward and land on whoever is ahead of you. Each shot costs twice the soap.', st: { cannon: 1, sudsCost: 2 } },
-  bumpers: { name: 'Rubber Bumpers', icon: '🛟', price: 350, blurb: 'Bounce rivals away twice as hard. All that rubber drags your top speed down a little.', st: { bumpers: 1, top: 0.975 } },
+  bumpers: { name: 'Rubber Bumpers', icon: '🎈', price: 350, blurb: 'Bounce rivals away twice as hard. All that rubber drags your top speed down a little.', st: { bumpers: 1, top: 0.975 } },
   wrap:    { name: 'Bubble Wrap', icon: '🛡️', price: 400, blurb: 'Saves you from one spin out or drain every lap. Heavier and a bit slower.', st: { shield: 1, mass: 1.08, top: 0.97 } },
 };
 const PAINTS = [
@@ -1942,7 +1942,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040713";
+const ASSET_V = "202611040714";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -3893,10 +3893,10 @@ function showHelp() {
       <div style="display:flex;flex-direction:column;gap:10px"><h3 style="font-size:24px">Soap physics</h3>
         <p style="margin:0">💧 <b>Wet floor is fast but slippery.</b> You keep sliding the way you were going. Shiny = wet.</p>
         <p style="margin:0">🟫 <b>Dry floor and mats grip.</b> Slower, but you can actually turn. Use them as brakes.</p>
-        <p style="margin:0">🧼 <b>Your bar wears down.</b> A smaller bar is quicker and turns faster, but gets shoved around, and small bars can slip down a drain.</p>
+        <p style="margin:0">📉 <b>Your bar wears down.</b> A smaller bar is quicker and turns faster, but gets shoved around, and small bars can slip down a drain.</p>
         <p style="margin:0">↪️ <b>Slide to charge boost.</b> Going sideways fills your boost. So does tailgating someone.</p>
-        <p style="margin:0">🫧 <b>Suds</b> cost a bit of your bar. Anyone who hits them spins out. Watch your own.</p>
-        <p style="margin:0">🪙 <b>Grab soap coins</b> for bubbles, <b>boost stars</b> and <b>fuel cans</b> for boost. Keep clear of <b>razors</b>: they shave your bar.</p></div>
+        <p style="margin:0">🧼 <b>Suds</b> cost a bit of your bar. Anyone who hits them spins out. Watch your own.</p>
+        <p style="margin:0">💰 <b>Grab soap coins</b> for bubbles, <b>boost stars</b> and <b>fuel cans</b> for boost. Keep clear of <b>razors</b>: they shave your bar.</p></div>
       <div style="display:flex;flex-direction:column;gap:10px"><h3 style="font-size:24px">Garage</h3>
         <p style="margin:0">Win bubbles every race and spend them in the garage. Every bar, rocket and mod is a trade: something gets better and something gets worse, so pick what suits the track and the way you drive.</p></div>
     </div></div>`, 'veil');
@@ -3957,7 +3957,7 @@ function hudUpdate() {
   const [X, Z] = HUD.mapT(me.x, me.z);
   c.save(); c.translate(X, Z); c.rotate(-me.yaw + Math.PI); c.fillStyle = hex(me.color); c.strokeStyle = '#2b1f40'; c.lineWidth = 3; c.beginPath(); c.moveTo(0, -10); c.lineTo(7, 7); c.lineTo(-7, 7); c.closePath(); c.fill(); c.stroke(); c.restore();
 }
-const EMOTES = ['😂', '👋', '😤', '🫧'];
+const EMOTES = ['😂', '👋', '😤', '🧼'];
 function sendEmote(k) {
   const me = RACE.me; if (!me || !RACE.online || !EMOTES[k]) return;
   if (me.emoUntil > now() - 500 && me.emo === k) return;
