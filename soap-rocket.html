@@ -1191,6 +1191,7 @@ addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; cam
 // Planar mirror for the wet floor (plane y = 0), after three's Reflector.
 const _mv = { n: new THREE.Vector3(0, 1, 0), p: new THREE.Vector3(), view: new THREE.Vector3(), cam: new THREE.Vector3(), rot: new THREE.Matrix4(), look: new THREE.Vector3(), tgt: new THREE.Vector3(), plane: new THREE.Plane(), clip: new THREE.Vector4(), q: new THREE.Vector4() };
 const HIDE_IN_MIRROR = [];
+const HIDE_ALWAYS = [];      // effects that never show in the floor mirror
 function renderMirror() {
   if (!MIRROR.rt || !renderer) return;
   const v = _mv, vc = MIRROR.cam;
@@ -1215,10 +1216,12 @@ function renderMirror() {
   v.clip.multiplyScalar(2 / v.clip.dot(v.q));
   pm.elements[2] = v.clip.x; pm.elements[6] = v.clip.y; pm.elements[10] = v.clip.z + 1 - 0.003; pm.elements[14] = v.clip.w;
   for (const o of HIDE_IN_MIRROR) o.visible = false;
+  for (const o of HIDE_ALWAYS) o.visible = false;
   const prevT = renderer.getRenderTarget();
   renderer.setRenderTarget(MIRROR.rt); renderer.clear(); renderer.render(scene, vc);
   renderer.setRenderTarget(prevT);
   for (const o of HIDE_IN_MIRROR) o.visible = true;
+  for (const o of HIDE_ALWAYS) o.visible = true;
 }
 
 // Soft studio environment for glossy floors.
@@ -1245,7 +1248,7 @@ function makeEnv() {
 // ink outline as the soap. Sizes are in soap lengths (a duck is about one).
 // ---------------------------------------------------------------------------
 const MATS = {};
-function tm(key, color, o) { return MATS[key] || (MATS[key] = toonMat(color, o)); }
+function tm(key, color, o) { if (!MATS[key]) { MATS[key] = toonMat(color, o); MATS[key].userData.keep = true; } return MATS[key]; }
 const latheG = (pts, seg = 28) => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), seg);
 function grp(...kids) { const g = new THREE.Group(); for (const k of kids) if (k) g.add(k); return g; }
 function at(o, x, y, z, ry = 0, s = 1) { o.position.set(x, y, z); o.rotation.y = ry; if (s !== 1) o.scale.setScalar(s); return o; }
@@ -1453,6 +1456,7 @@ const LOOKS = {
 
 let WORLD = { group: null, T: null, anim: [], floorMat: null, lights: [] };
 const STICKER_TEX = {}; let SUN_TEX = null;
+const keepTex = (t) => { t.userData.keep = true; return t; };
 function stickerTex(shape) {
   return canvasTex(256, (c, s) => {
     const h = s / 2; c.lineJoin = 'round'; c.lineWidth = 10; c.strokeStyle = '#2b1f40';
@@ -1470,7 +1474,21 @@ function stickerTex(shape) {
 }
 
 function disposeGroup(g) {
-  g.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) { const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) if (!m.userData.keep) m.dispose(); } });
+  const texs = new Set();
+  g.traverse((o) => {
+    if (o.geometry && !o.geometry.userData.keep) o.geometry.dispose();
+    if (o.isInstancedMesh) o.dispose();
+    if (!o.material) return;
+    const ms = Array.isArray(o.material) ? o.material : [o.material];
+    for (const m of ms) {
+      if (m.userData.keep) continue;
+      if (m.map) texs.add(m.map);
+      const U = m.userData.U; if (U) for (const k in U) { const v = U[k] && U[k].value; if (v && v.isTexture) texs.add(v); }
+      if (m.uniforms) for (const k in m.uniforms) { const v = m.uniforms[k].value; if (v && v.isTexture) texs.add(v); }
+      m.dispose();
+    }
+  });
+  for (const t of texs) if (!t.userData.keep && t !== (MIRROR.rt && MIRROR.rt.texture)) t.dispose();
 }
 
 // Sweep a 2D profile [[outward, up, absolute?], ...] along edge points.
@@ -1522,7 +1540,7 @@ function edgePts(T, left, i0, i1, extra = 0) {
 }
 
 function buildWorld(T) {
-  if (WORLD.group) { scene.remove(WORLD.group); disposeGroup(WORLD.group); HIDE_IN_MIRROR.length = 0; FLOORS.clear(); }
+  if (WORLD.group) { scene.remove(WORLD.group); disposeGroup(WORLD.group); HIDE_IN_MIRROR.length = 0; FLOORS.clear(); if (GHOST.view) HIDE_IN_MIRROR.push(GHOST.view.root); }
   const G = new THREE.Group(); G.name = 'world';
   const look = LOOKS[T.def.base || T.def.id];
   const anim = [];
@@ -1880,18 +1898,18 @@ function buildWorld(T) {
   // ---- tub stickers (anti-slip, grippy) ---------------------------------------
   for (const [u, d, r, shape] of T.def.stickers || []) {
     const p = T.at(u, d);
-    const tex = STICKER_TEX[shape] || (STICKER_TEX[shape] = stickerTex(shape));
+    const tex = STICKER_TEX[shape] || (STICKER_TEX[shape] = keepTex(stickerTex(shape)));
     const m = new THREE.Mesh(new THREE.PlaneGeometry(r * 2, r * 2), new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -3, depthWrite: false }));
     m.rotation.set(-Math.PI / 2, 0, Math.random() * TAU); m.position.set(p.x, T.heightAt(p.x, p.z) + 0.01, p.z); m.receiveShadow = true; m.renderOrder = 1;
     G.add(m); HIDE_IN_MIRROR.push(m);
   }
   // ---- sunlight from the window, landing on the floor -------------------------
   {
-    const tex = SUN_TEX || (SUN_TEX = canvasTex(256, (c, s) => {
+    const tex = SUN_TEX || (SUN_TEX = keepTex(canvasTex(256, (c, s) => {
       const g = c.createRadialGradient(s / 2, s / 2, s * 0.1, s / 2, s / 2, s * 0.5); g.addColorStop(0, 'rgba(255,244,214,1)'); g.addColorStop(1, 'rgba(255,244,214,0)');
       c.fillStyle = g; c.fillRect(0, 0, s, s);
       c.globalCompositeOperation = 'destination-out'; c.fillStyle = '#000'; c.fillRect(s * 0.47, 0, s * 0.06, s); c.fillRect(0, s * 0.47, s, s * 0.06);
-    }));
+    })));
     const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 });
     for (const u of [0.04, 0.47, 0.8]) {
       const p = T.at(u, T.inSign * 0.8); const y = T.heightAt(p.x, p.z) + 0.02;
@@ -1920,7 +1938,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040706";
+const ASSET_V = "202611040709";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2206,7 +2224,8 @@ function digestModel(root) {
     (groups[part] || (groups[part] = [])).push(g);
   });
   const parts = {};
-  for (const k in groups) { parts[k] = BGU.mergeGeometries(groups[k]); addONormal(parts[k]); }
+  for (const k in groups) { parts[k] = BGU.mergeGeometries(groups[k]); addONormal(parts[k]); parts[k].userData.keep = true; }
+  for (const t of trans) t.geo.userData.keep = true;
   const box = new THREE.Box3();
   for (const k in parts) { parts[k].computeBoundingBox(); box.union(parts[k].boundingBox); }
   return { parts, trans, box };
@@ -2243,7 +2262,7 @@ function initModelMats() { PROP_OUTLINE = outlineMat(1); PROP_OUTLINE.userData.k
 const PICK = { items: [], meshes: {}, group: null };
 const PICK_KIND = { coin: { model: 'soap_coin', scale: 0.55, r: 0.75, cool: 7 }, star: { model: 'boost_star', scale: 0.6, r: 0.8, cool: 9 }, fuel: { model: 'fuel_can', scale: 0.6, r: 0.8, cool: 14 } };
 function pickupsBuild(T) {
-  if (PICK.group) { scene.remove(PICK.group); }
+  if (PICK.group) { scene.remove(PICK.group); PICK.group.traverse((o) => { if (o.isInstancedMesh) o.dispose(); }); }
   PICK.group = new THREE.Group(); PICK.items = []; PICK.meshes = {};
   const def = T.def;
   const add = (u, d, kind) => { const p = T.at(u, d); PICK.items.push({ kind, x: p.x, z: p.z, y: T.heightAt(p.x, p.z) + 0.55, cool: 0, ph: Math.random() * 6 }); };
@@ -2732,6 +2751,7 @@ function makeTextures() {
   });
   TEX.streak = canvasTex(64, (c, s) => { const g = c.createLinearGradient(0, 0, 0, s); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.6, 'rgba(255,255,255,.9)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(s * 0.4, 0, s * 0.2, s); });
   TEX.square = canvasTex(32, (c, s) => { c.fillStyle = '#fff'; c.fillRect(2, 2, s - 4, s - 4); });
+  for (const k in TEX) TEX[k].userData.keep = true;
 }
 
 // Quads: billboards ('bill') or lying on the floor ('ground').
@@ -2848,7 +2868,7 @@ const FX = {
     this.star = new QuadFX(160, TEX.star, 'bill'); this.rain = new QuadFX(500, TEX.streak, 'bill'); this.conf = new QuadFX(400, TEX.square, 'bill');
     this.sudsBlob = new QuadFX(80, TEX.blob, 'ground'); this.wind = new QuadFX(120, TEX.blob, 'bill');
     for (const p of [this.foam, this.sudsBlob, this.ring, this.suds, this.drop, this.bub, this.star, this.rain, this.conf, this.wind]) this.group.add(p.mesh);
-    HIDE_IN_MIRROR.push(this.foam.mesh, this.sudsBlob.mesh, this.ring.mesh, this.rain.mesh, this.conf.mesh);
+    HIDE_ALWAYS.push(this.foam.mesh, this.sudsBlob.mesh, this.ring.mesh, this.rain.mesh, this.conf.mesh, this.wind.mesh);
     scene.add(this.group);
     this.ready = true;
   },
@@ -3583,7 +3603,7 @@ function ghostSave(id, lapTime, samples, lo) {
   try { localStorage.setItem(ghostKey(id), JSON.stringify({ t: lapTime, lo, s: samples })); } catch (e) { /* storage full */ }
 }
 function ghostClear() {
-  if (GHOST.view) scene.remove(GHOST.view.root);
+  if (GHOST.view) { scene.remove(GHOST.view.root); const k = HIDE_IN_MIRROR.indexOf(GHOST.view.root); if (k >= 0) HIDE_IN_MIRROR.splice(k, 1); }
   GHOST.view = null; GHOST.play = null; GHOST.rec = []; GHOST.recT = 0;
 }
 // Called from raceSetup.
