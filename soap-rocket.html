@@ -2132,7 +2132,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611041100";
+const ASSET_V = "202611041105";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2852,9 +2852,9 @@ function collideRacers(a, b) {
 // and drop suds on whoever is tailgating them.
 // ---------------------------------------------------------------------------
 const DIFF = {
-  rinse:  { name: 'Rinse', pace: 0.62, aim: 0.55, boost: 70, suds: 0.08, mult: 0.8, rubK: 0.005, rubMin: 0.5, rubMax: 1.1, corner: 1 },
-  lather: { name: 'Lather', pace: 0.8, aim: 0.8, boost: 55, suds: 0.16, mult: 1, rubK: 0.002, rubMin: 0.85, rubMax: 1.12, corner: 1.04 },
-  scrub:  { name: 'Scrub', pace: 0.95, aim: 1, boost: 40, suds: 0.26, mult: 1.35, rubK: 0.0012, rubMin: 0.95, rubMax: 1.12, corner: 1.16 },
+  rinse:  { name: 'Rinse', pace: 0.58, aim: 0.55, boost: 70, suds: 0.08, mult: 0.8, rubK: 0.005, rubMin: 0.5, rubMax: 1.1, rubDead: 15, corner: 1 },
+  lather: { name: 'Lather', pace: 0.8, aim: 0.8, boost: 55, suds: 0.16, mult: 1, rubK: 0.002, rubMin: 0.85, rubMax: 1.12, rubDead: 8, corner: 1.04 },
+  scrub:  { name: 'Scrub', pace: 0.95, aim: 1, boost: 40, suds: 0.26, mult: 1.35, rubK: 0.0012, rubMin: 0.95, rubMax: 1.12, rubDead: 5, corner: 1.16 },
 };
 class CpuDriver {
   constructor(r, diff = 'lather', seed = 1) {
@@ -3493,7 +3493,8 @@ function raceStep(dt) {
   }
   const racing = RACE.phase === 'race' || RACE.phase === 'done';
   // Gentle catch-up in solo races: far-ahead CPUs ease off, far-behind ones push.
-  if (RACE.me && !RACE.online && !RACE.me.finished) for (const c of RACE.cpus) { if (c.r === RACE.me) continue; const gap = c.r.progress - RACE.me.progress; c.rubber = clamp(1 - gap * c.D.rubK, c.D.rubMin, c.D.rubMax); }
+  if (RACE.me && !RACE.online && !RACE.me.finished) for (const c of RACE.cpus) { if (c.r === RACE.me) continue; const gap = c.r.progress - RACE.me.progress; // Ahead of you: ease off. Far behind: catch up until back in sight, then race normally.
+    c.rubber = gap >= 0 ? Math.max(c.D.rubMin, 1 - gap * c.D.rubK) : -gap > c.D.rubDead ? Math.min(c.D.rubMax, 1 + (-gap - c.D.rubDead) * c.D.rubK) : 1; }
   for (const c of RACE.cpus) c.think(dt, T, RACE);
   for (const r of RACE.racers) {
     if (r.kind === 'net') continue;
