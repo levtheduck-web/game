@@ -315,7 +315,7 @@ const CFG = {
   thrust: 15.5,        // rocket thrust (u/s^2)
   brake: 10.5,         // reverse thrust
   drag3: 0.0137,       // cubic drag: sets top speed but barely slows a slow glide
-  muWet: 0.07, muDry: 0.25, muMat: 0.2, muSuds: 0.012, matDrag: 2.2,
+  muWet: 0.07, muDry: 0.25, muMat: 0.2, muSuds: 0.012, matDrag: 1.8,
   gripWet: 2.5, gripDry: 7.8, gripMat: 10, gripSuds: 0.12,
   carve: 0.5,          // share of scrubbed sideways speed turned into forward speed
   puddleDrag: 1.35,
@@ -375,14 +375,14 @@ function myName() {
 const BARS = {
   rosy:     { name: 'Rosy Classic', price: 0, col: 0xff8fc2, logo: 0xffd6ea, blurb: 'The original pink bar. Good at everything, great at nothing.', st: {} },
   glyco:    { name: 'Glycerin Glide', price: 350, col: 0xffb347, logo: 0xffe2b0, clear: 1, blurb: 'See-through and extra slick. The fastest bar there is, but it melts away twice as fast.', st: { top: 1.09, grip: 0.76, wear: 1.9 } },
-  pumice:   { name: 'Pumice Grip', price: 350, col: 0x9aa7bd, logo: 0xd5dbe6, speck: 1, blurb: 'Gritty volcanic stone. Holds a corner like glue, but it is no sprinter.', st: { grip: 1.38, top: 0.93, wear: 0.6, mass: 1.12 } },
-  oat:      { name: 'Oat Bruiser', price: 450, col: 0xf0d9a8, logo: 0xfff1d2, speck: 1, scale: [1.13, 1.12, 1.08], blurb: 'A big chunky oatmeal bar. Shoves everyone out of the way, slow off the line.', st: { mass: 1.55, accel: 0.87, wear: 0.8, turn: 0.92 } },
-  mini:     { name: 'Hotel Mini', price: 300, col: 0xf3f0ff, logo: 0xc9b6ff, scale: [0.8, 0.8, 0.8], blurb: 'Tiny, light and twitchy. Zips off the line, gets bullied in a crowd.', st: { mass: 0.6, accel: 1.16, turn: 1.2, top: 0.975, wear: 1.15 } },
+  pumice:   { name: 'Pumice Grip', price: 350, col: 0x9aa7bd, logo: 0xd5dbe6, speck: 1, blurb: 'Gritty volcanic stone. Holds a corner like glue, but it is no sprinter.', st: { grip: 1.4, top: 0.955, wear: 0.6, mass: 1.08 } },
+  oat:      { name: 'Oat Bruiser', price: 450, col: 0xf0d9a8, logo: 0xfff1d2, speck: 1, scale: [1.13, 1.12, 1.08], blurb: 'A big chunky oatmeal bar. Shoves everyone out of the way, slow off the line.', st: { mass: 1.5, accel: 0.93, wear: 0.8, turn: 0.93 } },
+  mini:     { name: 'Hotel Mini', price: 300, col: 0xf3f0ff, logo: 0xc9b6ff, scale: [0.8, 0.8, 0.8], blurb: 'Tiny, light and twitchy. Zips off the line, gets bullied in a crowd.', st: { mass: 0.6, accel: 1.1, turn: 1.18, top: 0.97, wear: 1.2 } },
   slim:     { name: 'Mint Slim', price: 400, col: 0x8ee8c8, logo: 0xd8fff0, scale: [0.82, 0.95, 1.12], blurb: 'Long and narrow. High top speed and it glances off walls, but it turns wide.', st: { top: 1.055, turn: 0.86, wallKeep: 1.45 } },
   brick:    { name: 'Lemon Brick', price: 400, col: 0xffe066, logo: 0xfff4bf, scale: [1.16, 1, 0.9], blurb: 'Short and square. Turns on a dime, but walls stop it dead.', st: { turn: 1.22, grip: 1.1, top: 0.965, wallKeep: 0.6 } },
   charcoal: { name: 'Charcoal Detox', price: 550, col: 0x45405a, logo: 0x9b95b0, blurb: 'Black charcoal. Bites hard on dry floor, but slides slower on wet.', st: { dryMu: 0.62, wetTop: 0.95, grip: 1.05 } },
   ocean:    { name: 'Ocean Pebble', price: 500, model: 'ocean_soap', col: 0x46b4ff, logo: 0xbfe6ff, scale: [1.12, 0.8, 1.04], noPaint: 1, blurb: 'Round and smooth as a sea stone. Glides off walls and loves water, but it skates on dry floor.', st: { wallKeep: 1.5, wetTop: 1.05, grip: 0.88, dryMu: 1.15 } },
-  golden:   { name: 'Golden Soap', price: 1200, model: 'golden_soap', col: 0xffc93c, logo: 0xfff1b0, oy: 0.18, noPaint: 1, blurb: 'Solid gold with a crown on top. Wins you 25% more bubbles and barely wears, but it is heavy and slow to get going.', st: { mass: 1.35, accel: 0.9, wear: 0.55, bubbles: 1.25 } },
+  golden:   { name: 'Golden Soap', price: 1200, model: 'golden_soap', col: 0xffc93c, logo: 0xfff1b0, oy: 0.18, noPaint: 1, blurb: 'Solid gold with a crown on top. Wins you 25% more bubbles and barely wears, but it is heavy and slow to get going.', st: { mass: 1.3, accel: 0.95, wear: 0.55, bubbles: 1.25 } },
   lava:     { name: 'Lava Lamp', price: 600, col: 0xff6a3d, logo: 0xffc29e, glow: 1, blurb: 'Warm and fizzy. Your boost refills much faster, but the heat melts the bar.', st: { regen: 1.45, wear: 1.35 } },
 };
 const ROCKETS = {
@@ -390,18 +390,18 @@ const ROCKETS = {
   bertha: { name: 'Big Bertha', price: 450, layout: 'one', blurb: 'One huge booster. A massive kick, but it drinks fuel and refills slowly.', st: { bThrust: 1.65, bUse: 1.42, regen: 0.75, mass: 1.12 } },
   quad:   { name: 'Quad Fizz', price: 400, layout: 'quad', blurb: 'Four little fizzers. A gentle boost that refills really quickly.', st: { bThrust: 0.68, bUse: 0.62, regen: 1.7 } },
   bubble: { name: 'Bubble Jet', price: 500, layout: 'twin', flame: 'blue', blurb: 'Boosting sprays a slick of suds behind you. Every boost costs a little soap.', st: { bubbleJet: 1, bThrust: 0.93 } },
-  steady: { name: 'Kettle Steam', price: 450, layout: 'twin', flame: 'steam', blurb: 'Always a little faster, but the boost is barely a puff.', st: { accel: 1.07, top: 1.03, bThrust: 0.45, bUse: 0.8 } },
-  jet:    { name: 'Turbo Jet', price: 650, layout: 'jet', flame: 'blue', blurb: 'Jet engines take a moment to spool up, then hit the highest boost speed of all. Slower off the line.', st: { bTop: 1.12, spool: 1, bUse: 0.85, accel: 0.95 } },
-  retro:  { name: 'Retro Brakes', price: 350, layout: 'retro', blurb: 'Extra rockets on the nose. Brakes and reverses twice as hard. A bit heavier.', st: { brake: 2.1, mass: 1.08, top: 0.98 } },
+  steady: { name: 'Kettle Steam', price: 450, layout: 'twin', flame: 'steam', blurb: 'Always a little faster, but the boost is barely a puff.', st: { accel: 1.05, top: 1.02, bThrust: 0.45, bUse: 0.8 } },
+  jet:    { name: 'Turbo Jet', price: 650, layout: 'jet', flame: 'blue', blurb: 'Jet engines take a moment to spool up, then hit the highest boost speed of all. Slower off the line.', st: { bTop: 1.15, spool: 1, bUse: 0.85, accel: 0.96 } },
+  retro:  { name: 'Retro Brakes', price: 350, layout: 'retro', blurb: 'Extra rockets on the nose. Brakes and reverses twice as hard, and helps you turn. A bit heavier.', st: { brake: 2.1, mass: 1.05, top: 0.99, turn: 1.06 } },
 };
 const MODS = {
   grooves: { name: 'Grip Grooves', icon: '〰️', price: 250, blurb: 'Grooves bite into the wet floor. More grip, a bit less top speed.', st: { grip: 1.25, top: 0.96 } },
-  wax:     { name: 'Wax Coat', icon: '🕯️', price: 250, blurb: 'Wears away much slower, but it is slippier.', st: { wear: 0.6, grip: 0.88 } },
+  wax:     { name: 'Wax Coat', icon: '🕯️', price: 250, blurb: 'Skates over dry floor and mats and wears away slower. Corners get slippier.', st: { dryMu: 0.7, wear: 0.7, grip: 0.88 } },
   sponge:  { name: 'Sponge Bumper', icon: '🧽', price: 300, blurb: 'Bounce off walls without losing speed or soap. Heavier and slower off the line.', st: { wallKeep: 1.6, mass: 1.1, accel: 0.94, chipless: 1 } },
   lather:  { name: 'Lather Pump', icon: '🫧', price: 300, blurb: 'Bigger suds slicks that last longer. Each one costs more soap.', st: { sudsR: 1.45, sudsT: 1.35, sudsCost: 1.5 } },
   horn:    { name: 'Duck Horn', icon: '🦆', price: 350, act: 1, blurb: 'Press E to honk and shove nearby racers away. Costs boost per honk, and the duck adds a little drag.', st: { horn: 1, top: 0.985, mass: 1.04 } },
   plug:    { name: 'Drain Plug', icon: '🔩', price: 300, blurb: 'Drains can not pull you in. The plug drags a little on your top speed.', st: { plug: 1, top: 0.97 } },
-  fins:    { name: 'Hydro Fins', icon: '🐟', price: 350, blurb: 'Faster on wet floor, but much slower on dry floor and mats.', st: { wetTop: 1.07, dryMu: 1.35 } },
+  fins:    { name: 'Hydro Fins', icon: '🐟', price: 350, blurb: 'Faster on wet floor, but much slower on dry floor and mats.', st: { wetTop: 1.09, dryMu: 1.35 } },
   sole:    { name: 'Rubber Sole', icon: '👟', price: 350, blurb: 'Grippy and quick on dry floor, a bit slower on wet.', st: { dryMu: 0.7, wetTop: 0.95, grip: 1.06 } },
   tablet:  { name: 'Fizz Tablet', icon: '💊', price: 300, blurb: 'Start every race with a full tank and a rocket start. Refills slower after.', st: { startBoost: 1, regen: 0.78 } },
   scoop:   { name: 'Slipstream Scoop', icon: '🌀', price: 300, blurb: 'Tailgating charges your boost twice as fast. Normal refill is slower.', st: { draft: 2.2, regen: 0.85 } },
@@ -430,7 +430,7 @@ function displayStats(lo) {
   const f = (v) => clamp(5 + v, 0, 10);
   return [
     ['SPEED', f((s.top * Math.sqrt(s.wetTop) - 1) * 50)],
-    ['ACCEL', f((s.accel / Math.pow(s.mass, 0.35) - 1) * 28)],
+    ['ACCEL', f((s.accel / Math.pow(s.mass, 0.25) - 1) * 28)],
     ['GRIP', f((s.grip - 1) * 13)],
     ['TURN', f((s.turn - 1) * 22)],
     ['WEIGHT', f((s.mass - 1) * 9)],
@@ -1919,7 +1919,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040659";
+const ASSET_V = "202611040700";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2382,14 +2382,14 @@ class Racer {
     let thr = clamp(I.thr, 0, 1) * control, brk = clamp(I.brk, 0, 1) * control;
     if (!racing) { thr = 0; brk = 0; }
     this.thr = racing ? clamp(I.thr, 0, 1) : (I.thr > 0 ? 0.35 : 0); this.brk = brk;
-    const accMul = S.accel / Math.pow(S.mass, 0.35) * (1 + 0.42 * shr);
+    const accMul = S.accel / Math.pow(S.mass, 0.25) * (1 + 0.42 * shr);
     let af = thr * CFG.thrust * accMul;
     // Brake is reverse thrust; backing up is slower.
     if (brk > 0) af -= brk * CFG.brake * S.brake * (vf > 0.5 ? 1 : 0.72);
     this.boosting = false;
     if (I.boost && racing && this.boost > 0.5 && control === 1) {
       this.boosting = true;
-      this.spoolK = S.spool ? Math.min(1, (this.spoolK || 0) + dt / 0.7) : 1;
+      this.spoolK = S.spool ? Math.min(1, (this.spoolK || 0) + dt / 0.5) : 1;
       af += CFG.bThrust * S.bThrust * (1 + 0.25 * shr) * this.spoolK;
       this.boost = Math.max(0, this.boost - CFG.bUse * S.bUse * dt);
       this.size -= CFG.wearBoost * S.wear * dt * (S.bubbleJet ? 2.4 : 1);
@@ -2652,7 +2652,9 @@ class CpuDriver {
     for (let j = 2; j < span; j += 2) { const k = T.kappa[(i0 + j) % N]; if (k > kmax) kmax = k; }
     const surf = r.onSurface;
     const aLat = surf === 'dry' ? 13 : surf === 'mat' ? 15 : surf === 'suds' ? 3 : surf === 'puddle' ? 8 : 9.5;
-    let vdes = Math.min(13.5, Math.sqrt(aLat / Math.max(kmax, 0.004))) * this.pace * this.rubber;
+    const shr = 1 - (r.size - CFG.minSize) / (1 - CFG.minSize);
+    const gripK = Math.pow(r.S.grip * (1 - 0.25 * shr), 0.75);
+    let vdes = Math.min(13.5, Math.sqrt(aLat * gripK / Math.max(kmax, 0.004))) * this.pace * this.rubber;
     // Avoid racers right in front.
     for (const o of race.racers) {
       if (o === r || !o.alive) continue;
