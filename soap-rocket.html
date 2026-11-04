@@ -2055,7 +2055,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040804";
+const ASSET_V = "202611040805";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -3327,7 +3327,7 @@ function raceSetup(opts) {
   if (WORLD.T !== T) buildWorld(T);
   RACE.T = T; RACE.trackId = T.def.id;
   clearRacers();
-  Object.assign(RACE, { ghostResult: null, newMedal: 0, heldEarly: false, endT: undefined, endSec: undefined, laps: opts.laps || 3, mode: opts.mode || 'quick', diff: opts.diff || 'lather', t: -3, phase: opts.attract ? 'race' : 'intro', introT: opts.attract ? 0 : 2.4, doneT: 0, paused: false, seed: opts.seed || ((Math.random() * 1e9) | 0), startBonus: 0, online: !!opts.online, attract: !!opts.attract, gp: opts.gp || null, frame: 0, acc: 0, results: null, lastCpuCount: opts.cpus });
+  Object.assign(RACE, { netLost: false, ghostResult: null, newMedal: 0, heldEarly: false, endT: undefined, endSec: undefined, laps: opts.laps || 3, mode: opts.mode || 'quick', diff: opts.diff || 'lather', t: -3, phase: opts.attract ? 'race' : 'intro', introT: opts.attract ? 0 : 2.4, doneT: 0, paused: false, seed: opts.seed || ((Math.random() * 1e9) | 0), startBonus: 0, online: !!opts.online, attract: !!opts.attract, gp: opts.gp || null, frame: 0, acc: 0, results: null, lastCpuCount: opts.cpus });
   const rnd = mulberry(RACE.seed);
   const entries = [];
   if (opts.grid) for (const g of opts.grid) entries.push(g);
@@ -4011,6 +4011,8 @@ function showResults(res) {
       trophy = `<div class="pop ${pos === 1 ? 'c2' : 'c4'} sm" style="text-align:center;animation-delay:.3s;margin:-4px 0 2px">${pos <= 3 ? ['🥇 GOLD CUP!', '🥈 SILVER CUP!', '🥉 BRONZE CUP!'][pos - 1] + ' +' + res.cup.prize : 'No trophy this time'}</div>`;
       buttons = `<button class="btn" data-act="gp" style="--c:var(--lemon)">New cup</button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage</button><button class="btn ghost" data-act="title">Menu</button>`;
     } else buttons = `<button class="btn big" data-act="gpNext" style="--c:var(--mint)">Next race: ${TRACKS[GP.idx].name}${GP.rev ? ' Reverse' : ''}</button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage</button><button class="btn sm ghost" data-act="title">Quit cup</button>`;
+  } else if (RACE.online && RACE.netLost) {
+    buttons = `<button class="btn big" data-act="online" style="--c:var(--pink)">Find another room</button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage</button><button class="btn ghost" data-act="title">Menu</button>`;
   } else if (RACE.online) {
     buttons = `<button class="btn big" data-act="lobbyBack" style="--c:var(--pink)">Back to the room</button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage</button><button class="btn ghost" data-act="leaveOnline">Leave room</button>`;
   } else buttons = `<button class="btn big" data-act="again" style="--c:var(--mint)">Race again <span class="k">ENTER</span></button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage</button><button class="btn" data-act="quick" style="--c:var(--lemon)">Change track</button><button class="btn ghost" data-act="title">Menu</button>`;
@@ -4452,7 +4454,7 @@ function showGarage() {
   GAR.view.set(nxt, 'hi');
 }
 ACT.garage = () => {
-  makePartThumbs(); UI.garageBack = UI.cur === 'lobby' ? 'lobbyBack' : UI.cur === 'results' ? (RACE.online ? 'lobbyBack' : RACE.mode === 'gp' ? (GP.on ? 'gpNext' : 'toResults') : 'again') : null; UI.sel = null; showGarage(); };
+  makePartThumbs(); UI.garageBack = UI.cur === 'lobby' ? 'lobbyBack' : UI.cur === 'results' ? (RACE.online && !RACE.netLost ? 'lobbyBack' : RACE.online ? 'toResults' : RACE.mode === 'gp' ? (GP.on ? 'gpNext' : 'toResults') : 'again') : null; UI.sel = null; showGarage(); };
 ACT.gtab = (k) => { UI.tab = k; UI.sel = null; showGarage(); };
 ACT.gsel = (arg) => { const [k, id] = arg.split(':'); UI.sel = { kind: k, id: k === 'paint' ? +id : id }; showGarage(); };
 ACT.gbuy = () => {
@@ -4512,7 +4514,14 @@ function netConnect(code, role, keepQm) {
 }
 function netSend(o) { if (NET.ws && NET.ws.readyState === 1) NET.ws.send(JSON.stringify(o)); }
 function netClose() { NET.on = false; if (NET.ws) { NET.ws.onclose = null; try { NET.ws.close(); } catch (e) { /* gone */ } NET.ws = null; } }
-function netFail(msg) { const was = NET.on; netClose(); if (was) { if (RACE.online && !RACE.results) { RACE.online = false; } showOnline(msg); } }
+function netFail(msg) {
+  const was = NET.on; netClose();
+  if (!was) return;
+  // Mid-race: let them finish; the results screen then offers the menu instead of the room.
+  if (MODE === 'race' && RACE.online && RACE.me && !RACE.results) { RACE.netLost = true; toast(msg); feed('You can still finish the race!'); return; }
+  if (RACE.online && !RACE.results) RACE.online = false;
+  showOnline(msg);
+}
 function netStatus(t) { NET.status = t; const el = $('netStatus'); if (el) el.textContent = t; }
 const netHello = () => netSend({ t: 'hi', cid: NET.cid, name: myName(), lo: myLoadout() });
 function netRoster() {
