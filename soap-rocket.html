@@ -3451,7 +3451,10 @@ function racersVisual(dt, t) {
       if (want !== v.lod) v.set(r.lo, want);
     }
     v.sync(r, dt, t);
-    v.root.visible = !r.hidden && !(r.ghost > 0 && Math.floor(t * 12) % 2 === 0) && (r.alive || r.deadT > 0);
+    // A rival right on top of the camera would fill the screen; hide it until it moves on.
+    let camNear = false;
+    if (r !== me && MODE === 'race') { _rv.set(r.x, r.y + 0.3, r.z); camNear = _rv.distanceTo(camera.position) < 1.5; }
+    v.root.visible = !r.hidden && !camNear && !(r.ghost > 0 && Math.floor(t * 12) % 2 === 0) && (r.alive || r.deadT > 0);
     // Foam trail, spray and sparkles.
     r.trailT = (r.trailT || 0) - dt;
     const sp = r.speed;
