@@ -225,7 +225,7 @@ table.res.trophy th{font-size:13px;text-transform:uppercase;letter-spacing:.04em
 #mBoost.charging .k{background:#15935f}
 #mSuds .t i{background:linear-gradient(#ffffff,#bfe6ff)}
 #mAct .t i{background:linear-gradient(#fff3b0,#ffd23f)} #mAct:not(.ready) .t i{filter:saturate(.25) brightness(1.05)}
-#mAct.ready{animation:pulse .6s ease-in-out infinite alternate} body.touch #mAct{display:none!important} #mAct.dud{animation:dudShake .3s}
+#mAct.ready{animation:pulse .6s ease-in-out infinite alternate} #tHo.cool{filter:saturate(.25) brightness(.95);opacity:.6;background:linear-gradient(to top,rgba(255,210,63,.55) var(--fill,0%),rgba(255,255,255,.9) var(--fill,0%))!important} body.touch #mAct{display:none!important} #mAct.dud{animation:dudShake .3s}
 @keyframes dudShake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 @keyframes pulse{to{transform:translateY(-3px) rotate(-1.5deg)}}
 #hDrops{position:absolute;inset:0;overflow:hidden}
@@ -555,7 +555,7 @@ function cleanLoadout(lo) {
 }
 function barColor(lo) { const b = BARS[lo.bar] || BARS.rosy; const p = PAINTS[lo.paint | 0]; return p && p.c != null && !b.noPaint ? p.c : b.col; }
 
-const CPU_NAMES = ['Bubbles', 'Sudsy', 'Squeaky', 'Bloop', 'Foamy', 'Fizz', 'Splash', 'Puddles', 'Glossy', 'Slick', 'Pebble', 'Drip', 'Swish', 'Ripple', 'Duckie', 'Loofah'];
+const CPU_NAMES = ['Plop', 'Sudsy', 'Squeaky', 'Bloop', 'Foamy', 'Fizz', 'Splash', 'Puddles', 'Glossy', 'Slick', 'Pebble', 'Drip', 'Swish', 'Ripple', 'Duckie', 'Loofah'];
 
 // ==== 02-track.js ====
 // ---------------------------------------------------------------------------
@@ -2181,7 +2181,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611041345";
+const ASSET_V = "202611041400";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2337,7 +2337,7 @@ const ADDON_MAT = {};
 const addonMat = (c, o) => { if (!ADDON_MAT[c]) { ADDON_MAT[c] = toonMat(c, { spec: 0.6, rim: 0.3, ...(o || {}) }); ADDON_MAT[c].userData.keep = true; } return ADDON_MAT[c]; };
 const ADDON_GEO = new Map();   // shared shapes: every soap reuses them
 const ag = (key, fn) => { let g = ADDON_GEO.get(key); if (!g) { g = fn(); g.userData.keep = true; ADDON_GEO.set(key, g); } return g; };
-function addonPiece(kind, bb) {
+function addonPiece(kind, bb, round) {
   const top = bb.max.y, nose = bb.max.z, tail = bb.min.z, side = bb.max.x, G = new THREE.Group();
   if (kind === 'horn' && PGLB.ok) { const d = makeModel('rubber_duck', 0.3); d.position.set(0, top - 0.03, tail * 0.58); G.add(d); }
   else if (kind === 'sponge' && PGLB.ok) { const sp = makeModel('sponge', 0.42); sp.scale.z *= 0.55; sp.position.set(0, top * 0.25, nose + 0.06); G.add(sp); }
@@ -2357,7 +2357,7 @@ function addonPiece(kind, bb) {
     for (const sx of [-1, 1]) { const f = inked(fg, addonMat(0x46b4ff), 0.6); f.rotation.y = sx > 0 ? -Math.PI / 2 : Math.PI / 2; f.rotation.z = 0; f.position.set(sx * (side + 0.01), top * 0.35, tail * 0.55); f.rotation.x = 0; f.rotation.order = 'YXZ'; G.add(f); }
   }
   else if (kind === 'bumpers') {
-    for (const sx of [-1, 1]) { const bl = Math.round((nose - tail) * 0.62 * 20) / 20; const b = inked(ag('bump' + bl, () => new THREE.CapsuleGeometry(0.06, bl, 4, 10)), addonMat(0xff6b6b), 0.6); b.rotation.x = Math.PI / 2; b.position.set(sx * (side + 0.03), top * 0.38, (nose + tail) * 0.5); G.add(b); }
+    for (const sx of [-1, 1]) { const bl = Math.round((nose - tail) * (round ? 0.4 : 0.62) * 20) / 20; const b = inked(ag('bump' + bl, () => new THREE.CapsuleGeometry(0.06, bl, 4, 10)), addonMat(0xff6b6b), 0.6); b.rotation.x = Math.PI / 2; b.position.set(sx * (side + (round ? -0.02 : 0.03)), top * 0.38, (nose + tail) * 0.5); G.add(b); }
   }
   else if (kind === 'hop') {
     const coil = inked(ag('coil', () => { const pts = []; for (let k = 0; k <= 60; k++) { const a = k / 60 * Math.PI * 2 * 4; pts.push(new THREE.Vector3(Math.cos(a) * 0.09, k / 60 * 0.22, Math.sin(a) * 0.09)); } return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 80, 0.018, 6); }), addonMat(0xdfe6f2, { spec: 0.95 }), 0.5); coil.position.set(0, top - 0.02, tail * 0.5); G.add(coil);
@@ -2381,7 +2381,7 @@ class SoapView {
     const bg = this.geo && this.geo.barG; if (!bg) return;
     if (!bg.boundingBox) bg.computeBoundingBox();
     const A = new THREE.Group();
-    for (const m of lo.mods || []) { const p = addonPiece(m, bg.boundingBox); if (p) A.add(p); }
+    const round = !!(BARS[lo.bar] || {}).model; for (const m of lo.mods || []) { const p = addonPiece(m, bg.boundingBox, round); if (p) A.add(p); }
     A.traverse((o) => { if (o.isMesh && !o.userData.outline) { o.castShadow = true; } });
     if (A.children.length) { this.addons = A; this.body.add(A); }
   }
@@ -2735,7 +2735,7 @@ class Racer {
       // Friction can slow a bar right down, but it never beats the rocket.
       const muG = Math.min(mu * CFG.G, CFG.thrust * accMul * 0.45);
       const k1 = Math.max(0, sp - muG * dt) / sp;
-      const topMul = S.top * lerp(1, S.wetTop, wet) * (1 + 0.2 * shr) * (this.boosting ? lerp(1, CFG.bTop * S.bTop, this.spoolK ?? 1) : 1) * (this.draft > 0 ? 1.05 : 1);
+      const topMul = S.top * lerp(1, S.wetTop, wet) * (1 + 0.2 * shr) * (this.boosting ? lerp(1, CFG.bTop * S.bTop, this.spoolK ?? 1) : 1) * (this.draft > 0 ? 1.05 : 1) * (1 + (this.catchUp || 0) * 0.3);
       const k2 = 1 / (1 + (CFG.drag3 / (topMul * topMul * topMul)) * sp * sp * dt);
       const k3 = Math.exp(-(pud * CFG.puddleDrag + mat * CFG.matDrag) * dt);
       this.vx *= k1 * k2 * k3; this.vz *= k1 * k2 * k3;
@@ -2783,7 +2783,7 @@ class Racer {
     this.gx = gx; this.gz = gz; this.gnx = lerp(this.gnx, -gx, 0.3); this.gnz = lerp(this.gnz, -gz, 0.3);
     if (this.air) {
       this.vy -= CFG.Gair * dt; this.y += this.vy * dt; this.stat.airT += dt; this.jumpT = (this.jumpT || 0) + dt;
-      if (this.y <= h) { this.land = clamp(-this.vy * 0.09, 0.05, 0.9); this.emit('land', { v: -this.vy, air: this.jumpT }); this.jumpT = 0; this.y = h; this.vy = 0; this.air = false; }
+      if (this.y <= h) { this.land = clamp(-this.vy * 0.09, 0.05, 0.9); this.emit('land', { v: -this.vy, air: this.jumpT, hop: !!this.hopJump }); this.hopJump = false; this.jumpT = 0; this.y = h; this.vy = 0; this.air = false; }
     } else {
       const vyg = (h - this.y) / dt;
       if ((this.vy > 1.4 || h < this.y - 0.02) && vyg < this.vy - CFG.Gair * dt * 1.5 && spd > 4) { this.air = true; this.vy -= CFG.Gair * dt; this.y += this.vy * dt; this.emit('jump'); }
@@ -2874,7 +2874,7 @@ class Racer {
   }
   hop() {
     if (!this.S.hop || this.hopCd > 0 || this.air || this.boost < 15 || !this.alive) return false;
-    this.boost -= 15; this.hopCd = 1.1; this.vy = 6.8; this.air = true; this.y += 0.04; this.land = 0.3;
+    this.boost -= 15; this.hopCd = 1.1; this.vy = 6.8; this.air = true; this.y += 0.04; this.land = 0.3; this.hopJump = true;
     this.emit('hop'); return true;
   }
   spinOut(T, k) {
@@ -2975,6 +2975,7 @@ class CpuDriver {
     this.pace = this.D.pace * (0.97 + rnd() * 0.06);
     this.wob = rnd() * 10; this.stuckT = 0; this.revT = 0; this.sudsT = 1 + rnd() * 3; this.hornT = 2 + rnd() * 4;
     this.lineJit = 0; this.rubber = 1;
+    this.spread = Math.floor(rnd() * 5) * 4;   // its own idea of 'back in sight', so CPUs don't all bunch at one distance
   }
   think(dt, T, race) {
     const r = this.r, I = r.in;
@@ -3027,7 +3028,7 @@ class CpuDriver {
     I.thr = Math.abs(err) > 1.5 ? 0.3 : 1; I.brk = 0;
     if (spd > vdes * 1.1 && Math.abs(err) < 1.2) { I.thr = 0; if (spd > vdes * 1.35) I.brk = 0.7; }
     const racing = race.phase === 'race';
-    I.boost = racing && r.boost > this.D.boost && kmax < 0.03 && Math.abs(err) < 0.22 && spd > 4.5;
+    I.boost = racing && r.boost > (this.rubber > 1.08 ? Math.min(this.D.boost, 25) : this.D.boost) && kmax < 0.03 && Math.abs(err) < 0.22 && spd > 4.5;
     if (r.boosting && (kmax > 0.06 || Math.abs(err) > 0.4)) I.boost = false;
     // Suds for tailgaters.
     I.suds = false;
@@ -3630,7 +3631,9 @@ function raceStep(dt) {
   const racing = RACE.phase === 'race' || RACE.phase === 'done';
   // Gentle catch-up in solo races: far-ahead CPUs ease off, far-behind ones push.
   if (RACE.me && !RACE.online && !RACE.me.finished) for (const c of RACE.cpus) { if (c.r === RACE.me) continue; const gap = c.r.progress - RACE.me.progress; // Ahead of you: ease off. Far behind: catch up until back in sight, then race normally.
-    c.rubber = gap >= 0 ? Math.max(c.D.rubMin, 1 - gap * c.D.rubK) : -gap > c.D.rubDead ? Math.min(c.D.rubMax, 1 + (-gap - c.D.rubDead) * c.D.rubK) : 1; }
+    const dead = c.D.rubDead + (c.spread || 0);
+    c.rubber = gap >= 0 ? Math.max(c.D.rubMin, 1 - Math.max(0, gap - (c.spread || 0) * 0.5) * c.D.rubK) : -gap > dead ? Math.min(c.D.rubMax, 1 + (-gap - dead) * c.D.rubK) : 1;
+    c.r.catchUp = Math.max(0, c.rubber - 1); }
   for (const c of RACE.cpus) c.think(dt, T, RACE);
   for (const r of RACE.racers) {
     if (r.kind === 'net') continue;
@@ -3829,7 +3832,7 @@ function handleEvents() {
           if (r.alive && ((e.air || 0) < 0.14 || Math.abs(e.v) < 1.6)) break;
           if (r.alive && (r.onSurface === 'dry' || r.onSurface === 'mat')) { FX.bubbles(r.x, r.y + 0.12, r.z, 4 + Math.round(e.v), 0.45, 0.5, 0.1); FX.ringAt(r.x, r.y, r.z, 0.8 + e.v * 0.1, [1, 1, 1], 0.35); sfxAt('thud1', r.x, r.y, r.z, clamp(e.v / 7, 0.25, 0.8)); }
           else { FX.splash(r.x, r.y, r.z, 8 + e.v * 2, 0.5 + e.v * 0.08); FX.ringAt(r.x, r.y, r.z, 1 + e.v * 0.15, [1, 1, 1], 0.45); sfxAt(r.alive ? 'splash' : 'splashBig', r.x, r.y, r.z, clamp(e.v / 6, 0.3, 1)); }
-          if (isMe) { CAM.shake = Math.max(CAM.shake, clamp(e.v / 8, 0.1, 0.6)); rumble(e.v / 10); if (e.air > 0.3 && r.alive && RACE.phase === 'race') { center('BIG AIR!', 'c2 sm', 0.8); r.boost = Math.min(100, r.boost + 15); sfx('chime', 0.5, 1.3); FX.sparkle(r.x, r.y + 0.4, r.z, 5, [1, 0.9, 0.4], 0.16); } } break;
+          if (isMe) { CAM.shake = Math.max(CAM.shake, clamp(e.v / 8, 0.1, 0.6)); rumble(e.v / 10); if (e.air > 0.3 && !e.hop && r.alive && RACE.phase === 'race') { center('BIG AIR!', 'c2 sm', 0.8); r.boost = Math.min(100, r.boost + 15); sfx('chime', 0.5, 1.3); FX.sparkle(r.x, r.y + 0.4, r.z, 5, [1, 0.9, 0.4], 0.16); } } break;
         case 'slideDone': if (isMe && e.t > 1.4) { feed(e.t > 2.4 ? 'MEGA SLIDE!' : 'SLIDE!'); sfx('pop', 0.5, 1.3); } break;
         case 'shield': sfxAt('pop', r.x, r.y, r.z, 1, 0.8); FX.bubbles(r.x, r.y + 0.3, r.z, 18, 1, 1, 0.16); if (isMe) feed('Bubble Wrap saved you!'); break;
         case 'pickup':
@@ -4511,7 +4514,7 @@ function hudUpdate() {
   if (me.S.horn || me.S.hop) {
     const cd = me.S.horn ? (me.hornCd || 0) / 5 : (me.hopCd || 0) / 1.1, need = me.S.horn ? 20 : 15;
     const ap = Math.round((1 - clamp(cd, 0, 1)) * 100), ready = cd <= 0 && me.boost >= need;
-    if (L.act !== ap || L.actR !== ready) { $('mAct').querySelector('i').style.width = ap + '%'; $('mAct').classList.toggle('ready', ready); L.act = ap; L.actR = ready; }
+    if (L.act !== ap || L.actR !== ready) { $('mAct').querySelector('i').style.width = ap + '%'; $('mAct').classList.toggle('ready', ready); $('tHo').classList.toggle('cool', !ready); $('tHo').style.setProperty('--fill', ap + '%'); L.act = ap; L.actR = ready; }
   }
   // Board.
   if (RACE.frame % 6 === 0 && RACE.sorted) {
@@ -5191,7 +5194,8 @@ function startRace(opts) {
   document.body.classList.add('racing');
   hudReset();
   PERF.samples = []; PERF.checked = false;
-  if ((P.st.races || 0) < 2) setTimeout(() => { if (MODE === 'race' && RACE.phase === 'intro') controlsCard(); }, 150);
+  const eMod = RACE.me && !RACE.attract ? (RACE.me.S.horn ? 'horn' : RACE.me.S.hop ? 'hop' : '') : '';
+  if ((P.st.races || 0) < 2 || (eMod && P.cardE !== eMod)) { if (eMod) P.cardE = eMod; setTimeout(() => { if (MODE === 'race' && RACE.phase === 'intro') controlsCard(); }, 150); }
   else { const d = RACE.T.def; const sub = RACE.gp ? 'Race ' + (RACE.gp.idx + 1) + ' of ' + TRACKS.length : RACE.laps + ' laps'; setTimeout(() => { if (MODE === 'race' && RACE.phase === 'intro') { const c = $('hCenter'); c.innerHTML = `<div class="pop c4 sm">${esc(d.name)}</div><div class="hint" style="position:static;transform:none">${esc(sub)}</div>`; setTimeout(() => { if (RACE.phase !== 'intro' && RACE.phase !== 'count') return; c.querySelectorAll('div').forEach((x) => x.classList.add('fadeout')); }, 1700); } }, 200); }
 }
 // Title-screen camera: tracking shots that cut between racers.
@@ -5528,6 +5532,11 @@ async function runSmoke() {
       const cpu = RACE.racers.find((r) => r !== me); SUDS.list = []; cpu.sudsByMe = 0;
       const sl2 = SUDS.add(cpu.x, cpu.z, 2, me, 6); sl2.born = RACE.t - 5; cpu.spin = 0; cpu.events.length = 0; cpu.spinOut(RACE.T, 1); handleEvents();
       ok('sudsing a rival counts toward the Sudsed rivals bonus', cpu.sudsByMe === 1, String(cpu.sudsByMe));
+      // Eighth review: a Spring Sole hop costs boost and never earns BIG AIR.
+      me.setLoadout({ bar: 'rosy', rocket: 'twin', mods: ['hop'] }); SUDS.list = []; me.events.length = 0; me.hopCd = 0; me.boost = 60; me.spin = 0;
+      me.hop(); let landed = false; for (let k = 0; k < 240 && !landed; k++) { me.step(CFG.dt, RACE.T, true); landed = !me.air; }
+      handleEvents(); const bAfter = me.boost;
+      ok('a Spring Sole hop costs boost (no BIG AIR refund)', landed && bAfter < 52, 'boost after hop ' + bAfter.toFixed(1));
       SUDS.list = [];
     }
     // A full CPU race finishes.
