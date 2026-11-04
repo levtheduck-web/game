@@ -2055,7 +2055,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040746";
+const ASSET_V = "202611040751";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -3608,7 +3608,7 @@ function playerLoops(dt) {
   const r = RACE.me;
   if (!r || !AU.ok || RACE.paused || !(RACE.phase === 'race' || RACE.phase === 'count' || RACE.phase === 'done') || r.finished) { if (AU.ok) { loopSet('thrust', 0); loopSet('boost', 0); loopSet('slide', 0); } return; }
   const sp = r.speed;
-  loopSet('thrust', r.alive ? 0.06 + r.thr * 0.22 : 0, 0.8 + sp * 0.04 + r.thr * 0.15);
+  loopSet('thrust', r.alive && r.thr > 0.05 ? 0.1 + r.thr * 0.18 : 0, 0.8 + sp * 0.04 + r.thr * 0.15);
   loopSet('boost', r.boosting ? 0.62 : 0, 0.95 + sp * 0.02);
   if (r.boosting && !r.wasBoost) sfx('ignite', 0.55, 1 + Math.random() * 0.1);
   r.wasBoost = r.boosting;
