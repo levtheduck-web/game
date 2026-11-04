@@ -101,6 +101,8 @@ input.field.name{text-transform:none;font-family:var(--font);font-weight:700;fon
 
 /* track cards */
 .trk{display:flex;flex-direction:column;gap:6px}
+.grid.trk-grid{grid-template-columns:repeat(auto-fill,minmax(176px,1fr))}
+.trk-grid .item p{font-size:12.5px}
 .trk canvas{width:100%;aspect-ratio:16/10;border-radius:12px;border:3px solid var(--ink);background:#e9f6ff;display:block}
 
 /* results */
@@ -541,6 +543,24 @@ const TRACKS = [
     obstacles: [[0.3, 2.6, 0.75, 'cup'], [0.555, -2.6, 0.62, 'bottle'], [0.68, 2.4, 0.5, 'duck'], [0.4, -2.2, 0.55, 'bottle']],
     room: { kind: 'vanity' },
   },
+  {
+    id: 'paper', name: 'Paper Trail', short: 'PAPER', laps: 3, diff: 2,
+    blurb: 'Round the toilet, up a ramp of unrolled toilet paper and off the end. Hold it straight and land it!',
+    scale: 1.4,
+    pts: [[-21, 9.5, 9], [-11, 11.4, 8.8], [-3, 7.6, 8.4], [5, 11.4, 8.6], [14, 10.2, 8.8], [21, 6, 8.6], [23.5, -1, 8.6], [19, -7.5, 8.4], [10, -10, 8.4], [0, -10.4, 8.6], [-10, -10.2, 8.6], [-19, -8, 8.8], [-24.5, -0.5, 9]],
+    floor: 'tile', wetBase: 0.3, wetNoise: 0.32, prof: 'flat',
+    walls: { out: [[0, 'base']], in: [[0, 'bench'], [0.66, 'towel'], [0.86, 'bench']] },
+    plats: [[0.53, 6.5, 8, 1.1, 2.3]],
+    drains: [[0.86, -1.8]],
+    rain: [],
+    puddles: [[0.75, 0, 3.4], [0.17, 2, 2.6], [0.3, -1.5, 2.4], [0.95, 1.5, 2.6]],
+    dry: [[0.4, 2.5, 2.4]],
+    mats: [[0.22, 0.27, -9, -0.6, 'rug']],
+    obstacles: [[0.12, -2.4, 0.62, 'duck'], [0.36, 2.5, 0.78, 'plunger'], [0.9, 2.4, 0, 'brush', 0.4], [0.45, -2.6, 0.7, 'pouf']],
+    coins: [[0.6, 0.66, 0, 0, 5], [0.05, 0.1, -2, 2, 4], [0.8, 0.84, 2.4, 2.4, 3]],
+    stars: [[0.5, 0], [0.2, -2.4]], fuel: [[0.98, -2.5]],
+    room: { kind: 'paper' },
+  },
 ];
 for (const t of TRACKS) t.base = t.id;
 const TRACK_BY = Object.fromEntries(TRACKS.map((t) => [t.id, t]));
@@ -633,6 +653,7 @@ class Track {
       return o;
     });
     this.ramps = (def.ramps || []).map(([u, len, h]) => ({ s0: def.rev ? (((1 - u) * L - len) % L + L) % L : u * L, len, h }));
+    this.plats = (def.plats || []).map(([u, up, flat, drop, h]) => { const len = up + flat + drop; return { s0: def.rev ? (((1 - u) * L - len) % L + L) % L : u * L, up, flat, drop, h, len }; });
     this.winds = (def.wind || []).map(([u0, u1, dir]) => ({ s0: u0 * L, s1: u1 * L, dir }));
     this.buildGrid();
     this.buildSurface();
@@ -707,6 +728,11 @@ class Track {
       let ds = s - r.s0; if (ds < -this.L / 2) ds += this.L; if (ds > this.L / 2) ds -= this.L;
       if (ds > 0 && ds < r.len) h += r.h * Math.sin(Math.PI * ds / r.len) ** 2;
     }
+    // Raised step: smooth ramp up, flat top, then a sharp edge you fly off.
+    for (const p of this.plats) {
+      let ds = s - p.s0; if (ds < -this.L / 2) ds += this.L; if (ds > this.L / 2) ds -= this.L;
+      if (ds > 0 && ds < p.len) h += p.h * (ds < p.up ? sstep(0, p.up, ds) : ds < p.up + p.flat ? 1 : 1 - (ds - p.up - p.flat) / p.drop);
+    }
     return h;
   }
   heightAt(x, z, hint = -1, tmp = {}) {
@@ -759,6 +785,16 @@ class Track {
         const wx = this.bx0 + x * res, wz = this.bz0 + y * res;
         let inside = false; for (let a = 0, b = poly.length - 1; a < poly.length; b = a++) { const pa = poly[a], pb = poly[b]; if ((pa.z > wz) !== (pb.z > wz) && wx < (pb.x - pa.x) * (wz - pa.z) / (pb.z - pa.z) + pa.x) inside = !inside; }
         if (inside) { const k = y * W + x; mat[k] = 1; wet[k] = 0; pud[k] = 0; }
+      }
+    }
+    // Toilet paper over raised steps: dry and grippy.
+    for (const pl of this.plats || []) {
+      for (let ds = 0; ds <= pl.up + pl.flat; ds += res * 0.8) {
+        const ss = pl.s0 + ds, i = Math.floor((((ss % this.L) + this.L) % this.L) / this.ds) % this.N;
+        for (let d = -this.hw[i] + 0.4; d <= this.hw[i] - 0.4; d += res * 0.8) {
+          const x = Math.floor((this.px[i] + this.nx[i] * d - this.bx0) / res), y = Math.floor((this.pz[i] + this.nz[i] * d - this.bz0) / res);
+          if (x >= 0 && y >= 0 && x < W && y < H) { const k = y * W + x; wet[k] = 0; pud[k] = 0; }
+        }
       }
     }
     // Soften mat edges a touch.
@@ -1454,6 +1490,8 @@ const LOOKS = {
   tub: { bg: 0xffe9f2, floor: { kind: 'porcelain', a: 0xfbf1f3, rough: 0.22 }, room: { kind: 'tile', a: 0xf7f1ff, b: 0xe8e0ff, grout: 0xcfc5e4, tile: 3.4, check: 1 }, paint: 0xffe0ec, outY: -6.6 },
   floor: { bg: 0xe8f7ef, floor: { kind: 'tile', a: 0xfffaf2, b: 0xd5f3e8, grout: 0xc9c2d8, tile: 3, check: 1, rough: 0.42 }, wall: { kind: 'tile', a: 0xffffff, b: 0xffffff, grout: 0xd0d7e6, tile: 1.4, rough: 0.3 },
     bench: { kind: 'tile', a: 0xfff3e0, b: 0xffe7c7, grout: 0xd8c7ad, tile: 1.5, check: 1, rough: 0.35 }, paint: 0xc9ecdf, outY: -0.02 },
+  paper: { bg: 0xfff1e4, floor: { kind: 'tile', a: 0xfff4dc, b: 0xffdfe9, grout: 0xd9c4cf, tile: 2.6, check: 1, rough: 0.4 }, wall: { kind: 'tile', a: 0xffffff, b: 0xffffff, grout: 0xd6cbe0, tile: 1.4, rough: 0.3 },
+    bench: { kind: 'tile', a: 0xd9f2ff, b: 0xbfe6ff, grout: 0x9fc4dd, tile: 1.5, check: 1, rough: 0.35 }, paint: 0xffe1c4, outY: -0.02 },
   vanity: { bg: 0xf3eaff, floor: { kind: 'marble', a: 0xf6f1f8, b: 0xa394bd, rough: 0.22 }, wall: { kind: 'tile', a: 0x9fdcff, b: 0xc9b6ff, grout: 0xffffff, tile: 0.9, check: 1, rough: 0.2 },
     room: { kind: 'wood', a: 0xd9b48c, b: 0xc79f78 }, paint: 0xf3e3ff, outY: -10.5 },
 };
@@ -1606,6 +1644,30 @@ function buildWorld(T) {
     line.receiveShadow = true; G.add(line);
   }
 
+  // ---- unrolled toilet paper over each raised step -----------------------------
+  for (const pl of T.plats) {
+    const cv = document.createElement('canvas'); cv.width = 128; cv.height = 256; const c = cv.getContext('2d');
+    c.fillStyle = '#fffdf8'; c.fillRect(0, 0, 128, 256);
+    c.fillStyle = 'rgba(200,190,220,.35)'; for (let y = 8; y < 256; y += 16) for (let x = 8; x < 128; x += 16) { c.beginPath(); c.arc(x + ((y / 16) % 2) * 8, y, 2.2, 0, TAU); c.fill(); }
+    c.fillStyle = 'rgba(150,140,180,.6)'; for (let x = 4; x < 128; x += 12) c.fillRect(x, 0, 6, 3);
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 4;
+    const len = pl.up + pl.flat, M = 8, K = Math.max(8, Math.round(len / 0.5));
+    const pos = [], uv = [], idx = [];
+    for (let k = 0; k <= K; k++) {
+      const ss = pl.s0 + len * k / K; const i = Math.floor((((ss % T.L) + T.L) % T.L) / T.ds) % T.N;
+      for (let j = 0; j <= M; j++) {
+        const d = lerp(-(T.hw[i] - 0.45), T.hw[i] - 0.45, j / M);
+        pos.push(T.px[i] + T.nx[i] * d, T.heightSD(ss, d, i) + 0.03, T.pz[i] + T.nz[i] * d); uv.push(j / M, (len * k / K) / 3);
+      }
+    }
+    for (let k = 0; k < K; k++) for (let j = 0; j < M; j++) { const a = k * (M + 1) + j, b = a + M + 1; idx.push(a, a + 1, b, b, a + 1, b + 1); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+    if (g.attributes.normal.getY(0) < 0) { const ix = g.index.array; for (let q = 0; q < ix.length; q += 3) { const t = ix[q + 1]; ix[q + 1] = ix[q + 2]; ix[q + 2] = t; } g.computeVertexNormals(); }
+    const paper = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, color: 0xe6e2ee, roughness: 0.95, envMapIntensity: 0.15, polygonOffset: true, polygonOffsetFactor: -2 }));
+    paper.receiveShadow = true; G.add(paper); HIDE_IN_MIRROR.push(paper);
+    // The roll it came from, parked at the bottom of the ramp.
+    if (PGLB.ok) { const i = Math.floor((((pl.s0 % T.L) + T.L) % T.L) / T.ds) % T.N; const sd = -T.inSign * (T.hw[i] + 1.6); const roll = makeModel('toilet_paper', 2.2); at(roll, T.px[i] + T.nx[i] * sd, 0, T.pz[i] + T.nz[i] * sd, Math.atan2(T.tx[i], T.tz[i]) + Math.PI / 2); G.add(roll); }
+  }
   // ---- start gantry: two shampoo bottles with a toothbrush laid across ---------
   if (PGLB.ok) {
     const i = 1, hw = T.hw[i] + 0.9;
@@ -1679,7 +1741,7 @@ function buildWorld(T) {
           const curve = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(p.x, p.y0 + 0.78, p.z)), !!run.closed, 'centripetal');
           const segs = Math.max(8, Math.round(pts.length * 0.8));
           const tg = new THREE.TubeGeometry(curve, segs, 0.85, 12, !!run.closed);
-          const tcol = T.def.base === 'floor' ? (left ? [0xff9ccf, 0xffffff] : [0x8fd3ff, 0xffffff]) : [0xffe066, 0xffffff];
+          const tcol = T.def.base === 'floor' ? (left ? [0xff9ccf, 0xffffff] : [0x8fd3ff, 0xffffff]) : T.def.base === 'paper' ? [0x8ee8c8, 0xffffff] : [0xffe066, 0xffffff];
           const tmesh = inked(tg, fabricMat(tcol[0], tcol[1], { sc: 1, stripe: 1 }), 0.9);
           tmesh.material.userData.U.uSc.value = 1; tmesh.castShadow = true;
           // Fabric shader stripes run along uv.y (around); scale uv.x for loops along length.
@@ -1779,6 +1841,14 @@ function buildWorld(T) {
     else { const scale = inked(new RoundedBoxGeometry(5, 0.8, 5.6, 3, 0.4), tm('scale', 0xc9b6ff, { spec: 0.6 })); scale.position.set(icx - 3.5, 0.4, icz + 3.5); scale.rotation.y = 0.3; G.add(scale); }
     const basket = inked(latheG([[0, 0], [2.6, 0], [3.0, 5.5], [3.2, 5.6], [0, 5.6]], 24), tm('basket', 0xffd6a0, { spec: 0.2 })); basket.position.set(icx - 20, 0, icz + 4.5); G.add(basket);
     if (PGLB.ok) { const tp = makeModel('toilet_paper', 1.6); at(tp, icx + 12, 0, icz + 3.5, 0.6); G.add(tp); const pl = makeModel('plunger', 1.4); at(pl, icx + 2, 0, icz - 3.6, 0); G.add(pl); }
+  } else if (T.def.base === 'paper') {
+    const toilet = makeToilet(1.6); at(toilet, icx + 2, 0, icz - 1.5, Math.PI); G.add(toilet);
+    if (PGLB.ok) {
+      for (let k = 0; k < 3; k++) { const tp = makeModel('toilet_paper', 1.5); at(tp, icx - 12 + k * 0.2, k * 1.7, icz + 1 + (k % 2) * 0.3, k * 0.9); const sh = tp.userData.parts; G.add(tp); }
+      const pl = makeModel('plunger', 1.3); at(pl, icx + 13, 0, icz + 2.5, 0.4); G.add(pl);
+      const pf = makeModel('bath_pouf', 1.4); at(pf, icx - 6, 0, icz - 2.5, 0); G.add(pf);
+    }
+    const plant = makePlant(6); at(plant, icx + 10, 0, icz - 2.5); G.add(plant);
   } else if (T.def.base === 'vanity') {
     // The sink basin: rings shrinking toward the middle and dropping into a bowl.
     const K = 7, rings = [];
@@ -1799,8 +1869,9 @@ function buildWorld(T) {
   const outY = look.outY;
   const W = (T.bx1 - T.bx0) + 70, D = (T.bz1 - T.bz0) + 70;
   const rcx = (T.bx0 + T.bx1) / 2, rcz = (T.bz0 + T.bz1) / 2;
-  if (look.room || T.def.base === 'floor') {
-    const rf = new THREE.Mesh(new THREE.PlaneGeometry(W, D), T.def.base === 'floor' ? fm : patMat({ ...look.room }));
+  const flatRoom = T.def.base === 'floor' || T.def.base === 'paper';
+  if (look.room || flatRoom) {
+    const rf = new THREE.Mesh(new THREE.PlaneGeometry(W, D), flatRoom ? fm : patMat({ ...look.room }));
     rf.rotation.x = -Math.PI / 2; rf.position.set(rcx, outY, rcz); rf.receiveShadow = true; G.add(rf); HIDE_IN_MIRROR.push(rf);
   }
   // Room walls with a window on the sunny side.
@@ -1914,8 +1985,8 @@ function buildWorld(T) {
       c.fillStyle = g; c.fillRect(0, 0, s, s);
       c.globalCompositeOperation = 'destination-out'; c.fillStyle = '#000'; c.fillRect(s * 0.47, 0, s * 0.06, s); c.fillRect(0, s * 0.47, s, s * 0.06);
     })));
-    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 });
-    for (const u of [0.04, 0.47, 0.8]) {
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: (look.floor.a > 0xf8f0e0 ? 0.16 : 0.24), blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 });
+    for (const u of T.plats.length ? [0.04, 0.8] : [0.04, 0.47, 0.8]) {
       const p = T.at(u, T.inSign * 0.8); const y = T.heightAt(p.x, p.z) + 0.02;
       const m = new THREE.Mesh(new THREE.PlaneGeometry(9, 6.5), mat); m.rotation.set(-Math.PI / 2, 0, 0.5); m.position.set(p.x, y, p.z); m.renderOrder = 3; G.add(m); HIDE_IN_MIRROR.push(m);
     }
@@ -1942,7 +2013,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040719";
+const ASSET_V = "202611040726";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2476,7 +2547,7 @@ class Racer {
       if (this.y <= h) { this.land = clamp(-this.vy * 0.09, 0.05, 0.9); this.emit('land', { v: -this.vy }); this.y = h; this.vy = 0; this.air = false; }
     } else {
       const vyg = (h - this.y) / dt;
-      if (this.vy > 1.4 && vyg < this.vy - CFG.Gair * dt * 1.5 && spd > 5) { this.air = true; this.vy -= CFG.Gair * dt; this.y += this.vy * dt; this.emit('jump'); }
+      if ((this.vy > 1.4 || h < this.y - 0.02) && vyg < this.vy - CFG.Gair * dt * 1.5 && spd > 4) { this.air = true; this.vy -= CFG.Gair * dt; this.y += this.vy * dt; this.emit('jump'); }
       else { this.vy = clamp(vyg, -20, 20); this.y = h; }
     }
     this.collideTrack(T, racing);
@@ -3508,6 +3579,7 @@ function hints(r) {
 const MEDALS = {
   shower: [15.0, 16.5, 18.5], tub: [16.0, 17.5, 20.0], floor: [19.5, 21.5, 24.0], vanity: [15.5, 17.0, 19.0],
   'shower-r': [14.0, 15.5, 17.5], 'tub-r': [16.0, 17.5, 20.0], 'floor-r': [19.5, 21.5, 24.0], 'vanity-r': [14.5, 16.0, 18.0],
+  paper: [16.5, 18.0, 20.5], 'paper-r': [16.0, 17.5, 20.0],
 };
 const MEDAL_ICON = ['', '🥇', '🥈', '🥉'], MEDAL_NAME = ['', 'Gold', 'Silver', 'Bronze'], MEDAL_PAY = [0, 120, 70, 40];
 function medalFor(id, lap) { const m = MEDALS[id]; if (!m || !isFinite(lap)) return 0; return lap <= m[0] ? 1 : lap <= m[1] ? 2 : lap <= m[2] ? 3 : 0; }
@@ -3750,7 +3822,7 @@ function showQuick() {
   const q = UI.quick;
   screen('quick', `${topbar('title')}<div class="panel card"><header><h2>Quick race</h2>
     <button class="btn" data-act="startQuick" style="--c:var(--mint)">Start <span class="k">ENTER</span></button></header>
-    <div class="scroll"><div class="grid">${trackCards(q.track, 'pickTrack', q.rev)}</div></div>
+    <div class="scroll"><div class="grid trk-grid">${trackCards(q.track, 'pickTrack', q.rev)}</div></div>
     <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center">
       <label class="opt">Laps ${seg('laps', [[2, '2'], [3, '3'], [5, '5']], q.laps)}</label>
       <label class="opt">Racers ${seg('cpus', [[0, 'Me vs my ghost'], [3, '4'], [5, '6'], [7, '8']], q.cpus)}</label>
@@ -3778,7 +3850,7 @@ function showGP() {
   const cup = (k) => { const c = P.cups[k + (UI.gpRev ? '-r' : '')]; return c === 1 ? '🥇' : c === 2 ? '🥈' : c === 3 ? '🥉' : '◯'; };
   screen('gp', `${topbar('title')}<div class="panel card"><header><h2>Bath Cup Grand Prix</h2>
     <button class="btn" data-act="startGP" style="--c:var(--lemon)">Start the cup</button></header>
-    <p style="margin:0;font-weight:600">Four races, one on every track, against the same seven rivals. Points for every place: ${GP_PTS.join(', ')}. Top three take home a trophy and a big bubble bonus.</p>
+    <p style="margin:0;font-weight:600">${TRACKS.length} races, one on every track, against the same seven rivals. Points for every place: ${GP_PTS.join(', ')}. Top three take home a trophy and a big bubble bonus.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap">${TRACKS.map((t, k) => `<div class="item" style="flex:1;min-width:170px;cursor:default"><img src="${TRACK_IMG[t.id] || (TRACK_IMG[t.id] = trackCanvas(t.id))}" style="width:100%;border-radius:10px;border:3px solid var(--ink)"><h3>${k + 1}. ${t.name}</h3></div>`).join('')}</div>
     <div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap"><label class="opt">CPU ${seg('diff', [['rinse', 'Rinse ' + cup('rinse')], ['lather', 'Lather ' + cup('lather')], ['scrub', 'Scrub ' + cup('scrub')]], d)}</label>
     <label class="opt">Direction ${seg('rev', [[0, 'Normal'], [1, 'Reverse']], UI.gpRev)}</label>
@@ -3820,7 +3892,7 @@ function showResults(res) {
   if (RACE.mode === 'gp' && GP.on) {
     const st = gpStandings();
     const done = GP.idx >= TRACKS.length;
-    gpHtml = `<div class="card" style="padding:12px 14px;box-shadow:none"><h3 style="font-size:22px">Cup standings ${done ? '(final)' : `after race ${GP.idx} of 4`}</h3>${st.map((s, k) => `<div class="reward"><span>${k + 1}. ${esc(s.name)}</span><b>${s.v} pts</b></div>`).join('')}</div>`;
+    gpHtml = `<div class="card" style="padding:12px 14px;box-shadow:none"><h3 style="font-size:22px">Cup standings ${done ? '(final)' : `after race ${GP.idx} of ${TRACKS.length}`}</h3>${st.map((s, k) => `<div class="reward"><span>${k + 1}. ${esc(s.name)}</span><b>${s.v} pts</b></div>`).join('')}</div>`;
     if (done) {
       const myPos = st.findIndex((s) => s.k === 'me') + 1;
       const prize = { rinse: [240, 160, 100], lather: [300, 200, 120], scrub: [420, 280, 170] }[GP.diff][myPos - 1] || 0;
@@ -4442,7 +4514,7 @@ function showLobby() {
     <button class="btn sm ghost" data-act="leaveOnline">Leave</button></header>
     <p style="margin:0;font-weight:600">Friends join with the code <b>${esc(NET.code)}</b>. ${ps.length} of 8 here.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${plist}</div>
-    ${host ? `<div class="scroll"><div class="grid">${trackCards(L.track, 'lobbyTrack')}</div></div>
+    ${host ? `<div class="scroll"><div class="grid trk-grid">${trackCards(L.track, 'lobbyTrack')}</div></div>
       <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center"><label class="opt">Laps ${seg('laps', [[2, '2'], [3, '3'], [5, '5']], L.laps)}</label>
       <label class="opt">CPU fill ${seg('cpu', [[0, 'None'], [2, '2'], [4, '4'], [7, 'Fill up']], L.cpu)}</label>
       <label class="opt">CPU ${seg('diff', [['rinse', 'Rinse'], ['lather', 'Lather'], ['scrub', 'Scrub']], L.diff)}</label>
@@ -4489,7 +4561,7 @@ function startRace(opts) {
   hudReset();
   PERF.samples = []; PERF.checked = false;
   if ((P.st.races || 0) < 2) setTimeout(() => { if (MODE === 'race' && RACE.phase === 'intro') controlsCard(); }, 150);
-  else { const d = RACE.T.def; const sub = RACE.gp ? 'Race ' + (RACE.gp.idx + 1) + ' of 4' : RACE.laps + ' laps'; setTimeout(() => { if (MODE === 'race' && RACE.phase === 'intro') { const c = $('hCenter'); c.innerHTML = `<div class="pop c4 sm">${esc(d.name)}</div><div class="hint" style="position:static;transform:none">${esc(sub)}</div>`; setTimeout(() => { if (RACE.phase !== 'intro' && RACE.phase !== 'count') return; c.querySelectorAll('div').forEach((x) => x.classList.add('fadeout')); }, 1700); } }, 200); }
+  else { const d = RACE.T.def; const sub = RACE.gp ? 'Race ' + (RACE.gp.idx + 1) + ' of ' + TRACKS.length : RACE.laps + ' laps'; setTimeout(() => { if (MODE === 'race' && RACE.phase === 'intro') { const c = $('hCenter'); c.innerHTML = `<div class="pop c4 sm">${esc(d.name)}</div><div class="hint" style="position:static;transform:none">${esc(sub)}</div>`; setTimeout(() => { if (RACE.phase !== 'intro' && RACE.phase !== 'count') return; c.querySelectorAll('div').forEach((x) => x.classList.add('fadeout')); }, 1700); } }, 200); }
 }
 // Title-screen camera: tracking shots that cut between racers.
 function attractCam(dt) {

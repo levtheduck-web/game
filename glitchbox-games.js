@@ -3,7 +3,7 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
-  {name:'Soap Rocket',        file:'soap-rocket.html',            emoji:'🧼',color:['#bfe6ff','#ffd6ea'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Race rocket-powered bars of soap around a slippery bathroom. Wet floor is fast, mats grip, and your bar wears down as you go. Up to 8 friends online'},
+  {name:'Soap Rocket',        file:'soap-rocket.html',            emoji:'🧼',color:['#bfe6ff','#ffd6ea'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Race rocket-powered bars of soap around a slippery bathroom. Wet floor is fast, mats grip, and your bar wears down as you go. Five tracks, up to 8 friends online'},
   {name:'Rocket Roadster',    file:'rocket-roadster.html',        emoji:'🏎️',color:['#2b1418','#d06a3a'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Drive, hop and fly a rocket car over a mountain range. Race up to 7 friends to the summit pad, or winch them out of trouble'},
   {name:'Frontline',          file:'frontline.html',              emoji:'🦾',color:['#070a1c','#2a1622'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Start as a regular soldier. Level up, bolt on robot parts and push the machines back with friends or CPU squadmates. 1 to 4 players'},
   {name:'Tank War 3D',        file:'tank-war-3d.html',            emoji:'🪖',color:['#0b1a10','#1c3a52'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Tanks, ships, jets and choppers in 3D. Rack up kills to unlock variants, fight 7v7 or take on friends online'},
