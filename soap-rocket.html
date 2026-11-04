@@ -1919,7 +1919,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040657";
+const ASSET_V = "202611040659";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2620,7 +2620,7 @@ function collideRacers(a, b) {
 // and drop suds on whoever is tailgating them.
 // ---------------------------------------------------------------------------
 const DIFF = {
-  rinse:  { name: 'Rinse', pace: 0.8, aim: 0.55, boost: 70, suds: 0.08, mult: 0.8 },
+  rinse:  { name: 'Rinse', pace: 0.77, aim: 0.55, boost: 70, suds: 0.08, mult: 0.8 },
   lather: { name: 'Lather', pace: 0.9, aim: 0.8, boost: 55, suds: 0.16, mult: 1 },
   scrub:  { name: 'Scrub', pace: 0.985, aim: 1, boost: 40, suds: 0.26, mult: 1.35 },
 };
@@ -3635,7 +3635,7 @@ function ghostLap(lapTime) {
 // ---------------------------------------------------------------------------
 // Screens and HUD.
 // ---------------------------------------------------------------------------
-const UI = { cur: null, sel: null, tab: 'bar', quick: { track: 'shower', laps: 3, cpus: 5, diff: 'lather', rev: 0 }, prevScreen: null, gpRev: 0 };
+const UI = { cur: null, sel: null, tab: 'bar', quick: { track: 'shower', laps: 3, cpus: 5, diff: (P.st.wins || 0) > 0 ? 'lather' : 'rinse', rev: 0 }, prevScreen: null, gpRev: 0, gpDiff: (P.st.wins || 0) > 0 ? 'lather' : 'rinse' };
 const ACT = {};
 function screen(id, html, cls = '') {
   $('screens').innerHTML = `<div class="screen ${cls}" id="s-${id}">${html}</div>`;
@@ -3726,7 +3726,7 @@ const GP = { on: false };
 const GP_PTS = [15, 12, 10, 8, 6, 4, 2, 1];
 function showGP() {
   setMode('attract');
-  const d = UI.gpDiff || 'lather';
+  const d = UI.gpDiff || 'rinse';
   const cup = (k) => { const c = P.cups[k + (UI.gpRev ? '-r' : '')]; return c === 1 ? '🥇' : c === 2 ? '🥈' : c === 3 ? '🥉' : '◯'; };
   screen('gp', `${topbar('title')}<div class="panel card"><header><h2>Bath Cup Grand Prix</h2>
     <button class="btn" data-act="startGP" style="--c:var(--lemon)">Start the cup</button></header>
@@ -3739,7 +3739,7 @@ function showGP() {
 }
 ACT.gp = () => showGP();
 ACT.startGP = () => {
-  const d = UI.gpDiff || 'lather';
+  const d = UI.gpDiff || 'rinse';
   const rnd = mulberry((Math.random() * 1e9) | 0);
   const names = [...CPU_NAMES].sort(() => rnd() - 0.5).slice(0, 7);
   GP.on = true; GP.diff = d; GP.rev = UI.gpRev; GP.idx = 0; GP.pts = { me: 0 }; GP.roster = names.map((n) => ({ name: n, lo: randomLoadout(rnd, d === 'scrub' ? 2 : 1), kind: 'cpu' }));
