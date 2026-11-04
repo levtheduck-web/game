@@ -1915,7 +1915,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040650";
+const ASSET_V = "202611040651";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -4103,8 +4103,9 @@ function wsBase() {
   return 'wss://glitchbox-api.levtheduck.workers.dev/ws';
 }
 const r2 = (v) => Math.round(v * 100) / 100;
-function netConnect(code, role) {
+function netConnect(code, role, keepQm) {
   netClose();
+  if (!keepQm) NET.qm = null;
   Object.assign(NET, { code, role, on: true, raceId: 0, hostSeen: now() });
   NET.players.clear();
   NET.players.set(NET.cid, { cid: NET.cid, name: myName(), lo: myLoadout(), host: role === 'host', seen: now() });
@@ -4129,9 +4130,21 @@ function netRoster() {
 function netHandle(m) {
   const t = now();
   switch (m.t) {
-    case 'created': NET.hostSeen = t; showLobby(); netRoster(); break;
-    case 'joined': NET.hostSeen = t; netHello(); showLobby(); break;
-    case 'error': netFail(m.msg || 'That did not work.'); break;
+    case 'created': NET.hostSeen = t; NET.qm = null; showLobby(); netRoster(); break;
+    case 'joined': NET.hostSeen = t; NET.qm = null; netHello(); showLobby(); break;
+    case 'error': {
+      // Quick match: no room yet -> open it; full -> try the next one.
+      if (NET.qm && NET.qm.i <= 6) {
+        const msg = m.msg || '';
+        const code = 'SOAP' + NET.qm.i;
+        if (/No game/i.test(msg)) { netConnect(code, 'host', true); return; }
+        if (/in use/i.test(msg) && !NET.qm.retried) { NET.qm.retried = 1; netConnect(code, 'guest', true); return; }
+        if (/full/i.test(msg) || /in use/i.test(msg)) { NET.qm.i++; NET.qm.retried = 0; if (NET.qm.i <= 6) { netConnect('SOAP' + NET.qm.i, 'guest', true); return; } }
+      }
+      NET.qm = null;
+      netFail(m.msg || 'That did not work.');
+      break;
+    }
     case 'start': if (NET.role === 'guest') netHello(); else netRoster(); break;
     case 'hi': {
       if (NET.role !== 'host') break;
@@ -4269,9 +4282,13 @@ function showOnline(msg) {
     <p style="margin:0;font-weight:600">Up to 8 racers. One of you hosts a room and the others type in its code. Everyone keeps the soap and upgrades from their own garage.</p>
     <label class="opt">Your name <input class="field name" id="nameIn" maxlength="14" value="${esc(P.name || arcadeName())}" placeholder="Your racer name"></label>
     <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
-      <button class="btn big" data-act="host" style="--c:var(--pink)">Host a room</button>
+      <button class="btn big" data-act="quickMatch" style="--c:var(--lemon)">Quick match</button>
+      <span style="font-weight:600;max-width:340px">Jump into a public room with anyone who is racing right now.</span>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+      <button class="btn big" data-act="host" style="--c:var(--pink)">Host a private room</button>
       <span style="font-family:var(--head);font-size:22px">or</span>
-      <input class="field" id="codeIn" maxlength="4" placeholder="CODE" autocomplete="off">
+      <input class="field" id="codeIn" maxlength="6" placeholder="CODE" autocomplete="off">
       <button class="btn" data-act="join" style="--c:var(--mint)">Join</button>
     </div>
     <p id="netStatus" style="margin:0;font-weight:700;color:#d2384a">${esc(msg || '')}</p></div>`, 'veil');
@@ -4279,8 +4296,9 @@ function showOnline(msg) {
 }
 function readName() { const n = $('nameIn'); if (n) { P.name = n.value.trim().slice(0, 14); saveProfile(); } }
 ACT.online = () => showOnline();
+ACT.quickMatch = () => { readName(); NET.qm = { i: 1 }; netConnect('SOAP1', 'guest', true); netStatus('Looking for a room'); };
 ACT.host = () => { readName(); netConnect(rcode(4), 'host'); };
-ACT.join = () => { readName(); const c = ($('codeIn').value || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (c.length !== 4) { netStatus('Room codes are 4 letters.'); return; } netConnect(c, 'guest'); };
+ACT.join = () => { readName(); const c = ($('codeIn').value || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (c.length < 4 || c.length > 6) { netStatus('Room codes are 4 letters.'); return; } netConnect(c, 'guest'); };
 ACT.leaveOnline = () => { netSend({ t: 'bye', c: NET.cid, host: NET.role === 'host' }); netClose(); RACE.online = false; showTitle(); };
 ACT.lobbyBack = () => { setMode('attract'); showLobby(); };
 ACT.lobbyStart = () => netHostStart();
@@ -4417,6 +4435,9 @@ function frame() {
   RACE.frame++;
 }
 
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { loopsOff(); if (MODE === 'race' && RACE.me && !RACE.online && !RACE.paused && !RACE.results && RACE.phase !== 'podium') togglePause(true); }
+});
 onKey = (e) => {
   if (e.code === 'Escape') {
     if (MODE === 'race' && RACE.me && !RACE.results) togglePause();
