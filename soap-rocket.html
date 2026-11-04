@@ -160,6 +160,9 @@ table.res tr.me td{background:var(--pink2)}
 #mBoost.full{animation:pulse .7s ease-in-out infinite alternate}
 #mSuds .t i{background:linear-gradient(#ffffff,#bfe6ff)}
 @keyframes pulse{to{transform:translateY(-3px) rotate(-1.5deg)}}
+#hDrops{position:absolute;inset:0;overflow:hidden}
+#hDrops i{position:absolute;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.95) 0 12%,rgba(255,255,255,.25) 22%,rgba(210,235,255,.12) 55%,rgba(120,150,190,.35) 100%);box-shadow:inset -2px -3px 4px rgba(40,60,100,.25),0 1px 2px rgba(255,255,255,.4);backdrop-filter:blur(1.5px);-webkit-backdrop-filter:blur(1.5px);animation:dropFade 1.6s ease-in forwards}
+@keyframes dropFade{0%{opacity:0;transform:scale(.6)}12%{opacity:1;transform:scale(1)}100%{opacity:0;transform:translateY(26px) scale(.9)}}
 #hTags .tag3{position:absolute;transform:translate(-50%,-100%);font-family:var(--font);font-weight:700;font-size:13px;background:#fff;border:3px solid var(--ink);border-radius:10px;padding:1px 8px;white-space:nowrap;box-shadow:0 3px 0 var(--ink)}
 #hTags .tag3.emo{animation:popIn .35s cubic-bezier(.2,1.8,.4,1) both;padding:0 8px 2px}
 #hTags .tag3 i{display:inline-block;width:10px;height:10px;border-radius:3px;border:2px solid var(--ink);margin-right:5px;vertical-align:-1px}
@@ -234,6 +237,7 @@ body.touch #hMap{width:104px;top:58px;right:10px}
     <div class="meter" id="mBoost"><div class="l"><span>BOOST</span><span class="k" id="kBoost">SPACE</span></div><div class="t"><i></i></div></div>
     <div class="meter" id="mSuds"><div class="l"><span>SUDS</span><span class="k" id="kSuds">SHIFT</span></div><div class="t"><i></i></div></div>
   </div>
+  <div id="hDrops"></div>
   <div id="hTags"></div>
   <div id="hCenter"></div>
   <div id="hFeed"></div>
@@ -1938,7 +1942,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040711";
+const ASSET_V = "202611040713";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -3960,6 +3964,21 @@ function sendEmote(k) {
   me.emo = k; me.emoUntil = now() + 2200; sfx('pop', 0.5, 1.2);
   netSend({ t: 'emo', r: NET.raceId, c: me.netId, k });
 }
+// Water drops on the camera lens under the shower.
+let dropT = 0;
+function lensDrops(dt) {
+  const R = WORLD.rain, me = RACE.me;
+  if (!R || !me || RACE.attract || MODE !== 'race' || Q.fx < 0.5) return;
+  const d = Math.hypot(camera.position.x - R.x, camera.position.z - R.z);
+  if (d > R.r * 1.1) return;
+  dropT -= dt;
+  if (dropT > 0) return;
+  dropT = 0.07 + Math.random() * 0.12;
+  const box = $('hDrops'); if (!box || box.childElementCount > 18) return;
+  const el = document.createElement('i'); const sz = 10 + Math.random() * 28;
+  el.style.cssText = `left:${Math.random() * 100}%;top:${Math.random() * 85}%;width:${sz}px;height:${sz * (0.9 + Math.random() * 0.25)}px`;
+  box.appendChild(el); setTimeout(() => el.remove(), 1650);
+}
 // Name tags over online racers.
 const _tv = new THREE.Vector3();
 function tagsUpdate() {
@@ -4524,6 +4543,7 @@ function frame() {
   playerLoops(dt);
   hudUpdate();
   tagsUpdate();
+  lensDrops(dt);
   if (gradePass) { gradePass.uniforms.uT.value = T; const gb = gradePass.uniforms.uBoost; gb.value = damp(gb.value, me && me.boosting && MODE === 'race' ? 1 : 0, 6, dt); }
   if (composer && !NORENDER) { renderer.shadowMap.needsUpdate = true; renderMirror(); composer.render(); }
   RACE.frame++;
