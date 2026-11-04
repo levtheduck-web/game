@@ -81,6 +81,8 @@ h1,h2,h3{font-family:var(--head);font-weight:400;margin:0;letter-spacing:.02em}
 .item p{margin:0;font-size:13.5px;line-height:1.3;color:var(--ink2)}
 .item .foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto;font-weight:700}
 .swatch{height:54px;border-radius:12px;border:3px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:28px;position:relative;overflow:hidden}
+.swatch.pic{height:auto;aspect-ratio:220/124;padding:0;background:#eaf6ff}
+.swatch.pic img{width:100%;height:100%;object-fit:cover;display:block}
 .swatch .bar{width:64%;height:62%;border-radius:12px;border:3px solid var(--ink);box-shadow:inset -6px -6px 0 rgba(0,0,0,.08),inset 5px 5px 0 rgba(255,255,255,.45)}
 .price{font-family:var(--head);font-size:18px}
 .stats{display:grid;grid-template-columns:auto 1fr auto;gap:5px 10px;align-items:center;font-weight:700;font-size:14px}
@@ -1915,7 +1917,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040655";
+const ASSET_V = "202611040657";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2054,13 +2056,17 @@ const FLAME_MATS = {};
 function flameMat(kind) {
   if (FLAME_MATS[kind]) return FLAME_MATS[kind];
   const m = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
-  if (kind === 'blue') m.color.setRGB(0.55, 0.95, 1.6);
-  else if (kind === 'steam') { m.color.setRGB(1.25, 1.25, 1.35); }
-  else m.color.setRGB(1.25, 1.18, 1.1);
+  m.color.setRGB(1.2, 1.15, 1.1);
+  // The booster flame is painted orange in the model; other flames recolour it.
+  const swap = kind === 'blue' ? 'diffuseColor.rgb = diffuseColor.bgr * vec3(0.8, 1.05, 1.25);'
+    : kind === 'steam' ? 'float l = dot(diffuseColor.rgb, vec3(0.3, 0.5, 0.2)); diffuseColor.rgb = mix(vec3(l), vec3(1.0), 0.6) * vec3(0.96, 0.99, 1.06);' : '';
+  if (swap) {
+    m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + swap); };
+    m.customProgramCacheKey = () => 'flame-' + kind;
+  }
   m.userData.keep = true;
   return (FLAME_MATS[kind] = m);
 }
-
 // One racer's 3D view.
 class SoapView {
   constructor(lo, lod = 'mid') {
@@ -2091,7 +2097,7 @@ class SoapView {
       const fk = (ROCKETS[lo.rocket] || ROCKETS.twin).flame || 'fire';
       for (const fd of G.flames) {
         const pivot = new THREE.Object3D(); pivot.matrixAutoUpdate = false; pivot.matrix.copy(fd.m); this.body.add(pivot);
-        const f = new THREE.Mesh(fd.geo || G.flameG, flameMat(fd.axis === 'z' ? 'blue' : fk));
+        const f = new THREE.Mesh(fd.geo || G.flameG, flameMat(fd.axis === 'z' ? 'jet' : fk));
         if (fd.axis === 'z') { f.position.set(0, 0, fd.geo.userData.z0); f.scale.set(1, 1, 1); }
         else { const p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3(); SRC[lod].flameM.decompose(p, q, sc); f.position.copy(p); f.quaternion.copy(q); f.scale.copy(sc); }
         const fo = new THREE.Mesh(fd.geo || G.flameG, SOAP_OUTLINE_THIN); fo.userData.outline = 1; f.add(fo);
@@ -2211,7 +2217,7 @@ function makeModel(id, scale = 1, opts = {}) {
   if (!P0) return g;
   for (const [k, geo] of Object.entries(P0.parts)) {
     const glow = k === 'Jet_Flame' || k === 'Gold_Sparkles' ? 0.35 : 0;
-    let mat = k === 'Jet_Flame' ? flameMat('blue') : modelMat('m' + glow, glow);
+    let mat = k === 'Jet_Flame' ? flameMat('jet') : modelMat('m' + glow, glow);
     if (opts.tint != null) { mat = toonMat(opts.tint, { vc: true, spec: 0.55, rim: 0.26 }); }
     const m = new THREE.Mesh(geo, mat); m.castShadow = !opts.noShadow; m.receiveShadow = true;
     if (opts.outline !== 0 && k !== 'Jet_Flame') { const o = new THREE.Mesh(geo, k === 'body' ? (opts.olMat || PROP_OUTLINE) : PROP_OUTLINE_THIN); o.userData.outline = 1; m.add(o); }
@@ -4006,7 +4012,41 @@ function garageFrame(dt, t) {
 }
 
 const KIND_TABS = [['bar', 'Bar'], ['rocket', 'Rocket'], ['mod', 'Mods'], ['paint', 'Paint']];
+// Real 3D thumbnails of every bar and rocket, rendered once into small images.
+const THUMBS = {};
+function makePartThumbs() {
+  if (THUMBS.done || !renderer || !MODELS_OK) return;
+  THUMBS.done = 1;
+  const S = new THREE.Scene();
+  S.add(new THREE.HemisphereLight(0xc4c3ff, 0x8f7ea6, Math.PI * 0.62));
+  const L = new THREE.DirectionalLight(0xfff0dc, Math.PI * 0.62); L.position.set(-3, 6, 3); S.add(L, L.target);
+  const cam = new THREE.PerspectiveCamera(28, 220 / 124, 0.05, 50);
+  const v = new SoapView({ bar: 'rosy', rocket: 'twin', mods: [] }, 'mid'); S.add(v.root);
+  const f = { x: 0, y: 0, z: 0, yaw: 0, gnx: 0, gnz: 0, accLong: 0, lean: 0, land: 0, vis: 1, thr: 1, brk: 0, boosting: false, alive: true };
+  const W = 220, H = 124, pr = renderer.getPixelRatio();
+  const cv = document.createElement('canvas'); cv.width = W * 2; cv.height = H * 2; const c = cv.getContext('2d');
+  const prevClear = renderer.getClearColor(new THREE.Color()), prevA = renderer.getClearAlpha();
+  const shot = (lo, camPos, look) => {
+    v.set(lo, 'mid'); v.sync(f, 0.016, 1);
+    const bx = new THREE.Box3().setFromObject(v.body); const ctr = bx.getCenter(new THREE.Vector3()); const sz = bx.getSize(new THREE.Vector3()).length();
+    cam.position.copy(ctr).add(new THREE.Vector3(...camPos).multiplyScalar(sz * 0.8)); cam.lookAt(ctr.x + (look || 0), ctr.y, ctr.z); cam.updateMatrixWorld();
+    renderer.setRenderTarget(null);
+    renderer.setScissorTest(true); renderer.setViewport(0, 0, W, H); renderer.setScissor(0, 0, W, H);
+    renderer.setClearColor(0xeaf6ff, 1); renderer.clear(); renderer.render(S, cam);
+    c.clearRect(0, 0, cv.width, cv.height);
+    c.drawImage(renderer.domElement, 0, renderer.domElement.height - H * pr, W * pr, H * pr, 0, 0, cv.width, cv.height);
+    return cv.toDataURL('image/jpeg', 0.86);
+  };
+  try {
+    for (const id of Object.keys(BARS)) THUMBS['bar:' + id] = shot({ bar: id, rocket: 'twin', mods: [] }, [0.9, 0.75, 1.05]);
+    for (const id of Object.keys(ROCKETS)) THUMBS['rocket:' + id] = shot({ bar: 'rosy', rocket: id, mods: [] }, [1.05, 0.62, -0.95]);
+  } catch (e) { console.warn('thumbs', e); }
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, innerWidth, innerHeight); renderer.setClearColor(prevClear, prevA);
+  S.remove(v.root);
+}
 function swatch(kind, id) {
+  const th = THUMBS[kind + ':' + id];
+  if (th) return `<div class="swatch pic"><img src="${th}" alt=""></div>`;
   if (kind === 'bar') { const b = BARS[id]; const s = b.scale || [1, 1, 1]; return `<div class="swatch" style="background:linear-gradient(#f4fbff,#e3f2ff)"><div class="bar" style="background:${hex(b.col)};width:${56 * s[2]}%;height:${58 * s[0]}%;${b.clear ? 'opacity:.75;' : ''}${b.speck ? 'background-image:radial-gradient(rgba(0,0,0,.18) 1px,transparent 1.6px);background-size:7px 7px;' : ''}"></div></div>`; }
   if (kind === 'rocket') { const r = ROCKETS[id]; const n = { twin: 2, one: 1, quad: 4, retro: 2 }[r.layout]; const fl = r.flame === 'blue' ? 'filter:hue-rotate(180deg)' : r.flame === 'steam' ? 'filter:grayscale(1) brightness(1.6)' : ''; return `<div class="swatch" style="background:linear-gradient(#fff4e6,#ffe1cc)"><span style="${fl};font-size:${r.layout === 'one' ? 34 : r.layout === 'quad' ? 18 : 26}px;letter-spacing:-4px;white-space:nowrap">${'🚀'.repeat(n)}</span>${r.layout === 'retro' ? '<span style="position:absolute;right:8px;font-size:18px">◀</span>' : ''}</div>`; }
   if (kind === 'mod') return `<div class="swatch" style="background:linear-gradient(#f3eeff,#e4dbff)">${MODS[id].icon}</div>`;
@@ -4061,7 +4101,8 @@ function showGarage() {
     </div>`);
   GAR.view.set(nxt, 'hi');
 }
-ACT.garage = () => { UI.garageBack = UI.cur === 'results' ? (RACE.online ? 'lobbyBack' : RACE.mode === 'gp' && GP.on ? 'gpNext' : 'again') : null; UI.sel = null; showGarage(); };
+ACT.garage = () => {
+  makePartThumbs(); UI.garageBack = UI.cur === 'results' ? (RACE.online ? 'lobbyBack' : RACE.mode === 'gp' && GP.on ? 'gpNext' : 'again') : null; UI.sel = null; showGarage(); };
 ACT.gtab = (k) => { UI.tab = k; UI.sel = null; showGarage(); };
 ACT.gsel = (arg) => { const [k, id] = arg.split(':'); UI.sel = { kind: k, id: k === 'paint' ? +id : id }; showGarage(); };
 ACT.gbuy = () => {
