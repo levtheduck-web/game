@@ -1175,14 +1175,14 @@ ${GLSL_NOISE}
     vec3 refl = texture2D(tRefl, ruv).rgb;
     float fres = 0.18 + 0.82 * pow(1.0 - max(dot(normalize(vViewPosition), normal), 0.0), 3.0);
     float rk = uReflK * mix(0.0, 1.0, smoothstep(0.25, 0.9, wet)) * mix(0.6, 1.0, pud);
-    outgoingLight = mix(outgoingLight, refl, clamp(fres * rk, 0.0, 0.8));
+    outgoingLight = mix(outgoingLight, min(refl, vec3(1.1)), clamp(fres * rk, 0.0, 0.5));
   }
   #endif
   outgoingLight = min(outgoingLight, vec3(2.2));
   #include <opaque_fragment>`);
   };
   m.customProgramCacheKey = () => 'pat' + m.defines.PAT_KIND + (o.floor ? 'f' : '') + (o.uv ? 'u' : '');
-  if (o.floor) { FLOORS.add(m); U.tRefl.value = MIRROR.rt ? MIRROR.rt.texture : null; U.uReflK.value = MIRROR.rt ? 0.8 : 0; }
+  if (o.floor) { FLOORS.add(m); U.tRefl.value = MIRROR.rt ? MIRROR.rt.texture : null; U.uReflK.value = MIRROR.rt ? 0.7 : 0; }
   return m;
 }
 const TIME_U = { value: 0 };
@@ -1263,7 +1263,7 @@ function setupPost() {
   if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
   if (MIRROR.rt) { MIRROR.rt.dispose(); MIRROR.rt = null; }
   if (Q.refl) MIRROR.rt = new THREE.WebGLRenderTarget(Math.round(w * pr * Q.refl), Math.round(h * pr * Q.refl), { type: THREE.HalfFloatType });
-  for (const f of FLOORS) { f.userData.U.tRefl.value = MIRROR.rt ? MIRROR.rt.texture : null; f.userData.U.uReflK.value = MIRROR.rt ? 0.75 : 0; }
+  for (const f of FLOORS) { f.userData.U.tRefl.value = MIRROR.rt ? MIRROR.rt.texture : null; f.userData.U.uReflK.value = MIRROR.rt ? 0.7 : 0; }
 }
 function setQuality(name) {
   QN = name; Q = QUAL[name] || QUAL.med; setupPost();
@@ -2055,7 +2055,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040807";
+const ASSET_V = "202611040809";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -3584,7 +3584,7 @@ function racersVisual(dt, t) {
     v.sync(r, dt, t);
     // A rival right on top of the camera would fill the screen; hide it until it moves on.
     let camNear = false;
-    if (r !== me && MODE === 'race') { _rv.set(r.x, r.y + 0.3, r.z); camNear = _rv.distanceTo(camera.position) < 1.5; }
+    if (r !== me && MODE === 'race') { _rv.set(r.x, r.y + 0.3, r.z); const dc = _rv.distanceTo(camera.position); camNear = dc < 1.5 || (me && dc < 2.3 && dc < Math.hypot(me.x - camera.position.x, me.y - camera.position.y, me.z - camera.position.z) - 0.4); }
     v.root.visible = !r.hidden && !camNear && !(r.ghost > 0 && Math.floor(t * 12) % 2 === 0) && (r.alive || r.deadT > 0);
     // Foam trail, spray and sparkles.
     r.trailT = (r.trailT || 0) - dt;
