@@ -2055,7 +2055,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040802";
+const ASSET_V = "202611040803";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -4104,7 +4104,12 @@ function showHelp() {
         <p style="margin:0">🧼 <b>Suds</b> cost a bit of your bar. Anyone who hits them spins out. Watch your own.</p>
         <p style="margin:0">💰 <b>Grab soap coins</b> for bubbles, <b>boost stars</b> and <b>fuel cans</b> for boost. Keep clear of <b>razors</b>: they shave your bar.</p></div>
       <div style="display:flex;flex-direction:column;gap:10px"><h3 style="font-size:24px">Garage</h3>
-        <p style="margin:0">Win bubbles every race and spend them in the garage. Every bar, rocket and mod is a trade: something gets better and something gets worse, so pick what suits the track and the way you drive.</p></div>
+        <p style="margin:0">Win bubbles every race and spend them in the garage. Every bar, rocket and mod is a trade: something gets better and something gets worse, so pick what suits the track and the way you drive.</p>
+        <h3 style="font-size:24px;margin-top:6px">Ways to play</h3>
+        <p style="margin:0">🏁 <b>Grand Prix:</b> five races, points for every place, trophies for the top three.</p>
+        <p style="margin:0">👻 <b>Me vs my ghost:</b> race your own best lap on any track.</p>
+        <p style="margin:0">🥇 <b>Lap medals:</b> fast laps earn bronze, silver and gold on every track.</p>
+        <p style="margin:0">👋 <b>Online:</b> up to 8 friends. Quick match finds a room, or share your room code.</p></div>
     </div></div>`, 'veil');
 }
 ACT.help = () => showHelp();
