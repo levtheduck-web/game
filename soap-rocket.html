@@ -120,6 +120,8 @@ table.res tr.me td{background:var(--pink2)}
 #hLap{left:16px;top:96px;background:var(--lemon);font-size:22px;transform:rotate(2deg)}
 #hTime{left:16px;top:146px;font-size:19px;font-family:var(--font);font-weight:700;padding:3px 12px 4px}
 #hTime small{display:block;font-size:12px;opacity:.7;margin-top:-2px}
+#hCoins{left:124px;top:146px;font-size:19px;font-family:var(--font);font-weight:700;padding:3px 12px 4px;display:flex;align-items:center;gap:6px;background:var(--lemon)}
+#hCoins i{width:16px;height:16px;border-radius:50%;border:3px solid var(--ink);background:radial-gradient(circle at 35% 35%,#fff5c0,#ffc93c 60%,#e0a020)}
 #hBoard{position:absolute;left:16px;top:205px;display:flex;flex-direction:column;gap:3px;font-family:var(--font);font-weight:700;font-size:13px}
 #hBoard div{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.85);border:2px solid var(--ink);border-radius:9px;padding:1px 8px 1px 4px;width:150px}
 #hBoard div.me{background:var(--pink2)}
@@ -193,6 +195,7 @@ body.touch #hBoard{display:none}
   <div class="hcard" id="hPos"><b>1</b><small>st</small><span>/8</span></div>
   <div class="hcard" id="hLap">LAP 1/3</div>
   <div class="hcard" id="hTime">0:00.00<small>BEST --</small></div>
+  <div class="hcard" id="hCoins"><i></i><b>0</b></div>
   <div id="hBoard"></div>
   <canvas id="hMap" width="240" height="240"></canvas>
   <div id="hMeters">
@@ -345,6 +348,8 @@ const BARS = {
   slim:     { name: 'Mint Slim', price: 400, col: 0x8ee8c8, logo: 0xd8fff0, scale: [0.82, 0.95, 1.12], blurb: 'Long and narrow. High top speed and it glances off walls, but it turns wide.', st: { top: 1.055, turn: 0.86, wallKeep: 1.45 } },
   brick:    { name: 'Lemon Brick', price: 400, col: 0xffe066, logo: 0xfff4bf, scale: [1.16, 1, 0.9], blurb: 'Short and square. Turns on a dime, but walls stop it dead.', st: { turn: 1.22, grip: 1.1, top: 0.965, wallKeep: 0.6 } },
   charcoal: { name: 'Charcoal Detox', price: 550, col: 0x45405a, logo: 0x9b95b0, blurb: 'Black charcoal. Bites hard on dry floor, but slides slower on wet.', st: { dryMu: 0.62, wetTop: 0.95, grip: 1.05 } },
+  ocean:    { name: 'Ocean Pebble', price: 500, model: 'ocean_soap', col: 0x46b4ff, logo: 0xbfe6ff, scale: [1.12, 0.8, 1.04], noPaint: 1, blurb: 'Round and smooth as a sea stone. Glides off walls and loves water, but it skates on dry floor.', st: { wallKeep: 1.5, wetTop: 1.05, grip: 0.88, dryMu: 1.15 } },
+  golden:   { name: 'Golden Soap', price: 1200, model: 'golden_soap', col: 0xffc93c, logo: 0xfff1b0, oy: 0.18, noPaint: 1, blurb: 'Solid gold with a crown on top. Wins you 25% more bubbles and barely wears, but it is heavy and slow to get going.', st: { mass: 1.35, accel: 0.9, wear: 0.55, bubbles: 1.25 } },
   lava:     { name: 'Lava Lamp', price: 600, col: 0xff6a3d, logo: 0xffc29e, glow: 1, blurb: 'Warm and fizzy. Your boost refills much faster, but the heat melts the bar.', st: { regen: 1.45, wear: 1.35 } },
 };
 const ROCKETS = {
@@ -353,6 +358,7 @@ const ROCKETS = {
   quad:   { name: 'Quad Fizz', price: 400, layout: 'quad', blurb: 'Four little fizzers. A gentle boost that refills really quickly.', st: { bThrust: 0.68, bUse: 0.62, regen: 1.7 } },
   bubble: { name: 'Bubble Jet', price: 500, layout: 'twin', flame: 'blue', blurb: 'Boosting sprays a slick of suds behind you. Every boost costs a little soap.', st: { bubbleJet: 1, bThrust: 0.93 } },
   steady: { name: 'Kettle Steam', price: 450, layout: 'twin', flame: 'steam', blurb: 'Always a little faster, but the boost is barely a puff.', st: { accel: 1.07, top: 1.03, bThrust: 0.45, bUse: 0.8 } },
+  jet:    { name: 'Turbo Jet', price: 650, layout: 'jet', flame: 'blue', blurb: 'Jet engines take a moment to spool up, then hit the highest boost speed of all. Slower off the line.', st: { bTop: 1.12, spool: 1, bUse: 0.85, accel: 0.95 } },
   retro:  { name: 'Retro Brakes', price: 350, layout: 'retro', blurb: 'Extra rockets on the nose. Brakes and reverses twice as hard. A bit heavier.', st: { brake: 2.1, mass: 1.08, top: 0.98 } },
 };
 const MODS = {
@@ -373,9 +379,9 @@ const PAINTS = [
   { n: 'Lemon', c: 0xffe066 }, { n: 'Lilac', c: 0xc4a8ff }, { n: 'Peach', c: 0xffb08a }, { n: 'Snow', c: 0xf6f7ff },
   { n: 'Grape', c: 0x8b6cff }, { n: 'Lime', c: 0xc6f26b }, { n: 'Coral', c: 0xff7a7a }, { n: 'Ink', c: 0x4b3f6b },
 ];
-const MULT = new Set(['accel', 'top', 'grip', 'turn', 'mass', 'wear', 'wallKeep', 'dryMu', 'wetTop', 'regen', 'brake', 'draft', 'sudsR', 'sudsCost', 'sudsT', 'bThrust', 'bUse']);
+const MULT = new Set(['accel', 'top', 'grip', 'turn', 'mass', 'wear', 'wallKeep', 'dryMu', 'wetTop', 'regen', 'brake', 'draft', 'sudsR', 'sudsCost', 'sudsT', 'bThrust', 'bUse', 'bTop', 'bubbles']);
 function statsFor(lo) {
-  const s = { accel: 1, top: 1, grip: 1, turn: 1, mass: 1, wear: 1, wallKeep: 1, dryMu: 1, wetTop: 1, regen: 1, brake: 1, draft: 1, sudsR: 1, sudsCost: 1, sudsT: 1, bThrust: 1, bUse: 1, plug: 0, horn: 0, shield: 0, startBoost: 0, bubbleJet: 0, chipless: 0 };
+  const s = { accel: 1, top: 1, grip: 1, turn: 1, mass: 1, wear: 1, wallKeep: 1, dryMu: 1, wetTop: 1, regen: 1, brake: 1, draft: 1, sudsR: 1, sudsCost: 1, sudsT: 1, bThrust: 1, bUse: 1, bTop: 1, bubbles: 1, spool: 0, plug: 0, horn: 0, shield: 0, startBoost: 0, bubbleJet: 0, chipless: 0 };
   const parts = [BARS[lo.bar] || BARS.rosy, ROCKETS[lo.rocket] || ROCKETS.twin];
   for (const m of lo.mods || []) if (MODS[m]) parts.push(MODS[m]);
   for (const p of parts) for (const k in p.st) { if (MULT.has(k)) s[k] *= p.st[k]; else s[k] += p.st[k]; }
@@ -392,7 +398,7 @@ function displayStats(lo) {
     ['TURN', f((s.turn - 1) * 22)],
     ['WEIGHT', f((s.mass - 1) * 9)],
     ['TOUGH', f((1 / s.wear - 1) * 6)],
-    ['BOOST', f((s.bThrust / Math.sqrt(s.bUse) - 1) * 9)],
+    ['BOOST', f((s.bThrust * s.bTop * s.bTop / Math.sqrt(s.bUse) - 1) * 9 - s.spool * 1.2)],
     ['REFILL', f((s.regen - 1) * 8)],
   ];
 }
@@ -403,7 +409,7 @@ function cleanLoadout(lo) {
   lo = lo || {};
   return { bar: BARS[lo.bar] ? lo.bar : 'rosy', rocket: ROCKETS[lo.rocket] ? lo.rocket : 'twin', mods: (Array.isArray(lo.mods) ? lo.mods : []).filter((m) => MODS[m]).slice(0, 2), paint: clamp(lo.paint | 0, 0, PAINTS.length - 1) };
 }
-function barColor(lo) { const p = PAINTS[lo.paint | 0]; return p && p.c != null ? p.c : (BARS[lo.bar] || BARS.rosy).col; }
+function barColor(lo) { const b = BARS[lo.bar] || BARS.rosy; const p = PAINTS[lo.paint | 0]; return p && p.c != null && !b.noPaint ? p.c : b.col; }
 
 const CPU_NAMES = ['Bubbles', 'Sudsy', 'Squeaky', 'Lather', 'Foamy', 'Fizz', 'Splash', 'Puddles', 'Glossy', 'Slick', 'Pebble', 'Drip', 'Scrubby', 'Rinse', 'Duckie', 'Loofah'];
 
@@ -495,6 +501,20 @@ const TRACKS = [
   },
 ];
 const TRACK_BY = Object.fromEntries(TRACKS.map((t) => [t.id, t]));
+// Obstacle kinds: r = radius, cap = half length (capsules lie along the track, turned by the 5th value).
+const OBST = {
+  duck: { e: 0.75 }, bottle: { e: 0.3 }, cup: { e: 0.3 }, pouf: { e: 0.6, soft: 1 }, sponge: { e: 0.12, soft: 1 }, plunger: { e: 0.45 },
+  razor: { cap: 0.72, r: 0.2, e: 0.25, shave: 1 }, brush: { cap: 0.9, r: 0.16, e: 0.3 }, paste: { cap: 0.9, r: 0.3, e: 0.2, soft: 1 },
+};
+// Extra placements: [u, d, r, kind, angle] obstacles; pickups as coin rows [u0, u1, d0, d1, n], stars/fuel [u, d].
+Object.assign(TRACK_BY.shower, { coins: [[0.04, 0.1, 0, 0, 4], [0.32, 0.37, -2.2, 2.2, 4], [0.56, 0.61, 1.2, -1.2, 4], [0.85, 0.9, 1.5, 1.5, 3]], stars: [[0.45, 2.4], [0.74, -2.2]], fuel: [[0.6, -0.3]] });
+TRACK_BY.shower.obstacles.push([0.4, -2.6, 0.7, 'pouf'], [0.935, 2.7, 0.75, 'sponge']);
+Object.assign(TRACK_BY.tub, { coins: [[0.09, 0.15, 0, 0, 4], [0.3, 0.37, -3.9, -3.9, 4], [0.6, 0.66, -3.7, -3.7, 4], [0.85, 0.91, 0.6, 0.6, 3]], stars: [[0.42, 0], [0.78, 2.2]], fuel: [[0.27, -1.4]] });
+Object.assign(TRACK_BY.floor, { coins: [[0.02, 0.08, 0, 0, 4], [0.232, 0.25, 0, 0, 2], [0.44, 0.49, 2, -2, 4], [0.7, 0.75, -2.2, 2.2, 4], [0.9, 0.94, 0, 0, 3]], stars: [[0.36, 0], [0.63, 2.6]], fuel: [[0.5, 0.4]] });
+TRACK_BY.floor.obstacles.push([0.305, 2.9, 0.78, 'plunger'], [0.67, -1.1, 0, 'razor', 0.55]);
+Object.assign(TRACK_BY.vanity, { coins: [[0.04, 0.1, -2.6, -2.6, 4], [0.25, 0.3, 0, 0, 4], [0.62, 0.68, 1, -1, 4], [0.84, 0.9, -2.6, -2.6, 3]], stars: [[0.42, 2], [0.76, 0]], fuel: [[0.96, -3]] });
+TRACK_BY.vanity.obstacles.push([0.16, 1.6, 0, 'brush', 0.35], [0.47, 2.2, 0, 'paste', -0.4], [0.72, -1.3, 0, 'razor', 1.1]);
+
 
 class Track {
   constructor(def) {
@@ -540,7 +560,12 @@ class Track {
     this.bx0 = x0 - m; this.bx1 = x1 + m; this.bz0 = z0 - m; this.bz1 = z1 + m;
     // Features in world space.
     this.drains = (def.drains || []).map(([u, d]) => { const w = this.at(u, d); return { x: w.x, z: w.z, u, d }; });
-    this.obst = (def.obstacles || []).map(([u, d, r, kind]) => { const w = this.at(u, d); return { x: w.x, z: w.z, r, kind, e: kind === 'duck' ? 0.75 : 0.3, u, d, yaw: Math.atan2(this.tx[w.i], this.tz[w.i]) }; });
+    this.obst = (def.obstacles || []).map(([u, d, r, kind, ang = 0]) => {
+      const w = this.at(u, d); const K = OBST[kind] || {}; const yaw = Math.atan2(this.tx[w.i], this.tz[w.i]) + ang;
+      const o = { x: w.x, z: w.z, r: K.r ?? r, kind, e: K.e ?? 0.3, u, d, yaw, cap: K.cap || 0, shave: !!K.shave, soft: !!K.soft };
+      if (o.cap) { const fx = Math.sin(yaw), fz = Math.cos(yaw); o.ax = o.x - fx * o.cap; o.az = o.z - fz * o.cap; o.bx = o.x + fx * o.cap; o.bz = o.z + fz * o.cap; }
+      return o;
+    });
     this.ramps = (def.ramps || []).map(([u, len, h]) => ({ s0: u * L, len, h }));
     this.winds = (def.wind || []).map(([u0, u1, dir]) => ({ s0: u0 * L, s1: u1 * L, dir }));
     this.buildGrid();
@@ -695,7 +720,7 @@ class Track {
     const off = new Float32Array(N);
     const lim = (i) => Math.max(0, hw[i] - 1.35);
     const cons = [...this.obst, ...this.drains.map((d) => ({ ...d, r: 1.5 }))].map((o) => {
-      const L = this.locate(o.x, o.z, -1, {}); const clear = (o.r || 0.6) + 1.2;
+      const L = this.locate(o.x, o.z, -1, {}); const clear = Math.max(o.r || 0.6, (o.cap || 0) * 0.8) + 1.2;
       const room = (sg) => sg > 0 ? (this.hw[L.a] - 1.1) - (L.d + clear) : (L.d - clear) - (-this.hw[L.a] + 1.1);
       return { a: L.a, d: L.d, clear, K: 14, side: room(1) >= room(-1) ? 1 : -1 };
     });
@@ -1152,6 +1177,7 @@ function grp(...kids) { const g = new THREE.Group(); for (const k of kids) if (k
 function at(o, x, y, z, ry = 0, s = 1) { o.position.set(x, y, z); o.rotation.y = ry; if (s !== 1) o.scale.setScalar(s); return o; }
 
 function makeDuck(scale = 1, col = 0xffd23f) {
+  if (PGLB.ok) return makeModel('rubber_duck', scale * 1.05);
   const body = inked(new THREE.SphereGeometry(0.5, 28, 18), tm('duck' + col, col, { spec: 0.6 }));
   body.scale.set(1.0, 0.72, 1.25); body.position.y = 0.36;
   const tail = inked(new THREE.ConeGeometry(0.22, 0.4, 16), tm('duck' + col, col));
@@ -1174,6 +1200,7 @@ function makeDuck(scale = 1, col = 0xffd23f) {
 
 const BOTTLE_COLS = [[0x7fd6ff, 0xffffff], [0xff9ccf, 0xffffff], [0xb7f08a, 0x5a4a8a], [0xc9b6ff, 0xffe066], [0xffb38a, 0xffffff], [0x8ee8c8, 0xff8fc2]];
 function makeBottle(kind = 0, h = 2.4, cols = BOTTLE_COLS[0]) {
+  if (PGLB.ok && kind !== 1) return makeModel('shampoo_bottle', h / 2.18);
   const [c, cap] = cols;
   const r = h * 0.22;
   let body;
@@ -1257,6 +1284,7 @@ function makeToilet(s = 1) {
 }
 
 function makeFaucet(s = 1) {
+  if (PGLB.ok) return makeModel('faucet', s * 2.4);
   const ch = tm('chrome', 0xc9d2e0, { spec: 0.95, shin: 130, rim: 0.35 });
   const post = inked(new THREE.CylinderGeometry(0.35, 0.45, 2.2, 18), ch); post.position.y = 1.1;
   const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 2.1, 0), new THREE.Vector3(0, 3.0, 0.4), new THREE.Vector3(0, 3.1, 1.4), new THREE.Vector3(0, 2.5, 2.2)]);
@@ -1266,6 +1294,7 @@ function makeFaucet(s = 1) {
 }
 
 function makeSponge(s = 1, col = 0xffe066) {
+  if (PGLB.ok) return makeModel('sponge', s * 2);
   const g = new RoundedBoxGeometry(2.2, 0.9, 1.4, 3, 0.25);
   const m = inked(g, tm('sp' + col, col, { spec: 0.15, rim: 0.3 })); m.position.y = 0.45;
   const top = inked(new RoundedBoxGeometry(2.2, 0.35, 1.4, 3, 0.12), tm('sptop', 0x6fdc9a, { spec: 0.2 })); top.position.y = 1.05;
@@ -1273,6 +1302,7 @@ function makeSponge(s = 1, col = 0xffe066) {
 }
 
 function makeLoofah(s = 1, col = 0xff9ccf) {
+  if (PGLB.ok) return makeModel('bath_pouf', s * 1.45);
   const m = inked(new THREE.IcosahedronGeometry(1, 2), tm('loof' + col, col, { spec: 0.2, rim: 0.4 }));
   const pos = m.geometry.attributes.position;
   for (let i = 0; i < pos.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(pos, i); const n = 1 + (vnoise(v.x * 3 + 5, v.y * 3 + v.z * 2) - 0.5) * 0.35; pos.setXYZ(i, v.x * n, v.y * n * 0.85, v.z * n); }
@@ -1282,6 +1312,7 @@ function makeLoofah(s = 1, col = 0xff9ccf) {
 }
 
 function makeSoapDish(s = 1) {
+  if (PGLB.ok) { const g = makeModel('soap_dish', s * 1.25); g.rotation.y = Math.PI / 2; return grp(g); }
   const d = inked(new RoundedBoxGeometry(2.2, 0.35, 1.5, 3, 0.15), tm('dish', 0x8fd3ff, { spec: 0.7 })); d.position.y = 0.18;
   const g = grp(d); g.scale.setScalar(s); return g;
 }
@@ -1565,9 +1596,10 @@ function buildWorld(T) {
   } else if (T.def.id === 'floor') {
     const toilet = makeToilet(1.25); at(toilet, icx + 6, 0, icz - 2, Math.PI * 0.95); G.add(toilet);
     const plant = makePlant(7); at(plant, icx - 10, 0, icz - 2); G.add(plant);
-    const scale = inked(new RoundedBoxGeometry(5, 0.8, 5.6, 3, 0.4), tm('scale', 0xc9b6ff, { spec: 0.6 })); scale.position.set(icx - 3.5, 0.4, icz + 3.5); scale.rotation.y = 0.3; G.add(scale);
-    const dial = inked(new THREE.CylinderGeometry(1.2, 1.2, 0.2, 24), tm('dial', 0xffffff, { spec: 0.5 })); dial.position.set(icx - 3.5 + 0.4, 0.86, icz + 3.5 - 1.2); G.add(dial);
-    const basket = inked(latheG([[0, 0], [2.6, 0], [3.0, 5.5], [3.2, 5.6], [0, 5.6]], 24), tm('basket', 0xffd6a0, { spec: 0.2 })); basket.position.set(icx - 14.5, 0, icz + 4.5); G.add(basket);
+    if (PGLB.ok) { const tub = makeModel('bubble_bath_tub', 0.92); at(tub, icx - 5, 0, icz + 1.2, Math.PI * 0.02); G.add(tub); }
+    else { const scale = inked(new RoundedBoxGeometry(5, 0.8, 5.6, 3, 0.4), tm('scale', 0xc9b6ff, { spec: 0.6 })); scale.position.set(icx - 3.5, 0.4, icz + 3.5); scale.rotation.y = 0.3; G.add(scale); }
+    const basket = inked(latheG([[0, 0], [2.6, 0], [3.0, 5.5], [3.2, 5.6], [0, 5.6]], 24), tm('basket', 0xffd6a0, { spec: 0.2 })); basket.position.set(icx - 20, 0, icz + 4.5); G.add(basket);
+    if (PGLB.ok) { const tp = makeModel('toilet_paper', 1.6); at(tp, icx + 12, 0, icz + 3.5, 0.6); G.add(tp); const pl = makeModel('plunger', 1.4); at(pl, icx + 2, 0, icz - 3.6, 0); G.add(pl); }
   } else if (T.def.id === 'vanity') {
     // The sink basin: rings shrinking toward the middle and dropping into a bowl.
     const K = 7, rings = [];
@@ -1611,13 +1643,19 @@ function buildWorld(T) {
 
   if (T.def.id === 'shower') {
     const toilet = makeToilet(1.25); at(toilet, T.bx1 + 8, outY, rcz + 4, -Math.PI / 2); G.add(toilet);
+    if (PGLB.ok) { const q = T.at(0.62, -T.inSign * (T.hw[0] + 15)); const tub = makeModel('bubble_bath_tub', 1.25); at(tub, q.x, outY, q.z, Math.atan2(T.tx[q.i], T.tz[q.i])); G.add(tub); }
     const plant = makePlant(9); at(plant, T.bx0 - 6, outY, T.bz1 + 4); G.add(plant);
     const rack = makeTowelRack(12, 0xff9ccf); rack.position.set(rcx - 4, outY + 22, rcz + D / 2 - 0.6); rack.rotation.y = Math.PI; G.add(rack);
     const mat = inked(new RoundedBoxGeometry(14, 0.3, 9, 3, 0.15), fabricMat(0x8ee8c8, 0xffffff, { sc: 1.2 })); mat.position.set(rcx + 2, outY + 0.15, T.bz1 + 6); G.add(mat);
     // Shower head + rain.
     for (const [u, d] of T.def.rain || []) {
       const p = T.at(u, d);
-      const head = inked(new THREE.CylinderGeometry(2.6, 1.6, 0.8, 28), tm('chrome', 0xc9d2e0, { spec: 0.95 }), 0.9); head.position.set(p.x, 26, p.z); G.add(head);
+      if (PGLB.ok) {
+        const i = p.i, dOut = -T.inSign * (T.hw[i] + 0.1);
+        const wx = T.px[i] + T.nx[i] * dOut, wz = T.pz[i] + T.nz[i] * dOut;
+        const head = makeModel('shower_head', 5.5); const sw = head.userData.parts.Shower_Water; if (sw) sw.visible = false; const sw2 = head.userData.parts.Shower_Water_t; if (sw2) sw2.visible = false;
+        head.position.set(wx, 21, wz); head.rotation.y = Math.atan2(-T.nx[i] * Math.sign(dOut), -T.nz[i] * Math.sign(dOut)); G.add(head);
+      } else { const head = inked(new THREE.CylinderGeometry(2.6, 1.6, 0.8, 28), tm('chrome', 0xc9d2e0, { spec: 0.95 }), 0.9); head.position.set(p.x, 26, p.z); G.add(head); }
       WORLD.rain = { x: p.x, z: p.z, r: (T.def.rain[0][2] || 6) };
     }
   } else if (T.def.id === 'tub') {
@@ -1645,7 +1683,7 @@ function buildWorld(T) {
   } else if (T.def.id === 'vanity') {
     // Things along the backsplash shelf.
     const back = edgePts(T, !inLeft, 0, T.N - 1, 2.2).filter((p) => T.wallAt(p.i, !inLeft) === 'splash');
-    const items = [() => makeBottle(2, 3.4, BOTTLE_COLS[4]), () => makeCup(2, 0x8fd3ff), () => makePlant(5), () => makeBottle(0, 2.8, BOTTLE_COLS[5]), () => makeCandle(1.8, 0xc9b6ff), () => makeBottle(1, 2.6, BOTTLE_COLS[2])];
+    const items = [() => makeBottle(2, 3.4, BOTTLE_COLS[4]), () => makeCup(2, 0x8fd3ff), () => makePlant(5), () => PGLB.ok ? makeModel('toothpaste', 1.1) : makeCandle(1.8, 0xc9b6ff), () => makeBottle(0, 2.8, BOTTLE_COLS[5]), () => makeCandle(1.8, 0xc9b6ff), () => PGLB.ok ? makeSoapDish(1.2) : makeBottle(1, 2.6, BOTTLE_COLS[2]), () => makeBottle(1, 2.6, BOTTLE_COLS[2])];
     for (let k = 0; k < items.length && back.length; k++) {
       const p = back[Math.floor((k + 0.5) / items.length * back.length)]; const o = items[k]();
       at(o, p.x, p.y0, p.z, Math.atan2(-p.ox, -p.oz)); G.add(o);
@@ -1658,11 +1696,17 @@ function buildWorld(T) {
   for (const d of T.drains) { const dr = makeDrain(0.85); dr.position.set(d.x, T.heightAt(d.x, d.z) + 0.01, d.z); G.add(dr); }
   WORLD.obstMeshes = [];
   for (const o of T.obst) {
-    let m;
+    let m, yaw = o.yaw + Math.PI * 0.5 + (Math.random() - 0.5);
     if (o.kind === 'duck') m = makeDuck(o.r / 0.55, pick([0xffd23f, 0xffd23f, 0xff9ccf, 0x8fd3ff]));
-    else if (o.kind === 'bottle') m = makeBottle(1 + Math.floor(Math.random() * 2), 3.2, pick(BOTTLE_COLS));
+    else if (o.kind === 'bottle') m = makeBottle(Math.random() < 0.5 ? 0 : 1, 3.2, pick(BOTTLE_COLS));
+    else if (o.kind === 'pouf') m = makeLoofah(o.r / 0.7);
+    else if (o.kind === 'sponge') m = makeSponge(o.r / 0.75 * 0.75);
+    else if (o.kind === 'plunger') m = makeModel('plunger', o.r / 0.77);
+    else if (o.kind === 'razor') { m = makeModel('razor', 0.85); yaw = o.yaw; }
+    else if (o.kind === 'brush') { m = makeModel('toothbrush', 0.85); yaw = o.yaw; }
+    else if (o.kind === 'paste') { m = makeModel('toothpaste', 0.85); yaw = o.yaw; }
     else m = makeCup(o.r * 2.4, pick([0x8fd3ff, 0xffb38a, 0xc9b6ff]));
-    at(m, o.x, T.heightAt(o.x, o.z), o.z, o.yaw + Math.PI * 0.5 + (Math.random() - 0.5));
+    at(m, o.x, T.heightAt(o.x, o.z), o.z, yaw);
     G.add(m); WORLD.obstMeshes.push({ o, m, wob: 0 });
   }
   // ---- mats -------------------------------------------------------------------
@@ -1685,7 +1729,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040603";
+const ASSET_V = "202611040614";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -1758,11 +1802,13 @@ function layoutXforms(layout, S, bs) {
     for (const s of [1, -1]) for (const dy of [0.12, -0.1]) list.push([mk(s * xs, cy + dy, rp.z * sz, Math.PI / 2, 0.5), 0.6]);
     return { list, brackets: true };
   }
+  if (layout === 'jet') return { list: [[mk(rp.x * sx + 0.05, cy + 0.02, -0.1 * sz, 0, 0.62), 1, 0, 'jet'], [mk(-rp.x * sx - 0.05, cy + 0.02, -0.1 * sz, 0, 0.62), 1, 0, 'jet']], brackets: true };
   if (layout === 'retro') return { list: [[R(), 1], [L(), 1], [mk(0.3 * sx, top + 0.02, 0.32 * sz, -Math.PI / 2, 0.36), 0.5, 1], [mk(-0.3 * sx, top + 0.02, 0.32 * sz, -Math.PI / 2, 0.36), 0.5, 1]], brackets: true };
   return { list: [[R(), 1], [L(), 1]], brackets: true };
 }
 
 const GEO_CACHE = new Map();
+const noON = (g) => { const c = g.clone(); if (c.attributes.oNormal) c.deleteAttribute('oNormal'); return c; };
 function soapGeometry(lod, lo) {
   const bar = BARS[lo.bar] || BARS.rosy, layout = (ROCKETS[lo.rocket] || ROCKETS.twin).layout;
   const key = lod + '|' + lo.bar + '|' + layout;
@@ -1770,10 +1816,15 @@ function soapGeometry(lod, lo) {
   const S = SRC[lod];
   const bs = bar.scale || [1, 1, 1];
   const scaleM = new THREE.Matrix4().makeScale(bs[0], bs[1], bs[2]);
-  const barG = S.bar.clone().applyMatrix4(scaleM), logoG = S.logo.clone().applyMatrix4(scaleM), sudsG = S.suds.clone().applyMatrix4(scaleM);
-  barG.computeVertexNormals(); logoG.computeVertexNormals();
-  // Speckles (pumice, oat) as vertex colour noise on the bar.
-  {
+  let barG, logoG = null, sudsG = null, extra = null;
+  const MP = bar.model && PGLB.ok ? PGLB.proto[bar.model] : null;
+  if (MP) {
+    barG = noON(MP.parts.body); barG.translate(0, bar.oy || 0, 0);
+    if (MP.parts.Gold_Sparkles) { extra = noON(MP.parts.Gold_Sparkles); extra.translate(0, bar.oy || 0, 0); }
+  } else {
+    barG = S.bar.clone().applyMatrix4(scaleM); logoG = S.logo.clone().applyMatrix4(scaleM); sudsG = S.suds.clone().applyMatrix4(scaleM);
+    barG.computeVertexNormals(); logoG.computeVertexNormals();
+    // Speckles (pumice, oat) as vertex colour noise on the bar.
     const n = barG.attributes.position.count, a = new Float32Array(n * 3), p = barG.attributes.position;
     for (let i = 0; i < n; i++) {
       let v = 1;
@@ -1783,19 +1834,39 @@ function soapGeometry(lod, lo) {
     barG.setAttribute('color', new THREE.BufferAttribute(a, 3));
   }
   const X = layoutXforms(layout, S, bs);
-  const hw = [sudsG];
-  for (const [m] of X.list) hw.push(S.booster.clone().applyMatrix4(m));
+  const hw = [];
+  if (sudsG) hw.push(sudsG);
+  if (extra) hw.push(extra);
+  const JP = layout === 'jet' && PGLB.ok ? PGLB.proto.turbo_jet : null;
+  const flames = [];
+  for (const [m, fs, retro, kind] of X.list) {
+    if (kind === 'jet' && JP) {
+      hw.push(noON(JP.parts.body).applyMatrix4(m));
+      flames.push({ m, geo: jetFlameGeo(), fs, retro: false, axis: 'z' });
+    } else {
+      hw.push(S.booster.clone().applyMatrix4(m));
+      flames.push({ m, geo: null, fs, retro: !!retro, axis: 'y' });
+    }
+  }
   if (X.brackets && S.brackets) { const b = S.brackets.clone(); b.applyMatrix4(new THREE.Matrix4().makeScale(bs[0], bs[1], bs[2])); hw.push(b); }
   const hwG = BGU.mergeGeometries(hw);
   const strip = (g) => { const c = g.clone(); for (const k of Object.keys(c.attributes)) if (k !== 'position' && k !== 'normal') c.deleteAttribute(k); return c; };
-  const allG = BGU.mergeGeometries([strip(barG), strip(logoG), strip(hwG)]);
+  const allG = BGU.mergeGeometries([strip(barG), ...(logoG ? [strip(logoG)] : []), strip(hwG)]);
   addONormal(allG);
   const flameG = S.flame; addONormal(flameG);
-  const out = { barG, logoG, hwG, allG, flameG, X, box: new THREE.Box3().setFromBufferAttribute(barG.attributes.position) };
+  const out = { barG, logoG, hwG, allG, flameG, X, flames, box: new THREE.Box3().setFromBufferAttribute(barG.attributes.position) };
   GEO_CACHE.set(key, out);
   return out;
 }
 
+let JET_FLAME = null;
+// The jet's blue flame, moved so it scales out from the nozzle.
+function jetFlameGeo() {
+  if (JET_FLAME) return JET_FLAME;
+  const g = PGLB.proto.turbo_jet.parts.Jet_Flame.clone(); g.computeBoundingBox();
+  const z0 = g.boundingBox.max.z; g.translate(0, 0, -z0); g.userData.z0 = z0; addONormal(g);
+  return (JET_FLAME = g);
+}
 const FLAME_MATS = {};
 function flameMat(kind) {
   if (FLAME_MATS[kind]) return FLAME_MATS[kind];
@@ -1832,25 +1903,30 @@ class SoapView {
       this.logoMat = toonMat(0xffffff, { spec: 0.55, rim: 0.25 });
       this.hwMat = SOAP_HW_MAT;
       const mk = (g, m) => { const x = new THREE.Mesh(g, m); x.castShadow = true; x.receiveShadow = true; return x; };
-      this.body.add(mk(G.barG, this.barMat), mk(G.logoG, this.logoMat), mk(G.hwG, this.hwMat));
+      this.body.add(mk(G.barG, this.barMat), mk(G.hwG, this.hwMat)); if (G.logoG) this.body.add(mk(G.logoG, this.logoMat));
       const ol = new THREE.Mesh(G.allG, SOAP_OUTLINE); ol.userData.outline = 1; this.body.add(ol);
       const fk = (ROCKETS[lo.rocket] || ROCKETS.twin).flame || 'fire';
-      for (const [m, fs, retro] of G.X.list) {
-        const pivot = new THREE.Object3D(); pivot.matrixAutoUpdate = false; pivot.matrix.copy(m); this.body.add(pivot);
-        const f = new THREE.Mesh(G.flameG, flameMat(fk));
-        f.matrixAutoUpdate = true;
-        const p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3(); SRC[lod].flameM.decompose(p, q, s);
-        f.position.copy(p); f.quaternion.copy(q); f.scale.copy(s);
-        const fo = new THREE.Mesh(G.flameG, SOAP_OUTLINE_THIN); fo.userData.outline = 1; f.add(fo);
+      for (const fd of G.flames) {
+        const pivot = new THREE.Object3D(); pivot.matrixAutoUpdate = false; pivot.matrix.copy(fd.m); this.body.add(pivot);
+        const f = new THREE.Mesh(fd.geo || G.flameG, flameMat(fd.axis === 'z' ? 'blue' : fk));
+        if (fd.axis === 'z') { f.position.set(0, 0, fd.geo.userData.z0); f.scale.set(1, 1, 1); }
+        else { const p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3(); SRC[lod].flameM.decompose(p, q, sc); f.position.copy(p); f.quaternion.copy(q); f.scale.copy(sc); }
+        const fo = new THREE.Mesh(fd.geo || G.flameG, SOAP_OUTLINE_THIN); fo.userData.outline = 1; f.add(fo);
         pivot.add(f);
-        this.flames.push({ f, base: s.clone(), fs, retro: !!retro, phase: Math.random() * 10 });
+        this.flames.push({ f, base: f.scale.clone(), fs: fd.fs, retro: fd.retro, axis: fd.axis, phase: Math.random() * 10 });
       }
+      // Bubble Wrap shows as the bubble shield while it's ready.
+      this.shield = null;
+      if (statsFor(lo).shield && PGLB.ok) { this.shield = makeModel('bubble_shield', 0.62, { outline: 0 }); this.shield.position.y = 0.3; this.shield.visible = false; this.body.add(this.shield); }
       this.geo = G;
     }
     this.lo = lo; this.lod = lod;
     const bar = BARS[lo.bar] || BARS.rosy;
     const col = new THREE.Color(barColor(lo));
-    if (this.barMat) { this.barMat.color.copy(col); this.logoMat.color.set(bar.logo || 0xffd6ea); if (PAINTS[lo.paint | 0].c != null) this.logoMat.color.copy(col).lerp(new THREE.Color(0xffffff), 0.6); }
+    if (this.barMat) {
+      if (bar.model) this.barMat.color.set(0xffffff);
+      else { this.barMat.color.copy(col); this.logoMat.color.set(bar.logo || 0xffd6ea); if (PAINTS[lo.paint | 0].c != null) this.logoMat.color.copy(col).lerp(new THREE.Color(0xffffff), 0.6); }
+    }
   }
   // Called each frame from the racer state.
   sync(o, dt, t) {
@@ -1871,8 +1947,15 @@ class SoapView {
       const k = fl.retro ? o.brk * 0.9 : (0.25 + 0.75 * on + (o.boosting ? 1.05 : 0)) * (o.alive ? 1 : 0);
       const fk = 0.85 + 0.15 * Math.sin(t * 47 + fl.phase) + 0.08 * Math.sin(t * 91 + fl.phase * 2);
       const len = Math.max(0.02, k * fk * fl.fs);
-      fl.f.scale.set(fl.base.x * (0.7 + 0.3 * Math.min(1, k)), fl.base.y * len, fl.base.z * (0.7 + 0.3 * Math.min(1, k)));
+      const wid = 0.7 + 0.3 * Math.min(1, k);
+      if (fl.axis === 'z') fl.f.scale.set(fl.base.x * wid, fl.base.y * wid, fl.base.z * len);
+      else fl.f.scale.set(fl.base.x * wid, fl.base.y * len, fl.base.z * wid);
       fl.f.visible = k > 0.03;
+    }
+    if (this.shield) {
+      const armed = o.S && o.S.shield && o.shieldLap !== o.lap && o.alive;
+      if (o.shieldPop > 0) { o.shieldPop -= dt; this.shield.visible = true; const k = 1 + (0.5 - o.shieldPop) * 2.5; this.shield.scale.setScalar(0.62 * k); }
+      else { this.shield.visible = !!armed; this.shield.scale.setScalar(0.62 * (1 + 0.03 * Math.sin(t * 5))); }
     }
   }
 }
@@ -1882,6 +1965,139 @@ function initSoapMats() {
   SOAP_HW_MAT = toonMat(0xffffff, { vc: true, spec: 0.6, rim: 0.25, shin: 90 }); SOAP_HW_MAT.userData.keep = true;
   SOAP_OUTLINE = outlineMat(1.05); SOAP_OUTLINE.userData.keep = true;
   SOAP_OUTLINE_THIN = outlineMat(0.75); SOAP_OUTLINE_THIN.userData.keep = true;
+}
+
+// ==== 06b-models.js ====
+// ---------------------------------------------------------------------------
+// The user's 20 extra designs (models/soap-props.glb): props, pickups, hazards,
+// two soap skins, the turbo jet and the bubble shield. Each model becomes one
+// vertex-coloured toon mesh with an ink outline, plus any special parts.
+// ---------------------------------------------------------------------------
+const PGLB = { ok: false, proto: {} };
+const SPECIAL = new Set(['Jet_Flame', 'Shower_Water', 'Gold_Sparkles', 'Tub_Water', 'Tub_Duck', 'Tub_Foam', 'Shield', 'Shield_Mini_Bubbles', 'Sponge_Pores']);
+async function loadPropModels() {
+  const g = await new GLTFLoader().loadAsync('models/soap-props.glb?v=' + ASSET_V);
+  g.scene.updateMatrixWorld(true);
+  for (const node of g.scene.children) PGLB.proto[node.name] = digestModel(node);
+  PGLB.ok = true;
+}
+function floatGeo(src, M) {
+  const g = new THREE.BufferGeometry();
+  for (const k of ['position', 'normal']) {
+    const a = src.attributes[k]; if (!a) continue;
+    const arr = new Float32Array(a.count * 3);
+    for (let i = 0; i < a.count; i++) { arr[i * 3] = a.getX(i); arr[i * 3 + 1] = a.getY(i); arr[i * 3 + 2] = a.getZ(i); }
+    g.setAttribute(k, new THREE.BufferAttribute(arr, 3));
+  }
+  if (src.index) g.setIndex(Array.from(src.index.array)); else g.setIndex([...Array(g.attributes.position.count).keys()]);
+  if (!g.attributes.normal) g.computeVertexNormals();
+  g.applyMatrix4(M);
+  return g;
+}
+function digestModel(root) {
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const groups = {}, trans = [];
+  root.traverse((m) => {
+    if (!m.isMesh) return;
+    let part = 'body'; for (let p = m; p && p !== root; p = p.parent) if (SPECIAL.has(p.name)) { part = p.name; break; }
+    const M = new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld);
+    const g = floatGeo(m.geometry, M);
+    const mat = m.material;
+    const c = mat.color.clone();
+    const em = mat.emissive ? mat.emissive.clone().multiplyScalar(mat.emissiveIntensity ?? 1) : new THREE.Color(0);
+    if (mat.transparent || mat.opacity < 0.99 || mat.alphaMode === 'BLEND') { trans.push({ geo: g, color: c, opacity: mat.opacity, emissive: em, part }); return; }
+    c.add(em);
+    const n = g.attributes.position.count, a = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+    g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+    (groups[part] || (groups[part] = [])).push(g);
+  });
+  const parts = {};
+  for (const k in groups) { parts[k] = BGU.mergeGeometries(groups[k]); addONormal(parts[k]); }
+  const box = new THREE.Box3();
+  for (const k in parts) { parts[k].computeBoundingBox(); box.union(parts[k].boundingBox); }
+  return { parts, trans, box };
+}
+const MODEL_MAT = {};
+function modelMat(key, glow = 0) { if (!MODEL_MAT[key]) { const m = toonMat(0xffffff, { vc: true, spec: 0.55, rim: 0.26, shin: 70, glow }); m.userData.keep = true; MODEL_MAT[key] = m; } return MODEL_MAT[key]; }
+// A placed copy of a model. opts: { scale, tint, outline, noTrans, glowParts }
+function makeModel(id, scale = 1, opts = {}) {
+  const P0 = PGLB.proto[id];
+  const g = new THREE.Group(); g.userData.parts = {};
+  if (!P0) return g;
+  for (const [k, geo] of Object.entries(P0.parts)) {
+    const glow = k === 'Jet_Flame' || k === 'Gold_Sparkles' ? 0.35 : 0;
+    let mat = k === 'Jet_Flame' ? flameMat('blue') : modelMat('m' + glow, glow);
+    if (opts.tint != null) { mat = toonMat(opts.tint, { vc: true, spec: 0.55, rim: 0.26 }); }
+    const m = new THREE.Mesh(geo, mat); m.castShadow = !opts.noShadow; m.receiveShadow = true;
+    if (opts.outline !== 0 && k !== 'Jet_Flame') { const o = new THREE.Mesh(geo, k === 'body' ? (opts.olMat || PROP_OUTLINE) : PROP_OUTLINE_THIN); o.userData.outline = 1; m.add(o); }
+    g.add(m); g.userData.parts[k] = m;
+  }
+  if (!opts.noTrans) for (const t of P0.trans) {
+    const mat = t.part === 'Shield' || t.part === 'Shield_Mini_Bubbles' ? bubbleMat() : new THREE.MeshStandardMaterial({ color: t.color, transparent: true, opacity: Math.max(0.35, t.opacity), roughness: 0.08, emissive: t.emissive, depthWrite: false, envMapIntensity: 1.2 });
+    const m = new THREE.Mesh(t.geo, mat); m.renderOrder = 6; g.add(m); g.userData.parts[t.part + '_t'] = m;
+  }
+  g.scale.setScalar(scale);
+  return g;
+}
+let PROP_OUTLINE = null, PROP_OUTLINE_THIN = null;
+function initModelMats() { PROP_OUTLINE = outlineMat(1); PROP_OUTLINE.userData.keep = true; PROP_OUTLINE_THIN = outlineMat(0.7); PROP_OUTLINE_THIN.userData.keep = true; }
+
+// ---------------------------------------------------------------------------
+// Pickups: soap coins (bubbles), boost stars (+boost) and fuel cans (full tank).
+// Each player collects from their own copy, so nothing needs syncing online.
+// ---------------------------------------------------------------------------
+const PICK = { items: [], meshes: {}, group: null };
+const PICK_KIND = { coin: { model: 'soap_coin', scale: 0.55, r: 0.75, cool: 7 }, star: { model: 'boost_star', scale: 0.6, r: 0.8, cool: 9 }, fuel: { model: 'fuel_can', scale: 0.6, r: 0.8, cool: 14 } };
+function pickupsBuild(T) {
+  if (PICK.group) { scene.remove(PICK.group); }
+  PICK.group = new THREE.Group(); PICK.items = []; PICK.meshes = {};
+  const def = T.def;
+  const add = (u, d, kind) => { const p = T.at(u, d); PICK.items.push({ kind, x: p.x, z: p.z, y: T.heightAt(p.x, p.z) + 0.55, cool: 0, ph: Math.random() * 6 }); };
+  for (const [u0, u1, d0, d1, n] of def.coins || []) for (let k = 0; k < n; k++) { const f = n > 1 ? k / (n - 1) : 0; add(u0 + (u1 - u0) * f, d0 + (d1 - d0) * f, 'coin'); }
+  for (const [u, d] of def.stars || []) add(u, d, 'star');
+  for (const [u, d] of def.fuel || []) add(u, d, 'fuel');
+  if (!PGLB.ok) return;
+  for (const kind of Object.keys(PICK_KIND)) {
+    const list = PICK.items.filter((i) => i.kind === kind); if (!list.length) continue;
+    const P0 = PGLB.proto[PICK_KIND[kind].model]; if (!P0 || !P0.parts.body) continue;
+    const geo = P0.parts.body;
+    const im = new THREE.InstancedMesh(geo, modelMat('pick' + kind, kind === 'coin' ? 0.12 : 0.18), list.length);
+    const om = new THREE.InstancedMesh(geo, PROP_OUTLINE, list.length);
+    im.castShadow = true; im.frustumCulled = false; om.frustumCulled = false;
+    PICK.group.add(im, om);
+    PICK.meshes[kind] = { im, om, list };
+  }
+  scene.add(PICK.group);
+}
+const _pm = new THREE.Matrix4(), _pq = new THREE.Quaternion(), _pv = new THREE.Vector3(), _ps = new THREE.Vector3(), _pe = new THREE.Euler();
+function pickupsUpdate(dt, t) {
+  for (const it of PICK.items) if (it.cool > 0) it.cool -= dt;
+  for (const kind in PICK.meshes) {
+    const { im, om, list } = PICK.meshes[kind]; const K = PICK_KIND[kind];
+    list.forEach((it, k) => {
+      const show = it.cool <= 0 ? 1 : it.cool < 0.4 ? 1 - it.cool / 0.4 : 0;
+      const s = K.scale * show * (it.pop ? 1 + Math.max(0, it.pop) : 1);
+      _pe.set(kind === 'fuel' ? 0.2 * Math.sin(t * 2 + it.ph) : 0, t * (kind === 'coin' ? 2.6 : 1.6) + it.ph, 0);
+      _pq.setFromEuler(_pe); _pv.set(it.x, it.y + Math.sin(t * 2.4 + it.ph) * 0.12, it.z); _ps.setScalar(Math.max(1e-4, s));
+      _pm.compose(_pv, _pq, _ps); im.setMatrixAt(k, _pm); om.setMatrixAt(k, _pm);
+    });
+    im.instanceMatrix.needsUpdate = true; om.instanceMatrix.needsUpdate = true;
+  }
+}
+function pickupsCollect(r) {
+  if (!r.alive || r.kind === 'net') return;
+  for (const it of PICK.items) {
+    if (it.cool > 0) continue;
+    const K = PICK_KIND[it.kind];
+    const dx = r.x - it.x, dz = r.z - it.z;
+    if (dx * dx + dz * dz > (K.r + 0.3 * r.vis) ** 2 || Math.abs(r.y + 0.3 - it.y) > 1.4) continue;
+    it.cool = K.cool;
+    if (it.kind === 'coin') { r.coins = (r.coins || 0) + 1; }
+    else if (it.kind === 'star') r.boost = Math.min(100, r.boost + 45);
+    else r.boost = 100;
+    r.emit('pickup', { kind: it.kind, x: it.x, y: it.y, z: it.z });
+  }
 }
 
 // ==== 07-racer.js ====
@@ -1978,11 +2194,13 @@ class Racer {
     this.boosting = false;
     if (I.boost && racing && this.boost > 0.5 && control === 1) {
       this.boosting = true;
-      af += CFG.bThrust * S.bThrust * (1 + 0.25 * shr);
+      this.spoolK = S.spool ? Math.min(1, (this.spoolK || 0) + dt / 0.7) : 1;
+      af += CFG.bThrust * S.bThrust * (1 + 0.25 * shr) * this.spoolK;
       this.boost = Math.max(0, this.boost - CFG.bUse * S.bUse * dt);
       this.size -= CFG.wearBoost * S.wear * dt * (S.bubbleJet ? 2.4 : 1);
       if (S.bubbleJet && RACE.t > 4) { this.dropT -= dt; if (this.dropT <= 0) { this.dropT = 0.18; this.emit('jetSuds'); } }
     }
+    if (!this.boosting) this.spoolK = 0;
     if (this.air) af *= 0.45;
     vf += af * dt;
     this.accLong = lerp(this.accLong, af, 0.1);
@@ -2010,7 +2228,7 @@ class Racer {
       // Friction can slow a bar right down, but it never beats the rocket.
       const muG = Math.min(mu * CFG.G, CFG.thrust * accMul * 0.45);
       const k1 = Math.max(0, sp - muG * dt) / sp;
-      const topMul = S.top * lerp(1, S.wetTop, wet) * (1 + 0.2 * shr) * (this.boosting ? CFG.bTop : 1) * (this.draft > 0 ? 1.05 : 1);
+      const topMul = S.top * lerp(1, S.wetTop, wet) * (1 + 0.2 * shr) * (this.boosting ? lerp(1, CFG.bTop * S.bTop, this.spoolK ?? 1) : 1) * (this.draft > 0 ? 1.05 : 1);
       const k2 = 1 / (1 + (CFG.drag3 / (topMul * topMul * topMul)) * sp * sp * dt);
       const k3 = Math.exp(-(pud * CFG.puddleDrag + mat * CFG.matDrag) * dt);
       this.vx *= k1 * k2 * k3; this.vz *= k1 * k2 * k3;
@@ -2044,6 +2262,7 @@ class Racer {
     this.collideTrack(T, racing);
     if (!this.alive) return;
     this.collideObstacles(T);
+    pickupsCollect(this);
     // Wear.
     const dist = Math.hypot(this.x - ox, this.z - oz);
     this.size -= dist * CFG.wearPerU * S.wear * lerp(1.65, 1, wet) * (1 + mat * 0.5);
@@ -2102,7 +2321,9 @@ class Racer {
   collideObstacles(T) {
     const rs = (CFG.hx * this.bs[0] + CFG.hz * this.bs[2]) * 0.5 * this.vis * 1.05;
     for (const o of T.obst) {
-      const dx = this.x - o.x, dz = this.z - o.z, d = Math.hypot(dx, dz), md = o.r + rs;
+      let cx = o.x, cz = o.z;
+      if (o.cap) { const ex = o.bx - o.ax, ez = o.bz - o.az; const f = clamp(((this.x - o.ax) * ex + (this.z - o.az) * ez) / (ex * ex + ez * ez), 0, 1); cx = o.ax + ex * f; cz = o.az + ez * f; }
+      const dx = this.x - cx, dz = this.z - cz, d = Math.hypot(dx, dz), md = o.r + rs;
       if (d >= md || d < 1e-4) continue;
       const nx = dx / d, nz = dz / d;
       this.x += nx * (md - d); this.z += nz * (md - d);
@@ -2110,6 +2331,8 @@ class Racer {
       if (vn < 0) {
         this.vx -= (1 + o.e) * vn * nx; this.vz -= (1 + o.e) * vn * nz;
         this.w += (Math.random() - 0.5) * Math.min(6, -vn);
+        if (o.soft) { this.vx *= 0.8; this.vz *= 0.8; }
+        if (o.shave && -vn > 0.6 && this.alive) { if (!this.useShield('razor')) { this.size = Math.max(CFG.minSize, this.size - 0.05); this.w += (Math.random() < 0.5 ? -1 : 1) * 5; this.emit('shave', { o }); } }
         if (-vn > 1) this.emit('obst', { kind: o.kind, v: -vn, o });
       }
     }
@@ -2123,7 +2346,7 @@ class Racer {
   }
   useShield(why) {
     if (!this.S.shield || this.shieldLap === this.lap) return false;
-    this.shieldLap = this.lap; this.emit('shield', { why });
+    this.shieldLap = this.lap; this.shieldPop = 0.5; this.emit('shield', { why });
     return true;
   }
   die(why, T) {
@@ -2370,7 +2593,7 @@ class BallFX {
     const m = new THREE.ShaderMaterial({
       uniforms: { uT: TIME_U }, transparent: kind !== 'suds', depthWrite: kind === 'suds',
       vertexShader: `attribute vec4 aPos; attribute vec4 aCol; varying vec3 vN; varying vec3 vW; varying vec4 vCol;
-        void main(){ vCol = aCol; float nr = smoothstep(0.7, 2.2, distance(aPos.xyz, cameraPosition)); vec3 wp = aPos.xyz + position * aPos.w * nr; vW = wp; vN = normal; gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0); }`,
+        void main(){ vCol = aCol; float nr = smoothstep(0.9, 2.6, distance(aPos.xyz, cameraPosition)); vec3 wp = aPos.xyz + position * aPos.w * nr; vW = wp; vN = normal; gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0); }`,
       fragmentShader: `uniform float uT; varying vec3 vN; varying vec3 vW; varying vec4 vCol;
         void main(){ vec3 N = normalize(vN); vec3 V = normalize(cameraPosition - vW); vec3 L = normalize(vec3(-0.42, 0.82, 0.38)); ${frag} }`,
     });
@@ -2440,12 +2663,13 @@ const FX = {
   sudsSpawn(s) {
     if (!this.ready) return;
     s.balls = [];
-    const n = Math.round(14 * s.r);
+    const n = Math.round(16 * s.r);
     for (let i = 0; i < n; i++) {
-      const a = Math.random() * TAU, d = Math.sqrt(Math.random()) * s.r * 0.85;
+      const a = Math.random() * TAU, d = Math.sqrt(Math.random()) * s.r * 0.9;
       const x = s.x + Math.cos(a) * d, z = s.z + Math.sin(a) * d;
       const y = WORLD.T ? WORLD.T.heightAt(x, z) : 0;
-      s.balls.push(this.suds.add({ x, y: y + 0.08, z, s0: 0.12 + Math.random() * 0.2, s: 0, t: 0, life: 9999, sud: s, r: 1, g: 1, b: 1, a: 1, ph: Math.random() * 6 }));
+      const k = 1 - d / s.r;
+      s.balls.push(this.suds.add({ x, y: y + 0.02, z, s0: 0.06 + Math.random() * 0.08 + k * 0.05, s: 0, t: 0, life: 9999, sud: s, r: 1, g: 1, b: 1, a: 1, ph: Math.random() * 6 }));
     }
     const y0 = WORLD.T ? WORLD.T.heightAt(s.x, s.z) : 0;
     s.blob = this.sudsBlob.add({ x: s.x, y: y0 + 0.02, z: s.z, s0: s.r * 2.3, s: 0, t: 0, life: 9999, r: 1, g: 1, b: 1, a: 0.92, rot: Math.random() * 6, sud: s });
@@ -2712,7 +2936,7 @@ function raceSetup(opts) {
   if (WORLD.T !== T) buildWorld(T);
   RACE.T = T; RACE.trackId = T.def.id;
   clearRacers();
-  Object.assign(RACE, { laps: opts.laps || 3, mode: opts.mode || 'quick', diff: opts.diff || 'lather', t: -3, phase: opts.attract ? 'race' : 'intro', introT: opts.attract ? 0 : 2.4, doneT: 0, paused: false, seed: opts.seed || ((Math.random() * 1e9) | 0), startBonus: 0, online: !!opts.online, attract: !!opts.attract, gp: opts.gp || null, frame: 0, acc: 0, results: null, lastCpuCount: opts.cpus });
+  Object.assign(RACE, { endT: undefined, endSec: undefined, laps: opts.laps || 3, mode: opts.mode || 'quick', diff: opts.diff || 'lather', t: -3, phase: opts.attract ? 'race' : 'intro', introT: opts.attract ? 0 : 2.4, doneT: 0, paused: false, seed: opts.seed || ((Math.random() * 1e9) | 0), startBonus: 0, online: !!opts.online, attract: !!opts.attract, gp: opts.gp || null, frame: 0, acc: 0, results: null, lastCpuCount: opts.cpus });
   const rnd = mulberry(RACE.seed);
   const entries = [];
   if (opts.grid) for (const g of opts.grid) entries.push(g);
@@ -2736,6 +2960,7 @@ function raceSetup(opts) {
   });
   RACE.racers.forEach((r) => { r.place = r.slot + 1; });
   RACE.sorted = [...RACE.racers].sort((a, b) => a.slot - b.slot);
+  pickupsBuild(T);
   if (RACE.me) { camSnap(RACE.me); CAM.orbit = 0; }
   else if (RACE.racers[0]) camSnap(RACE.racers[0]);
   for (const r of RACE.racers) r.lapStart = 0;
@@ -2801,6 +3026,13 @@ function raceStep(dt) {
   RACE.sorted = sorted;
   // Attract race never ends.
   if (RACE.attract) { for (const r of R) if (r.lap > 50) r.lap = 0; return; }
+  // Online: once anyone finishes, everyone else has 25 seconds.
+  if (RACE.online && RACE.finishOrder.length && !RACE.results) {
+    RACE.endT = (RACE.endT ?? 25) - dt;
+    const sec = Math.ceil(RACE.endT);
+    if (sec !== RACE.endSec && sec <= 10 && sec >= 0 && RACE.me && !RACE.me.finished) { RACE.endSec = sec; center(String(sec), 'c3 sm', 0.6); }
+    if (RACE.endT <= 0) { finishRace(); return; }
+  }
   // End of race.
   if (RACE.phase === 'race' && RACE.me && RACE.me.finished) { RACE.phase = 'done'; RACE.doneT = 0; }
   if (RACE.phase === 'done') {
@@ -2901,6 +3133,11 @@ function handleEvents() {
         case 'land': FX.splash(r.x, r.y, r.z, 8 + e.v * 2, 0.5 + e.v * 0.08); FX.ringAt(r.x, r.y, r.z, 1 + e.v * 0.15, [1, 1, 1], 0.45); sfxAt('splash', r.x, r.y, r.z, clamp(e.v / 6, 0.3, 1)); if (isMe) CAM.shake = Math.max(CAM.shake, clamp(e.v / 8, 0.1, 0.6)); break;
         case 'slideDone': if (isMe && e.t > 1.4) { feed(e.t > 2.4 ? 'MEGA SLIDE!' : 'SLIDE!'); sfx('pop', 0.5, 1.3); } break;
         case 'shield': sfxAt('pop', r.x, r.y, r.z, 1, 0.8); FX.bubbles(r.x, r.y + 0.3, r.z, 18, 1, 1, 0.16); if (isMe) feed('Bubble Wrap saved you!'); break;
+        case 'pickup':
+          if (e.kind === 'coin') { if (isMe) { sfx('coin', 0.55, 1 + Math.random() * 0.15); } FX.sparkle(e.x, e.y, e.z, 3, [1, 0.85, 0.3], 0.16); }
+          else { if (isMe) { sfx(e.kind === 'fuel' ? 'ignite' : 'chime', 0.6, 1.35); feed(e.kind === 'fuel' ? 'Full tank!' : 'Boost star!'); } FX.sparkle(e.x, e.y, e.z, 6, e.kind === 'fuel' ? [1, 0.5, 0.4] : [1, 0.9, 0.3], 0.2); FX.ringAt(e.x, e.y - 0.4, e.z, 1.6, [1, 0.9, 0.4], 0.4); }
+          break;
+        case 'shave': sfxAt('knock', r.x, r.y, r.z, 0.9, 1.4); FX.sparkle(r.x, r.y + 0.3, r.z, 4, [0.8, 0.9, 1], 0.16); FX.bubbles(r.x, r.y + 0.2, r.z, 6, 0.4, 0.8, 0.1); if (isMe) { center('SHAVED!', 'c3 sm', 0.9); CAM.shake = 0.4; } break;
         case 'jetSuds': { const s = SUDS.add(r.x - Math.sin(r.yaw) * 0.9, r.z - Math.cos(r.yaw) * 0.9, 0.7, r, 5); netSendSuds && netSendSuds(s); break; }
       }
     }
@@ -2958,7 +3195,8 @@ function computeRewards(me, n) {
   const pl = me.place;
   const base = [150, 115, 90, 72, 60, 50, 42, 35][pl - 1] ?? 30;
   const k = (DIFF[RACE.diff] || DIFF.lather).mult * (RACE.online ? 1.2 : 1) * clamp(n / 6, 0.5, 1);
-  const out = [[ord(pl) + ' place', Math.round(base * k)]];
+  const out = [[ord(pl) + ' place', Math.round(base * k * me.S.bubbles)]];
+  if (me.coins) out.push(['Soap coins x' + me.coins, me.coins * 5]);
   if (RACE.racers.every((r) => r === me || r.bestLap >= me.bestLap) && isFinite(me.bestLap)) out.push(['Fastest lap', 25]);
   if (me.stat.sudsHits === 0 && me.stat.drains === 0) out.push(['Clean race (no spin outs)', 15]);
   if (me.size > 0.78) out.push(['Barely a scratch (soap ' + Math.round(me.size * 100) + '%)', 12]);
@@ -3264,6 +3502,7 @@ function hudUpdate() {
   if (L.lap !== lapNo) { $('hLap').textContent = `LAP ${lapNo}/${RACE.laps}`; L.lap = lapNo; }
   const t = Math.max(0, me.finished ? me.finishT : RACE.t);
   $('hTime').innerHTML = `${fmtT(t)}<small>BEST ${isFinite(me.bestLap) ? fmtT(me.bestLap) : '-'}</small>`;
+  if (L.coins !== (me.coins || 0)) { L.coins = me.coins || 0; $('hCoins').querySelector('b').textContent = L.coins; }
   const soapPct = Math.round((me.size - CFG.minSize) / (1 - CFG.minSize) * 100);
   if (L.soap !== soapPct) { $('mSoap').querySelector('i').style.width = soapPct + '%'; $('mSoapN').textContent = Math.round(me.size * 100) + '%'; L.soap = soapPct; }
   const bp = Math.round(me.boost);
@@ -3313,9 +3552,12 @@ function garageInit() {
   S.add(bg);
   const floor = new THREE.Mesh(new THREE.CircleGeometry(30, 64), patMat({ kind: 'tile', a: 0xffffff, b: 0xeaf5ff, grout: 0xcad8ec, tile: 1.2, check: 1, rough: 0.2 }));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; S.add(floor);
-  const dish = inked(new RoundedBoxGeometry(2.3, 0.22, 1.9, 4, 0.1), tm('dishG', 0x8fd3ff, { spec: 0.7 }), 1);
-  dish.position.y = 0.11; S.add(dish);
-  for (let k = 0; k < 5; k++) { const rib = inked(new RoundedBoxGeometry(0.16, 0.08, 1.6, 2, 0.04), tm('dishG', 0x8fd3ff), 0.7); rib.position.set(-0.8 + k * 0.4, 0.25, 0); S.add(rib); }
+  if (PGLB.ok) { const dish = makeModel('soap_dish', 1.45); dish.rotation.y = Math.PI / 2; S.add(dish); GAR.dishTop = 0.3 * 1.45; const sp = makeModel('sponge', 1.4); sp.position.set(-1.9, 0, -1.2); sp.rotation.y = 0.5; S.add(sp); const pf = makeModel('bath_pouf', 0.9); pf.position.set(2.4, 0, -2.2); S.add(pf); }
+  else {
+    const dish = inked(new RoundedBoxGeometry(2.3, 0.22, 1.9, 4, 0.1), tm('dishG', 0x8fd3ff, { spec: 0.7 }), 1);
+    dish.position.y = 0.11; S.add(dish); GAR.dishTop = 0.24;
+    for (let k = 0; k < 5; k++) { const rib = inked(new RoundedBoxGeometry(0.16, 0.08, 1.6, 2, 0.04), tm('dishG', 0x8fd3ff), 0.7); rib.position.set(-0.8 + k * 0.4, 0.25, 0); S.add(rib); }
+  }
   // Decorative bubbles and a duck.
   const duck = makeDuck(0.9); duck.position.set(1.9, 0, -0.9); duck.rotation.y = -0.6; S.add(duck);
   const bmat = bubbleMat();
@@ -3335,7 +3577,7 @@ function garageFrame(dt, t) {
   const f = GAR.fake;
   f.yaw = GAR.t * 0.45 + GAR.spin; f.thr = 0.55 + 0.45 * Math.sin(GAR.t * 1.7) ** 2; f.boosting = (GAR.t % 6) > 4.6;
   GAR.view.sync(f, dt, t);
-  GAR.view.root.position.y = 0.24 + Math.sin(GAR.t * 1.6) * 0.03;
+  GAR.view.root.position.y = (GAR.dishTop || 0.24) + 0.02 + Math.sin(GAR.t * 1.6) * 0.03;
   const w = innerWidth, h = innerHeight;
   const a = 0.6;
   GAR.cam.position.set(Math.sin(a) * 3.9, 1.6, Math.cos(a) * 3.9); GAR.cam.lookAt(0, 0.36, 0);
@@ -3732,6 +3974,7 @@ function frame() {
   handleEvents();
   racersVisual(dt, T);
   FX.update(dt, T);
+  pickupsUpdate(dt, T);
   // Camera.
   const me = RACE.me;
   if (MODE === 'race' && me) {
@@ -3768,7 +4011,8 @@ async function boot() {
   if (!renderer) { bootMsg('This game needs 3D graphics (WebGL), and this browser has it switched off.'); return; }
   bootMsg('Filling the tub', 0.1);
   makeEnv(); setupPost(); initSoapMats(); FX.init(); bindTouch();
-  try { await loadModels((p) => bootMsg('Unwrapping the soap', 0.15 + p * 0.55)); }
+  initModelMats();
+  try { await Promise.all([loadModels((p) => bootMsg('Unwrapping the soap', 0.15 + p * 0.45)), loadPropModels().catch((e) => console.warn('props', e))]); }
   catch (e) { bootMsg('Could not load the soap models. Check your connection and refresh.'); console.error(e); return; }
   bootMsg('Mopping the floor', 0.8);
   await new Promise((r) => setTimeout(r, 30));
@@ -3792,7 +4036,7 @@ boot();
 // ---------------------------------------------------------------------------
 // Self-tests (#smoke) and a debug hook (#debug -> window.__SR).
 // ---------------------------------------------------------------------------
-if (DEBUG || SMOKE) window.__SR = { __raceStep: (dt) => { raceStep(dt); handleEvents(); }, RACE, P, CFG, TRACKS, getTrack, startRace, showTitle, showGarage, showQuick, showResults, setQuality, CAM, Racer, SUDS, FX, WORLD, NET, netConnect, netHostStart, ACT, statsFor, displayStats, BARS, ROCKETS, MODS, UI, INPUT, KEYS, setMode, camera, renderer, scene, get MODE() { return MODE; } };
+if (DEBUG || SMOKE) window.__SR = { CpuDriver, tryDropSuds, __raceStep: (dt) => { raceStep(dt); handleEvents(); }, RACE, P, CFG, TRACKS, getTrack, startRace, showTitle, showGarage, showQuick, showResults, setQuality, CAM, Racer, SUDS, FX, WORLD, NET, netConnect, netHostStart, ACT, statsFor, displayStats, BARS, ROCKETS, MODS, UI, INPUT, KEYS, setMode, camera, renderer, scene, get MODE() { return MODE; } };
 
 // Drive one racer with fixed inputs on a fresh track and report what happened.
 function simRun(trackId, setup, secs, ctrl) {
