@@ -3,7 +3,6 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
-  {name:'Soap Rocket',        file:'soap-rocket.html',            emoji:'🧼',color:['#bfe6ff','#ffd6ea'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Race rocket-powered bars of soap around a slippery bathroom. Wet floor is fast, mats grip, and your bar wears down as you go. Five tracks, up to 8 friends online'},
   {name:'Rocket Roadster',    file:'rocket-roadster.html',        emoji:'🏎️',color:['#2b1418','#d06a3a'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Drive, hop and fly a rocket car over a mountain range. Race up to 7 friends to the summit pad, or winch them out of trouble'},
   {name:'Frontline',          file:'frontline.html',              emoji:'🦾',color:['#070a1c','#2a1622'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Start as a regular soldier. Level up, bolt on robot parts and push the machines back with friends or CPU squadmates. 1 to 4 players'},
   {name:'Tank War 3D',        file:'tank-war-3d.html',            emoji:'🪖',color:['#0b1a10','#1c3a52'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Tanks, ships, jets and choppers in 3D. Rack up kills to unlock variants, fight 7v7 or take on friends online'},
@@ -52,49 +51,6 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
-'soap-rocket':(c)=>{
-  // a pink soap bar with two rockets, sliding across wet pastel tiles
-  c.save();
-  _GV(c,0,0,320,200,'#cfeeff','#e9f4ff','#fde3f0');
-  // tiled wall + floor
-  c.strokeStyle='rgba(120,140,200,.35)';c.lineWidth=2;
-  for(let x=0;x<=320;x+=32){c.beginPath();c.moveTo(x,0);c.lineTo(x,92);c.stroke();}
-  for(let y=0;y<=92;y+=32){c.beginPath();c.moveTo(0,y);c.lineTo(320,y);c.stroke();}
-  _GV(c,0,92,320,108,'#f2f6ff','#e3ecff');
-  c.strokeStyle='rgba(120,140,200,.3)';
-  for(let i=-8;i<=8;i++){c.beginPath();c.moveTo(160+i*22,92);c.lineTo(160+i*70,200);c.stroke();}
-  for(const y of [104,122,148,182]){c.beginPath();c.moveTo(0,y);c.lineTo(320,y);c.stroke();}
-  // wet shine + reflection
-  c.fillStyle='rgba(255,255,255,.65)';c.beginPath();c.ellipse(150,168,120,10,0,0,6.28);c.fill();
-  c.fillStyle='rgba(255,143,194,.25)';c.beginPath();c.ellipse(168,172,70,12,0,0,6.28);c.fill();
-  const ink='#2b1f40';
-  const rr=(x,y,w,h,r)=>{c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();};
-  // flames
-  const flame=(x,y)=>{c.fillStyle='#ff7a3a';c.strokeStyle=ink;c.lineWidth=4;c.beginPath();c.moveTo(x,y-9);c.quadraticCurveTo(x-40,y-6,x-72,y);c.quadraticCurveTo(x-40,y+6,x,y+9);c.closePath();c.stroke();c.fill();
-    c.fillStyle='#ffd23f';c.beginPath();c.moveTo(x,y-6);c.quadraticCurveTo(x-24,y-3,x-44,y);c.quadraticCurveTo(x-24,y+3,x,y+6);c.fill();c.fillStyle='#fff6d8';c.beginPath();c.ellipse(x-6,y,8,4,0,0,6.28);c.fill();};
-  flame(98,118);flame(104,166);
-  // rockets
-  const rocket=(x,y)=>{c.lineWidth=4;c.strokeStyle=ink;rr(x,y-11,92,22,10);c.fillStyle='#fffaf0';c.fill();c.stroke();
-    c.fillStyle='#f2443b';c.beginPath();c.moveTo(x+92,y-11);c.quadraticCurveTo(x+120,y,x+92,y+11);c.closePath();c.fill();c.stroke();
-    _F(c,x+40,y-10,8,20,'#ffc93c');_F(c,x+16,y-10,6,20,'#f2443b');
-    c.fillStyle='#f2443b';c.beginPath();c.moveTo(x+12,y-11);c.lineTo(x-6,y-22);c.lineTo(x+26,y-11);c.closePath();c.fill();c.stroke();
-    c.fillStyle='#4b5262';rr(x-8,y-9,12,18,4);c.fill();c.stroke();};
-  rocket(104,118);
-  // the bar
-  c.lineWidth=5;c.strokeStyle=ink;rr(118,104,150,74,28);c.fillStyle='#ff8fc2';c.fill();c.stroke();
-  c.fillStyle='rgba(255,255,255,.35)';rr(128,110,126,20,10);c.fill();
-  c.lineWidth=3;c.strokeStyle='#ffd6ea';c.beginPath();c.ellipse(194,140,58,24,0,0,6.28);c.stroke();
-  c.font='900 28px "Arial Black",Impact,sans-serif';c.textAlign='center';c.textBaseline='middle';c.lineWidth=5;c.strokeStyle=ink;c.strokeText('SOAP',194,141);c.fillStyle='#ffe6f2';c.fillText('SOAP',194,141);
-  rocket(110,166);
-  // suds on the corner
-  for(const [x,y,r] of [[246,100,12],[262,104,10],[232,98,9],[252,92,8]]){c.fillStyle='#f4fbff';c.strokeStyle=ink;c.lineWidth=3;c.beginPath();c.arc(x,y,r,0,6.28);c.fill();c.stroke();}
-  // floating bubbles
-  for(const [x,y,r] of [[40,40,14],[70,70,7],[286,40,18],[300,82,8],[24,150,9],[290,150,12]]){
-    const g=c.createRadialGradient(x-r*.35,y-r*.35,1,x,y,r);g.addColorStop(0,'rgba(255,255,255,.95)');g.addColorStop(.5,'rgba(220,240,255,.35)');g.addColorStop(1,'rgba(200,170,255,.5)');
-    c.fillStyle=g;c.strokeStyle=ink;c.lineWidth=2.5;c.beginPath();c.arc(x,y,r,0,6.28);c.fill();c.stroke();}
-  c.restore();
-},
-
 'rocket-roadster':(c)=>{
   // late afternoon in canyon country: a red roadster hovers over a gap on white jets
   c.save();
@@ -1019,7 +975,7 @@ const THUMB_IMGS = {};
 // Which games actually have a painted thumbs/<gid>.png. Asking for every game's file
 // meant ~43 failed downloads (404s) on every hub and play-page visit. Add a gid here
 // when a new shot goes into thumbs/.
-const THUMB_FILES = new Set(['gridlock','haymaker','tank-war-3d','frontline','rocket-roadster','soap-rocket']);
+const THUMB_FILES = new Set(['gridlock','haymaker','tank-war-3d','frontline','rocket-roadster']);
 function drawThumb(ctx, g){
   const gid = g.file.replace('.html','');
   (DRAW[gid] || DRAW.fallback)(ctx, g);
