@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Lilita+One&display=swap" rel="stylesheet">
 <script src="glitchbox-config.js"></script>
+<script src="glitchbox-save.js" data-pos="top-right"></script>
 <style>
 :root{
   --ink:#2b1f40; --ink2:#4b3f6b; --pink:#ff8fc2; --pink2:#ffd6ea; --cream:#fffaf3; --sky:#bfe6ff; --sky2:#e7f6ff;
@@ -45,7 +46,7 @@ h1,h2,h3{font-family:var(--head);font-weight:400;margin:0;letter-spacing:.02em}
 .screen.dim{background:radial-gradient(ellipse at 70% 40%,rgba(255,255,255,0),rgba(43,31,64,.42))}
 .screen.veil{background:rgba(201,236,255,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 @keyframes scrIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
-.topbar{position:fixed;top:14px;left:18px;right:104px;display:flex;align-items:center;gap:12px;z-index:30;pointer-events:none}
+.topbar{position:fixed;top:14px;left:18px;right:150px;display:flex;align-items:center;gap:12px;z-index:30;pointer-events:none}
 .topbar>*{pointer-events:auto}
 .wallet{font-family:var(--head);font-size:22px}
 .wallet .b{display:inline-block;width:20px;height:20px;border-radius:50%;border:3px solid var(--ink);background:radial-gradient(circle at 35% 30%,#fff 0 18%,#e8f8ff 30%,#b9e3ff 70%,#d9c9ff);vertical-align:-3px;margin-right:2px}
@@ -1366,6 +1367,29 @@ function makeWindow(w = 14, h = 12) {
   return g;
 }
 
+function makeHairDryer(s = 1) {
+  const body = tm('dryer', 0xff9ccf, { spec: 0.7, shin: 80 }), dark = tm('dryerD', 0x4b3f6b, { spec: 0.5 });
+  const shell = inked(new THREE.CapsuleGeometry(0.9, 1.6, 8, 18), body); shell.rotation.x = Math.PI / 2; shell.position.set(0, 2.6, 0);
+  const nozzle = inked(new THREE.CylinderGeometry(0.55, 0.75, 1.0, 20), dark); nozzle.rotation.x = Math.PI / 2; nozzle.position.set(0, 2.6, 1.7);
+  const handle = inked(new RoundedBoxGeometry(0.7, 2.4, 0.8, 3, 0.3), body); handle.position.set(0, 1.25, -0.4); handle.rotation.x = -0.25;
+  const vent = inked(new THREE.CylinderGeometry(0.85, 0.85, 0.12, 20), tm('chrome', 0xc9d2e0, { spec: 0.95 })); vent.rotation.x = Math.PI / 2; vent.position.set(0, 2.6, -1.25);
+  const btn = inked(new RoundedBoxGeometry(0.3, 0.5, 0.2, 2, 0.08), tm('btnY', 0xffe066)); btn.position.set(0, 1.9, 0.02);
+  const g = grp(shell, nozzle, handle, vent, btn); g.scale.setScalar(s); return g;
+}
+function makeFrame(kind, w = 6, h = 4.5) {
+  const cv = document.createElement('canvas'); cv.width = 384; cv.height = 288; const c = cv.getContext('2d');
+  const ink = '#2b1f40';
+  if (kind === 0) { c.fillStyle = '#bfe6ff'; c.fillRect(0, 0, 384, 288); c.fillStyle = '#8fd3ff'; c.fillRect(0, 190, 384, 98);
+    c.fillStyle = '#ffd23f'; c.strokeStyle = ink; c.lineWidth = 8; c.beginPath(); c.ellipse(190, 185, 92, 56, 0, 0, TAU); c.fill(); c.stroke(); c.beginPath(); c.arc(240, 112, 48, 0, TAU); c.fill(); c.stroke();
+    c.fillStyle = '#ff7a2f'; c.beginPath(); c.ellipse(292, 122, 28, 14, 0, 0, TAU); c.fill(); c.stroke(); c.fillStyle = ink; c.beginPath(); c.arc(252, 102, 8, 0, TAU); c.fill(); }
+  else if (kind === 1) { c.fillStyle = '#ffd6ea'; c.fillRect(0, 0, 384, 288); for (const [x, y, r] of [[110, 150, 70], [250, 110, 52], [280, 210, 34], [160, 60, 26], [70, 240, 22]]) { const g = c.createRadialGradient(x - r * 0.3, y - r * 0.3, 2, x, y, r); g.addColorStop(0, '#ffffff'); g.addColorStop(0.6, 'rgba(200,230,255,.6)'); g.addColorStop(1, 'rgba(201,182,255,.8)'); c.fillStyle = g; c.strokeStyle = ink; c.lineWidth = 6; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); c.stroke(); } }
+  else { c.fillStyle = '#fff4bf'; c.fillRect(0, 0, 384, 288); c.font = '900 72px "Lilita One", sans-serif'; c.textAlign = 'center'; c.lineWidth = 12; c.strokeStyle = ink; c.fillStyle = '#ff8fc2'; c.strokeText('SOAP', 192, 120); c.fillText('SOAP', 192, 120); c.fillStyle = '#ffd23f'; c.strokeText('ROCKET', 192, 200); c.fillText('ROCKET', 192, 200); c.font = '700 26px Fredoka, sans-serif'; c.fillStyle = ink; c.fillText('GRAND PRIX', 192, 250); }
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const art = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }));
+  art.position.z = 0.2;
+  const frame = inked(new RoundedBoxGeometry(w + 0.9, h + 0.9, 0.35, 3, 0.15), tm('frameW', pick([0xffffff, 0xc9b6ff, 0x8ee8c8]), { spec: 0.4 }), 1);
+  return grp(frame, art);
+}
 // Instanced iridescent bubble foam for the tub island and suds.
 function foamMat(col = 0xfaf7ff) { return tm('foam' + col, col, { spec: 0.75, shin: 50, rim: 0.42 }); }
 
@@ -1458,7 +1482,7 @@ function buildWorld(T) {
   const G = new THREE.Group(); G.name = 'world';
   const look = LOOKS[T.def.id];
   const anim = [];
-  WORLD = { group: G, T, anim, look };
+  WORLD = { group: G, T, anim, look, dryer: null };
   scene.background = new THREE.Color(look.bg);
 
   // ---- ground ribbon -------------------------------------------------------
@@ -1729,6 +1753,10 @@ function buildWorld(T) {
   mkWall(rcx, rcz - D / 2, 0, W); mkWall(rcx, rcz + D / 2, Math.PI, W); mkWall(rcx - W / 2, rcz, Math.PI / 2, D); mkWall(rcx + W / 2, rcz, -Math.PI / 2, D);
   const win = makeWindow(26, 22); win.position.set(rcx - W / 2 + 0.3, outY + 30, rcz + 6); win.rotation.y = Math.PI / 2; G.add(win);
   const win2 = makeWindow(20, 18); win2.position.set(rcx + 8, outY + 32, rcz - D / 2 + 0.3); G.add(win2);
+  // Pictures on the walls.
+  [[rcx - W / 2 + 0.4, rcz - 22, Math.PI / 2], [rcx + W / 2 - 0.4, rcz + 8, -Math.PI / 2], [rcx - 24, rcz + D / 2 - 0.4, Math.PI], [rcx + W / 2 - 0.4, rcz - 20, -Math.PI / 2]].forEach(([x, z, ry], k) => {
+    const f = makeFrame(k % 3, 9, 6.75); f.position.set(x, outY + 24, z); f.rotation.y = ry; G.add(f);
+  });
 
   if (T.def.id === 'shower') {
     const toilet = makeToilet(1.25); at(toilet, T.bx1 + 8, outY, rcz + 4, -Math.PI / 2); G.add(toilet);
@@ -1770,6 +1798,13 @@ function buildWorld(T) {
   } else if (T.def.id === 'floor') {
     const plant = makePlant(10); at(plant, T.bx1 - 3, outY, T.bz1 - 2); G.add(plant);
   } else if (T.def.id === 'vanity') {
+    // The hair dryer that blows soap toward the open edge.
+    for (const wd of T.def.wind || []) {
+      const u = (wd[0] + wd[1]) / 2, p = T.at(u, T.inSign * (T.hw[0] + 1.6));
+      const hd = makeHairDryer(0.9); hd.position.set(p.x, -0.3, p.z);
+      hd.rotation.y = Math.atan2(-T.nx[p.i] * T.inSign, -T.nz[p.i] * T.inSign); G.add(hd);
+      WORLD.dryer = { u0: wd[0], u1: wd[1], dir: wd[2] };
+    }
     // Things along the backsplash shelf.
     const back = edgePts(T, !inLeft, 0, T.N - 1, 2.2).filter((p) => T.wallAt(p.i, !inLeft) === 'splash');
     const items = [() => makeBottle(2, 3.4, BOTTLE_COLS[4]), () => makeCup(2, 0x8fd3ff), () => makePlant(5), () => PGLB.ok ? makeModel('toothpaste', 1.1) : makeCandle(1.8, 0xc9b6ff), () => makeBottle(0, 2.8, BOTTLE_COLS[5]), () => makeCandle(1.8, 0xc9b6ff), () => PGLB.ok ? makeSoapDish(1.2) : makeBottle(1, 2.6, BOTTLE_COLS[2]), () => makeBottle(1, 2.6, BOTTLE_COLS[2])];
@@ -1841,7 +1876,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040630";
+const ASSET_V = "202611040631";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2744,13 +2779,13 @@ const FX = {
     this.bub = new BallFX(240, 'bubble'); this.drop = new BallFX(300, 'drop'); this.suds = new BallFX(360, 'suds');
     this.foam = new QuadFX(700, TEX.blob, 'ground'); this.ring = new QuadFX(60, TEX.ring, 'ground');
     this.star = new QuadFX(160, TEX.star, 'bill'); this.rain = new QuadFX(500, TEX.streak, 'bill'); this.conf = new QuadFX(400, TEX.square, 'bill');
-    this.sudsBlob = new QuadFX(80, TEX.blob, 'ground');
-    for (const p of [this.foam, this.sudsBlob, this.ring, this.suds, this.drop, this.bub, this.star, this.rain, this.conf]) this.group.add(p.mesh);
+    this.sudsBlob = new QuadFX(80, TEX.blob, 'ground'); this.wind = new QuadFX(120, TEX.blob, 'bill');
+    for (const p of [this.foam, this.sudsBlob, this.ring, this.suds, this.drop, this.bub, this.star, this.rain, this.conf, this.wind]) this.group.add(p.mesh);
     HIDE_IN_MIRROR.push(this.foam.mesh, this.sudsBlob.mesh, this.ring.mesh, this.rain.mesh, this.conf.mesh);
     scene.add(this.group);
     this.ready = true;
   },
-  reset() { if (!this.ready) return; for (const p of [this.bub, this.drop, this.suds, this.foam, this.ring, this.star, this.rain, this.conf, this.sudsBlob]) p.list.length = 0; this.ambT = 0; },
+  reset() { if (!this.ready) return; for (const p of [this.bub, this.drop, this.suds, this.foam, this.ring, this.star, this.rain, this.conf, this.sudsBlob, this.wind]) p.list.length = 0; this.ambT = 0; },
   k() { return Q.fx; },
   bubbles(x, y, z, n, spread = 0.5, up = 0.6, size = 0.12) {
     n = Math.round(n * this.k()); size *= 0.7;
@@ -2817,6 +2852,18 @@ const FX = {
       for (let i = 0; i < n; i++) { const a = Math.random() * TAU, d = Math.sqrt(Math.random()) * R.r; this.rain.add({ x: R.x + Math.cos(a) * d, y: 20 + Math.random() * 4, z: R.z + Math.sin(a) * d, vy: -26 - Math.random() * 6, s: 0.12, st: 9, t: 0, life: 1.2, r: 0.85, g: 0.95, b: 1, a: 0.55 }); }
       this.rain.update(dt, (p, dt) => { p.y += p.vy * dt; const gy = WORLD.T.heightAt(p.x, p.z); if (p.y < gy + 0.4) { p.t = p.life; if (Math.random() < 0.25) this.splash(p.x, gy, p.z, 2, 0.45); if (Math.random() < 0.08) this.ringAt(p.x, gy, p.z, 0.5, [0.8, 0.92, 1], 0.4); } });
     } else this.rain.update(dt, () => {});
+    // Hair dryer wind: air puffs blowing across the counter.
+    const Dz = WORLD.dryer;
+    if (Dz && WORLD.T) {
+      const T = WORLD.T;
+      if (Math.random() < dt * 30 * this.k()) {
+        const u = Dz.u0 + Math.random() * (Dz.u1 - Dz.u0), i = Math.floor(u * T.N) % T.N;
+        const d0 = T.inSign * T.hw[i] * (0.6 + Math.random() * 0.4);
+        const k = Dz.dir * T.inSign * 11;
+        this.wind.add({ x: T.px[i] + T.nx[i] * d0, y: 0.4 + Math.random() * 1.2, z: T.pz[i] + T.nz[i] * d0, vx: T.nx[i] * k, vz: T.nz[i] * k, s0: 0.5 + Math.random() * 0.5, s: 0, t: 0, life: 0.9, r: 1, g: 1, b: 1, a: 0.5, rot: Math.random() * 6 });
+      }
+    }
+    this.wind.update(dt, (p, dt) => { p.x += p.vx * dt; p.z += p.vz * dt; const f = p.t / p.life; p.s = p.s0 * (0.6 + f); p.a = 0.45 * Math.sin(f * Math.PI); });
     // Ambient bubbles: floating up from the tub foam / faucet.
     this.ambT = (this.ambT || 0) - dt;
     if (this.ambT <= 0 && WORLD.T) {
@@ -4227,7 +4274,7 @@ async function boot() {
   for (const t of TRACKS) getTrack(t.id);
   bootMsg('Ready', 1);
   if (window.GBSave && GBSave.register) {
-    try { GBSave.register({ save: () => JSON.stringify(P), load: (s) => { try { const o = typeof s === 'string' ? JSON.parse(s) : s; if (o && o.v === 1) { P = Object.assign(defProfile(), o); saveProfile(); if (UI.cur === 'title') showTitle(); } } catch (e) { /* bad save */ } } }); } catch (e) { /* no save engine */ }
+    try { GBSave.register({ autosave: 60, save: () => (SMOKE ? null : P), load: (s) => { try { const o = typeof s === 'string' ? JSON.parse(s) : s; if (o && o.v === 1) { P = Object.assign(defProfile(), o); saveProfile(); if (UI.cur === 'title') showTitle(); } } catch (e) { /* bad save */ } } }); } catch (e) { /* no save engine */ }
   }
   requestAnimationFrame(frame);
   setTimeout(() => $('boot').classList.add('gone'), 120);
