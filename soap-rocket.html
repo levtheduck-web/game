@@ -344,7 +344,7 @@ const defProfile = () => ({
   own: { bar: ['rosy'], rocket: ['twin'], mod: [] },
   eq: { bar: 'rosy', rocket: 'twin', mods: ['', ''], paint: 0 },
   set: { sound: 1, vol: 0.8, music: 0, quality: 'auto', shake: 1, cam: 0, touch: 'auto', fps: 0 },
-  best: {}, cups: {}, wins: {}, name: '',
+  best: {}, cups: {}, wins: {}, medals: {}, name: '',
   st: { races: 0, wins: 0, podiums: 0, suds: 0 },
   help: 0,
 });
@@ -1942,7 +1942,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040714";
+const ASSET_V = "202611040715";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -3200,7 +3200,7 @@ function raceSetup(opts) {
   if (WORLD.T !== T) buildWorld(T);
   RACE.T = T; RACE.trackId = T.def.id;
   clearRacers();
-  Object.assign(RACE, { heldEarly: false, endT: undefined, endSec: undefined, laps: opts.laps || 3, mode: opts.mode || 'quick', diff: opts.diff || 'lather', t: -3, phase: opts.attract ? 'race' : 'intro', introT: opts.attract ? 0 : 2.4, doneT: 0, paused: false, seed: opts.seed || ((Math.random() * 1e9) | 0), startBonus: 0, online: !!opts.online, attract: !!opts.attract, gp: opts.gp || null, frame: 0, acc: 0, results: null, lastCpuCount: opts.cpus });
+  Object.assign(RACE, { newMedal: 0, heldEarly: false, endT: undefined, endSec: undefined, laps: opts.laps || 3, mode: opts.mode || 'quick', diff: opts.diff || 'lather', t: -3, phase: opts.attract ? 'race' : 'intro', introT: opts.attract ? 0 : 2.4, doneT: 0, paused: false, seed: opts.seed || ((Math.random() * 1e9) | 0), startBonus: 0, online: !!opts.online, attract: !!opts.attract, gp: opts.gp || null, frame: 0, acc: 0, results: null, lastCpuCount: opts.cpus });
   const rnd = mulberry(RACE.seed);
   const entries = [];
   if (opts.grid) for (const g of opts.grid) entries.push(g);
@@ -3504,6 +3504,13 @@ function hints(r) {
   if (r.coins) say('coin', 'Soap coins turn into bubbles for the garage');
   if (r.onSurface === 'mat' && r.speed > 2) say('mat', 'Mats are grippy but slow');
 }
+// Lap medals per track: [gold, silver, bronze] best-lap times in seconds.
+const MEDALS = {
+  shower: [15.0, 16.5, 18.5], tub: [16.0, 17.5, 20.0], floor: [19.5, 21.5, 24.0], vanity: [15.5, 17.0, 19.0],
+  'shower-r': [14.0, 15.5, 17.5], 'tub-r': [16.0, 17.5, 20.0], 'floor-r': [19.5, 21.5, 24.0], 'vanity-r': [14.5, 16.0, 18.0],
+};
+const MEDAL_ICON = ['', '🥇', '🥈', '🥉'], MEDAL_NAME = ['', 'Gold', 'Silver', 'Bronze'], MEDAL_PAY = [0, 120, 70, 40];
+function medalFor(id, lap) { const m = MEDALS[id]; if (!m || !isFinite(lap)) return 0; return lap <= m[0] ? 1 : lap <= m[1] ? 2 : lap <= m[2] ? 3 : 0; }
 // Rewards for the player at the end of a race.
 function computeRewards(me, n) {
   const pl = me.place;
@@ -3518,6 +3525,13 @@ function computeRewards(me, n) {
   const hits = RACE.racers.filter((r) => r !== me).reduce((a, r) => a + (r.sudsByMe || 0), 0); if (hits) out.push(['Sudsed rivals x' + hits, hits * 8]);
   const key = RACE.trackId;
   if (pl === 1 && !(P.wins[key] > 0)) out.push(['First win on ' + RACE.T.def.name + '!', 60]);
+  const tier = medalFor(key, me.bestLap), had = (P.medals || {})[key] || 4;
+  if (tier && tier < had) {
+    let pay = 0; for (let t = had - 1; t >= tier; t--) pay += MEDAL_PAY[t] || 0;
+    P.medals = P.medals || {}; P.medals[key] = tier;
+    out.push([MEDAL_ICON[tier] + ' ' + MEDAL_NAME[tier] + ' medal lap!', pay]);
+    RACE.newMedal = tier;
+  }
   return out;
 }
 
@@ -3721,10 +3735,13 @@ function trackCards(sel, act, rev = 0) {
   return TRACKS.map((t) => {
     const img = TRACK_IMG[t.id] || (TRACK_IMG[t.id] = trackCanvas(t.id));
     const tid = trackId(t.id, rev); const best = P.best[tid] ? fmtT(P.best[tid]) : '-';
+    const md = (P.medals || {})[tid] || 0, tg = MEDALS[tid];
+    const medalLine = tg ? (md === 1 ? '🥇 Gold!' : (md ? MEDAL_ICON[md] + ' ' : '') + 'next ' + MEDAL_NAME[md ? md - 1 : 3].toLowerCase() + ' ' + fmtT(tg[md ? md - 2 : 2])) : '';
     return `<div class="item trk ${sel === t.id ? 'on' : ''}" data-act="${act}" data-arg="${t.id}">
       <img src="${img}" style="width:100%;border-radius:12px;border:3px solid var(--ink);display:block" alt="">
       <h3>${t.name}</h3><p>${t.blurb}</p>
-      <div class="foot"><span>${'💧'.repeat(t.diff)}</span><span style="font-size:13px">Best lap ${best}</span></div></div>`;
+      <div class="foot"><span>${'💧'.repeat(t.diff)}</span><span style="font-size:13px">Best lap ${best}</span></div>
+      <div style="font-size:12.5px;font-weight:700;opacity:.85">${medalLine}</div></div>`;
   }).join('');
 }
 const seg = (name, opts, cur) => `<div class="seg">${opts.map(([v, l]) => `<button class="${String(v) === String(cur) ? 'on' : ''}" data-act="seg" data-arg="${name}:${v}">${l}</button>`).join('')}</div>`;
@@ -4579,6 +4596,9 @@ async function boot() {
   bootMsg('Mopping the floor', 0.8);
   await new Promise((r) => setTimeout(r, 30));
   garageInit();
+  // Medals for best laps set before medals existed (no bubbles for these).
+  P.medals = P.medals || {};
+  for (const id in P.best) { const t = medalFor(id, P.best[id]); if (t && (!P.medals[id] || t < P.medals[id])) P.medals[id] = t; }
   for (const t of TRACKS) getTrack(t.id);
   bootMsg('Ready', 1);
   if (window.GBSave && GBSave.register) {
