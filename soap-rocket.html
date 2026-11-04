@@ -87,6 +87,9 @@ h1,h2,h3{font-family:var(--head);font-weight:400;margin:0;letter-spacing:.02em}
 .swatch.pic img{width:100%;height:100%;object-fit:cover;display:block}
 .swatch .bar{width:64%;height:62%;border-radius:12px;border:3px solid var(--ink);box-shadow:inset -6px -6px 0 rgba(0,0,0,.08),inset 5px 5px 0 rgba(255,255,255,.45)}
 .price{font-family:var(--head);font-size:18px}
+.price.cant{opacity:.42}
+.price.can{color:#0f7a4f}
+.newdot{position:absolute;top:-8px;right:-8px;background:var(--red);color:#fff;border:3px solid var(--ink);border-radius:999px;font:700 12px var(--font);padding:1px 7px;box-shadow:0 2px 0 var(--ink)}
 .stats{display:grid;grid-template-columns:auto 1fr auto;gap:5px 10px;align-items:center;font-weight:700;font-size:14px}
 .stats .sb{height:14px;border:3px solid var(--ink);border-radius:9px;background:#fff;position:relative;overflow:hidden}
 .stats .sb i{position:absolute;left:0;top:0;bottom:0;background:var(--mint);border-right:3px solid var(--ink)}
@@ -107,6 +110,17 @@ input.field.name{text-transform:none;font-family:var(--font);font-weight:700;fon
 .fxl{display:flex;flex-direction:column;gap:2px;font-weight:700;font-size:13.5px}
 .fxl .p{color:#15935f}.fxl .m{color:#d2384a}
 @media (max-width:1180px) and (min-width:601px){ .gar-list{width:calc(100vw - 470px);min-width:320px} }
+@media (max-height:600px){
+  #s-garage .grid{grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+  #s-garage .item{padding:6px 6px 5px;gap:3px;border-radius:14px;box-shadow:0 3px 0 var(--ink)}
+  #s-garage .item p{display:none}
+  #s-garage .item h3{font-size:14px;line-height:1.1}
+  #s-garage .item .swatch{height:auto;aspect-ratio:220/124}
+  #s-garage .item .swatch.modsw span{font-size:30px}
+  #s-garage .item .foot{font-size:12px} #s-garage .item .price{font-size:15px}
+  #s-garage .item .tag{font-size:10px;padding:1px 6px}
+  .gar-act{position:sticky;bottom:-10px;background:var(--cream);padding:6px 0 4px;margin-bottom:-4px}
+}
 @media (max-height:600px) and (min-width:601px){
   .gar-card{width:min(360px,44vw);top:62px;bottom:10px;padding:10px 12px;gap:6px}
   .gar-card h3{font-size:19px!important} .gar-card p{font-size:12.5px!important}
@@ -134,6 +148,9 @@ input.field.name{text-transform:none;font-family:var(--font);font-weight:700;fon
 .res-panel table.res td{padding:4px 9px}
 .res-panel table.res td:first-child{font-size:18px;width:44px}
 .res-panel h2{font-size:clamp(26px,3vw,38px)!important}
+.res-sum{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-weight:700}
+.res-sum .big{font-family:var(--head);font-size:24px;background:var(--lemon);border:3px solid var(--ink);border-radius:12px;padding:0 10px 2px;box-shadow:0 3px 0 var(--ink)}
+@media (max-height:700px){ .res-panel table.res td{padding:1px 8px;font-size:12.5px} .res-panel table.res td:first-child{font-size:15px} .res-panel table.res{border-spacing:0 2px} .res-panel .reward{font-size:12.5px} }
 .res-panel{max-height:96vh;padding:16px 18px 18px;gap:10px}
 .res-panel table.res td{padding:3px 9px}
 .res-panel .btn.big{font-size:clamp(18px,2.2vw,26px)}
@@ -185,6 +202,7 @@ table.res.trophy th{font-size:13px;text-transform:uppercase;letter-spacing:.04em
 #mSoap .t i{background:linear-gradient(#ffb3d6,var(--pink))}
 #mBoost .t i{background:linear-gradient(#ffe48a,#ff9a3c)}
 #mBoost.full{animation:pulse .7s ease-in-out infinite alternate}
+.meter .l .k:empty{display:none}
 #mBoost.charging{box-shadow:0 5px 0 var(--ink),0 0 0 4px #8ee8c8,0 0 18px 4px rgba(142,232,200,.9)}
 #mBoost.charging .k{background:#15935f}
 #mSuds .t i{background:linear-gradient(#ffffff,#bfe6ff)}
@@ -250,7 +268,9 @@ body.touch #hMap{width:104px;top:58px;right:10px}
 @media (pointer:coarse){ .topbar{right:225px} }
 @media (max-width:600px){ .topbar{top:54px;left:12px;right:12px} .topbar [data-act=quitArcade]{display:none} #s-garage>.panel{margin-top:104px!important;max-height:calc(54vh - 110px)!important} .panel{margin-top:100px} }
 @media (max-width:760px){ .panel{padding:16px 14px} .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))} #hBoard{display:none} #hMap{width:120px} .meter{width:118px} }
-@media (max-height:600px){ .screen>.panel:not(.gar-list):not(.res-panel){margin:56px auto 8px;max-height:calc(100vh - 64px);overflow:auto} .screen>.panel:not(.gar-list):not(.res-panel) .scroll{flex:none;overflow:visible;min-height:auto}
+@media (max-height:600px){ .screen>.panel .opts{order:1} .gp-row{order:2} .screen>.panel>header{order:0} .screen>.panel>.scroll{order:2} .screen>.panel>.after{order:3}
+  .set-grid{grid-template-columns:auto 1fr auto 1fr!important;gap:8px 12px!important}
+  .screen>.panel:not(.gar-list):not(.res-panel){margin:56px auto 8px;max-height:calc(100vh - 64px);overflow:auto} .screen>.panel:not(.gar-list):not(.res-panel) .scroll{flex:none;overflow:visible;min-height:auto}
   .trk-grid .item p{display:none} .trk-grid .item img{max-height:64px;object-fit:contain;background:#eef6ff} .trk-grid .item{padding:8px;gap:4px} .trk-grid .item h3{font-size:16px}
   .gp-row .item img{max-height:58px;object-fit:contain;background:#eef6ff} .panel>header h2{font-size:26px} .res-panel{max-height:calc(100vh - 70px)!important} }
 @media (max-height:520px){ #hPos b{font-size:40px} #hLap{top:76px} #hTime{top:118px} #hCoins{top:118px} #hBoard{top:170px}
@@ -2112,7 +2132,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611041019";
+const ASSET_V = "202611041100";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2472,7 +2492,7 @@ function pickupsUpdate(dt, t) {
   }
 }
 function pickupsCollect(r) {
-  if (!r.alive || r.kind === 'net') return;
+  if (!r.alive || r.kind === 'net' || r.finished) return;
   for (const it of PICK.items) {
     if (it.cool > 0) continue;
     if (r.S.magnet && it.kind === 'coin') { const dx = r.x - it.x, dz = r.z - it.z, d = Math.hypot(dx, dz); if (d < 3.6 && d > 0.05) { const k = Math.min(1, CFG.dt * 9); it.x += dx * k; it.z += dz * k; it.y = lerp(it.y, r.y + 0.5, k); it.home = it.home || [it.x - dx * k, it.z - dz * k, it.y]; } }
@@ -2633,8 +2653,9 @@ class Racer {
     const resp = Math.abs(st) > 0.01 ? CFG.turnResp : lerp(3.0, CFG.turnResp, clamp((1 - wet) * 0.6 + mat, 0, 1));
     this.w = damp(this.w, wt, this.air ? resp * 0.35 : resp, dt);
     // Nose pushed into a wall with the throttle on: turn gently back toward the track.
-    if (this.wallHit > 0 && thr > 0 && spd < 2.5 && !this.air && control === 1) {
-      if (fx * this.wallNx + fz * this.wallNz < -0.35) {
+    const noseUp = fx * this.gx + fz * this.gz;   // how steeply the ground rises ahead
+    if (thr > 0 && spd < 2.5 && !this.air && control === 1 && (this.wallHit > 0 || noseUp > 0.45)) {
+      if (noseUp > 0.45 || fx * this.wallNx + fz * this.wallNz < -0.35) {
         const err = wrapA(Math.atan2(L.tx, L.tz) - this.yaw);
         this.w = damp(this.w, clamp(err * 4, -3, 3), 12, dt);
       }
@@ -2831,9 +2852,9 @@ function collideRacers(a, b) {
 // and drop suds on whoever is tailgating them.
 // ---------------------------------------------------------------------------
 const DIFF = {
-  rinse:  { name: 'Rinse', pace: 0.62, aim: 0.55, boost: 70, suds: 0.08, mult: 0.8, rubK: 0.005, rubMin: 0.5, rubMax: 0.96, corner: 1 },
-  lather: { name: 'Lather', pace: 0.8, aim: 0.8, boost: 55, suds: 0.16, mult: 1, rubK: 0.002, rubMin: 0.85, rubMax: 1.03, corner: 1.04 },
-  scrub:  { name: 'Scrub', pace: 0.95, aim: 1, boost: 40, suds: 0.26, mult: 1.35, rubK: 0.0008, rubMin: 0.95, rubMax: 1.05, corner: 1.1 },
+  rinse:  { name: 'Rinse', pace: 0.62, aim: 0.55, boost: 70, suds: 0.08, mult: 0.8, rubK: 0.005, rubMin: 0.5, rubMax: 1.1, corner: 1 },
+  lather: { name: 'Lather', pace: 0.8, aim: 0.8, boost: 55, suds: 0.16, mult: 1, rubK: 0.002, rubMin: 0.85, rubMax: 1.12, corner: 1.04 },
+  scrub:  { name: 'Scrub', pace: 0.95, aim: 1, boost: 40, suds: 0.26, mult: 1.35, rubK: 0.0012, rubMin: 0.95, rubMax: 1.12, corner: 1.16 },
 };
 class CpuDriver {
   constructor(r, diff = 'lather', seed = 1) {
@@ -3240,7 +3261,20 @@ const kd = (...c) => c.some((k) => KEYS.has(k));
 const kp = (...c) => c.some((k) => PRESS.has(k));
 
 function bindTouch() {
-  const map = { tL: 'l', tR: 'r', tGo: 'go', tBr: 'br', tBo: 'bo', tSu: 'su', tHo: 'ho' };
+  // ◀ and ▶ act as one steering pad: a thumb can rock between them without lifting.
+  const L = $('tL'), R = $('tR'), steerPtrs = new Map();
+  const steerFrom = (x) => { const a = L.getBoundingClientRect(), b = R.getBoundingClientRect(); return x < (a.right + b.left) / 2 ? 'l' : 'r'; };
+  const steerApply = () => {
+    let l = 0, r = 0; for (const side of steerPtrs.values()) { if (side === 'l') l = 1; else r = 1; }
+    INPUT.touch.l = l; INPUT.touch.r = r; L.classList.toggle('on', !!l); R.classList.toggle('on', !!r);
+  };
+  for (const el of [L, R]) {
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); INPUT.usedTouch = true; try { el.setPointerCapture(e.pointerId); } catch (err) { /* old browser */ } steerPtrs.set(e.pointerId, steerFrom(e.clientX)); steerApply(); });
+    el.addEventListener('pointermove', (e) => { if (!steerPtrs.has(e.pointerId)) return; e.preventDefault(); steerPtrs.set(e.pointerId, steerFrom(e.clientX)); steerApply(); });
+    const end = (e) => { if (!steerPtrs.has(e.pointerId)) return; e.preventDefault(); steerPtrs.delete(e.pointerId); steerApply(); };
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); el.addEventListener('lostpointercapture', end);
+  }
+  const map = { tGo: 'go', tBr: 'br', tBo: 'bo', tSu: 'su', tHo: 'ho' };
   for (const [id, k] of Object.entries(map)) {
     const el = $(id); if (!el) continue;
     const on = (e) => { e.preventDefault(); INPUT.touch[k] = 1; el.classList.add('on'); INPUT.usedTouch = true; if (k === 'su' || k === 'ho') PRESS.add('T_' + k); };
@@ -3985,7 +4019,7 @@ function showTitle() {
         <div class="row">
           <button class="btn" data-act="gp" style="--c:var(--lemon);--rot:1.5deg">Grand Prix</button>
           <button class="btn" data-act="quick" style="--c:var(--mint);--rot:-1deg">Quick race</button>
-          <button class="btn" data-act="garage" style="--c:var(--sky);--rot:1deg">Garage</button>
+          <button class="btn" data-act="garage" style="--c:var(--sky);--rot:1deg">Garage${newAffordable().length ? '<span class="newdot">NEW</span>' : ''}</button>
         </div>
         <div class="row">
           <button class="btn sm ghost" data-act="trophies">Trophies</button>
@@ -4025,7 +4059,7 @@ function showQuick() {
   screen('quick', `${topbar('title')}<div class="panel card"><header><h2>Quick race</h2>
     <button class="btn" data-act="startQuick" style="--c:var(--mint)">Start <span class="k">ENTER</span></button></header>
     <div class="scroll"><div class="grid trk-grid">${trackCards(q.track, 'pickTrack', q.rev)}</div></div>
-    <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center">
+    <div class="opts" style="display:flex;gap:10px 22px;flex-wrap:wrap;align-items:center">
       <label class="opt">Laps ${seg('laps', [[2, '2'], [3, '3'], [5, '5']], q.laps)}</label>
       <label class="opt">Racers ${seg('cpus', [[0, 'Me vs my ghost'], [3, '4'], [5, '6'], [7, '8']], q.cpus)}</label>
       <label class="opt">CPU ${seg('diff', [['rinse', 'Rinse'], ['lather', 'Lather'], ['scrub', 'Scrub']], q.diff)}</label>
@@ -4055,7 +4089,7 @@ function showGP() {
     <div class="scroll" style="display:flex;flex-direction:column;gap:12px">
     <p style="margin:0;font-weight:600">${TRACKS.length} races, one on every track, against the same seven rivals. Points for every place: ${GP_PTS.join(', ')}. Top three take home a trophy and a big bubble bonus.</p>
     <div class="gp-row">${TRACKS.map((t, k) => `<div class="item"><img src="${TRACK_IMG[t.id] || (TRACK_IMG[t.id] = trackCanvas(t.id))}" style="width:100%;border-radius:10px;border:3px solid var(--ink)"><h3>${k + 1}. ${t.name}</h3></div>`).join('')}</div>
-    <div style="display:flex;gap:16px 22px;align-items:center;flex-wrap:wrap"><label class="opt">CPU ${seg('diff', [['rinse', 'Rinse ' + cup('rinse')], ['lather', 'Lather ' + cup('lather')], ['scrub', 'Scrub ' + cup('scrub')]], d)}</label>
+    <div class="opts" style="display:flex;gap:16px 22px;align-items:center;flex-wrap:wrap"><label class="opt">CPU ${seg('diff', [['rinse', 'Rinse ' + cup('rinse')], ['lather', 'Lather ' + cup('lather')], ['scrub', 'Scrub ' + cup('scrub')]], d)}</label>
     <label class="opt">Direction ${seg('rev', [[0, 'Normal'], [1, 'Reverse']], UI.gpRev)}</label>
     <span style="font-weight:600">Prize: ${{ rinse: '240 / 160 / 100', lather: '300 / 200 / 120', scrub: '420 / 280 / 170' }[d]} bubbles</span></div>
     </div></div>`, 'veil');
@@ -4100,13 +4134,13 @@ function showResults(res) {
       const pos = res.cup.pos;
       head = pos === 1 ? 'You win the cup!' : ord(pos) + ' in the cup';
       trophy = `<div class="pop ${pos === 1 ? 'c2' : 'c4'} sm" style="text-align:center;animation-delay:.3s;margin:-4px 0 2px">${pos <= 3 ? ['🥇 GOLD CUP!', '🥈 SILVER CUP!', '🥉 BRONZE CUP!'][pos - 1] + ' +' + res.cup.prize : 'No trophy this time'}</div>`;
-      buttons = `<button class="btn" data-act="gp" style="--c:var(--lemon)">New cup</button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage</button><button class="btn ghost" data-act="title">Menu</button>`;
-    } else buttons = `<button class="btn big" data-act="gpNext" style="--c:var(--mint)">Next race: ${TRACKS[GP.idx].name}${GP.rev ? ' Reverse' : ''}</button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage</button><button class="btn sm ghost" data-act="title">Quit cup</button>`;
+      buttons = `<button class="btn" data-act="gp" style="--c:var(--lemon)">New cup</button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage${newAffordable().length ? '<span class="newdot">NEW</span>' : ''}</button><button class="btn ghost" data-act="title">Menu</button>`;
+    } else buttons = `<button class="btn big" data-act="gpNext" style="--c:var(--mint)">Next race: ${TRACKS[GP.idx].name}${GP.rev ? ' Reverse' : ''}</button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage${newAffordable().length ? '<span class="newdot">NEW</span>' : ''}</button><button class="btn sm ghost" data-act="title">Quit cup</button>`;
   } else if (RACE.online && RACE.netLost) {
-    buttons = `<button class="btn big" data-act="online" style="--c:var(--pink)">Find another room</button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage</button><button class="btn ghost" data-act="title">Menu</button>`;
+    buttons = `<button class="btn big" data-act="online" style="--c:var(--pink)">Find another room</button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage${newAffordable().length ? '<span class="newdot">NEW</span>' : ''}</button><button class="btn ghost" data-act="title">Menu</button>`;
   } else if (RACE.online) {
-    buttons = `<button class="btn big" data-act="lobbyBack" style="--c:var(--pink)">Back to the room</button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage</button><button class="btn ghost" data-act="leaveOnline">Leave room</button>`;
-  } else buttons = `<button class="btn big" data-act="again" style="--c:var(--mint)">Race again <span class="k">ENTER</span></button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage</button><button class="btn" data-act="quick" style="--c:var(--lemon)">Change track</button><button class="btn ghost" data-act="title">Menu</button>`;
+    buttons = `<button class="btn big" data-act="lobbyBack" style="--c:var(--pink)">Back to the room</button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage${newAffordable().length ? '<span class="newdot">NEW</span>' : ''}</button><button class="btn ghost" data-act="leaveOnline">Leave room</button>`;
+  } else buttons = `<button class="btn big" data-act="again" style="--c:var(--mint)">Race again <span class="k">ENTER</span></button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage${newAffordable().length ? '<span class="newdot">NEW</span>' : ''}</button><button class="btn" data-act="quick" style="--c:var(--lemon)">Change track</button><button class="btn ghost" data-act="title">Menu</button>`;
   if (res.solo) {
     const g = res.ghost;
     head = g && g.beat ? 'Ghost beaten!' : g && !g.first ? 'Ghost wins this time' : 'Ghost saved';
@@ -4115,6 +4149,8 @@ function showResults(res) {
   screen('results', `${topbar()}<div class="panel card res-panel ${res.standings ? 'gp' : ''}">
     <header><h2>${head}</h2>${res.newBest ? '<span class="tag" style="background:var(--pink);color:var(--ink)">NEW BEST LAP</span>' : ''}</header>
     ${trophy}
+    <div class="res-sum"><span class="big">+${res.total} bubbles</span>${res.rewards.filter(([l]) => /medal|First win|cup|ghost by/i.test(l)).slice(0, 2).map(([l]) => `<span class="tag" style="background:var(--pink);color:var(--ink)">${esc(l)}</span>`).join('')}</div>
+    ${easyHint(res)}
     <div class="scroll res-grid">
       <div><table class="res">${rows}</table></div>
       <div style="display:flex;flex-direction:column;gap:12px"><div class="card" style="padding:10px 14px;box-shadow:none"><h3 style="font-size:20px">Bubbles earned</h3>${rw}<div class="reward" style="border:0"><span>Total</span><b style="font-size:22px">+${res.total}</b></div></div>${gpHtml}</div>
@@ -4125,6 +4161,14 @@ function showResults(res) {
 // The podium camera shifts the podium clear of the results panel.
 function measureResPanel() { const el = document.querySelector('.res-panel'); PODIUM.panelFrac = el && innerWidth > 760 ? el.getBoundingClientRect().width / innerWidth : 0.47; }
 ACT.toResults = () => { if (RACE.results) { MODE = 'race'; showResults(RACE.results); } else showTitle(); };
+// After a runaway win on an easy level, suggest the next one up.
+function easyHint(res) {
+  const me = RACE.me; if (!me || RACE.online || res.solo || res.standings || me.place !== 1) return '';
+  const next = { rinse: 'lather', lather: 'scrub' }[RACE.diff]; if (!next) return '';
+  const second = res.order[1]; if (!second || second.finishT - me.finishT < 8) return '';
+  return `<div class="hint" style="position:static;transform:none;align-self:flex-start;display:flex;gap:10px;align-items:center">Too easy? Try ${DIFF[next].name} CPUs <button class="btn sm" data-act="tryHarder" data-arg="${next}" style="--c:var(--lemon)">Race ${DIFF[next].name}</button></div>`;
+}
+ACT.tryHarder = (d) => { UI.quick.diff = d; startRace({ track: RACE.trackId, laps: RACE.laps, cpus: RACE.lastCpuCount ?? UI.quick.cpus, diff: d, mode: 'quick' }); };
 ACT.again = () => { const q = UI.quick; startRace({ track: RACE.trackId, laps: RACE.laps, cpus: RACE.lastCpuCount ?? q.cpus, diff: RACE.diff, mode: 'quick' }); };
 ACT.gpNext = () => gpNext();
 
@@ -4165,7 +4209,7 @@ function setSetting(k, v) {
 function showSettings() {
   const S = P.set;
   screen('settings', `<div class="panel card" style="width:min(640px,94vw)"><header><h2>Settings</h2><button class="btn sm" data-act="settingsDone" style="--c:var(--mint)">Done</button></header>
-    <div class="scroll"><div style="display:grid;grid-template-columns:auto 1fr;gap:14px 18px;align-items:center;font-weight:700">
+    <div class="scroll"><div class="set-grid" style="display:grid;grid-template-columns:auto 1fr;gap:14px 18px;align-items:center;font-weight:700">
       <span>Sound</span>${seg('sound', [[1, 'On'], [0, 'Off']], S.sound)}
       <span>Volume</span>${seg('vol', [[0.3, 'Low'], [0.6, 'Mid'], [0.8, 'High'], [1, 'Max']], S.vol)}
       <span>Graphics</span>${seg('quality', [['auto', 'Auto'], ['low', 'Fast'], ['med', 'Nice'], ['high', 'Pretty']], S.quality)}
@@ -4266,8 +4310,8 @@ function hudUpdate() {
   if (L.soap !== soapPct) { $('mSoap').querySelector('i').style.width = soapPct + '%'; $('mSoapN').textContent = soapPct + '%'; L.soap = soapPct; }
   const bp = Math.round(me.boost);
   if (L.boost !== bp) { $('mBoost').querySelector('i').style.width = bp + '%'; $('mBoost').classList.toggle('full', bp >= 99); L.boost = bp; }
-  const chg = me.draft > 0 && me.speed > 4 ? 'SLIPSTREAM' : (me.slideT > 0.15 && !me.air ? 'SLIDE' : '');
-  if (L.chg !== chg) { L.chg = chg; const mb = $('mBoost'); mb.classList.toggle('charging', !!chg && bp < 99); $('kBoost').textContent = chg || (document.body.classList.contains('touch') ? 'BOOST' : 'SPACE'); }
+  const chg = me.draft > 0 && me.speed > 4 ? 'DRAFT' : (me.slideT > 0.15 && !me.air ? 'SLIDE' : '');
+  if (L.chg !== chg) { L.chg = chg; const mb = $('mBoost'); mb.classList.toggle('charging', !!chg && bp < 99); $('kBoost').textContent = chg || (document.body.classList.contains('touch') ? '' : 'SPACE'); }
   const sp = Math.round((1 - clamp(me.sudsCd / CFG.sudsCd, 0, 1)) * 100);
   if (L.suds !== sp) { $('mSuds').querySelector('i').style.width = sp + '%'; L.suds = sp; }
   // Board.
@@ -4310,7 +4354,7 @@ function lensDrops(dt) {
 const _tv = new THREE.Vector3();
 function tagsUpdate() {
   const box = $('hTags'); if (!box) return;
-  const podium = RACE.phase === 'podium' && !RACE.attract;
+  const podium = RACE.phase === 'podium' && !RACE.attract && MODE === 'race' && UI.cur === 'results';
   const show = (RACE.online && RACE.me && !RACE.results) || podium;
   if (!show) { if (box.childElementCount) box.innerHTML = ''; return; }
   const tnow = now();
@@ -4345,7 +4389,7 @@ function applyTouch() {
   $('tHo').classList.toggle('off', !(RACE.me && (RACE.me.S.horn || RACE.me.S.hop)));
   $('tEmo').classList.toggle('off', !(RACE.me && RACE.online));
   if (RACE.me) $('tHo').textContent = RACE.me.S.hop ? 'HOP' : 'HONK';
-  $('kBoost').textContent = on ? 'BOOST' : 'SPACE'; $('kSuds').textContent = on ? 'SUDS' : 'SHIFT';
+  $('kBoost').textContent = on ? '' : 'SPACE'; $('kSuds').textContent = on ? '' : 'SHIFT';
 }
 
 // ==== 14-garage.js ====
@@ -4517,7 +4561,7 @@ function showGarage() {
       const on = tab === 'mod' ? P.eq.mods.includes(id) : P.eq[tab] === id;
       const sel = UI.sel && UI.sel.kind === tab && UI.sel.id === id;
       return `<div class="item ${on ? 'on' : ''} ${sel ? 'sel' : ''}" data-act="gsel" data-arg="${tab}:${id}">${swatch(tab, id)}<h3>${it.name}</h3><p>${it.blurb}</p>
-        <div class="foot">${on ? '<span class="tag" style="background:var(--pink);color:var(--ink)">EQUIPPED</span>' : own ? '<span class="tag">OWNED</span>' : `<span class="price"><span class="wallet"><span class="b" style="width:16px;height:16px"></span></span> ${it.price}</span>`}</div></div>`;
+        <div class="foot">${on ? '<span class="tag" style="background:var(--pink);color:var(--ink)">EQUIPPED</span>' : own ? '<span class="tag">OWNED</span>' : `<span class="price ${P.bubbles >= it.price ? 'can' : 'cant'}"><span class="wallet"><span class="b" style="width:16px;height:16px"></span></span> ${it.price}</span>`}</div></div>`;
     }).join('');
   }
   const cur = myLoadout(), nxt = previewLoadout();
@@ -4548,14 +4592,21 @@ function showGarage() {
       ${statsHtml(cur, nxt)}
       ${s && s.kind !== 'paint' ? fxHtml(partFx(s.kind, s.id)) : ''}
       ${s && s.kind === 'mod' ? replaceNote(s.id) : ''}
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${action}<span style="flex:1"></span><button class="btn sm" data-act="${gb || 'title'}" style="--c:var(--pink)">${doneLabel}</button></div>
+      <div class="gar-act" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${action}<span style="flex:1"></span><button class="btn sm" data-act="${gb || 'title'}" style="--c:var(--pink)">${doneLabel}</button></div>
     </div>`);
   const sc = document.querySelector('#s-garage .scroll'); if (sc && keepTop) sc.scrollTop = keepTop;
   garageFreeArea();
   GAR.view.set(nxt, 'hi');
 }
+// Parts you can afford but don't own yet.
+function affordable() { const out = []; for (const kind of ['bar', 'rocket', 'mod']) for (const [id, it] of Object.entries(partList(kind))) if (!owns(kind, id) && P.bubbles >= it.price) out.push(kind + ':' + id); return out; }
+function newAffordable() { const seen = new Set(P.affordSeen || []); return affordable().filter((k) => !seen.has(k)); }
 ACT.garage = () => {
-  makePartThumbs(); UI.garageBack = UI.cur === 'lobby' ? 'lobbyBack' : UI.cur === 'results' ? (RACE.online && !RACE.netLost ? 'lobbyBack' : RACE.online ? 'toResults' : RACE.mode === 'gp' ? (GP.on ? 'gpNext' : 'toResults') : 'again') : null; UI.sel = null; showGarage(); };
+  makePartThumbs();
+  // Open on a tab with something you can buy, and mark what you've now seen.
+  const aff = affordable();
+  if (aff.length && !aff.some((k) => k.startsWith(UI.tab + ':')) && UI.tab !== 'paint') UI.tab = aff[0].split(':')[0];
+  P.affordSeen = Array.from(new Set([...(P.affordSeen || []), ...aff])); saveProfile(); UI.garageBack = UI.cur === 'lobby' ? 'lobbyBack' : UI.cur === 'results' ? (RACE.online && !RACE.netLost ? 'lobbyBack' : RACE.online ? 'toResults' : RACE.mode === 'gp' ? (GP.on ? 'gpNext' : 'toResults') : 'again') : null; UI.sel = null; showGarage(); };
 ACT.gtab = (k) => { UI.tab = k; UI.sel = null; showGarage(); };
 ACT.gsel = (arg) => { const [k, id] = arg.split(':'); UI.sel = { kind: k, id: k === 'paint' ? +id : id }; showGarage(); };
 ACT.gbuy = () => {
@@ -4884,7 +4935,7 @@ function showLobby() {
     <p style="margin:0;font-weight:600;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Friends join with the code <b>${esc(NET.code)}</b>. ${ps.length} of 8 here.</span><button class="btn sm" data-act="copyInvite" style="--c:var(--lemon)">Copy invite link</button></p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${plist}</div>
     ${host ? `<div class="scroll"><div class="grid trk-grid">${trackCards(L.track, 'lobbyTrack')}</div></div>
-      <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center"><label class="opt">Laps ${seg('laps', [[2, '2'], [3, '3'], [5, '5']], L.laps)}</label>
+      <div class="opts" style="display:flex;gap:10px 22px;flex-wrap:wrap;align-items:center"><label class="opt">Laps ${seg('laps', [[2, '2'], [3, '3'], [5, '5']], L.laps)}</label>
       <label class="opt">CPU fill ${seg('cpu', [[0, 'None'], [2, '2'], [4, '4'], [7, 'Fill up']], L.cpu)}</label>
       <label class="opt">CPU ${seg('diff', [['rinse', 'Rinse'], ['lather', 'Lather'], ['scrub', 'Scrub']], L.diff)}</label>
       <label class="opt">Direction ${seg('rev', [[0, 'Normal'], [1, 'Reverse']], L.rev)}</label></div>`
@@ -4911,7 +4962,7 @@ function setMode(m) {
   if (m === 'attract') {
     if (MODE !== 'attract' || !RACE.attract) startAttract();
     MODE = 'attract'; hudHide();
-  } else if (m === 'garage') { MODE = 'garage'; hudHide(); loopsOff(); }
+  } else if (m === 'garage') { MODE = 'garage'; hudHide(); loopsOff(); const ht = $('hTags'); if (ht) ht.innerHTML = ''; }
   else MODE = m;
 }
 function startAttract() {
