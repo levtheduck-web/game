@@ -207,6 +207,7 @@ table.res.trophy th{font-size:13px;text-transform:uppercase;letter-spacing:.04em
 #hFeed{position:absolute;right:16px;bottom:18px;display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-family:var(--font);font-weight:700}
 body.touch #hFeed{right:auto;left:50%;transform:translateX(-50%);top:62px;bottom:auto;align-items:center}
 body.touch #hCenter{top:40%}
+body.touch .btn .k{display:none}
 #hFeed div{background:#fff;border:3px solid var(--ink);border-radius:12px;padding:3px 10px;box-shadow:0 3px 0 var(--ink);animation:feedIn .3s cubic-bezier(.2,1.6,.4,1) both;font-size:15px}
 @keyframes feedIn{from{transform:translateX(40px);opacity:0}}
 #hSpeed{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);font-size:16px;font-family:var(--font);font-weight:700;opacity:.0}
@@ -248,7 +249,7 @@ body.touch #hMap{width:104px;top:58px;right:10px}
 @media (pointer:coarse){ .topbar{right:225px} }
 @media (max-width:600px){ .topbar{top:54px;left:12px;right:12px} .topbar [data-act=quitArcade]{display:none} #s-garage>.panel{margin-top:104px!important;max-height:calc(54vh - 110px)!important} .panel{margin-top:100px} }
 @media (max-width:760px){ .panel{padding:16px 14px} .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))} #hBoard{display:none} #hMap{width:120px} .meter{width:118px} }
-@media (max-height:600px){ .screen>.panel:not(.gar-list):not(.res-panel){margin:56px auto 8px;max-height:calc(100vh - 64px)}
+@media (max-height:600px){ .screen>.panel:not(.gar-list):not(.res-panel){margin:56px auto 8px;max-height:calc(100vh - 64px);overflow:auto} .screen>.panel:not(.gar-list):not(.res-panel) .scroll{flex:none;overflow:visible;min-height:auto}
   .trk-grid .item p{display:none} .trk-grid .item img{max-height:64px;object-fit:contain;background:#eef6ff} .trk-grid .item{padding:8px;gap:4px} .trk-grid .item h3{font-size:16px}
   .gp-row .item img{max-height:58px;object-fit:contain;background:#eef6ff} .panel>header h2{font-size:26px} .res-panel{max-height:calc(100vh - 70px)!important} }
 @media (max-height:520px){ #hPos b{font-size:40px} #hLap{top:76px} #hTime{top:118px} #hCoins{top:118px} #hBoard{top:170px}
@@ -365,7 +366,7 @@ const CFG = {
   soapE: 0.42,
   bThrust: 13.5, bUse: 33, bRegen: 5.2, bTop: 1.27,
   slideCharge: 15, draftCharge: 11,
-  wearPerU: 0.00034, wearBoost: 0.0048, wearChip: 0.0024, sudsCost: 0.05, minSize: 0.42,
+  wearPerU: 0.00034, wearBoost: 0.0048, wearChip: 0.0012, sudsCost: 0.05, minSize: 0.42,
   sudsR: 1.35, sudsLife: 12, sudsCd: 2.2,
   drainPull: 13, drainFall: 0.42,
 };
@@ -410,9 +411,16 @@ function arcadeName() {
   try { const u = JSON.parse(localStorage.getItem('glitchbox_user') || 'null'); if (u && u.name) return String(u.name).slice(0, 14); } catch (e) { /* none */ }
   return '';
 }
+function offlineName() { const n = (P.name || arcadeName() || '').trim(); return n ? n.slice(0, 14) : 'You'; }
 function myName() {
   const n = (P.name || arcadeName() || '').trim();
-  return n ? n.slice(0, 14) : 'You';
+  if (n) return n.slice(0, 14);
+  if (!P.autoName) {
+    const a = ['Sudsy', 'Bubbly', 'Squeaky', 'Slippy', 'Foamy', 'Zippy', 'Fizzy', 'Glossy', 'Splashy', 'Rinsey'];
+    P.autoName = a[Math.floor(Math.random() * a.length)] + ' ' + (10 + Math.floor(Math.random() * 90));
+    saveProfile();
+  }
+  return P.autoName;
 }
 
 // ==== 01-parts.js ====
@@ -1603,6 +1611,22 @@ function sweep(pts, prof, closed, mat, flip) {
   return g;
 }
 
+// Solid end caps for a wall run that stops (so you never see inside the wall).
+function capRun(G, pts, prof, mat, run) {
+  if (run.closed || pts.length < 2) return;
+  let mo = -1e9, my = 1e9; for (const [o, y] of prof) { mo = Math.max(mo, o); my = Math.min(my, y); }
+  const poly = prof.map(([o, y]) => [o, y]); const last = poly[poly.length - 1];
+  if (last[0] !== mo || last[1] !== my) poly.push([mo, my]);
+  for (const p of [pts[0], pts[pts.length - 1]]) {
+    const pos = [], idx = [];
+    for (const [o, y] of poly) pos.push(p.x + p.ox * o, p.y0 + y, p.z + p.oz * o);
+    for (let k = 1; k < poly.length - 1; k++) idx.push(0, k, k + 1);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    const uv = []; for (const [o, y] of poly) uv.push(o, y); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, mat); m.receiveShadow = true; G.add(m);
+  }
+}
 // Contiguous runs of one wall style along one side.
 function wallRuns(T, left) {
   const N = T.N, st = left ? T.wallL : T.wallR;
@@ -1749,6 +1773,7 @@ function buildWorld(T) {
         const prof = st === 'tile' ? [[0, -1], [0, H], [0.8, H]] : [[0, -1], [0, H - 0.3], [0.12, H - 0.06], [0.4, H], [1.2, H], [1.2, -1]];
         const m = new THREE.Mesh(sweep(pts, prof, run.closed, null, flip), st === 'tile' ? wallMat : patMat({ ...look.wall, uv: true }));
         m.receiveShadow = true; G.add(m);
+        capRun(G, pts, prof, patMat({ ...look.wall, uv: true, side: THREE.DoubleSide }), run);
         if (st === 'splash') { const cap = new THREE.Mesh(sweep(pts, [[0.05, H - 0.02], [0.45, H + 0.18], [1.25, H + 0.18]], run.closed, null, flip), tm('cap2', 0xffffff, { spec: 0.4 })); G.add(cap); }
       } else if (st === 'glass') {
         const pts = edgePts(T, left, run.i0, run.i1);
@@ -1767,8 +1792,10 @@ function buildWorld(T) {
       } else if (st === 'bench') {
         const pts = edgePts(T, left, run.i0, run.i1);
         const H = 2.4;
-        const m = inked(sweep(pts, [[0, -0.8], [0, H - 0.25], [0.07, H - 0.07], [0.25, H], [1.6, H]], run.closed, null, flip), benchMat || wallMat, 0.9);
+        const bprof = [[0, -0.8], [0, H - 0.25], [0.07, H - 0.07], [0.25, H], [1.6, H]];
+        const m = inked(sweep(pts, bprof, run.closed, null, flip), benchMat || wallMat, 0.9);
         m.material = benchMat || wallMat; m.receiveShadow = true; m.castShadow = true; G.add(m);
+        capRun(G, pts, bprof, patMat({ ...(look.bench || look.wall), uv: true, side: THREE.DoubleSide }), run);
       } else if (st === 'base') {
         const pts = edgePts(T, left, run.i0, run.i1);
         const bb = inked(sweep(pts, [[0, -0.6], [0, 0.7], [0.08, 0.84], [0.25, 0.9], [0.4, 0.9]], run.closed, null, flip), tm('baseboard', 0xffffff, { spec: 0.35 }), 0.9);
@@ -1777,6 +1804,7 @@ function buildWorld(T) {
         const cap = inked(sweep(pts, [[0.3, 7.45], [0.15, 7.55], [0.15, 7.9], [0.6, 8.0]], run.closed, null, flip), tm('baseboard', 0xffffff, { spec: 0.35 }), 0.7);
         G.add(cap);
         const pw = new THREE.Mesh(sweep(pts, [[0.6, 7.95], [0.6, 40]], run.closed, null, flip), patMat({ kind: 'paint', a: look.paint, uv: true, rough: 0.9 })); G.add(pw);
+        capRun(G, pts, [[0, -0.6], [0, 0.9], [0.3, 0.9], [0.3, 7.95], [0.6, 7.95], [0.6, 40]], patMat({ kind: 'paint', a: look.paint, uv: true, rough: 0.9, side: THREE.DoubleSide }), run);
       } else if (st === 'towel') {
         const pts = edgePts(T, left, run.i0, run.i1, 0.82);
         if (pts.length >= 4) {
@@ -2055,7 +2083,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040809";
+const ASSET_V = "202611040841";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2450,7 +2478,7 @@ const SUDS = {
     for (const s of this.list) {
       if (s.owner === who && RACE.t - s.born < 0.9) continue;
       const d = Math.hypot(x - s.x, z - s.z);
-      if (d < s.r) { let k = (1 - d / s.r) * 2.2 * Math.min(1, s.t / 1.5); if (s.weak) k = Math.min(k, 0.3); if (k > v) v = Math.min(1, k); }
+      if (d < s.r) { let k = (1 - d / s.r) * 2.2 * Math.min(1, s.t / 1.5); if (s.weak) k = Math.min(k, 0.3); if (k > v) { v = Math.min(1, k); SUDS.lastOwner = s.owner; } }
     }
     return v;
   },
@@ -2479,7 +2507,7 @@ class Racer {
   reset(x, z, yaw, i = -1) {
     Object.assign(this, { x, z, y: 0, vy: 0, vx: 0, vz: 0, yaw, w: 0, air: false, size: 1, vis: 1, boost: this.S.startBoost ? 100 : 35,
       sudsCd: 0, hornCd: 0, hopCd: 0, spin: 0, shieldLap: -9, alive: true, deadT: 0, ghost: 0, ti: i, lastGoodI: i, prevS: -1, lap: -1, progress: 0,
-      finished: false, finishT: 0, lapStart: 0, lapTimes: [], bestLap: Infinity, place: 0, wrongT: 0, stuckT: 0, draft: 0, slideT: 0,
+      finished: false, finishT: 0, lapStart: 0, backed: 0, halfway: false, cpuSpinLap: -9, lapTimes: [], bestLap: Infinity, place: 0, wrongT: 0, stuckT: 0, draft: 0, slideT: 0,
       thr: 0, brk: 0, boosting: false, gnx: 0, gnz: 0, gx: 0, gz: 0, accLong: 0, lean: 0, land: 0, lastVf: 0, sliding: 0, onSurface: 'wet',
       stat: { slides: 0, sudsHits: 0, sudsDropped: 0, walls: 0, drains: 0, bumps: 0, airT: 0, topSpeed: 0 }, events: [], dropT: 0, fall: null });
   }
@@ -2504,7 +2532,9 @@ class Racer {
     grip *= S.grip * (1 - 0.25 * shr);
     if (sud > 0.05) {
       mu = lerp(mu, CFG.muSuds, sud); grip = lerp(grip, CFG.gripSuds, sud);
-      if (this.spin <= 0 && sud > 0.35 && this.speed > 3.5 && racing && !this.air) this.spinOut(T, sud);
+      // A player is spun out by CPU suds at most once a lap; after that they're just slippery.
+      const cpuSuds = this.kind === 'me' && SUDS.lastOwner && SUDS.lastOwner.kind === 'cpu';
+      if (this.spin <= 0 && sud > 0.35 && this.speed > 3.5 && racing && !this.air && !(cpuSuds && this.cpuSpinLap === this.lap)) { if (cpuSuds) this.cpuSpinLap = this.lap; this.spinOut(T, sud); }
     }
     this.onSurface = sud > 0.3 ? 'suds' : mat > 0.5 ? 'mat' : pud > 0.4 ? 'puddle' : wet > 0.5 ? 'wet' : 'dry';
     if (this.spin > 0) { grip *= 0.3; this.spin -= dt; }
@@ -2762,9 +2792,9 @@ function collideRacers(a, b) {
 // and drop suds on whoever is tailgating them.
 // ---------------------------------------------------------------------------
 const DIFF = {
-  rinse:  { name: 'Rinse', pace: 0.77, aim: 0.55, boost: 70, suds: 0.08, mult: 0.8 },
-  lather: { name: 'Lather', pace: 0.9, aim: 0.8, boost: 55, suds: 0.16, mult: 1 },
-  scrub:  { name: 'Scrub', pace: 0.985, aim: 1, boost: 40, suds: 0.26, mult: 1.35 },
+  rinse:  { name: 'Rinse', pace: 0.77, aim: 0.55, boost: 70, suds: 0.08, mult: 0.8, rubK: 0.0032, rubMin: 0.74, corner: 1 },
+  lather: { name: 'Lather', pace: 0.9, aim: 0.8, boost: 55, suds: 0.16, mult: 1, rubK: 0.0018, rubMin: 0.88, corner: 1.04 },
+  scrub:  { name: 'Scrub', pace: 0.985, aim: 1, boost: 40, suds: 0.26, mult: 1.35, rubK: 0.0008, rubMin: 0.95, corner: 1.13 },
 };
 class CpuDriver {
   constructor(r, diff = 'lather', seed = 1) {
@@ -2796,7 +2826,7 @@ class CpuDriver {
     const aLat = surf === 'dry' ? 13 : surf === 'mat' ? 15 : surf === 'suds' ? 3 : surf === 'puddle' ? 8 : 9.5;
     const shr = 1 - (r.size - CFG.minSize) / (1 - CFG.minSize);
     const gripK = Math.pow(r.S.grip * (1 - 0.25 * shr), 0.75);
-    let vdes = Math.min(13.5, Math.sqrt(aLat * gripK / Math.max(kmax, 0.004))) * this.pace * this.rubber;
+    let vdes = Math.min(13.5, Math.sqrt(aLat * gripK * this.D.corner / Math.max(kmax, 0.004))) * this.pace * this.rubber;
     // Avoid racers right in front.
     for (const o of race.racers) {
       if (o === r || !o.alive) continue;
@@ -3101,12 +3131,7 @@ function camChase(r, dt, snap = false) {
   const hgt = (1.05 + sp * 0.025) * far * (0.85 + 0.15 * r.vis);
   _cv.set(r.x - Math.sin(CAM.yaw) * dist, r.y + hgt, r.z - Math.cos(CAM.yaw) * dist);
   // Keep the camera inside the walls and above the floor.
-  if (T) {
-    const L = T.locate(_cv.x, _cv.z, r.ti, CAM._L);
-    const lim = L.hw - 0.35;
-    if (Math.abs(L.d) > lim && !WALL[T.wallAt(L.i, L.d > 0)].open) { const k = (Math.abs(L.d) - lim) * Math.sign(L.d); _cv.x -= L.nx * k; _cv.z -= L.nz * k; _cv.y += Math.min(1.2, Math.abs(k) * 0.4); }
-    const gy = T.heightAt(_cv.x, _cv.z, L.i) + 0.45; if (_cv.y < gy) _cv.y = gy;
-  }
+  if (T) camInside(T, _cv, r.ti);
   if (snap) CAM.pos.copy(_cv); else CAM.pos.lerp(_cv, 1 - Math.exp(-dt * (9 + sp * 0.55)));
   _cl.set(r.x + Math.sin(CAM.yaw) * 1.7, r.y + 0.42 * r.vis, r.z + Math.cos(CAM.yaw) * 1.7);
   if (snap) CAM.look.copy(_cl); else CAM.look.lerp(_cl, 1 - Math.exp(-dt * 14));
@@ -3115,13 +3140,20 @@ function camChase(r, dt, snap = false) {
   CAM.roll = snap ? 0 : lerp(CAM.roll, rollT, 1 - Math.exp(-dt * 4));
   CAM.fov = snap ? fov : lerp(CAM.fov, fov, 1 - Math.exp(-dt * 4));
 }
+// Pull a camera position back inside the walls (and above the floor).
+function camInside(T, v, hint) {
+  const L = T.locate(v.x, v.z, hint, CAM._L);
+  const lim = L.hw - 0.35;
+  if (Math.abs(L.d) > lim && !WALL[T.wallAt(L.i, L.d > 0)].open) { const k = (Math.abs(L.d) - lim) * Math.sign(L.d); v.x -= L.nx * k; v.z -= L.nz * k; v.y += Math.min(1.2, Math.abs(k) * 0.4); }
+  const gy = T.heightAt(v.x, v.z, L.i) + 0.45; if (v.y < gy) v.y = gy;
+}
 function camOrbit(r, dt, rad = 3.2, h = 1.2, spd = 0.45) {
   CAM.roll = lerp(CAM.roll, 0, 0.1);
   CAM.orbit += dt * spd;
   const a = r.yaw + Math.PI + CAM.orbit;
   _cv.set(r.x + Math.sin(a) * rad, r.y + h, r.z + Math.cos(a) * rad);
   const T = WORLD.T;
-  if (T) { const gy = T.heightAt(_cv.x, _cv.z, r.ti) + 0.4; if (_cv.y < gy) _cv.y = gy; }
+  if (T) camInside(T, _cv, r.ti);
   CAM.pos.lerp(_cv, 1 - Math.exp(-dt * 4));
   _cl.set(r.x, r.y + 0.35, r.z); CAM.look.lerp(_cl, 1 - Math.exp(-dt * 6));
   CAM.fov = lerp(CAM.fov, 50, 1 - Math.exp(-dt * 3));
@@ -3332,7 +3364,7 @@ function raceSetup(opts) {
   const entries = [];
   if (opts.grid) for (const g of opts.grid) entries.push(g);
   else {
-    if (!opts.attract) entries.push({ name: myName(), lo: myLoadout(), kind: 'me' });
+    if (!opts.attract) entries.push({ name: offlineName(), lo: myLoadout(), kind: 'me' });
     const names = [...CPU_NAMES].sort(() => rnd() - 0.5);
     for (let k = 0; k < (opts.cpus ?? 5); k++) entries.push({ name: names[k % names.length], lo: randomLoadout(rnd, RACE.diff === 'scrub' ? 2 : 1), kind: 'cpu' });
   }
@@ -3349,6 +3381,7 @@ function raceSetup(opts) {
     if (e.kind === 'me') RACE.me = r;
     if (e.kind === 'cpu') RACE.cpus.push(new CpuDriver(r, RACE.diff, RACE.seed + slot * 31));
   });
+  RACE.soloRun = !RACE.online && RACE.racers.length === 1;
   RACE.racers.forEach((r) => { r.place = r.slot + 1; });
   RACE.sorted = [...RACE.racers].sort((a, b) => a.slot - b.slot);
   pickupsBuild(T);
@@ -3376,7 +3409,7 @@ function raceStep(dt) {
   }
   const racing = RACE.phase === 'race' || RACE.phase === 'done';
   // Gentle catch-up in solo races: far-ahead CPUs ease off, far-behind ones push.
-  if (RACE.me && !RACE.online && !RACE.me.finished) for (const c of RACE.cpus) { if (c.r === RACE.me) continue; const gap = c.r.progress - RACE.me.progress; c.rubber = clamp(1 - gap * 0.0016, 0.92, 1.05); }
+  if (RACE.me && !RACE.online && !RACE.me.finished) for (const c of RACE.cpus) { if (c.r === RACE.me) continue; const gap = c.r.progress - RACE.me.progress; c.rubber = clamp(1 - gap * c.D.rubK, c.D.rubMin, 1.05); }
   for (const c of RACE.cpus) c.think(dt, T, RACE);
   for (const r of RACE.racers) {
     if (r.kind === 'net') continue;
@@ -3407,8 +3440,13 @@ function raceStep(dt) {
     if (r.kind === 'net') continue;
     const s = r.trackS ?? 0;
     if (r.prevS >= 0 && r.alive) {
-      if (r.prevS > L * 0.7 && s < L * 0.3) { r.lap++; onLap(r); }
-      else if (r.prevS < L * 0.3 && s > L * 0.7) r.lap--;
+      if (r.prevS > L * 0.7 && s < L * 0.3) {
+        // Forward over the line. Undoing a backwards crossing gives no lap time,
+        // and a real lap only counts after going round past halfway.
+        if (r.backed > 0) { r.backed--; r.lap++; }
+        else if (r.lap < 0 || r.halfway) { r.lap++; r.halfway = false; onLap(r); }
+      } else if (r.prevS < L * 0.3 && s > L * 0.7) { r.backed = (r.backed || 0) + 1; r.lap--; }
+      if (s > L * 0.42 && s < L * 0.58) r.halfway = true;
     }
     if (r.alive) r.prevS = s;
     r.progress = r.lap * L + s;
@@ -3432,14 +3470,16 @@ function raceStep(dt) {
     RACE.endT = (RACE.endT ?? 25) - dt;
     const sec = Math.ceil(RACE.endT);
     if (sec !== RACE.endSec && sec <= 10 && sec >= 0 && RACE.me && !RACE.me.finished) { RACE.endSec = sec; center(String(sec), 'c3 sm', 0.6); }
-    if (RACE.endT <= 0) { finishRace(); return; }
+    if (RACE.endT <= 0 && (NET.role !== 'guest' || RACE.netLost || RACE.endT < -5)) { finishRace(); return; }
   }
   // End of race.
   if (RACE.phase === 'race' && RACE.me && RACE.me.finished) { RACE.phase = 'done'; RACE.doneT = 0; }
   if (RACE.phase === 'done') {
     RACE.doneT += dt;
     const allIn = R.every((r) => r.finished || (r.kind === 'net' && r.left));
-    if (!RACE.results && (allIn || RACE.doneT > 14)) finishRace();
+    // Offline: give stragglers 14 s after you finish. Online uses the shared 25 s cutoff above.
+    if (!RACE.results && allIn && !(RACE.online && NET.role === 'guest' && !RACE.netLost && RACE.doneT < 6)) finishRace();
+    else if (!RACE.results && !RACE.online && RACE.doneT > 14) finishRace();
   }
 }
 
@@ -3451,7 +3491,7 @@ function onLap(r) {
     r.finished = true; r.finishT = RACE.t; RACE.finishOrder.push(r);
     if (r === RACE.me) {
       const pl = RACE.finishOrder.length;
-      center(pl === 1 ? 'YOU WIN!' : ord(pl) + ' PLACE', pl === 1 ? 'c2' : pl <= 3 ? 'c4' : '', 2.6);
+      center(RACE.soloRun ? 'FINISH!' : pl === 1 ? 'YOU WIN!' : ord(pl) + ' PLACE', pl === 1 ? 'c2' : pl <= 3 ? 'c4' : '', 2.6);
       sfx('fanfare', 0.9); FX.confetti(r.x, r.y + 1.5, r.z, pl <= 3 ? 160 : 60);
       // A CPU takes the wheel for the victory lap.
       RACE.cpus.push(new CpuDriver(r, 'rinse', 5));
@@ -3683,11 +3723,12 @@ function finishRace() {
   }
   const order = [...RACE.racers].sort((a, b) => a.finishT - b.finishT);
   order.forEach((r, k) => { r.place = k + 1; });
+  if (RACE.online) netSendResults(order);
   // Keep finish order for those who actually crossed the line first.
-  const res = { order, laps: RACE.laps, track: RACE.trackId, rewards: [], total: 0, solo: RACE.racers.length === 1 };
+  const res = { order, laps: RACE.laps, track: RACE.trackId, rewards: [], total: 0, solo: !!RACE.soloRun };
   let podiumOrder = order;
   if (me) {
-    const rw = computeRewards(me, RACE.racers.length);
+    const rw = computeRewards(me, RACE.soloRun ? 1 : Math.max(2, RACE.racers.length));
     res.rewards = rw; res.total = rw.reduce((a, b) => a + b[1], 0);
     P.bubbles += res.total; P.st.races++;
     if (!res.solo) {
@@ -3834,7 +3875,7 @@ function ghostFrame(dt, t) {
 // A lap just finished: keep it if it beat the stored best, and show the gap.
 function ghostLap(lapTime) {
   const id = RACE.trackId;
-  const solo = RACE.racers.length === 1;
+  const solo = !!RACE.soloRun;
   const prev = GHOST.play ? GHOST.play.t : (ghostLoad(id) || {}).t;
   if (solo) {
     const g = RACE.ghostResult || (RACE.ghostResult = { beat: false, by: 0, first: !prev });
@@ -3981,7 +4022,7 @@ ACT.startGP = () => {
 function gpNext() {
   const t = TRACKS[GP.idx];
   // Grid: reverse of the standings so the leader starts at the back.
-  const ents = [{ name: myName(), lo: myLoadout(), kind: 'me', key: 'me' }, ...GP.roster.map((e) => ({ ...e, key: e.name }))];
+  const ents = [{ name: offlineName(), lo: myLoadout(), kind: 'me', key: 'me' }, ...GP.roster.map((e) => ({ ...e, key: e.name }))];
   ents.sort((a, b) => (GP.pts[a.key] || 0) - (GP.pts[b.key] || 0));
   startRace({ track: trackId(t.id, GP.rev), laps: 3, diff: GP.diff, mode: 'gp', gp: GP, grid: ents });
 }
@@ -3990,7 +4031,7 @@ function gpRecord(order) {
   GP.idx++;
 }
 function gpStandings() {
-  const rows = Object.entries(GP.pts).map(([k, v]) => ({ k, v, name: k === 'me' ? myName() : k })).sort((a, b) => b.v - a.v);
+  const rows = Object.entries(GP.pts).map(([k, v]) => ({ k, v, name: k === 'me' ? offlineName() : k })).sort((a, b) => b.v - a.v);
   return rows;
 }
 
@@ -4082,7 +4123,7 @@ function showSettings() {
       <span>Screen shake</span>${seg('shake', [[1, 'On'], [0, 'Off']], S.shake)}
       <span>Touch buttons</span>${seg('touch', [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']], S.touch)}
       <span>Show FPS</span>${seg('fps', [[0, 'No'], [1, 'Yes']], S.fps)}
-      <span>Your name</span><input class="field name" id="nameIn" maxlength="14" value="${esc(P.name || arcadeName())}" placeholder="Your racer name">
+      <span>Your name</span><input class="field name" id="nameIn" maxlength="14" value="${esc(P.name || arcadeName())}" placeholder="${esc(myName())}">
     </div>
     <p style="margin:12px 0 0;font-size:13px;opacity:.75">Sounds are real recordings (CC0), listed in sfx/CREDITS-soap-rocket.txt.</p></div></div>`, 'veil');
   $('nameIn').addEventListener('change', (e) => { P.name = e.target.value.trim().slice(0, 14); saveProfile(); });
@@ -4097,7 +4138,8 @@ function showHelp() {
     <div class="scroll" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;font-weight:600;line-height:1.35">
       <div style="display:flex;flex-direction:column;gap:8px"><h3 style="font-size:24px">Controls</h3>
         ${row('W / ↑', 'Rocket thrust (hold)')}${row('A D / ← →', 'Steer')}${row('S / ↓', 'Brake, then reverse')}${row('SPACE', 'Boost')}${row('SHIFT', 'Drop a suds slick behind you')}${row('E', 'Honk or hop (Duck Horn or Spring Sole upgrade)')}${row('R', 'Back on track')}${row('Start', 'Press thrust just before GO! for a rocket start')}${row('ESC', 'Pause')}${row('1 to 4', 'Emotes when racing friends online')}
-        <p style="margin:4px 0 0">Gamepads work too: stick to steer, RT go, LT brake, X boost, B suds.</p></div>
+        <p style="margin:4px 0 0">Gamepads work too: stick to steer, RT go, LT brake, X boost, B suds.</p>
+        <p style="margin:4px 0 0">On a phone or tablet: hold <b>GO</b>, steer with <b>◀ ▶</b>, tap <b>BOOST</b> and <b>SUDS</b>.</p></div>
       <div style="display:flex;flex-direction:column;gap:10px"><h3 style="font-size:24px">Soap physics</h3>
         <p style="margin:0">💧 <b>Wet floor is fast but slippery.</b> You keep sliding the way you were going. Shiny = wet.</p>
         <p style="margin:0">🟫 <b>Dry floor and mats grip.</b> Slower, but you can actually turn. Use them as brakes.</p>
@@ -4301,7 +4343,8 @@ function garageFreeArea() {
   const w = innerWidth, h = innerHeight;
   if (!L || !C || w <= 600) { GAR.free = null; return; }
   const lr = L.getBoundingClientRect(), cr = C.getBoundingClientRect();
-  const x0 = lr.right + 10, x1 = w - 10, y0 = 60, y1 = cr.left < lr.right + 40 ? h - 10 : Math.max(y0 + 140, cr.top - 6);
+  const cardInColumn = cr.left >= lr.right - 20;
+  const x0 = lr.right + 10, x1 = w - 10, y0 = 60, y1 = cardInColumn ? Math.max(y0 + 140, cr.top - 6) : h - 10;
   GAR.free = { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 };
 }
 addEventListener('resize', () => { if (MODE === 'garage') garageFreeArea(); });
@@ -4341,7 +4384,7 @@ function partFx(kind, id) {
   if (st.cannon) add(1, 'Your suds fly forward onto racers ahead');
   if (st.bumpers) add(1, 'Bumps knock rivals away harder');
   if (st.sudsR > 1) add(1, 'Bigger suds slicks that last longer');
-  if (st.sudsCost > 1) add(0, 'Each suds slick costs ' + (st.sudsCost >= 2 ? 'twice' : 'more') + ' soap');
+  if (st.sudsCost > 1) add(0, 'Each suds slick costs ' + (st.sudsCost >= 2 ? 'twice the' : 'more') + ' soap');
   if (st.wallKeep > 1) add(1, 'Keeps its speed when it hits walls');
   if (st.wallKeep < 1) add(0, 'Walls stop it dead');
   if (st.dryMu < 1) add(1, 'Fast on dry floor and mats');
@@ -4355,6 +4398,13 @@ function partFx(kind, id) {
   if (st.wear > 1.3) add(0, 'Wears away fast');
   return out;
 }
+// Which equipped mod a new mod would push out (two slots; one E-key mod at a time).
+function replacedMod(id) {
+  const m = P.eq.mods.filter(Boolean); if (m.includes(id)) return '';
+  if (MODS[id].act) { const a = m.find((x) => MODS[x].act); if (a) return a; }
+  return m.length >= 2 ? m[0] : '';
+}
+const replaceNote = (id) => { const r = replacedMod(id); return r ? `<div class="fxl"><span class="m">Replaces ${esc(MODS[r].name)} (only ${MODS[id].act && MODS[r].act ? 'one E-key mod' : 'two mods'} at a time)</span></div>` : ''; };
 const fxHtml = (list) => list.length ? `<div class="fxl">${list.map(([g, t]) => `<span class="${g ? 'p' : 'm'}">${g ? '+ ' : '- '}${esc(t)}</span>`).join('')}</div>` : '';
 // Real 3D thumbnails of every bar and rocket, rendered once into small images.
 const THUMBS = {};
@@ -4397,7 +4447,7 @@ function swatch(kind, id) {
     return `<div class="swatch modsw" style="background:radial-gradient(circle at 50% 40%,${pal[0]},${pal[1]})"><span>${MODS[id].icon}</span></div>`; }
   return '';
 }
-function previewLoadout() { const lo = myLoadout(); const s = UI.sel; if (!s) return lo; if (s.kind === 'bar') lo.bar = s.id; else if (s.kind === 'rocket') lo.rocket = s.id; else if (s.kind === 'mod') { if (!lo.mods.includes(s.id)) { if (MODS[s.id].act) lo.mods = lo.mods.filter((x) => !MODS[x].act); lo.mods = lo.mods.length >= 2 ? [lo.mods[1], s.id] : [...lo.mods, s.id]; } } else if (s.kind === 'paint') lo.paint = s.id; return lo; }
+function previewLoadout() { const lo = myLoadout(); const s = UI.sel; if (!s) return lo; if (s.kind === 'bar') lo.bar = s.id; else if (s.kind === 'rocket') lo.rocket = s.id; else if (s.kind === 'mod') { if (!lo.mods.includes(s.id)) { const out = replacedMod(s.id); lo.mods = [...lo.mods.filter((x) => x !== out), s.id].slice(-2); } } else if (s.kind === 'paint') lo.paint = s.id; return lo; }
 function statsHtml(cur, nxt) {
   const A = displayStats(cur), B = displayStats(nxt);
   return `<div class="stats">${A.map(([n, a], k) => { const b = B[k][1]; const d = b - a; const lo = Math.min(a, b), hi = Math.max(a, b);
@@ -4447,6 +4497,7 @@ function showGarage() {
       <h3 style="font-size:24px">${esc(title)}</h3><p style="margin:0;font-weight:600;font-size:14px;line-height:1.3">${esc(blurb)}</p>
       ${statsHtml(cur, nxt)}
       ${s && s.kind !== 'paint' ? fxHtml(partFx(s.kind, s.id)) : ''}
+      ${s && s.kind === 'mod' ? replaceNote(s.id) : ''}
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${action}<span style="flex:1"></span><button class="btn sm" data-act="${gb || 'title'}" style="--c:var(--pink)">${doneLabel}</button></div>
     </div>`);
   const sc = document.querySelector('#s-garage .scroll'); if (sc && keepTop) sc.scrollTop = keepTop;
@@ -4469,9 +4520,9 @@ ACT.gbuy = () => {
     let m = P.eq.mods.filter(Boolean);
     if (m.includes(s.id)) P.eq.mods = m.filter((x) => x !== s.id);
     else {
-      // Only one action mod (E key) at a time.
-      if (MODS[s.id].act) m = m.filter((x) => !MODS[x].act);
-      P.eq.mods = m.length >= 2 ? [m[1], s.id] : [...m, s.id];
+      const out = replacedMod(s.id);
+      if (out) { m = m.filter((x) => x !== out); toast(MODS[out].name + ' taken off'); }
+      P.eq.mods = [...m, s.id].slice(-2);
     }
     while (P.eq.mods.length < 2) P.eq.mods.push('');
   } else P.eq[s.kind] = s.id;
@@ -4514,11 +4565,21 @@ function netConnect(code, role, keepQm) {
 }
 function netSend(o) { if (NET.ws && NET.ws.readyState === 1) NET.ws.send(JSON.stringify(o)); }
 function netClose() { NET.on = false; if (NET.ws) { NET.ws.onclose = null; try { NET.ws.close(); } catch (e) { /* gone */ } NET.ws = null; } }
-function netFail(msg) {
-  const was = NET.on; netClose();
+function netFail(msg, why) {
+  const was = NET.on, wasQm = /^SOAP[1-6]$/.test(NET.code || ''); netClose();
   if (!was) return;
+  if (why === 'hostgone' && wasQm && !(MODE === 'race' && RACE.online && RACE.me && !RACE.results)) {
+    toast('The host left. Finding another room…');
+    const next = (+NET.code.slice(4) % 6) + 1;   // start at the next public room
+    setTimeout(() => { if (!NET.on) ACT.quickMatch(next); }, 300 + Math.random() * 900);
+    return;
+  }
   // Mid-race: let them finish; the results screen then offers the menu instead of the room.
-  if (MODE === 'race' && RACE.online && RACE.me && !RACE.results) { RACE.netLost = true; toast(msg); feed('You can still finish the race!'); return; }
+  if (MODE === 'race' && RACE.online && RACE.me && !RACE.results) {
+    RACE.netLost = true; toast(msg); feed('You can still finish the race!');
+    for (const r of [...RACE.racers]) if (r.kind === 'net' && !r.finished) removeRacer(r);   // they won't move again
+    return;
+  }
   if (RACE.online && !RACE.results) RACE.online = false;
   showOnline(msg);
 }
@@ -4532,15 +4593,15 @@ function netHandle(m) {
   const t = now();
   switch (m.t) {
     case 'created': NET.hostSeen = t; NET.qm = null; showLobby(); netRoster(); break;
-    case 'joined': NET.hostSeen = t; NET.qm = null; netHello(); showLobby(); break;
+    case 'joined': NET.hostSeen = t; NET.joinedAt = t; NET.gotRos = false; NET.qm = null; netHello(); showLobby(); break;
     case 'error': {
       // Quick match: no room yet -> open it; full -> try the next one.
-      if (NET.qm && NET.qm.i <= 6) {
+      if (NET.qm && (NET.qm.tried || 0) < 6) {
         const msg = m.msg || '';
         const code = 'SOAP' + NET.qm.i;
         if (/No game/i.test(msg)) { netConnect(code, 'host', true); return; }
         if (/in use/i.test(msg) && !NET.qm.retried) { NET.qm.retried = 1; netConnect(code, 'guest', true); return; }
-        if (/full/i.test(msg) || /in use/i.test(msg)) { NET.qm.i++; NET.qm.retried = 0; if (NET.qm.i <= 6) { netConnect('SOAP' + NET.qm.i, 'guest', true); return; } }
+        if (/full/i.test(msg) || /in use/i.test(msg)) { NET.qm.tried = (NET.qm.tried || 0) + 1; NET.qm.i = NET.qm.i % 6 + 1; NET.qm.retried = 0; if (NET.qm.tried < 6) { netConnect('SOAP' + NET.qm.i, 'guest', true); return; } }
       }
       NET.qm = null;
       netFail(m.msg || 'That did not work.');
@@ -4557,7 +4618,7 @@ function netHandle(m) {
     }
     case 'ros': {
       if (NET.role !== 'guest') break;
-      NET.hostSeen = t; NET.lobby = Object.assign(NET.lobby, m.L || {});
+      NET.hostSeen = t; NET.gotRos = true; NET.lobby = Object.assign(NET.lobby, m.L || {});
       const seen = new Set();
       for (const [cid, name, lo, host] of m.ps) { seen.add(cid); const p = NET.players.get(cid) || { cid }; Object.assign(p, { name, lo: cleanLoadout(lo), host: !!host, seen: t }); NET.players.set(cid, p); }
       for (const cid of [...NET.players.keys()]) if (!seen.has(cid) && cid !== NET.cid) NET.players.delete(cid);
@@ -4584,6 +4645,18 @@ function netHandle(m) {
       if (r && RACE.online && m.r === NET.raceId) { r.emo = m.k | 0; r.emoUntil = now() + 2200; sfxAt('pop', r.x, r.y, r.z, 0.6, 1.2); }
       break;
     }
+    case 'left': NET.leftAt = t; break;
+    case 'res': {
+      if (NET.role !== 'guest' || !RACE.online || m.r !== NET.raceId || RACE.results) break;
+      for (const [c, ft, proj] of m.o) {
+        const r = c === NET.cid ? RACE.me : RACE.racers.find((x) => x.netId === c);
+        if (!r) continue;
+        r.finishT = ft; r.projected = !!proj; if (!proj) r.finished = true;
+      }
+      RACE.hostRes = true;
+      finishRace();
+      break;
+    }
     case 'fin': {
       const r = RACE.racers.find((x) => x.netId === m.c);
       if (r && !r.finished) { r.finished = true; r.finishT = m.ft; r.bestLap = m.bl ?? Infinity; RACE.finishOrder.push(r); feed(r.name + ' finished ' + ord(RACE.finishOrder.length)); }
@@ -4593,7 +4666,7 @@ function netHandle(m) {
       NET.players.delete(m.c);
       const r = RACE.racers.find((x) => x.netId === m.c); if (r) { r.left = true; if (!r.finished) removeRacer(r); }
       if (UI.cur === 'lobby') showLobby();
-      if (m.host && NET.role === 'guest') netFail('The host closed the room.');
+      if (m.host && NET.role === 'guest') netFail('The host closed the room.', 'hostgone');
       break;
     }
   }
@@ -4618,6 +4691,7 @@ function netState(m) {
 }
 // Interpolate remote racers ~110 ms in the past.
 function netInterp() {
+  if (RACE.phase === 'podium') return;
   const rt = now() / 1000 - 0.11;
   for (const r of [...RACE.racers]) {
     if (r.kind !== 'net' || !r.buf || !r.buf.length) continue;
@@ -4630,24 +4704,34 @@ function netInterp() {
     r.thr = b.f & 1 ? 1 : 0.2; r.boosting = !!(b.f & 2); r.brk = b.f & 4 ? 1 : 0; r.alive = !(b.f & 8); r.air = !!(b.f & 16); r.sliding = (b.f & 32) ? 3 : 0;
     r.trackS = 0; r.ti = RACE.T.locate(r.x, r.z, r.ti, r._L).i;
     // Gone quiet (closed the tab, lost Wi-Fi): take their soap off the track.
-    if (now() - r.seen > 7000 && !r.finished) { r.left = true; removeRacer(r); }
+    if (now() - r.seen > 7000 && !r.finished && !String(r.netId).startsWith('bot')) { r.left = true; removeRacer(r); }
   }
 }
-function netTick(dt) {
+// Heartbeat on a plain timer: it keeps running while the tab is in the background
+// (the frame loop does not), so switching tabs to share the invite never empties the room.
+function netBeat() {
   if (!NET.on) return;
   const t = now();
-  NET.hbT += dt;
-  if (NET.hbT > 2) {
-    NET.hbT = 0;
-    if (NET.role === 'guest') { netHello(); if (t - NET.hostSeen > 12000) { netFail('The host left the room.'); return; } }
-    else {
-      let ch = false;
-      const inRace = RACE.online && !RACE.results;
-      for (const [cid, p] of NET.players) if (cid !== NET.cid && t - (p.seen || 0) > (inRace ? 15000 : 9000)) { NET.players.delete(cid); ch = true; const r = RACE.racers.find((x) => x.netId === cid); if (r) { r.left = true; if (!r.finished) removeRacer(r); } }
-      if (ch && UI.cur === 'lobby') showLobby();
-      netRoster();
-    }
+  if (NET.role === 'guest') {
+    netHello();
+    // Joined a room but no host ever answered: it's empty.
+    if (NET.joinedAt && !NET.gotRos && t - NET.joinedAt > 6000) { netFail('That room is empty.', 'hostgone'); return; }
+    // Someone's connection closed and the host has gone quiet since: the host left.
+    if (NET.leftAt && NET.leftAt > NET.hostSeen && t - NET.hostSeen > 8000) { netFail('The host left the room.', 'hostgone'); return; }
+    if (t - NET.hostSeen > 75000) { netFail('The host left the room.', 'hostgone'); return; }
   }
+  else {
+    let ch = false;
+    for (const [cid, p] of NET.players) if (cid !== NET.cid && t - (p.seen || 0) > 75000) { NET.players.delete(cid); ch = true; const r = RACE.racers.find((x) => x.netId === cid); if (r) { r.left = true; if (!r.finished) removeRacer(r); } }
+    if (ch && UI.cur === 'lobby') showLobby();
+    netRoster();
+  }
+}
+setInterval(netBeat, 2000);
+// Closing the tab or leaving the page tells the room straight away.
+addEventListener('pagehide', () => { if (NET.on) netSend({ t: 'bye', c: NET.cid, host: NET.role === 'host' }); });
+function netTick(dt) {
+  if (!NET.on) return;
   if (!RACE.online || RACE.results) return;
   NET.sendT += dt;
   if (NET.sendT < 1 / 15) return;
@@ -4659,6 +4743,11 @@ function netTick(dt) {
 }
 function netSendSuds(s) { if (!RACE.online || !NET.on) return; netSend({ t: 'sud', r: NET.raceId, c: s.owner ? s.owner.netId : '', id: s.id, x: r2(s.x), z: r2(s.z), rad: r2(s.r), life: s.life, wk: s.weak ? 1 : 0 }); }
 function netSendHorn(r) { if (!RACE.online || !NET.on) return; netSend({ t: 'hrn', r: NET.raceId, c: r.netId, x: r2(r.x), z: r2(r.z) }); }
+function netSendResults(order) {
+  if (!RACE.online || !NET.on || NET.role !== 'host') return;
+  for (const x of order) x.finishT = Math.round(x.finishT * 1000) / 1000;   // same numbers on every screen
+  netSend({ t: 'res', r: NET.raceId, o: order.map((x) => [x.kind === 'me' ? NET.cid : x.netId, Math.round(x.finishT * 1000) / 1000, x.projected ? 1 : 0]) });
+}
 function netSendFinish(r) {
   if (!RACE.online || !NET.on) return;
   netSend({ t: 'fin', r: NET.raceId, c: r.netId, ft: r.finishT, bl: isFinite(r.bestLap) ? r.bestLap : null });
@@ -4693,7 +4782,7 @@ function showOnline(msg) {
   setMode('attract');
   screen('online', `${topbar('title')}<div class="panel card" style="width:min(720px,94vw)"><header><h2>Race friends online</h2></header>
     <p style="margin:0;font-weight:600">Up to 8 racers. One of you hosts a room and the others type in its code. Everyone keeps the soap and upgrades from their own garage.</p>
-    <label class="opt">Your name <input class="field name" id="nameIn" maxlength="14" value="${esc(P.name || arcadeName())}" placeholder="Your racer name"></label>
+    <label class="opt">Your name <input class="field name" id="nameIn" maxlength="14" value="${esc(P.name || arcadeName())}" placeholder="${esc(myName())}"></label>
     <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
       <button class="btn big" data-act="quickMatch" style="--c:var(--lemon)">Quick match</button>
       <span style="font-weight:600;max-width:340px">Jump into a public room with anyone who is racing right now.</span>
@@ -4709,7 +4798,7 @@ function showOnline(msg) {
 }
 function readName() { const n = $('nameIn'); if (n) { P.name = n.value.trim().slice(0, 14); saveProfile(); } }
 ACT.online = () => showOnline();
-ACT.quickMatch = () => { readName(); NET.qm = { i: 1 }; netConnect('SOAP1', 'guest', true); netStatus('Looking for a room'); };
+ACT.quickMatch = (start) => { readName(); const i = +start >= 1 && +start <= 6 ? +start : 1; NET.qm = { i, first: i, tried: 0 }; netConnect('SOAP' + i, 'guest', true); netStatus('Looking for a room'); };
 ACT.host = () => { readName(); netConnect(rcode(4), 'host'); };
 ACT.join = () => { readName(); const c = ($('codeIn').value || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (c.length < 4 || c.length > 6) { netStatus('Room codes are 4 letters.'); return; } netConnect(c, 'guest'); };
 ACT.leaveOnline = () => { netSend({ t: 'bye', c: NET.cid, host: NET.role === 'host' }); netClose(); RACE.online = false; showTitle(); };
@@ -4741,11 +4830,12 @@ function showLobby() {
       <label class="opt">CPU fill ${seg('cpu', [[0, 'None'], [2, '2'], [4, '4'], [7, 'Fill up']], L.cpu)}</label>
       <label class="opt">CPU ${seg('diff', [['rinse', 'Rinse'], ['lather', 'Lather'], ['scrub', 'Scrub']], L.diff)}</label>
       <label class="opt">Direction ${seg('rev', [[0, 'Normal'], [1, 'Reverse']], L.rev)}</label></div>`
-      : `<div class="item trk on" style="max-width:360px;cursor:default"><img src="${TRACK_IMG[t.id] || (TRACK_IMG[t.id] = trackCanvas(t.id))}" style="width:100%;border-radius:12px;border:3px solid var(--ink)"><h3>${t.name}${L.rev ? ' Reverse' : ''}</h3><p>${L.laps} laps, ${L.cpu ? L.cpu + ' CPU' : 'no CPU'} racers</p></div>`}
+      : `<div class="item trk on" style="max-width:360px;cursor:default"><img src="${TRACK_IMG[t.id] || (TRACK_IMG[t.id] = trackCanvas(t.id))}" style="width:100%;border-radius:12px;border:3px solid var(--ink)"><h3>${t.name}${L.rev ? ' Reverse' : ''}</h3><p>${L.laps} laps, ${Math.min(L.cpu, MAXP - ps.length) ? Math.min(L.cpu, MAXP - ps.length) + ' CPU' : 'no CPU'} racers</p></div>`}
     </div>`, 'veil');
 }
+addEventListener('hashchange', () => { if (/room=/.test(location.hash) && !NET.on && MODE !== 'race') autoRoom(); });
 function autoRoom() {
-  const h = new URLSearchParams(HASH.replace(/^#/, ''));
+  const h = new URLSearchParams(location.hash.replace(/^#/, ''));
   const room = (h.get('room') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (!room) return false;
   netConnect(room, h.get('host') === '1' ? 'host' : 'guest');
@@ -4794,7 +4884,7 @@ function attractCam(dt) {
   else if (ATT.shot === 1) {
     const lx = Math.cos(r.yaw), lz = -Math.sin(r.yaw), fx = Math.sin(r.yaw), fz = Math.cos(r.yaw);
     _cv.set(r.x + lx * 2.2 + fx * 1.2, r.y + 0.55, r.z + lz * 2.2 + fz * 1.2);
-    const T = WORLD.T; if (T) { const L = T.locate(_cv.x, _cv.z, r.ti, CAM._L); if (Math.abs(L.d) > L.hw - 0.4) { const k = (Math.abs(L.d) - (L.hw - 0.4)) * Math.sign(L.d); _cv.x -= L.nx * k; _cv.z -= L.nz * k; } _cv.y = Math.max(_cv.y, T.heightAt(_cv.x, _cv.z) + 0.35); }
+    const T = WORLD.T; if (T) camInside(T, _cv, r.ti);
     CAM.pos.lerp(_cv, 1 - Math.exp(-dt * 6)); _cl.set(r.x, r.y + 0.3, r.z); CAM.look.lerp(_cl, 1 - Math.exp(-dt * 10)); CAM.fov = lerp(CAM.fov, 48, 0.05);
   } else camOrbit(r, dt, 3.4, 1.1, 0.3);
 }
@@ -4885,6 +4975,8 @@ onKey = (e) => {
   if (e.code === 'Escape') {
     if ($('quitAsk')) { $('quitAsk').remove(); return; }
     if (UI.cur === 'settings') { ACT.settingsDone(); return; }
+    if (UI.cur === 'garage' && UI.garageBack) { ACT[UI.garageBack](); return; }
+    if (NET.on && MODE !== 'race' && UI.cur !== 'lobby') { ACT.lobbyBack(); return; }
     if (MODE === 'race' && RACE.me && !RACE.results) togglePause();
     else if (UI.cur && UI.cur !== 'title' && MODE !== 'race') { if (UI.cur === 'lobby') return; showTitle(); }
   }
@@ -4933,7 +5025,7 @@ boot();
 // ---------------------------------------------------------------------------
 // Self-tests (#smoke) and a debug hook (#debug -> window.__SR).
 // ---------------------------------------------------------------------------
-if (DEBUG || SMOKE) window.__SR = { GHOST, ghostLoad, CpuDriver, tryDropSuds, __raceStep: (dt) => { raceStep(dt); handleEvents(); }, RACE, P, CFG, TRACKS, getTrack, startRace, showTitle, showGarage, showQuick, showResults, setQuality, CAM, Racer, SUDS, FX, WORLD, NET, netConnect, netHostStart, ACT, statsFor, displayStats, BARS, ROCKETS, MODS, UI, INPUT, KEYS, setMode, camera, renderer, scene, get MODE() { return MODE; } };
+if (DEBUG || SMOKE) window.__SR = { GAR, GHOST, ghostLoad, CpuDriver, tryDropSuds, __raceStep: (dt) => { raceStep(dt); handleEvents(); }, RACE, P, CFG, TRACKS, getTrack, startRace, showTitle, showGarage, showQuick, showResults, setQuality, CAM, Racer, SUDS, FX, WORLD, NET, netConnect, netHostStart, ACT, statsFor, displayStats, BARS, ROCKETS, MODS, UI, INPUT, KEYS, setMode, camera, renderer, scene, get MODE() { return MODE; } };
 
 // Drive one racer with fixed inputs on a fresh track and report what happened.
 function simRun(trackId, setup, secs, ctrl) {
@@ -5034,6 +5126,20 @@ async function runSmoke() {
       SUDS.list = []; const sx = g.x + Math.sin(g.yaw) * 3, sz = g.z + Math.cos(g.yaw) * 3; const ws = SUDS.add(sx, sz, 0.65, null, 3.5); ws.weak = 1;
       ok('bubble jet trail is slippery but no spin out', SUDS.at(sx, sz, null) <= 0.3);
       SUDS.list = [];
+    }
+    // Backing over the finish line never counts as a lap.
+    {
+      raceSetup({ track: 'shower', laps: 3, cpus: 0, mode: 'quick' }); RACE.phase = 'race'; RACE.t = 0;
+      const me = RACE.me, T = RACE.T;
+      const put = (s, dir) => { const i = Math.floor(((s % T.L) + T.L) % T.L / T.ds) % T.N; me.x = T.px[i]; me.z = T.pz[i]; me.ti = i; me.y = T.heightAt(me.x, me.z, i); me.yaw = Math.atan2(T.tx[i] * dir, T.tz[i] * dir); me.vx = T.tx[i] * 6 * dir; me.vz = T.tz[i] * 6 * dir; me.in.thr = 0; };
+      const run = (sec) => { for (let k = 0; k < sec * 120; k++) raceStep(CFG.dt); };
+      put(T.L - 1.5, 1); me.prevS = -1; run(1.0);          // over the line forwards: lap 0 starts
+      const lap0 = me.lap;
+      put(1.2, -1); run(1.2);                             // reverse back over the line
+      put(T.L - 1.5, 1); run(1.0);                        // and forwards again
+      ok('backing over the line gives no lap', me.lap === lap0 && me.lapTimes.length === 0, 'lap ' + me.lap + ' times ' + me.lapTimes.length);
+      put(T.L * 0.5, 1); run(0.3); put(T.L - 1.5, 1); run(1.0);   // a real lap past halfway
+      ok('a real lap still counts', me.lap === lap0 + 1 && me.lapTimes.length === 1, 'lap ' + me.lap);
     }
     // Broken or ancient saves are repaired, not crashes.
     {
