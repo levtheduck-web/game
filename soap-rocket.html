@@ -224,6 +224,9 @@ table.res.trophy th{font-size:13px;text-transform:uppercase;letter-spacing:.04em
 #mBoost.charging{box-shadow:0 5px 0 var(--ink),0 0 0 4px #8ee8c8,0 0 18px 4px rgba(142,232,200,.9)}
 #mBoost.charging .k{background:#15935f}
 #mSuds .t i{background:linear-gradient(#ffffff,#bfe6ff)}
+#mAct .t i{background:linear-gradient(#fff3b0,#ffd23f)} #mAct:not(.ready) .t i{filter:saturate(.25) brightness(1.05)}
+#mAct.ready{animation:pulse .6s ease-in-out infinite alternate} body.touch #mAct{display:none!important} #mAct.dud{animation:dudShake .3s}
+@keyframes dudShake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 @keyframes pulse{to{transform:translateY(-3px) rotate(-1.5deg)}}
 #hDrops{position:absolute;inset:0;overflow:hidden}
 #hDrops i{position:absolute;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.95) 0 12%,rgba(255,255,255,.25) 22%,rgba(210,235,255,.12) 55%,rgba(120,150,190,.35) 100%);box-shadow:inset -2px -3px 4px rgba(40,60,100,.25),0 1px 2px rgba(255,255,255,.4);backdrop-filter:blur(1.5px);-webkit-backdrop-filter:blur(1.5px);animation:dropFade 1.6s ease-in forwards}
@@ -317,6 +320,7 @@ body.touch #hMap{width:104px;top:58px;right:10px}
     <div class="meter" id="mSoap"><div class="l"><span>SOAP</span><span id="mSoapN">100%</span></div><div class="t"><i></i></div></div>
     <div class="meter" id="mBoost"><div class="l"><span>BOOST</span><span class="k" id="kBoost">SPACE</span></div><div class="t"><i></i></div></div>
     <div class="meter" id="mSuds"><div class="l"><span>SUDS</span><span class="k" id="kSuds">SHIFT</span></div><div class="t"><i></i></div></div>
+    <div class="meter" id="mAct" style="display:none"><div class="l"><span id="mActN">HONK</span><span class="k" id="kAct">E</span></div><div class="t"><i></i></div></div>
   </div>
   <div id="hDrops"></div>
   <div id="hCenter"></div>
@@ -477,7 +481,7 @@ function myName() {
 // ---------------------------------------------------------------------------
 const BARS = {
   rosy:     { name: 'Rosy Classic', price: 0, col: 0xff8fc2, logo: 0xffd6ea, blurb: 'The original pink bar. Good at everything, great at nothing.', st: {} },
-  glyco:    { name: 'Glycerin Glide', price: 350, col: 0xffb347, logo: 0xffe2b0, clear: 1, blurb: 'See-through and extra slick. The fastest bar there is, but it melts away twice as fast.', st: { top: 1.09, grip: 0.76, wear: 1.9 } },
+  glyco:    { name: 'Glycerin Glide', price: 350, col: 0xffb347, logo: 0xffe2b0, clear: 1, blurb: 'See-through and extra slick. The fastest bar there is, but it melts away twice as fast.', st: { top: 1.06, grip: 0.76, wear: 2.1 } },
   pumice:   { name: 'Pumice Grip', price: 350, col: 0x9aa7bd, logo: 0xd5dbe6, speck: 1, blurb: 'Gritty volcanic stone. Holds a corner like glue, but it is no sprinter.', st: { grip: 1.4, top: 0.955, wear: 0.6, mass: 1.08 } },
   oat:      { name: 'Oat Bruiser', price: 450, col: 0xf0d9a8, logo: 0xfff1d2, speck: 1, scale: [1.13, 1.12, 1.08], blurb: 'A big chunky oatmeal bar. Shoves everyone out of the way, slow off the line.', st: { mass: 1.5, accel: 0.93, wear: 0.8, turn: 0.93 } },
   mini:     { name: 'Hotel Mini', price: 300, col: 0xf3f0ff, logo: 0xc9b6ff, scale: [0.8, 0.8, 0.8], blurb: 'Tiny, light and twitchy. Zips off the line, gets bullied in a crowd.', st: { mass: 0.6, accel: 1.1, turn: 1.18, top: 0.97, wear: 1.2 } },
@@ -494,7 +498,7 @@ const ROCKETS = {
   quad:   { name: 'Quad Fizz', price: 400, layout: 'quad', blurb: 'Four little fizzers. A gentle boost that refills really quickly.', st: { bThrust: 0.68, bUse: 0.62, regen: 1.7 } },
   bubble: { name: 'Bubble Jet', price: 500, layout: 'twin', flame: 'blue', blurb: 'Boosting sprays a slick of suds behind you. Every boost costs a little soap.', st: { bubbleJet: 1, bThrust: 0.93 } },
   steady: { name: 'Kettle Steam', price: 450, layout: 'twin', flame: 'steam', blurb: 'Always a little faster, but the boost is barely a puff.', st: { accel: 1.05, top: 1.02, bThrust: 0.45, bUse: 0.8 } },
-  jet:    { name: 'Turbo Jet', price: 650, layout: 'jet', flame: 'blue', blurb: 'Jet engines take a moment to spool up, then hit the highest boost speed of all. Slower off the line.', st: { bTop: 1.15, spool: 1, bUse: 0.85, accel: 0.96 } },
+  jet:    { name: 'Turbo Jet', price: 650, layout: 'jet', flame: 'blue', blurb: 'Jet engines take a moment to spool up, then hit the highest boost speed of all. Slower off the line.', st: { bTop: 1.2, spool: 1, bUse: 0.78, bThrust: 1.06, accel: 0.98 } },
   retro:  { name: 'Retro Brakes', price: 350, layout: 'retro', blurb: 'Extra rockets on the nose. Brakes and reverses twice as hard, and helps you turn. A bit heavier.', st: { brake: 2.1, mass: 1.05, top: 0.99, turn: 1.06 } },
 };
 const MODS = {
@@ -510,7 +514,7 @@ const MODS = {
   scoop:   { name: 'Slipstream Scoop', icon: '🌀', price: 300, blurb: 'Tailgating charges your boost twice as fast. Normal refill is slower.', st: { draft: 2.2, regen: 0.85 } },
   hop:     { name: 'Spring Sole', icon: '🦘', price: 350, act: 1, blurb: 'Press E to hop over suds, razors and drains. Each hop costs boost, and the spring grips a bit less.', st: { hop: 1, grip: 0.92 } },
   magnet:  { name: 'Coin Magnet', icon: '🧲', price: 300, blurb: 'Pulls soap coins to you from a few lengths away. The magnet is heavy.', st: { magnet: 1, mass: 1.06, accel: 0.97 } },
-  cannon:  { name: 'Foam Cannon', icon: '🎯', price: 450, blurb: 'Your suds fly forward and land on whoever is ahead of you. Each shot costs twice the soap.', st: { cannon: 1, sudsCost: 2 } },
+  cannon:  { name: 'Foam Cannon', icon: '🎯', price: 450, blurb: 'Your suds fly forward and land on whoever is ahead of you. Each shot costs half as much soap again.', st: { cannon: 1, sudsCost: 1.5 } },
   bumpers: { name: 'Rubber Bumpers', icon: '🎈', price: 350, blurb: 'Bounce rivals away twice as hard. All that rubber drags your top speed down a little.', st: { bumpers: 1, top: 0.975 } },
   wrap:    { name: 'Bubble Wrap', icon: '🛡️', price: 400, blurb: 'Saves you from one spin out or drain every lap. Heavier and a bit slower.', st: { shield: 1, mass: 1.08, top: 0.97 } },
 };
@@ -551,7 +555,7 @@ function cleanLoadout(lo) {
 }
 function barColor(lo) { const b = BARS[lo.bar] || BARS.rosy; const p = PAINTS[lo.paint | 0]; return p && p.c != null && !b.noPaint ? p.c : b.col; }
 
-const CPU_NAMES = ['Bubbles', 'Sudsy', 'Squeaky', 'Lather', 'Foamy', 'Fizz', 'Splash', 'Puddles', 'Glossy', 'Slick', 'Pebble', 'Drip', 'Scrubby', 'Rinse', 'Duckie', 'Loofah'];
+const CPU_NAMES = ['Bubbles', 'Sudsy', 'Squeaky', 'Bloop', 'Foamy', 'Fizz', 'Splash', 'Puddles', 'Glossy', 'Slick', 'Pebble', 'Drip', 'Swish', 'Ripple', 'Duckie', 'Loofah'];
 
 // ==== 02-track.js ====
 // ---------------------------------------------------------------------------
@@ -2177,7 +2181,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611041322";
+const ASSET_V = "202611041340";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2574,7 +2578,7 @@ const SUDS = {
     for (const s of this.list) {
       if (s.owner === who && RACE.t - s.born < 0.9) continue;
       const d = Math.hypot(x - s.x, z - s.z);
-      if (d < s.r) { let k = (1 - d / s.r) * 2.2 * Math.min(1, s.t / 1.5); if (s.weak) k = Math.min(k, 0.3); if (k > v) { v = Math.min(1, k); SUDS.lastOwner = s.owner; } }
+      if (d < s.r) { let k = (1 - d / s.r) * 2.2 * Math.min(1, s.t / 1.5); if (s.weak) k = Math.min(k, 0.34); if (k > v) { v = Math.min(1, k); SUDS.lastOwner = s.owner; } }
     }
     return v;
   },
@@ -2616,6 +2620,7 @@ class Racer {
     if (this.sudsCd > 0) this.sudsCd -= dt;
     if (this.hornCd > 0) this.hornCd -= dt;
     if (this.hopCd > 0) this.hopCd -= dt;
+    if (this.sudsSafe > 0) this.sudsSafe -= dt;
     if (!this.alive) { this.stepDead(dt, T); return; }
     const shr = 1 - (this.size - CFG.minSize) / (1 - CFG.minSize) * 1;   // 0 new .. 1 worn
     const L = T.locate(this.x, this.z, this.ti, this._L); this.ti = L.i;
@@ -2630,7 +2635,7 @@ class Racer {
       mu = lerp(mu, CFG.muSuds, sud); grip = lerp(grip, CFG.gripSuds, sud);
       // A player is spun out by CPU suds at most once a lap; after that they're just slippery.
       const cpuSuds = this.kind === 'me' && SUDS.lastOwner && SUDS.lastOwner.kind === 'cpu';
-      if (this.spin <= 0 && sud > 0.35 && this.speed > 3.5 && racing && !this.air && !(cpuSuds && this.cpuSpinLap === this.lap)) { if (cpuSuds) this.cpuSpinLap = this.lap; this.spinOut(T, sud); }
+      if (this.spin <= 0 && !(this.sudsSafe > 0) && sud > 0.35 && this.speed > 3.5 && racing && !this.air && !(cpuSuds && this.cpuSpinLap === this.lap)) { if (cpuSuds) this.cpuSpinLap = this.lap; this.spinOut(T, sud); }
     }
     this.onSurface = sud > 0.3 ? 'suds' : mat > 0.5 ? 'mat' : pud > 0.4 ? 'puddle' : wet > 0.5 ? 'wet' : 'dry';
     if (this.spin > 0) { grip *= 0.3; this.spin -= dt; }
@@ -2652,11 +2657,11 @@ class Racer {
     this.boosting = false;
     if (I.boost && racing && this.boost > 0.5 && control === 1) {
       this.boosting = true;
-      this.spoolK = S.spool ? Math.min(1, (this.spoolK || 0) + dt / 0.5) : 1;
+      this.spoolK = S.spool ? Math.min(1, (this.spoolK || 0) + dt / 0.32) : 1;
       af += CFG.bThrust * S.bThrust * (1 + 0.25 * shr) * this.spoolK;
       this.boost = Math.max(0, this.boost - CFG.bUse * S.bUse * dt);
       this.size -= CFG.wearBoost * S.wear * dt * (S.bubbleJet ? 2.4 : 1);
-      if (S.bubbleJet && RACE.t > 4) { this.dropT -= dt; if (this.dropT <= 0) { this.dropT = 0.3; this.emit('jetSuds'); } }
+      if (S.bubbleJet && RACE.t > 4) { this.dropT -= dt; if (this.dropT <= 0) { this.dropT = 0.2; this.emit('jetSuds'); } }
     }
     if (!this.boosting) this.spoolK = 0;
     if (this.air) af *= 0.45;
@@ -2829,7 +2834,7 @@ class Racer {
     this.emit('hop'); return true;
   }
   spinOut(T, k) {
-    if (this.useShield('suds')) return;
+    if (this.useShield('suds')) { this.sudsSafe = 0.9; return; }   // the wrap carries you clean through this slick
     this.spin = 0.6 + 0.35 * k;
     this.w += (Math.random() < 0.5 ? -1 : 1) * (5 + 3 * k);
     this.stat.sudsHits++;
@@ -2914,8 +2919,8 @@ function collideRacers(a, b) {
 // and drop suds on whoever is tailgating them.
 // ---------------------------------------------------------------------------
 const DIFF = {
-  rinse:  { name: 'Rinse', pace: 0.58, aim: 0.55, boost: 70, suds: 0.08, mult: 0.8, rubK: 0.005, rubMin: 0.5, rubMax: 1.17, rubDead: 10, corner: 1 },
-  lather: { name: 'Lather', pace: 0.8, aim: 0.8, boost: 55, suds: 0.16, mult: 1, rubK: 0.002, rubMin: 0.85, rubMax: 1.12, rubDead: 8, corner: 1.04 },
+  rinse:  { name: 'Rinse', pace: 0.58, aim: 0.55, boost: 70, suds: 0.08, mult: 0.8, rubK: 0.012, rubMin: 0.5, rubMax: 1.5, rubDead: 12, corner: 1 },
+  lather: { name: 'Lather', pace: 0.8, aim: 0.8, boost: 55, suds: 0.16, mult: 1, rubK: 0.008, rubMin: 0.85, rubMax: 1.28, rubDead: 8, corner: 1.04 },
   scrub:  { name: 'Scrub', pace: 0.95, aim: 1, boost: 40, suds: 0.26, mult: 1.35, rubK: 0.0012, rubMin: 0.95, rubMax: 1.12, rubDead: 5, corner: 1.16 },
 };
 class CpuDriver {
@@ -3602,7 +3607,7 @@ function raceStep(dt) {
   for (const r of R) {
     if (r.kind === 'net') continue;
     if (r.in.suds) { r.in.suds = false; if (racing && r.alive) tryDropSuds(r); }
-    if (r.in.horn) { r.in.horn = false; if (racing && r.alive) { if (r.S.horn) tryHorn(r); else if (r.S.hop) r.hop(); } }
+    if (r.in.horn) { r.in.horn = false; if (racing && r.alive) { if (r.S.horn) tryHorn(r); else if (r.S.hop && !r.hop() && r === RACE.me) actDud(r.hopCd > 0 ? 'Spring recharging' : r.air ? '' : 'Need more boost to hop'); } }
   }
   SUDS.update(dt);
   shotsUpdate(dt);
@@ -3685,9 +3690,15 @@ function tryDropSuds(r) {
   if (r.size - cost < CFG.minSize + 0.03) { if (r === RACE.me) feed('Too little soap left for suds'); return; }
   r.size -= cost; r.sudsCd = CFG.sudsCd; r.stat.sudsDropped++;
   if (r.S.cannon) {
-    // Foam Cannon: a blob of suds arcs forward and lands ahead.
+    // Foam Cannon: a blob of suds arcs forward and lands on the nearest racer ahead (where they'll be).
     const fx = Math.sin(r.yaw), fz = Math.cos(r.yaw); const v = r.speed;
-    const tx = r.x + fx * (6 + v * 0.45), tz = r.z + fz * (6 + v * 0.45);
+    let tx = r.x + fx * (6 + v * 0.45), tz = r.z + fz * (6 + v * 0.45), best = 30;
+    for (const o of RACE.racers) {
+      if (o === r || !o.alive || o.finished) continue;
+      const dx = o.x - r.x, dz = o.z - r.z, d = Math.hypot(dx, dz);
+      if (d < 3 || d > best || (dx * fx + dz * fz) / d < 0.8) continue;
+      best = d; tx = o.x + o.vx * 0.55; tz = o.z + o.vz * 0.55;
+    }
     sfxAt('suds', r.x, r.y, r.z, 0.9, 1.2); sfxAt('whoosh', r.x, r.y, r.z, 0.5, 1.4);
     SHOTS.push({ x0: r.x, z0: r.z, y0: r.y + 0.5, x1: tx, z1: tz, t: 0, d: 0.55, r, rad: CFG.sudsR * r.S.sudsR, life: CFG.sudsLife * r.S.sudsT });
     return;
@@ -3708,11 +3719,14 @@ function shotsUpdate(dt) {
     if (f >= 1) { SHOTS.splice(k, 1); const p = SUDS.add(s.x1, s.z1, s.rad, s.r, s.life); sfxAt('splash', s.x1, 0, s.z1, 0.7, 1.3); netSendSuds && netSendSuds(p); }
   }
 }
+// E pressed but the horn or spring can't fire: a soft click and a word on why.
+function actDud(why) { sfx('click', 0.5, 0.6); const m = $('mAct'); if (m) { m.classList.remove('dud'); void m.offsetWidth; m.classList.add('dud'); } if (why && (!HUD.dudT || now() - HUD.dudT > 1200)) { HUD.dudT = now(); feed(why); } }
 function tryHorn(r) {
-  if (!r.S.horn || r.hornCd > 0 || r.boost < 20) return;
+  if (!r.S.horn || r.hornCd > 0 || r.boost < 20) { if (r === RACE.me) actDud(r.hornCd > 0 ? 'Honk recharging' : 'Need more boost to honk'); return; }
   r.boost -= 20; r.hornCd = 5;
   sfxAt('honk', r.x, r.y, r.z, 1);
-  FX.ringAt(r.x, r.y, r.z, 3.2, [1, 0.9, 0.3], 0.5); FX.ringAt(r.x, r.y, r.z, 2.2, [1, 1, 1], 0.4);
+  FX.ringAt(r.x, r.y + 0.3, r.z, 4.6, [1, 0.85, 0.2], 0.7); FX.ringAt(r.x, r.y + 0.2, r.z, 3.2, [1, 1, 1], 0.55); FX.bubbles(r.x, r.y + 0.5, r.z, 14, 1.2, 0.9, 0.14);
+  if (r === RACE.me) { CAM.shake = Math.max(CAM.shake, 0.35); center('HONK!', 'c2 sm', 0.6); }
   for (const o of RACE.racers) {
     if (o === r || !o.alive) continue;
     const dx = o.x - r.x, dz = o.z - r.z, d = Math.hypot(dx, dz);
@@ -3757,7 +3771,7 @@ function handleEvents() {
         case 'spin':
           sfxAt('squeak', r.x, r.y, r.z, 0.9, 0.95 + Math.random() * 0.2); FX.bubbles(r.x, r.y + 0.2, r.z, 8, 0.6, 0.8, 0.12);
           if (isMe) { center('SUDSED!', 'c3 sm', 0.9); CAM.shake = 0.4; rumble(0.5); }
-          else { const who = SUDS.list.find((s) => Math.hypot(s.x - r.x, s.z - r.z) < s.r + 0.6); if (who && who.owner === me) feed('You sudsed ' + r.name + '!'); }
+          else { const who = SUDS.list.find((s) => Math.hypot(s.x - r.x, s.z - r.z) < s.r + 0.6); if (who && who.owner === me && me) { feed('You sudsed ' + r.name + '!'); r.sudsByMe = (r.sudsByMe || 0) + 1; } }
           break;
         case 'die':
           if (e.why === 'drain') { sfxAt('gurgle', r.x, r.y, r.z, 1); FX.ringAt(r.x, r.y, r.z, 2.2, [0.7, 0.85, 1], 0.7); FX.bubbles(r.x, r.y, r.z, 10, 0.4, 1.0, 0.12); if (isMe) center('DOWN THE DRAIN!', 'c3 sm', 1.4); }
@@ -3779,7 +3793,7 @@ function handleEvents() {
           else { if (isMe) { sfx(e.kind === 'fuel' ? 'ignite' : 'chime', 0.6, 1.35); feed(e.kind === 'fuel' ? 'Full tank!' : 'Boost star!'); } FX.sparkle(e.x, e.y, e.z, 6, e.kind === 'fuel' ? [1, 0.5, 0.4] : [1, 0.9, 0.3], 0.2); FX.ringAt(e.x, e.y - 0.4, e.z, 1.6, [1, 0.9, 0.4], 0.4); }
           break;
         case 'shave': sfxAt('knock', r.x, r.y, r.z, 0.9, 1.4); FX.sparkle(r.x, r.y + 0.3, r.z, 4, [0.8, 0.9, 1], 0.16); FX.bubbles(r.x, r.y + 0.2, r.z, 6, 0.4, 0.8, 0.1); if (isMe) { center('SHAVED!', 'c3 sm', 0.9); CAM.shake = 0.4; } break;
-        case 'jetSuds': { const s = SUDS.add(r.x - Math.sin(r.yaw) * 0.9, r.z - Math.cos(r.yaw) * 0.9, 0.65, r, 3.5); s.weak = 1; netSendSuds && netSendSuds(s); break; }
+        case 'jetSuds': { const s = SUDS.add(r.x - Math.sin(r.yaw) * 0.9, r.z - Math.cos(r.yaw) * 0.9, 0.95, r, 4); s.weak = 1; netSendSuds && netSendSuds(s); break; }
       }
     }
     r.events.length = 0;
@@ -4251,7 +4265,7 @@ function showResults(res, reveal) {
   hudHide();
   clearTimeout(UI.revealT);
   const tagOf = (r) => r.kind === 'net' ? (String(r.netId).startsWith('bot') ? ' <span class="tag" style="opacity:.6">CPU</span>' : ' <span class="tag">online</span>') : '';
-  const rows = res.order.map((r) => `<tr class="${r === me ? 'me' : ''}"><td>${r.place}</td><td><span class="chip" style="background:${hex(r.color)}"></span>${esc(r.name)}${tagOf(r)}</td><td>${r.projected ? '<span style="opacity:.6">still racing</span>' : fmtT(r.finishT)}</td><td>${isFinite(r.bestLap) ? 'best ' + fmtT(r.bestLap) : ''}</td></tr>`).join('');
+  const rows = res.order.map((r, k) => `<tr class="${r === me ? 'me' : ''}"><td>${k + 1}</td><td><span class="chip" style="background:${hex(r.color)}"></span>${esc(r.name)}${tagOf(r)}</td><td>${r.projected ? '<span style="opacity:.6">still racing</span>' : fmtT(r.finishT)}</td><td>${isFinite(r.bestLap) ? 'best ' + fmtT(r.bestLap) : ''}</td></tr>`).join('');
   const rw = res.rewards.map(([l, v]) => `<div class="reward"><span>${esc(l)}</span><b>+${v}</b></div>`).join('');
   let gpHtml = '', buttons = '', trophy = '', head = me ? (me.place === 1 ? 'You win!' : ord(me.place) + ' place') : 'Race over';
   if (res.standings) {
@@ -4298,7 +4312,7 @@ ACT.toResults = () => { if (RACE.results) { MODE = 'race'; showResults(RACE.resu
 function easyHint(res) {
   const me = RACE.me; if (!me || RACE.online || res.solo || res.standings || me.place !== 1) return '';
   const next = { rinse: 'lather', lather: 'scrub' }[RACE.diff]; if (!next) return '';
-  const second = res.order[1]; if (!second || second.finishT - me.finishT < 8) return '';
+  const second = res.order[1]; if (!second || second.finishT - me.finishT < 5) return '';
   return `<div class="hint" style="position:static;transform:none;align-self:flex-start;display:flex;gap:10px;align-items:center">Too easy? Try ${DIFF[next].name} CPUs <button class="btn sm" data-act="tryHarder" data-arg="${next}" style="--c:var(--lemon)">Race ${DIFF[next].name}</button></div>`;
 }
 ACT.tryHarder = (d) => { UI.quick.diff = d; startRace({ track: RACE.trackId, laps: RACE.laps, cpus: RACE.lastCpuCount ?? UI.quick.cpus, diff: d, mode: 'quick' }); };
@@ -4416,6 +4430,9 @@ function hudReset() {
   HUD.mapImg = cv;
   HUD.last = {};
   $('mSuds').style.display = '';
+  // Duck Horn / Spring Sole get their own meter (E key).
+  const me0 = RACE.me, act = me0 && !RACE.attract ? (me0.S.horn ? 'HONK' : me0.S.hop ? 'HOP' : '') : '';
+  $('mAct').style.display = act ? '' : 'none'; $('mActN').textContent = act; $('kAct').textContent = document.body.classList.contains('touch') ? '' : 'E';
   applyTouch();
 }
 function hudHide() { $('hud').classList.add('off'); $('touch').classList.add('off'); document.body.classList.remove('racing'); }
@@ -4447,6 +4464,11 @@ function hudUpdate() {
   if (L.chg !== chg) { L.chg = chg; const mb = $('mBoost'); mb.classList.toggle('charging', !!chg && bp < 99); $('kBoost').textContent = chg || (document.body.classList.contains('touch') ? '' : 'SPACE'); }
   const sp = Math.round((1 - clamp(me.sudsCd / CFG.sudsCd, 0, 1)) * 100);
   if (L.suds !== sp) { $('mSuds').querySelector('i').style.width = sp + '%'; L.suds = sp; }
+  if (me.S.horn || me.S.hop) {
+    const cd = me.S.horn ? (me.hornCd || 0) / 5 : (me.hopCd || 0) / 1.1, need = me.S.horn ? 20 : 15;
+    const ap = Math.round((1 - clamp(cd, 0, 1)) * 100), ready = cd <= 0 && me.boost >= need;
+    if (L.act !== ap || L.actR !== ready) { $('mAct').querySelector('i').style.width = ap + '%'; $('mAct').classList.toggle('ready', ready); L.act = ap; L.actR = ready; }
+  }
   // Board.
   if (RACE.frame % 6 === 0 && RACE.sorted) {
     $('hBoard').innerHTML = RACE.sorted.map((r) => `<div class="${r === me ? 'me' : ''}"><em>${r.place}</em><i style="background:${hex(r.color)}"></i><span>${esc(r.name)}</span></div>`).join('');
@@ -4510,8 +4532,8 @@ function tagsUpdate() {
 function controlsCard() {
   const touch = document.body.classList.contains('touch');
   const c = $('hCtrl'); c.innerHTML = touch
-    ? `<div class="ctrlcard"><b>GO</b><span>Hold to thrust</span><b>◀ ▶</b><span>Steer</span><b>BOOST</b><span>Hold to boost</span><b>SUDS</b><span>Drop a slick</span></div>`
-    : `<div class="ctrlcard"><b>W / ↑</b><span>Hold to thrust</span><b>A D</b><span>Steer</span><b>SPACE</b><span>Hold to boost</span><b>SHIFT</b><span>Drop a slick behind you</span><b>S / ↓</b><span>Brake</span></div>`;
+    ? `<div class="ctrlcard"><b>GO</b><span>Hold to thrust</span><b>◀ ▶</b><span>Steer</span><b>BOOST</b><span>Hold to boost</span><b>SUDS</b><span>Drop a slick</span>${RACE.me && RACE.me.S.horn ? '<b>🦆</b><span>Honk</span>' : RACE.me && RACE.me.S.hop ? '<b>🦘</b><span>Hop</span>' : ''}</div>`
+    : `<div class="ctrlcard"><b>W / ↑</b><span>Hold to thrust</span><b>A D</b><span>Steer</span><b>SPACE</b><span>Hold to boost</span><b>SHIFT</b><span>Drop a slick behind you</span><b>S / ↓</b><span>Brake</span>${RACE.me && RACE.me.S.horn ? '<b>E</b><span>Honk the Duck Horn</span>' : RACE.me && RACE.me.S.hop ? '<b>E</b><span>Hop on the Spring Sole</span>' : ''}</div>`;
 }
 function applyTouch() {
   const S = P.set.touch;
@@ -5453,6 +5475,16 @@ async function runSmoke() {
       for (let k = 0; k < 40; k++) { raceSetup({ track: 'shower', laps: 1, cpus: 7, diff: 'lather', mode: 'quick', seed: 500 + k }); const mc = RACE.me.color; if (RACE.racers.some((r) => r !== RACE.me && colDist(r.color, mc) < 80)) twins++; }
       P.eq.bar = keep; P.eq.paint = keepP;
       ok('no CPU ever wears your colour', twins === 0, twins + ' of 40 grids');
+      // Seventh review: the wrap really saves you, and sudsing a rival pays.
+      raceSetup({ track: 'shower', laps: 3, cpus: 1, diff: 'lather', mode: 'quick' }); RACE.phase = 'race'; RACE.t = 5;
+      const me = RACE.me; me.setLoadout({ bar: 'rosy', rocket: 'twin', mods: ['wrap'] }); me.spin = 0; me.vx = Math.sin(me.yaw) * 7; me.vz = Math.cos(me.yaw) * 7; SUDS.list = [];
+      const sl = SUDS.add(me.x + Math.sin(me.yaw) * 1.5, me.z + Math.cos(me.yaw) * 1.5, 2.2, null, 6); sl.born = RACE.t - 5;
+      let spunW = 0; for (let k = 0; k < 90; k++) { me.step(CFG.dt, RACE.T, true); me.events.length = 0; if (me.spin > 0) spunW++; }
+      ok('Bubble Wrap carries you clean through a slick', spunW === 0 && me.shieldLap === me.lap, spunW + ' spun frames');
+      const cpu = RACE.racers.find((r) => r !== me); SUDS.list = []; cpu.sudsByMe = 0;
+      const sl2 = SUDS.add(cpu.x, cpu.z, 2, me, 6); sl2.born = RACE.t - 5; cpu.spin = 0; cpu.events.length = 0; cpu.spinOut(RACE.T, 1); handleEvents();
+      ok('sudsing a rival counts toward the Sudsed rivals bonus', cpu.sudsByMe === 1, String(cpu.sudsByMe));
+      SUDS.list = [];
     }
     // A full CPU race finishes.
     raceSetup({ track: 'tub', laps: 1, cpus: 5, diff: 'scrub', mode: 'quick' });
