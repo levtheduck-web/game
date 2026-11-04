@@ -1126,6 +1126,7 @@ function fabricMat(a, b, o = {}) {
 // Graphics quality.
 // ---------------------------------------------------------------------------
 const QUAL = {
+  potato: { pr: 0.7, prCap: 1, msaa: 0, bloom: 0, refl: 0, shadow: 512, fx: 0.35, noShadow: 1 },
   low:  { pr: 0.85, prCap: 1, msaa: 0, bloom: 0, refl: 0, shadow: 1024, fx: 0.5 },
   med:  { pr: 1, prCap: 1.25, msaa: 0, bloom: 1, refl: 0.42, shadow: 2048, fx: 0.8 },
   high: { pr: 1, prCap: 2, msaa: 4, bloom: 1, refl: 0.55, shadow: 2048, fx: 1 },
@@ -1175,6 +1176,7 @@ function setupPost() {
   gradePass = new ShaderPass(GradeShader); composer.addPass(gradePass);
   if (!Q.msaa) { const fx = new ShaderPass(FXAAShader); fx.uniforms.resolution.value.set(1 / (w * pr), 1 / (h * pr)); composer.addPass(fx); }
   sun.shadow.mapSize.set(Q.shadow, Q.shadow);
+  sun.castShadow = !Q.noShadow;
   if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
   if (MIRROR.rt) { MIRROR.rt.dispose(); MIRROR.rt = null; }
   if (Q.refl) MIRROR.rt = new THREE.WebGLRenderTarget(Math.round(w * pr * Q.refl), Math.round(h * pr * Q.refl), { type: THREE.HalfFloatType });
@@ -4435,7 +4437,8 @@ function frame() {
     if (PERF.samples.length > 150) {
       const s = [...PERF.samples].sort((a, b) => a - b); const med = s[Math.floor(s.length / 2)];
       PERF.checked = true;
-      if (med > 26 && QN !== 'low') { setQuality(QN === 'high' ? 'med' : 'low'); toast('Graphics set to ' + (QN === 'low' ? 'Fast' : 'Nice') + ' to keep it smooth'); }
+      if (med > 26 && QN !== 'low' && QN !== 'potato') { setQuality(QN === 'high' ? 'med' : 'low'); toast('Graphics set to ' + (QN === 'low' ? 'Fast' : 'Nice') + ' to keep it smooth'); }
+      else if (med > 30 && QN === 'low') { setQuality('potato'); toast('Graphics set to Fastest to keep it smooth'); }
       else if (med < 11 && QN === 'med' && !matchMedia('(pointer:coarse)').matches) { setQuality('high'); }
     }
   }
