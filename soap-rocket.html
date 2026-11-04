@@ -2181,7 +2181,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611041340";
+const ASSET_V = "202611041345";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2332,6 +2332,39 @@ function flameMat(kind) {
   return (FLAME_MATS[kind] = m);
 }
 // One racer's 3D view.
+// Little add-ons so you can see a soap's mods: a duck for the horn, a sponge bumper, a magnet...
+const ADDON_MAT = {};
+const addonMat = (c, o) => { if (!ADDON_MAT[c]) { ADDON_MAT[c] = toonMat(c, { spec: 0.6, rim: 0.3, ...(o || {}) }); ADDON_MAT[c].userData.keep = true; } return ADDON_MAT[c]; };
+const ADDON_GEO = new Map();   // shared shapes: every soap reuses them
+const ag = (key, fn) => { let g = ADDON_GEO.get(key); if (!g) { g = fn(); g.userData.keep = true; ADDON_GEO.set(key, g); } return g; };
+function addonPiece(kind, bb) {
+  const top = bb.max.y, nose = bb.max.z, tail = bb.min.z, side = bb.max.x, G = new THREE.Group();
+  if (kind === 'horn' && PGLB.ok) { const d = makeModel('rubber_duck', 0.3); d.position.set(0, top - 0.03, tail * 0.58); G.add(d); }
+  else if (kind === 'sponge' && PGLB.ok) { const sp = makeModel('sponge', 0.42); sp.scale.z *= 0.55; sp.position.set(0, top * 0.25, nose + 0.06); G.add(sp); }
+  else if (kind === 'magnet') {
+    const red = addonMat(0xff4d5e), tip = addonMat(0xdfe6f2, { spec: 0.9 });
+    const arc = inked(ag('mArc', () => new THREE.TorusGeometry(0.11, 0.045, 8, 16, Math.PI)), red, 0.6); arc.rotation.x = Math.PI; arc.position.y = 0.2; G.add(arc);
+    for (const sx of [-1, 1]) { const leg = inked(ag('mLeg', () => new THREE.CylinderGeometry(0.045, 0.045, 0.14, 10)), red, 0.6); leg.position.set(sx * 0.11, 0.13, 0); G.add(leg); const t = inked(ag('mTip', () => new THREE.CylinderGeometry(0.047, 0.047, 0.05, 10)), tip, 0.6); t.position.set(sx * 0.11, 0.05, 0); G.add(t); }
+    G.position.set(side * 0.45, top - 0.04, nose * 0.55); G.rotation.y = Math.PI / 2;
+  }
+  else if (kind === 'cannon') {
+    const tube = inked(ag('cTube', () => new THREE.CylinderGeometry(0.075, 0.09, 0.42, 14)), addonMat(0xffd84d), 0.6); tube.rotation.x = Math.PI / 2 - 0.35; tube.position.set(-side * 0.2, top + 0.1, nose * 0.2); G.add(tube);
+    const mouth = inked(ag('cMouth', () => new THREE.TorusGeometry(0.075, 0.025, 8, 16)), addonMat(0x8fd3ff), 0.6); mouth.position.set(-side * 0.2, top + 0.17, nose * 0.2 + 0.2); mouth.rotation.x = -0.35; G.add(mouth);
+    const base = inked(ag('cBase', () => new THREE.SphereGeometry(0.1, 12, 8)), addonMat(0x8fd3ff), 0.6); base.scale.y = 0.6; base.position.set(-side * 0.2, top, nose * 0.2 - 0.08); G.add(base);
+  }
+  else if (kind === 'fins') {
+    const fg = ag('fin', () => { const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.lineTo(0.3, 0); sh.quadraticCurveTo(0.08, 0.06, 0, 0.24); sh.lineTo(0, 0); const g = new THREE.ExtrudeGeometry(sh, { depth: 0.035, bevelEnabled: false }); g.translate(0, 0, -0.0175); return g; });
+    for (const sx of [-1, 1]) { const f = inked(fg, addonMat(0x46b4ff), 0.6); f.rotation.y = sx > 0 ? -Math.PI / 2 : Math.PI / 2; f.rotation.z = 0; f.position.set(sx * (side + 0.01), top * 0.35, tail * 0.55); f.rotation.x = 0; f.rotation.order = 'YXZ'; G.add(f); }
+  }
+  else if (kind === 'bumpers') {
+    for (const sx of [-1, 1]) { const bl = Math.round((nose - tail) * 0.62 * 20) / 20; const b = inked(ag('bump' + bl, () => new THREE.CapsuleGeometry(0.06, bl, 4, 10)), addonMat(0xff6b6b), 0.6); b.rotation.x = Math.PI / 2; b.position.set(sx * (side + 0.03), top * 0.38, (nose + tail) * 0.5); G.add(b); }
+  }
+  else if (kind === 'hop') {
+    const coil = inked(ag('coil', () => { const pts = []; for (let k = 0; k <= 60; k++) { const a = k / 60 * Math.PI * 2 * 4; pts.push(new THREE.Vector3(Math.cos(a) * 0.09, k / 60 * 0.22, Math.sin(a) * 0.09)); } return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 80, 0.018, 6); }), addonMat(0xdfe6f2, { spec: 0.95 }), 0.5); coil.position.set(0, top - 0.02, tail * 0.5); G.add(coil);
+    const cap = inked(ag('coilCap', () => new THREE.CylinderGeometry(0.1, 0.1, 0.035, 14)), addonMat(0x2b1f40), 0.5); cap.position.set(0, top + 0.21, tail * 0.5); G.add(cap);
+  }
+  return G.children.length ? G : null;
+}
 class SoapView {
   constructor(lo, lod = 'mid') {
     this.root = new THREE.Group();
@@ -2342,6 +2375,15 @@ class SoapView {
     this.shadowBlob = null;
     this.set(lo, lod);
     this.sq = 1; this.sqV = 0; this.flick = Math.random() * 10;
+  }
+  buildAddons(lo) {
+    if (this.addons) { this.body.remove(this.addons); this.addons = null; }
+    const bg = this.geo && this.geo.barG; if (!bg) return;
+    if (!bg.boundingBox) bg.computeBoundingBox();
+    const A = new THREE.Group();
+    for (const m of lo.mods || []) { const p = addonPiece(m, bg.boundingBox); if (p) A.add(p); }
+    A.traverse((o) => { if (o.isMesh && !o.userData.outline) { o.castShadow = true; } });
+    if (A.children.length) { this.addons = A; this.body.add(A); }
   }
   set(lo, lod) {
     lo = cleanLoadout(lo);
@@ -2371,8 +2413,10 @@ class SoapView {
       // Bubble Wrap shows as the bubble shield while it's ready.
       this.shield = null;
       if (statsFor(lo).shield && PGLB.ok) { this.shield = makeModel('bubble_shield', 0.62, { outline: 0 }); this.shield.position.y = 0.3; this.shield.visible = false; this.body.add(this.shield); }
-      this.geo = G;
+      this.geo = G; this.msig = null;
     }
+    const msig = (lo.mods || []).join(',');
+    if (msig !== this.msig && this.geo) { this.msig = msig; this.buildAddons(lo); }
     this.lo = lo; this.lod = lod;
     const bar = BARS[lo.bar] || BARS.rosy;
     const col = new THREE.Color(barColor(lo));
