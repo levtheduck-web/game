@@ -4679,6 +4679,16 @@ function frame() {
   RACE.frame++;
 }
 
+// If the graphics chip resets (it happens on some Chromebooks), offer a clean reload.
+canvas.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault();
+  loopsOff();
+  if (MODE === 'race' && RACE.me && !RACE.online) RACE.paused = true;
+  screen('glfail', `<div class="panel card" style="width:min(460px,92vw);align-items:stretch"><header><h2>Graphics hiccup</h2></header>
+    <p style="margin:0;font-weight:600">The computer's graphics took a break. Your bubbles and upgrades are saved.</p>
+    <button class="btn" data-act="reload" style="--c:var(--mint)">Reload the game</button></div>`, 'veil');
+}, false);
+ACT.reload = () => location.reload();
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { loopsOff(); if (MODE === 'race' && RACE.me && !RACE.online && !RACE.paused && !RACE.results && RACE.phase !== 'podium') togglePause(true); }
 });
