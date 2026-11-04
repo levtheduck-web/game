@@ -2055,7 +2055,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040800";
+const ASSET_V = "202611040802";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -3695,6 +3695,8 @@ function finishRace() {
       if (me.place <= 3) P.st.podiums++;
     }
     const bl = me.bestLap; if (isFinite(bl) && (!P.best[RACE.trackId] || bl < P.best[RACE.trackId])) { P.best[RACE.trackId] = bl; res.newBest = true; }
+    // The arcade leaderboard: fastest Shower Stall lap (lower is better).
+    if (RACE.trackId === 'shower' && isFinite(bl) && !SMOKE) { try { if (window.GLITCHBOX && GLITCHBOX.score) GLITCHBOX.score(Math.round(bl * 100) / 100, { low: true }); } catch (e) { /* offline */ } }
     if (res.solo) res.ghost = RACE.ghostResult || null;
     if (RACE.gp && GP.on) {
       gpRecord(order);
@@ -4121,7 +4123,8 @@ function showTrophies() {
     <div class="scroll" style="display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px">
       <div><h3 style="font-size:22px;margin-bottom:6px">Lap medals and best laps</h3><table class="res trophy"><tr><th></th><th>Normal</th><th>Reverse</th></tr>${rows}</table></div>
       <div><h3 style="font-size:22px;margin-bottom:6px">Grand Prix cups</h3><table class="res trophy"><tr><th></th><th>Normal</th><th>Reverse</th></tr>${cups}</table>
-      <p style="font-size:13px;font-weight:600;margin:8px 0 0">Beat the medal time on a track's best lap to earn bronze, silver and gold. Every new medal pays bubbles.</p></div>
+      <p style="font-size:13px;font-weight:600;margin:8px 0 0">Beat the medal time on a track's best lap to earn bronze, silver and gold. Every new medal pays bubbles.</p>
+      <p style="font-size:13px;font-weight:600;margin:6px 0 0">Your fastest Shower Stall lap goes on the GLITCHBOX leaderboard when you're signed in.</p></div>
     </div></div>`, 'veil');
 }
 ACT.trophies = () => showTrophies();
