@@ -2083,7 +2083,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040841";
+const ASSET_V = "202611040851";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2601,7 +2601,7 @@ class Racer {
     const st = clamp(I.steer, -1, 1);
     const wt = -st * turnK * control;
     // Hands off on a wet floor, a knocked bar keeps turning a little (like the soap in the video).
-    const resp = Math.abs(st) > 0.01 ? CFG.turnResp : lerp(2.2, CFG.turnResp, clamp((1 - wet) * 0.6 + mat, 0, 1));
+    const resp = Math.abs(st) > 0.01 ? CFG.turnResp : lerp(3.0, CFG.turnResp, clamp((1 - wet) * 0.6 + mat, 0, 1));
     this.w = damp(this.w, wt, this.air ? resp * 0.35 : resp, dt);
     this.yaw = wrapA(this.yaw + this.w * dt);
     this.lean = lerp(this.lean, -st * Math.min(1, spd / 6) + clamp(vl * 0.25, -1, 1), 0.1);
@@ -2695,7 +2695,8 @@ class Racer {
       if (vn < 0) {
         this.vx -= (1 + o.e) * vn * nx; this.vz -= (1 + o.e) * vn * nz;
         this.w += (Math.random() - 0.5) * Math.min(6, -vn);
-        if (o.soft) { this.vx *= 0.8; this.vz *= 0.8; }
+        // Soft things (sponge, pouf, toothpaste) soak up a real bump once; pushing along them just slides.
+        if (o.soft && -vn > 1.5) { const k = 0.9; const tx2 = -nz, tz2 = nx; const vt = this.vx * tx2 + this.vz * tz2, vn2 = this.vx * nx + this.vz * nz; this.vx = tx2 * vt * k + nx * vn2; this.vz = tz2 * vt * k + nz * vn2; }
         if (o.shave && -vn > 0.6 && this.alive) { if (!this.useShield('razor')) { this.size = Math.max(CFG.minSize, this.size - 0.05); this.w += (Math.random() < 0.5 ? -1 : 1) * 5; this.emit('shave', { o }); } }
         if (-vn > 1) this.emit('obst', { kind: o.kind, v: -vn, o });
       }
@@ -2792,9 +2793,9 @@ function collideRacers(a, b) {
 // and drop suds on whoever is tailgating them.
 // ---------------------------------------------------------------------------
 const DIFF = {
-  rinse:  { name: 'Rinse', pace: 0.77, aim: 0.55, boost: 70, suds: 0.08, mult: 0.8, rubK: 0.0032, rubMin: 0.74, corner: 1 },
-  lather: { name: 'Lather', pace: 0.9, aim: 0.8, boost: 55, suds: 0.16, mult: 1, rubK: 0.0018, rubMin: 0.88, corner: 1.04 },
-  scrub:  { name: 'Scrub', pace: 0.985, aim: 1, boost: 40, suds: 0.26, mult: 1.35, rubK: 0.0008, rubMin: 0.95, corner: 1.13 },
+  rinse:  { name: 'Rinse', pace: 0.62, aim: 0.55, boost: 70, suds: 0.08, mult: 0.8, rubK: 0.004, rubMin: 0.62, rubMax: 0.96, corner: 1 },
+  lather: { name: 'Lather', pace: 0.8, aim: 0.8, boost: 55, suds: 0.16, mult: 1, rubK: 0.002, rubMin: 0.85, rubMax: 1.03, corner: 1.04 },
+  scrub:  { name: 'Scrub', pace: 0.95, aim: 1, boost: 40, suds: 0.26, mult: 1.35, rubK: 0.0008, rubMin: 0.95, rubMax: 1.05, corner: 1.1 },
 };
 class CpuDriver {
   constructor(r, diff = 'lather', seed = 1) {
@@ -2835,6 +2836,17 @@ class CpuDriver {
     }
     // Stay out of suds.
     for (const s of SUDS.list) { const dx = s.x - tx, dz = s.z - tz, d = Math.hypot(dx, dz); if (d < s.r + 1) { tx -= dx / (d || 1) * (s.r + 1 - d); tz -= dz / (d || 1) * (s.r + 1 - d); } }
+    // Steer round obstacles that sit on the straight path to the target.
+    {
+      const sx = tx - r.x, sz = tz - r.z, sl2 = sx * sx + sz * sz || 1;
+      for (const o of T.obst) {
+        const ox = o.x - r.x, oz = o.z - r.z;
+        const f = (ox * sx + oz * sz) / sl2; if (f < 0 || f > 1.1) continue;
+        const cx = sx * f - ox, cz = sz * f - oz; const d = Math.hypot(cx, cz);
+        const need = (o.cap ? Math.max(o.r, o.cap * 0.7) : o.r) + 0.95;
+        if (d < need) { const k = (need - d) / (d || 1) * 1.4; tx += cx * k; tz += cz * k; }
+      }
+    }
     const dx = tx - r.x, dz = tz - r.z, dl = Math.hypot(dx, dz) || 1;
     const dvx = dx / dl * vdes - r.vx, dvz = dz / dl * vdes - r.vz;
     const slideAware = this.D.aim * (surf === 'dry' || surf === 'mat' ? 0.06 : 0.14);
@@ -3409,7 +3421,7 @@ function raceStep(dt) {
   }
   const racing = RACE.phase === 'race' || RACE.phase === 'done';
   // Gentle catch-up in solo races: far-ahead CPUs ease off, far-behind ones push.
-  if (RACE.me && !RACE.online && !RACE.me.finished) for (const c of RACE.cpus) { if (c.r === RACE.me) continue; const gap = c.r.progress - RACE.me.progress; c.rubber = clamp(1 - gap * c.D.rubK, c.D.rubMin, 1.05); }
+  if (RACE.me && !RACE.online && !RACE.me.finished) for (const c of RACE.cpus) { if (c.r === RACE.me) continue; const gap = c.r.progress - RACE.me.progress; c.rubber = clamp(1 - gap * c.D.rubK, c.D.rubMin, c.D.rubMax); }
   for (const c of RACE.cpus) c.think(dt, T, RACE);
   for (const r of RACE.racers) {
     if (r.kind === 'net') continue;
@@ -3673,9 +3685,8 @@ function hints(r) {
 }
 // Lap medals per track: [gold, silver, bronze] best-lap times in seconds.
 const MEDALS = {
-  shower: [15.0, 16.5, 18.5], tub: [16.0, 17.5, 20.0], floor: [19.5, 21.5, 24.0], vanity: [15.5, 17.0, 19.0],
-  'shower-r': [14.0, 15.5, 17.5], 'tub-r': [16.0, 17.5, 20.0], 'floor-r': [19.5, 21.5, 24.0], 'vanity-r': [14.5, 16.0, 18.0],
-  paper: [16.5, 18.0, 20.5], 'paper-r': [16.0, 17.5, 20.0],
+  shower: [14.2, 15.5, 17.3], tub: [15.8, 17.3, 19.3], floor: [22.0, 24.0, 27.0], vanity: [16.2, 17.6, 19.7], paper: [16.3, 17.7, 19.8],
+  'shower-r': [14.2, 15.5, 17.2], 'tub-r': [15.7, 17.2, 19.2], 'floor-r': [22.2, 24.3, 27.3], 'vanity-r': [15.4, 16.8, 18.7], 'paper-r': [16.6, 18.1, 20.3],
 };
 const MEDAL_ICON = ['', '🥇', '🥈', '🥉'], MEDAL_NAME = ['', 'Gold', 'Silver', 'Bronze'], MEDAL_PAY = [0, 120, 70, 40];
 function medalFor(id, lap) { const m = MEDALS[id]; if (!m || !isFinite(lap)) return 0; return lap <= m[0] ? 1 : lap <= m[1] ? 2 : lap <= m[2] ? 3 : 0; }
