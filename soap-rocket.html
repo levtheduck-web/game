@@ -1915,7 +1915,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040651";
+const ASSET_V = "202611040655";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2425,7 +2425,8 @@ class Racer {
     const turnK = CFG.turnRate * S.turn * (1 + 0.3 * shr) * lerp(CFG.turnLow, 1, sstep(0, 4, spd));
     const st = clamp(I.steer, -1, 1);
     const wt = -st * turnK * control;
-    const resp = Math.abs(st) > 0.01 ? CFG.turnResp : lerp(3.0, CFG.turnResp, clamp((1 - wet) * 0.6 + mat, 0, 1));
+    // Hands off on a wet floor, a knocked bar keeps turning a little (like the soap in the video).
+    const resp = Math.abs(st) > 0.01 ? CFG.turnResp : lerp(2.2, CFG.turnResp, clamp((1 - wet) * 0.6 + mat, 0, 1));
     this.w = damp(this.w, wt, this.air ? resp * 0.35 : resp, dt);
     this.yaw = wrapA(this.yaw + this.w * dt);
     this.lean = lerp(this.lean, -st * Math.min(1, spd / 6) + clamp(vl * 0.25, -1, 1), 0.1);
