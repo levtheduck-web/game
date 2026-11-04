@@ -124,6 +124,9 @@ table.res td{background:#fff;padding:7px 10px;border-top:3px solid var(--ink);bo
 table.res td:first-child{border-left:3px solid var(--ink);border-radius:12px 0 0 12px;font-family:var(--head);font-size:22px;width:56px;text-align:center}
 table.res td:last-child{border-right:3px solid var(--ink);border-radius:0 12px 12px 0;text-align:right}
 table.res tr.me td{background:var(--pink2)}
+table.res.trophy td{font-size:15px;padding:5px 10px}
+table.res.trophy td:first-child{font-family:var(--font);font-weight:700;font-size:15px;width:auto;text-align:left}
+table.res.trophy th{font-size:13px;text-transform:uppercase;letter-spacing:.04em;opacity:.7}
 .chip{display:inline-block;width:16px;height:16px;border-radius:6px;border:3px solid var(--ink);vertical-align:-3px;margin-right:6px}
 .reward{display:flex;justify-content:space-between;font-weight:700;padding:3px 0;border-bottom:2px dashed rgba(43,31,64,.2)}
 .reward b{font-family:var(--head);font-weight:400}
@@ -2013,7 +2016,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040729";
+const ASSET_V = "202611040730";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -3796,6 +3799,7 @@ function showTitle() {
           <button class="btn" data-act="garage" style="--c:var(--sky);--rot:1deg">Garage</button>
         </div>
         <div class="row">
+          <button class="btn sm ghost" data-act="trophies">Trophies</button>
           <button class="btn sm ghost" data-act="help">How to play</button>
           <button class="btn sm ghost" data-act="settings">Settings</button>
         </div>
@@ -4000,6 +4004,25 @@ function showHelp() {
     </div></div>`, 'veil');
 }
 ACT.help = () => showHelp();
+
+// ---- trophies -------------------------------------------------------------------------
+function showTrophies() {
+  const cupCell = (k) => { const c = P.cups[k]; return c === 1 ? '🥇' : c === 2 ? '🥈' : c === 3 ? '🥉' : '<span style="opacity:.3">◯</span>'; };
+  const cups = ['rinse', 'lather', 'scrub'].map((d) => `<tr><td>${DIFF[d].name}</td><td style="text-align:center;font-size:22px">${cupCell(d)}</td><td style="text-align:center;font-size:22px">${cupCell(d + '-r')}</td></tr>`).join('');
+  const med = (id) => { const m = (P.medals || {})[id]; return m ? MEDAL_ICON[m] : '<span style="opacity:.3">◯</span>'; };
+  const rows = TRACKS.map((t) => { const r = t.id + '-r'; return `<tr><td>${esc(t.name)}</td><td style="text-align:center">${med(t.id)} ${P.best[t.id] ? fmtT(P.best[t.id]) : '-'}</td><td style="text-align:center">${med(r)} ${P.best[r] ? fmtT(P.best[r]) : '-'}</td></tr>`; }).join('');
+  const nMed = Object.values(P.medals || {}).filter(Boolean).length, nGold = Object.values(P.medals || {}).filter((m) => m === 1).length;
+  const st = P.st;
+  const stat = (n, l) => `<div class="pill" style="flex-direction:column;align-items:flex-start;border-radius:16px;padding:6px 14px"><b style="font-family:var(--head);font-size:26px;font-weight:400">${n}</b><span style="font-size:13px">${l}</span></div>`;
+  screen('trophies', `${topbar('title')}<div class="panel card" style="width:min(900px,95vw)"><header><h2>Trophies</h2><button class="btn sm" data-act="title" style="--c:var(--mint)">Done</button></header>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">${stat(st.races || 0, 'races')}${stat(st.wins || 0, 'wins')}${stat(st.podiums || 0, 'podiums')}${stat(nMed + '/' + TRACKS.length * 2, 'lap medals')}${stat(nGold, 'gold medals')}${stat(st.suds || 0, 'suds dropped')}</div>
+    <div class="scroll" style="display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px">
+      <div><h3 style="font-size:22px;margin-bottom:6px">Lap medals and best laps</h3><table class="res trophy"><tr><th></th><th>Normal</th><th>Reverse</th></tr>${rows}</table></div>
+      <div><h3 style="font-size:22px;margin-bottom:6px">Grand Prix cups</h3><table class="res trophy"><tr><th></th><th>Normal</th><th>Reverse</th></tr>${cups}</table>
+      <p style="font-size:13px;font-weight:600;margin:8px 0 0">Beat the medal time on a track's best lap to earn bronze, silver and gold. Every new medal pays bubbles.</p></div>
+    </div></div>`, 'veil');
+}
+ACT.trophies = () => showTrophies();
 
 // ---- HUD ----------------------------------------------------------------------------------
 const HUD = { mapImg: null, mapT: null, last: {}, centerT: 0 };
