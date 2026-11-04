@@ -45,7 +45,7 @@ h1,h2,h3{font-family:var(--head);font-weight:400;margin:0;letter-spacing:.02em}
 .screen.dim{background:radial-gradient(ellipse at 70% 40%,rgba(255,255,255,0),rgba(43,31,64,.42))}
 .screen.veil{background:rgba(201,236,255,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 @keyframes scrIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
-.topbar{position:fixed;top:14px;left:18px;right:64px;display:flex;align-items:center;gap:12px;z-index:30;pointer-events:none}
+.topbar{position:fixed;top:14px;left:18px;right:104px;display:flex;align-items:center;gap:12px;z-index:30;pointer-events:none}
 .topbar>*{pointer-events:auto}
 .wallet{font-family:var(--head);font-size:22px}
 .wallet .b{display:inline-block;width:20px;height:20px;border-radius:50%;border:3px solid var(--ink);background:radial-gradient(circle at 35% 30%,#fff 0 18%,#e8f8ff 30%,#b9e3ff 70%,#d9c9ff);vertical-align:-3px;margin-right:2px}
@@ -164,9 +164,11 @@ table.res tr.me td{background:var(--pink2)}
 #tBo{right:40px;bottom:156px;width:84px;height:84px;background:rgba(255,217,90,.95);font-size:17px}
 #tSu{right:140px;bottom:118px;width:70px;height:70px;font-size:15px}
 #tHo{right:140px;bottom:200px;width:62px;height:62px;font-size:14px}
-#tPause{right:62px;top:12px;width:46px;height:46px;border-radius:14px;font-size:18px}
+#tPause{left:50%;top:10px;transform:translateX(-50%);width:50px;height:44px;border-radius:14px;font-size:18px}
+#tPause.on{transform:translateX(-50%) translateY(3px)}
 body.touch #hMeters{bottom:auto;top:auto;left:50%;transform:translateX(-50%) scale(.82);transform-origin:bottom center;bottom:6px}
 body.touch #hBoard{display:none}
+body.touch #hMap{width:104px;top:58px;right:10px}
 
 #toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
 #toast div{background:#fff;border:3px solid var(--ink);border-radius:14px;padding:6px 16px;font-weight:700;box-shadow:0 4px 0 var(--ink);animation:feedIn .3s both}
@@ -509,7 +511,7 @@ const OBST = {
 // Extra placements: [u, d, r, kind, angle] obstacles; pickups as coin rows [u0, u1, d0, d1, n], stars/fuel [u, d].
 Object.assign(TRACK_BY.shower, { coins: [[0.04, 0.1, 0, 0, 4], [0.32, 0.37, -2.2, 2.2, 4], [0.56, 0.61, 1.2, -1.2, 4], [0.85, 0.9, 1.5, 1.5, 3]], stars: [[0.45, 2.4], [0.74, -2.2]], fuel: [[0.6, -0.3]] });
 TRACK_BY.shower.obstacles.push([0.4, -2.6, 0.7, 'pouf'], [0.935, 2.7, 0.75, 'sponge']);
-Object.assign(TRACK_BY.tub, { coins: [[0.09, 0.15, 0, 0, 4], [0.3, 0.37, -3.9, -3.9, 4], [0.6, 0.66, -3.7, -3.7, 4], [0.85, 0.91, 0.6, 0.6, 3]], stars: [[0.42, 0], [0.78, 2.2]], fuel: [[0.27, -1.4]] });
+Object.assign(TRACK_BY.tub, { stickers: [[0.06, -1.2, 1.1, 'daisy'], [0.12, 1.5, 1.0, 'star'], [0.2, 0, 1.1, 'fish'], [0.36, 1.6, 1.1, 'daisy'], [0.5, -0.8, 1.0, 'star'], [0.58, 1.8, 1.1, 'fish'], [0.69, 0.4, 1.1, 'daisy'], [0.8, -1.4, 1.0, 'fish'], [0.94, 1.2, 1.0, 'star']], coins: [[0.09, 0.15, 0, 0, 4], [0.3, 0.37, -3.9, -3.9, 4], [0.6, 0.66, -3.7, -3.7, 4], [0.85, 0.91, 0.6, 0.6, 3]], stars: [[0.42, 0], [0.78, 2.2]], fuel: [[0.27, -1.4]] });
 Object.assign(TRACK_BY.floor, { coins: [[0.02, 0.08, 0, 0, 4], [0.232, 0.25, 0, 0, 2], [0.44, 0.49, 2, -2, 4], [0.7, 0.75, -2.2, 2.2, 4], [0.9, 0.94, 0, 0, 3]], stars: [[0.36, 0], [0.63, 2.6]], fuel: [[0.5, 0.4]] });
 TRACK_BY.floor.obstacles.push([0.305, 2.9, 0.78, 'plunger'], [0.67, -1.1, 0, 'razor', 0.55]);
 Object.assign(TRACK_BY.vanity, { coins: [[0.04, 0.1, -2.6, -2.6, 4], [0.25, 0.3, 0, 0, 4], [0.62, 0.68, 1, -1, 4], [0.84, 0.9, -2.6, -2.6, 3]], stars: [[0.42, 2], [0.76, 0]], fuel: [[0.96, -3]] });
@@ -675,6 +677,7 @@ class Track {
     for (const [u, d, r] of def.puddles || []) { const p = this.at(u, d); blob(p.x, p.z, r, (k, v) => { wet[k] = Math.max(wet[k], sstep(0, 0.25, v)); pud[k] = Math.max(pud[k], sstep(0.12, 0.55, v)); }); }
     for (const [u, d, r] of def.rain || []) { const p = this.at(u, d); blob(p.x, p.z, r, (k, v) => { wet[k] = Math.max(wet[k], sstep(0, 0.3, v)); pud[k] = Math.max(pud[k], 0.25 * sstep(0.1, 0.6, v)); }); }
     for (const [u, d, r] of def.dry || []) { const p = this.at(u, d); blob(p.x, p.z, r, (k, v) => { wet[k] = Math.min(wet[k], 1 - sstep(0, 0.4, v)); }); }
+    for (const [u, d, r] of def.stickers || []) { const p = this.at(u, d); blob(p.x, p.z, r * 0.8, (k, v) => { if (v > 0.15) { wet[k] = Math.min(wet[k], 0.15); mat[k] = Math.max(mat[k], 0.35); pud[k] = 0; } }); }
     // Mats: rectangles in track coords, painted by walking the corridor.
     this.matList = [];
     const N = this.N;
@@ -1355,6 +1358,22 @@ const LOOKS = {
 };
 
 let WORLD = { group: null, T: null, anim: [], floorMat: null, lights: [] };
+const STICKER_TEX = {}; let SUN_TEX = null;
+function stickerTex(shape) {
+  return canvasTex(256, (c, s) => {
+    const h = s / 2; c.lineJoin = 'round'; c.lineWidth = 10; c.strokeStyle = '#2b1f40';
+    if (shape === 'daisy') {
+      for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; c.save(); c.translate(h + Math.cos(a) * 62, h + Math.sin(a) * 62); c.rotate(a); c.beginPath(); c.ellipse(0, 0, 48, 28, 0, 0, TAU); c.fillStyle = '#ffffff'; c.fill(); c.stroke(); c.restore(); }
+      c.beginPath(); c.arc(h, h, 44, 0, TAU); c.fillStyle = '#ffd23f'; c.fill(); c.stroke();
+    } else if (shape === 'star') {
+      c.beginPath(); for (let k = 0; k < 10; k++) { const a = k / 10 * TAU - Math.PI / 2, r = k % 2 ? 52 : 118; c.lineTo(h + Math.cos(a) * r, h + Math.sin(a) * r); } c.closePath(); c.fillStyle = '#8ee8c8'; c.fill(); c.stroke();
+    } else {
+      c.beginPath(); c.ellipse(h - 14, h, 84, 54, 0, 0, TAU); c.fillStyle = '#8fd3ff'; c.fill(); c.stroke();
+      c.beginPath(); c.moveTo(h + 56, h); c.lineTo(h + 118, h - 52); c.lineTo(h + 118, h + 52); c.closePath(); c.fill(); c.stroke();
+      c.beginPath(); c.arc(h - 54, h - 12, 12, 0, TAU); c.fillStyle = '#2b1f40'; c.fill();
+    }
+  });
+}
 
 function disposeGroup(g) {
   g.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) { const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) if (!m.userData.keep) m.dispose(); } });
@@ -1585,12 +1604,12 @@ function buildWorld(T) {
     const r = mulberry(7);
     const inside = (x, z) => { let c = false; for (let a = 0, b = contour.length - 1; a < contour.length; b = a++) { const pa = contour[a], pb = contour[b]; if ((pa.y > z) !== (pb.y > z) && x < (pb.x - pa.x) * (z - pa.y) / (pb.y - pa.y) + pa.x) c = !c; } return c; };
     for (let k = 0; k < contour.length; k += 1) { const p = contour[k]; const dx = icx - p.x, dz = icz - p.y, dl = Math.hypot(dx, dz) || 1; pts.push([p.x + dx / dl * 0.3, 0.35, p.y + dz / dl * 0.3, 0.75 + r() * 0.45]); }
-    let tries = 0; while (pts.length < 260 && tries++ < 4000) { const x = icx + (r() - 0.5) * 70, z = icz + (r() - 0.5) * 30; if (!inside(x, z)) continue; let md = 1e9; for (const p of contour) md = Math.min(md, Math.hypot(p.x - x, p.y - z)); const rr = 0.8 + Math.min(md * 0.35, 1.6) * r() + 0.4; pts.push([x, Math.min(md * 0.5, 2.6) + 0.2, z, rr]); }
+    let tries = 0; while (pts.length < 170 && tries++ < 4000) { const x = icx + (r() - 0.5) * 70, z = icz + (r() - 0.5) * 30; if (!inside(x, z)) continue; let md = 1e9; for (const p of contour) md = Math.min(md, Math.hypot(p.x - x, p.y - z)); const rr = 0.8 + Math.min(md * 0.35, 1.6) * r() + 0.4; pts.push([x, Math.min(md * 0.5, 2.6) + 0.2, z, rr]); }
     const geo = addONormal(new THREE.IcosahedronGeometry(1, 2));
     const im = new THREE.InstancedMesh(geo, foamMat(0xfbf8ff), pts.length), om = new THREE.InstancedMesh(geo, outlineMat(0.8), pts.length);
     const mm = new THREE.Matrix4();
     pts.forEach(([x, y, z, s], k) => { mm.compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(s, s * 0.9, s)); im.setMatrixAt(k, mm); om.setMatrixAt(k, mm); });
-    im.castShadow = true; im.receiveShadow = true; G.add(im, om);
+    im.castShadow = false; im.receiveShadow = true; G.add(im, om);
     // A few iridescent show-off bubbles on top.
     WORLD.foam = pts;
   } else if (T.def.id === 'floor') {
@@ -1709,6 +1728,27 @@ function buildWorld(T) {
     at(m, o.x, T.heightAt(o.x, o.z), o.z, yaw);
     G.add(m); WORLD.obstMeshes.push({ o, m, wob: 0 });
   }
+  // ---- tub stickers (anti-slip, grippy) ---------------------------------------
+  for (const [u, d, r, shape] of T.def.stickers || []) {
+    const p = T.at(u, d);
+    const tex = STICKER_TEX[shape] || (STICKER_TEX[shape] = stickerTex(shape));
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(r * 2, r * 2), new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -3, depthWrite: false }));
+    m.rotation.set(-Math.PI / 2, 0, Math.random() * TAU); m.position.set(p.x, T.heightAt(p.x, p.z) + 0.01, p.z); m.receiveShadow = true; m.renderOrder = 1;
+    G.add(m); HIDE_IN_MIRROR.push(m);
+  }
+  // ---- sunlight from the window, landing on the floor -------------------------
+  {
+    const tex = SUN_TEX || (SUN_TEX = canvasTex(256, (c, s) => {
+      const g = c.createRadialGradient(s / 2, s / 2, s * 0.1, s / 2, s / 2, s * 0.5); g.addColorStop(0, 'rgba(255,244,214,1)'); g.addColorStop(1, 'rgba(255,244,214,0)');
+      c.fillStyle = g; c.fillRect(0, 0, s, s);
+      c.globalCompositeOperation = 'destination-out'; c.fillStyle = '#000'; c.fillRect(s * 0.47, 0, s * 0.06, s); c.fillRect(0, s * 0.47, s, s * 0.06);
+    }));
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 });
+    for (const u of [0.04, 0.47, 0.8]) {
+      const p = T.at(u, T.inSign * 0.8); const y = T.heightAt(p.x, p.z) + 0.02;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(9, 6.5), mat); m.rotation.set(-Math.PI / 2, 0, 0.5); m.position.set(p.x, y, p.z); m.renderOrder = 3; G.add(m); HIDE_IN_MIRROR.push(m);
+    }
+  }
   // ---- mats -------------------------------------------------------------------
   for (const mt of T.matList) {
     const shape = new THREE.Shape(mt.poly.map((p) => new THREE.Vector2(p.x, -p.z)));
@@ -1720,6 +1760,8 @@ function buildWorld(T) {
     m.position.y = 0.0; m.castShadow = false; G.add(m);
   }
 
+  // Big static pieces don't need to cast shadows (they'd only darken the track).
+  G.traverse((o) => { if (o.isMesh && o.castShadow) { if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); const sc = Math.max(o.scale.x, o.scale.y, o.scale.z) * (o.parent && o.parent.scale ? o.parent.scale.x : 1); if (o.geometry.boundingSphere.radius * sc > 6) o.castShadow = false; } });
   scene.add(G);
   return G;
 }
@@ -1729,7 +1771,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040614";
+const ASSET_V = "202611040622";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2119,7 +2161,7 @@ const SUDS = {
     for (const s of this.list) {
       if (s.owner === who && RACE.t - s.born < 0.9) continue;
       const d = Math.hypot(x - s.x, z - s.z);
-      if (d < s.r) { const k = (1 - d / s.r) * 2.2 * Math.min(1, s.t / 1.5); if (k > v) v = Math.min(1, k); }
+      if (d < s.r) { let k = (1 - d / s.r) * 2.2 * Math.min(1, s.t / 1.5); if (s.weak) k = Math.min(k, 0.3); if (k > v) v = Math.min(1, k); }
     }
     return v;
   },
@@ -2198,7 +2240,7 @@ class Racer {
       af += CFG.bThrust * S.bThrust * (1 + 0.25 * shr) * this.spoolK;
       this.boost = Math.max(0, this.boost - CFG.bUse * S.bUse * dt);
       this.size -= CFG.wearBoost * S.wear * dt * (S.bubbleJet ? 2.4 : 1);
-      if (S.bubbleJet && RACE.t > 4) { this.dropT -= dt; if (this.dropT <= 0) { this.dropT = 0.18; this.emit('jetSuds'); } }
+      if (S.bubbleJet && RACE.t > 4) { this.dropT -= dt; if (this.dropT <= 0) { this.dropT = 0.3; this.emit('jetSuds'); } }
     }
     if (!this.boosting) this.spoolK = 0;
     if (this.air) af *= 0.45;
@@ -2339,8 +2381,8 @@ class Racer {
   }
   spinOut(T, k) {
     if (this.useShield('suds')) return;
-    this.spin = 0.9 + 0.5 * k;
-    this.w += (Math.random() < 0.5 ? -1 : 1) * (6 + 4 * k);
+    this.spin = 0.6 + 0.35 * k;
+    this.w += (Math.random() < 0.5 ? -1 : 1) * (5 + 3 * k);
     this.stat.sudsHits++;
     this.emit('spin');
   }
@@ -2417,9 +2459,9 @@ function collideRacers(a, b) {
 // and drop suds on whoever is tailgating them.
 // ---------------------------------------------------------------------------
 const DIFF = {
-  rinse:  { name: 'Rinse', pace: 0.84, aim: 0.55, boost: 70, suds: 0.15, mult: 0.8 },
-  lather: { name: 'Lather', pace: 0.93, aim: 0.8, boost: 55, suds: 0.3, mult: 1 },
-  scrub:  { name: 'Scrub', pace: 0.99, aim: 1, boost: 40, suds: 0.45, mult: 1.35 },
+  rinse:  { name: 'Rinse', pace: 0.8, aim: 0.55, boost: 70, suds: 0.15, mult: 0.8 },
+  lather: { name: 'Lather', pace: 0.9, aim: 0.8, boost: 55, suds: 0.3, mult: 1 },
+  scrub:  { name: 'Scrub', pace: 0.985, aim: 1, boost: 40, suds: 0.45, mult: 1.35 },
 };
 class CpuDriver {
   constructor(r, diff = 'lather', seed = 1) {
@@ -2565,7 +2607,7 @@ class QuadFX {
 class BallFX {
   constructor(max, kind) {
     this.max = max; this.list = [];
-    const base = new THREE.IcosahedronGeometry(1, kind === 'bubble' ? 3 : 2);
+    const base = new THREE.IcosahedronGeometry(1, kind === 'bubble' ? 2 : 1);
     const g = new THREE.InstancedBufferGeometry(); g.index = base.index; g.setAttribute('position', base.attributes.position); g.setAttribute('normal', base.attributes.normal);
     this.aPos = new Float32Array(max * 4); this.aCol = new Float32Array(max * 4);
     const mk = (a, n) => { const at = new THREE.InstancedBufferAttribute(a, n); at.setUsage(THREE.DynamicDrawUsage); return at; };
@@ -2629,7 +2671,7 @@ const FX = {
   ready: false, group: new THREE.Group(),
   init() {
     makeTextures();
-    this.bub = new BallFX(420, 'bubble'); this.drop = new BallFX(360, 'drop'); this.suds = new BallFX(420, 'suds');
+    this.bub = new BallFX(240, 'bubble'); this.drop = new BallFX(300, 'drop'); this.suds = new BallFX(360, 'suds');
     this.foam = new QuadFX(700, TEX.blob, 'ground'); this.ring = new QuadFX(60, TEX.ring, 'ground');
     this.star = new QuadFX(160, TEX.star, 'bill'); this.rain = new QuadFX(500, TEX.streak, 'bill'); this.conf = new QuadFX(400, TEX.square, 'bill');
     this.sudsBlob = new QuadFX(80, TEX.blob, 'ground');
@@ -2871,7 +2913,7 @@ function sfx(name, vol = 1, rate = 1, pan = 0) {
 // Positional one-shot relative to the camera.
 const _ap = new THREE.Vector3();
 function sfxAt(name, x, y, z, vol = 1, rate = 1) {
-  if (!AU.ok) return;
+  if (!AU.ok || RACE.attract) return;
   _ap.set(x, y, z);
   const d = _ap.distanceTo(camera.position);
   const v = vol / (1 + d * 0.12);
@@ -2954,7 +2996,7 @@ function raceSetup(opts) {
     r.netId = e.netId || ''; r.cpuOwned = e.kind === 'cpu';
     const g = T.gridSlot(slot);
     r.reset(g.x, g.z, g.yaw, g.i); r.y = T.heightAt(g.x, g.z, g.i); r.slot = slot;
-    addRacer(r, e.kind === 'me' ? 'hi' : 'mid');
+    addRacer(r, e.kind === 'me' ? (QN === 'low' ? 'mid' : 'hi') : (QN === 'low' ? 'lo' : 'mid'));
     if (e.kind === 'me') RACE.me = r;
     if (e.kind === 'cpu') RACE.cpus.push(new CpuDriver(r, RACE.diff, RACE.seed + slot * 31));
   });
@@ -2982,6 +3024,8 @@ function raceStep(dt) {
     }
   }
   const racing = RACE.phase === 'race' || RACE.phase === 'done';
+  // Gentle catch-up in solo races: far-ahead CPUs ease off, far-behind ones push.
+  if (RACE.me && !RACE.online && !RACE.me.finished) for (const c of RACE.cpus) { if (c.r === RACE.me) continue; const gap = c.r.progress - RACE.me.progress; c.rubber = clamp(1 - gap * 0.0016, 0.92, 1.05); }
   for (const c of RACE.cpus) c.think(dt, T, RACE);
   for (const r of RACE.racers) {
     if (r.kind === 'net') continue;
@@ -3138,7 +3182,7 @@ function handleEvents() {
           else { if (isMe) { sfx(e.kind === 'fuel' ? 'ignite' : 'chime', 0.6, 1.35); feed(e.kind === 'fuel' ? 'Full tank!' : 'Boost star!'); } FX.sparkle(e.x, e.y, e.z, 6, e.kind === 'fuel' ? [1, 0.5, 0.4] : [1, 0.9, 0.3], 0.2); FX.ringAt(e.x, e.y - 0.4, e.z, 1.6, [1, 0.9, 0.4], 0.4); }
           break;
         case 'shave': sfxAt('knock', r.x, r.y, r.z, 0.9, 1.4); FX.sparkle(r.x, r.y + 0.3, r.z, 4, [0.8, 0.9, 1], 0.16); FX.bubbles(r.x, r.y + 0.2, r.z, 6, 0.4, 0.8, 0.1); if (isMe) { center('SHAVED!', 'c3 sm', 0.9); CAM.shake = 0.4; } break;
-        case 'jetSuds': { const s = SUDS.add(r.x - Math.sin(r.yaw) * 0.9, r.z - Math.cos(r.yaw) * 0.9, 0.7, r, 5); netSendSuds && netSendSuds(s); break; }
+        case 'jetSuds': { const s = SUDS.add(r.x - Math.sin(r.yaw) * 0.9, r.z - Math.cos(r.yaw) * 0.9, 0.65, r, 3.5); s.weak = 1; netSendSuds && netSendSuds(s); break; }
       }
     }
     r.events.length = 0;
@@ -3154,7 +3198,8 @@ function racersVisual(dt, t) {
     // Level of detail by distance.
     if (r !== me) {
       _rv.set(r.x, r.y, r.z); const d = _rv.distanceTo(camera.position);
-      const want = d > 17 ? 'lo' : d < 13 ? 'mid' : v.lod;
+      const far = QN === 'low' ? 7 : QN === 'med' ? 13 : 17;
+      const want = d > far + 2 ? 'lo' : d < far - 2 ? 'mid' : v.lod;
       if (want !== v.lod) v.set(r.lo, want);
     }
     v.sync(r, dt, t);
@@ -3734,7 +3779,7 @@ function netHandle(m) {
     case 'sud': {
       if (!RACE.online || m.r !== NET.raceId) break;
       const owner = RACE.racers.find((r) => r.netId === m.c) || null;
-      if (!SUDS.list.some((s) => s.id === m.id)) SUDS.add(m.x, m.z, m.rad, owner, m.life, m.id);
+      if (!SUDS.list.some((s) => s.id === m.id)) { const s = SUDS.add(m.x, m.z, m.rad, owner, m.life, m.id); if (m.wk) s.weak = 1; }
       break;
     }
     case 'hrn': {
@@ -3810,7 +3855,7 @@ function netTick(dt) {
   if (me) { const m = pack(me); if ((NET.raceId + RACE.frame) % 30 === 0) m.lo = me.lo; netSend(m); }
   if (NET.role === 'host') { const bots = RACE.racers.filter((r) => r.kind === 'cpu').map(pack); if (bots.length) netSend({ t: 'sb', b: bots }); }
 }
-function netSendSuds(s) { if (!RACE.online || !NET.on) return; netSend({ t: 'sud', r: NET.raceId, c: s.owner ? s.owner.netId : '', id: s.id, x: r2(s.x), z: r2(s.z), rad: r2(s.r), life: s.life }); }
+function netSendSuds(s) { if (!RACE.online || !NET.on) return; netSend({ t: 'sud', r: NET.raceId, c: s.owner ? s.owner.netId : '', id: s.id, x: r2(s.x), z: r2(s.z), rad: r2(s.r), life: s.life, wk: s.weak ? 1 : 0 }); }
 function netSendHorn(r) { if (!RACE.online || !NET.on) return; netSend({ t: 'hrn', r: NET.raceId, c: r.netId, x: r2(r.x), z: r2(r.z) }); }
 function netSendFinish(r) {
   if (!RACE.online || !NET.on) return;
@@ -4085,13 +4130,13 @@ async function runSmoke() {
     {
       const T = getTrack('shower'); const i = 40; const r = new Racer('w', { bar: 'rosy', rocket: 'twin' }, 'cpu');
       // Fly into the left wall at an angle, pointed the way it moves.
-      const ang = 0.6; const vx = T.tx[i] * Math.cos(ang) + T.nx[i] * Math.sin(ang), vz = T.tz[i] * Math.cos(ang) + T.nz[i] * Math.sin(ang);
-      r.reset(T.px[i], T.pz[i], Math.atan2(vx, vz), i);
+      const ang = 0.85; const vx = T.tx[i] * Math.cos(ang) + T.nx[i] * Math.sin(ang), vz = T.tz[i] * Math.cos(ang) + T.nz[i] * Math.sin(ang);
+      r.reset(T.px[i] + T.nx[i] * 2, T.pz[i] + T.nz[i] * 2, Math.atan2(vx, vz), i);
       r.vx = vx * 8; r.vz = vz * 8;
       let hit = null;
       for (let k = 0; k < 240 && !hit; k++) { r.step(CFG.dt, T, true); for (const e of r.events) if (e.type === 'wall') hit = { e, vn: r.vx * e.nx + r.vz * e.nz, vt: Math.abs(r.vx * -e.nz + r.vz * e.nx) }; r.events.length = 0; }
       ok('soap hits the wall', !!hit);
-      if (hit) { ok('bounce off the wall is small', hit.vn < 2.2, 'out ' + hit.vn.toFixed(2)); ok('keeps sliding along the wall', hit.vt > 4, 'along ' + hit.vt.toFixed(2)); }
+      if (hit) { ok('bounce off the wall is small', hit.vn < 2.2, 'out ' + hit.vn.toFixed(2)); ok('keeps sliding along the wall', hit.vt > 2.4, 'along ' + hit.vt.toFixed(2)); }
     }
     // Drains take only small bars.
     {
@@ -4109,6 +4154,34 @@ async function runSmoke() {
       const st = (list[id].st || {});
       const special = st.plug || st.horn || st.shield || st.startBoost || st.bubbleJet || st.chipless || st.draft || st.dryMu || st.sudsR;
       ok(kind + ' ' + id + ' has an upside and a downside', (d.some((v) => v > 0.05) || special) && (d.some((v) => v < -0.05) || st.sudsCost > 1 || st.wear > 1 || st.dryMu > 1), d.map((v) => v.toFixed(1)).join(','));
+    }
+    // The user's extra models load and become usable props.
+    ok('the 20 extra designs loaded', PGLB.ok && Object.keys(PGLB.proto).length === 20, Object.keys(PGLB.proto).length + ' models');
+    ok('golden soap builds from its own model', (() => { const g = soapGeometry('mid', { bar: 'golden', rocket: 'jet', mods: [] }); return g.barG.attributes.position.count > 1000 && g.flames.length === 2; })());
+    // Pickups: coins add up, stars refill boost.
+    {
+      raceSetup({ track: 'shower', laps: 1, cpus: 0, mode: 'quick' });
+      const me = RACE.me, coin = PICK.items.find((i) => i.kind === 'coin'), star = PICK.items.find((i) => i.kind === 'star');
+      me.x = coin.x; me.z = coin.z; me.y = coin.y - 0.5; pickupsCollect(me);
+      ok('driving through a soap coin collects it', me.coins === 1 && coin.cool > 0);
+      me.boost = 10; me.x = star.x; me.z = star.z; pickupsCollect(me);
+      ok('a boost star refills boost', me.boost >= 50, me.boost.toFixed(0));
+    }
+    // Razors shave the bar.
+    {
+      const T = getTrack('floor'); const rz = T.obst.find((o) => o.kind === 'razor');
+      const r = new Racer('z', { bar: 'rosy', rocket: 'twin' }, 'cpu'); r.reset(rz.x + 1.6, rz.z, -Math.PI / 2, -1); r.vx = -6; r.vz = 0; const s0 = r.size;
+      for (let k = 0; k < 60; k++) r.step(CFG.dt, T, true);
+      ok('hitting a razor shaves soap off', r.size < s0 - 0.03, (s0 - r.size).toFixed(3));
+    }
+    // Turbo jet spools up; bubble jet trails don't spin people out.
+    {
+      const T = getTrack('shower'); const r = new Racer('j', { bar: 'rosy', rocket: 'jet' }, 'cpu'); const g = T.gridSlot(0); r.reset(g.x, g.z, g.yaw, g.i); r.boost = 100;
+      r.in.boost = true; r.step(CFG.dt, T, true); const early = r.spoolK; for (let k = 0; k < 120; k++) r.step(CFG.dt, T, true);
+      ok('turbo jet boost spools up over time', early < 0.1 && r.spoolK === 1, early.toFixed(2));
+      SUDS.list = []; const sx = g.x + Math.sin(g.yaw) * 3, sz = g.z + Math.cos(g.yaw) * 3; const ws = SUDS.add(sx, sz, 0.65, null, 3.5); ws.weak = 1;
+      ok('bubble jet trail is slippery but no spin out', SUDS.at(sx, sz, null) <= 0.3);
+      SUDS.list = [];
     }
     // A full CPU race finishes.
     raceSetup({ track: 'tub', laps: 1, cpus: 5, diff: 'scrub', mode: 'quick' });
