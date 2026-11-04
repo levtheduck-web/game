@@ -53,7 +53,7 @@ h1,h2,h3{font-family:var(--head);font-weight:400;margin:0;letter-spacing:.02em}
 
 /* title */
 #s-title{align-items:stretch}
-#s-title .col{display:flex;flex-direction:column;justify-content:center;gap:16px;padding:70px 0 40px clamp(20px,5vw,80px);width:min(520px,92vw)}
+#s-title .col{display:flex;flex-direction:column;justify-content:center;gap:16px;padding:70px 0 40px clamp(20px,5vw,80px);width:min(640px,92vw)}
 .logo{font-family:var(--head);line-height:.86;font-size:clamp(58px,9.5vw,132px);color:#fff;-webkit-text-stroke:clamp(7px,1vw,12px) var(--ink);paint-order:stroke fill;
   text-shadow:0 clamp(7px,1vw,12px) 0 var(--ink);transform:rotate(-4deg);margin-bottom:6px;position:relative}
 .logo .a{color:var(--pink)} .logo .b{color:var(--lemon);display:inline-block;transform:translateX(.22em) rotate(3deg)}
@@ -1942,7 +1942,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040715";
+const ASSET_V = "202611040718";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
