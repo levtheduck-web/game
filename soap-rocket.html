@@ -57,7 +57,7 @@ h1,h2,h3{font-family:var(--head);font-weight:400;margin:0;letter-spacing:.02em}
 .logo{font-family:var(--head);line-height:.86;font-size:clamp(58px,9.5vw,132px);color:#fff;-webkit-text-stroke:clamp(7px,1vw,12px) var(--ink);paint-order:stroke fill;
   text-shadow:0 clamp(7px,1vw,12px) 0 var(--ink);transform:rotate(-4deg);margin-bottom:6px;position:relative}
 .logo .a{color:var(--pink)} .logo .b{color:var(--lemon);display:inline-block;transform:translateX(.22em) rotate(3deg)}
-.logo small{display:block;font-family:var(--font);font-weight:700;-webkit-text-stroke:0;text-shadow:none;font-size:clamp(14px,1.5vw,19px);color:var(--ink);letter-spacing:.02em;margin:18px 0 0 6px;transform:rotate(4deg)}
+.logo small{display:block;font-family:var(--font);font-weight:700;-webkit-text-stroke:5px #fff;paint-order:stroke fill;text-shadow:none;font-size:clamp(14px,1.5vw,19px);color:var(--ink);letter-spacing:.02em;margin:18px 0 0 6px;transform:rotate(4deg)}
 .menu{display:flex;flex-direction:column;align-items:flex-start;gap:14px}
 .menu .row{display:flex;gap:12px;flex-wrap:wrap}
 .bubbles-deco{position:absolute;inset:0;pointer-events:none;overflow:hidden}
@@ -2016,7 +2016,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040730";
+const ASSET_V = "202611040731";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
