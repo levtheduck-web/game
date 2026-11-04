@@ -9,7 +9,7 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="glitchbox-config.js"></script>
 <!-- Game roster + thumbnail art, shared with play.html -->
-<script src="glitchbox-games.js?v=20261017b"></script>
+<script src="glitchbox-games.js?v=20261103a"></script>
 <!-- Owner console (Ctrl+Shift+A). Deferred so it loads after the hub's own script. -->
 <script src="glitchbox-social.js?v=20261013b" defer></script>
 <script src="glitchbox-admin.js?v=20261017a" defer></script>
@@ -1744,6 +1744,7 @@ var lastState = { profile:null, friends:[], incoming:[], outgoing:[], blocked:[]
 // work from GitHub Pages with no server to run. Add a game here once it speaks the
 // relay protocol (see Room in glitchbox-api/src/index.js).
 const MP_GAMES = [
+  { file:'soap-rocket.html', name:'Soap Rocket', emoji:'🧼', desc:'1-8 players · race rocket soap around a slippery bathroom' },
   { file:'rocket-roadster.html', name:'Rocket Roadster', emoji:'🏎️', desc:'1-8 players · race rocket cars up a mountain, winch your friends' },
   { file:'frontline.html', name:'Frontline', emoji:'🦾', desc:'1-4 players · future war co-op, level up into a cyborg' },
   { file:'haymaker.html',  name:'Haymaker',  emoji:'🥊', desc:'2 players · 3D boxing with superpowers, knock them out' },
