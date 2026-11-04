@@ -2055,7 +2055,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040744";
+const ASSET_V = "202611040746";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -4690,6 +4690,11 @@ ACT.quickMatch = () => { readName(); NET.qm = { i: 1 }; netConnect('SOAP1', 'gue
 ACT.host = () => { readName(); netConnect(rcode(4), 'host'); };
 ACT.join = () => { readName(); const c = ($('codeIn').value || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (c.length < 4 || c.length > 6) { netStatus('Room codes are 4 letters.'); return; } netConnect(c, 'guest'); };
 ACT.leaveOnline = () => { netSend({ t: 'bye', c: NET.cid, host: NET.role === 'host' }); netClose(); RACE.online = false; showTitle(); };
+ACT.copyInvite = () => {
+  const link = location.origin + location.pathname.replace(/[^/]*$/, '') + 'soap-rocket.html#room=' + NET.code + '&join=1';
+  const done = () => toast('Invite link copied! Paste it to a friend.');
+  try { navigator.clipboard.writeText(link).then(done, () => toast(link)); } catch (e) { toast(link); }
+};
 ACT.lobbyBack = () => { setMode('attract'); showLobby(); };
 ACT.lobbyStart = () => netHostStart();
 ACT.lobbyTrack = (id) => { NET.lobby.track = id; netRoster(); showLobby(); };
@@ -4704,7 +4709,7 @@ function showLobby() {
     ${host ? `<button class="btn big" data-act="lobbyStart" style="--c:var(--mint)">Start race</button>` : '<span class="tag" style="font-size:16px">Waiting for the host to start</span>'}
     <button class="btn sm" data-act="garage" style="--c:var(--sky)">Garage</button>
     <button class="btn sm ghost" data-act="leaveOnline">Leave</button></header>
-    <p style="margin:0;font-weight:600">Friends join with the code <b>${esc(NET.code)}</b>. ${ps.length} of 8 here.</p>
+    <p style="margin:0;font-weight:600;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>Friends join with the code <b>${esc(NET.code)}</b>. ${ps.length} of 8 here.</span><button class="btn sm" data-act="copyInvite" style="--c:var(--lemon)">Copy invite link</button></p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${plist}</div>
     ${host ? `<div class="scroll"><div class="grid trk-grid">${trackCards(L.track, 'lobbyTrack')}</div></div>
       <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center"><label class="opt">Laps ${seg('laps', [[2, '2'], [3, '3'], [5, '5']], L.laps)}</label>
@@ -4814,7 +4819,8 @@ function frame() {
   // Camera.
   const me = RACE.me;
   if (MODE === 'race' && me) {
-    if (RACE.phase === 'podium') podiumCam(dt);
+    if (RACE.phase === 'show') { /* debug showcase: camera held by the test */ }
+    else if (RACE.phase === 'podium') podiumCam(dt);
     else if (RACE.phase === 'intro') camOrbit(me, dt, 3.1, 0.9, 0.85);
     else if (me.finished) camOrbit(me, dt, 3.8, 1.5, 0.32);
     else if (!me.alive && me.fall === 'edge' && me.fallFrom) {
