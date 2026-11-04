@@ -101,6 +101,19 @@ input.field.name{text-transform:none;font-family:var(--font);font-weight:700;fon
 .trk canvas{width:100%;aspect-ratio:16/10;border-radius:12px;border:3px solid var(--ink);background:#e9f6ff;display:block}
 
 /* results */
+.res-panel{width:min(600px,95vw);margin:auto 22px auto auto}
+.res-grid{display:flex;flex-direction:column;gap:10px}
+.res-panel table.res{border-spacing:0 4px;font-size:14px}
+.res-panel table.res td{padding:4px 9px}
+.res-panel table.res td:first-child{font-size:18px;width:44px}
+.res-panel h2{font-size:clamp(26px,3vw,38px)!important}
+.res-panel{max-height:96vh;padding:16px 18px 18px;gap:10px}
+.res-panel table.res td{padding:3px 9px}
+.res-panel .btn.big{font-size:clamp(18px,2.2vw,26px)}
+.res-panel .btn{font-size:clamp(15px,1.7vw,20px)}
+.res-panel .reward{padding:1px 0;font-size:14px}
+.res-panel .card h3{font-size:19px!important}
+@media (max-width:760px){.res-panel{margin:auto}}
 table.res{width:100%;border-collapse:separate;border-spacing:0 6px;font-weight:700}
 table.res td{background:#fff;padding:7px 10px;border-top:3px solid var(--ink);border-bottom:3px solid var(--ink)}
 table.res td:first-child{border-left:3px solid var(--ink);border-radius:12px 0 0 12px;font-family:var(--head);font-size:22px;width:56px;text-align:center}
@@ -140,6 +153,10 @@ table.res tr.me td{background:var(--pink2)}
 #mBoost.full{animation:pulse .7s ease-in-out infinite alternate}
 #mSuds .t i{background:linear-gradient(#ffffff,#bfe6ff)}
 @keyframes pulse{to{transform:translateY(-3px) rotate(-1.5deg)}}
+#hTags .tag3{position:absolute;transform:translate(-50%,-100%);font-family:var(--font);font-weight:700;font-size:13px;background:#fff;border:3px solid var(--ink);border-radius:10px;padding:1px 8px;white-space:nowrap;box-shadow:0 3px 0 var(--ink)}
+#hTags .tag3 i{display:inline-block;width:10px;height:10px;border-radius:3px;border:2px solid var(--ink);margin-right:5px;vertical-align:-1px}
+.ctrlcard{display:grid;grid-template-columns:auto auto;gap:6px 14px;font-family:var(--font);font-weight:700;font-size:15px;background:rgba(255,255,255,.94);border:4px solid var(--ink);border-radius:18px;padding:12px 18px;box-shadow:0 6px 0 var(--ink);animation:popIn .45s cubic-bezier(.2,1.6,.4,1) both}
+.ctrlcard b{background:var(--ink);color:#fff;border-radius:7px;padding:1px 8px;text-align:center;font-weight:700}
 #hCenter{position:absolute;left:0;right:0;top:24%;display:flex;flex-direction:column;align-items:center;gap:6px}
 .pop{font-size:clamp(46px,8vw,104px);color:#fff;-webkit-text-stroke:clamp(6px,.9vw,10px) var(--ink);paint-order:stroke fill;text-shadow:0 8px 0 var(--ink);animation:popIn .5s cubic-bezier(.2,1.8,.4,1) both}
 .pop.c2{color:var(--lemon)} .pop.c3{color:var(--pink)} .pop.c4{color:var(--mint)} .pop.sm{font-size:clamp(26px,4vw,48px);-webkit-text-stroke-width:6px;text-shadow:0 5px 0 var(--ink)}
@@ -205,6 +222,7 @@ body.touch #hMap{width:104px;top:58px;right:10px}
     <div class="meter" id="mBoost"><div class="l"><span>BOOST</span><span class="k" id="kBoost">SPACE</span></div><div class="t"><i></i></div></div>
     <div class="meter" id="mSuds"><div class="l"><span>SUDS</span><span class="k" id="kSuds">SHIFT</span></div><div class="t"><i></i></div></div>
   </div>
+  <div id="hTags"></div>
   <div id="hCenter"></div>
   <div id="hFeed"></div>
 </div>
@@ -1490,6 +1508,30 @@ function buildWorld(T) {
     line.receiveShadow = true; G.add(line);
   }
 
+  // ---- start gantry: two shampoo bottles with a toothbrush laid across ---------
+  if (PGLB.ok) {
+    const i = 1, hw = T.hw[i] + 0.9;
+    const yaw = Math.atan2(T.tx[i], T.tz[i]);
+    const ends = [];
+    for (const sg of [1, -1]) {
+      const d = sg * hw; const x = T.px[i] + T.nx[i] * d, z = T.pz[i] + T.nz[i] * d;
+      const y = WALL[T.wallAt(i, sg > 0)].open ? T.heightSD(i * T.ds, sg * T.hw[i], i) : T.heightSD(i * T.ds, sg * T.hw[i], i);
+      const b = makeModel('shampoo_bottle', 2.1); at(b, x, y, z, yaw + (sg > 0 ? 0.3 : -0.3)); G.add(b);
+      ends.push({ x, y: y + 2.18 * 2.1, z });
+    }
+    const len = Math.hypot(ends[0].x - ends[1].x, ends[0].z - ends[1].z);
+    const brush = makeModel('toothbrush', len / 2.1 * 1.08);
+    brush.position.set((ends[0].x + ends[1].x) / 2, Math.max(ends[0].y, ends[1].y) + 0.05, (ends[0].z + ends[1].z) / 2);
+    brush.rotation.y = Math.atan2(ends[0].x - ends[1].x, ends[0].z - ends[1].z);
+    G.add(brush);
+    // A checkered flag hanging from the brush.
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const c = cv.getContext('2d');
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 16; x++) { c.fillStyle = (x + y) % 2 ? '#2b1f40' : '#ffffff'; c.fillRect(x * 16, y * 16, 16, 16); }
+    const ft = new THREE.CanvasTexture(cv); ft.colorSpace = THREE.SRGBColorSpace;
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(len * 0.55, len * 0.55 / 4, 16, 2), new THREE.MeshStandardMaterial({ map: ft, side: THREE.DoubleSide, roughness: 0.8 }));
+    flag.position.copy(brush.position); flag.position.y -= len * 0.55 / 8 + 0.15; flag.rotation.y = brush.rotation.y + Math.PI / 2; G.add(flag);
+    anim.push((t) => { const p = flag.geometry.attributes.position; for (let k = 0; k < p.count; k++) { const x = p.getX(k); p.setZ(k, Math.sin(t * 3 + x * 1.3) * 0.12 * (0.5 - p.getY(k) / (len * 0.55 / 4))); } p.needsUpdate = true; });
+  }
   // ---- walls -----------------------------------------------------------------
   const wallMat = look.wall ? patMat({ ...look.wall, uv: true }) : null;
   const benchMat = look.bench ? patMat({ ...look.bench, uv: true }) : null;
@@ -1569,6 +1611,26 @@ function buildWorld(T) {
     }
   }
 
+  // ---- soft contact shadow where walls meet the floor -------------------------
+  {
+    const aoMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+    for (const left of [true, false]) for (const run of wallRuns(T, left)) {
+      if (run.style === 'none' || run.style === 'tub') continue;
+      const wide = run.style === 'foam' || run.style === 'towel' ? 1.0 : 1.5, dark = run.style === 'glass' ? 0.16 : 0.3;
+      const sg = left ? 1 : -1, pos = [], col = [], idx = [];
+      const n = run.i1 - run.i0 + 1;
+      for (let k = 0; k < n; k++) {
+        const i = (((run.i0 + k) % T.N) + T.N) % T.N;
+        for (const [o, a] of [[0, dark], [wide * 0.35, dark * 0.45], [wide, 0]]) {
+          const d = sg * (T.hw[i] - o); pos.push(T.px[i] + T.nx[i] * d, T.heightSD(i * T.ds, d, i) + 0.012, T.pz[i] + T.nz[i] * d); col.push(0.17, 0.12, 0.25, a);
+        }
+      }
+      const rows = run.closed ? n : n - 1;
+      for (let k = 0; k < rows; k++) { const k2 = (k + 1) % n; for (let j = 0; j < 2; j++) { const a = k * 3 + j, b = k2 * 3 + j; idx.push(a, b, a + 1, b, b + 1, a + 1); } }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4)); g.setIndex(idx);
+      const m = new THREE.Mesh(g, aoMat); m.renderOrder = 1; G.add(m); HIDE_IN_MIRROR.push(m);
+    }
+  }
   // ---- island (inside of the loop) ------------------------------------------
   const inLeft = T.inSign > 0;
   const innerStyle = WALL_IDS[(inLeft ? T.wallL : T.wallR)[0]];
@@ -1771,7 +1833,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040622";
+const ASSET_V = "202611040627";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -2974,6 +3036,7 @@ function removeRacer(r) {
 // opts: { track, laps, cpus, diff, mode, mySlot, attract, seed, grid:[{name,lo,kind,netId}] }
 function raceSetup(opts) {
   loopsOff();
+  podiumClear();
   const T = getTrack(opts.track || 'shower');
   if (WORLD.T !== T) buildWorld(T);
   RACE.T = T; RACE.trackId = T.def.id;
@@ -3011,6 +3074,7 @@ function raceSetup(opts) {
 
 function raceStep(dt) {
   const T = RACE.T; if (!T) return;
+  if (RACE.phase === 'podium') return;
   if (RACE.phase === 'intro') { RACE.introT -= dt; if (RACE.introT <= 0) { RACE.phase = 'count'; RACE.t = -3; countBeat(3); } return; }
   const prevT = RACE.t;
   RACE.t += dt;
@@ -3203,7 +3267,7 @@ function racersVisual(dt, t) {
       if (want !== v.lod) v.set(r.lo, want);
     }
     v.sync(r, dt, t);
-    v.root.visible = !(r.ghost > 0 && Math.floor(t * 12) % 2 === 0) && (r.alive || r.deadT > 0);
+    v.root.visible = !r.hidden && !(r.ghost > 0 && Math.floor(t * 12) % 2 === 0) && (r.alive || r.deadT > 0);
     // Foam trail, spray and sparkles.
     r.trailT = (r.trailT || 0) - dt;
     const sp = r.speed;
@@ -3273,10 +3337,58 @@ function finishRace() {
     const bl = me.bestLap; if (isFinite(bl) && (!P.best[RACE.trackId] || bl < P.best[RACE.trackId])) { P.best[RACE.trackId] = bl; res.newBest = true; }
     if (RACE.gp) gpRecord(order);
     saveProfile();
-    try { if (window.GLITCHBOX && GLITCHBOX.score && isFinite(me.finishT) && !me.projected) GLITCHBOX.score(Math.round(me.finishT * 100) / 100, { low: true, track: RACE.trackId }); } catch (e) { /* offline */ }
   }
   RACE.results = res;
-  setTimeout(() => showResults(res), 600);
+  setTimeout(() => { podiumSetup(order); showResults(res); }, 700);
+}
+
+// The top three stand on soap dishes on gold, silver and bronze pedestals.
+const PODIUM = { group: null, t: 0 };
+function podiumSetup(order) {
+  const T = RACE.T; if (!T) return;
+  podiumClear();
+  RACE.phase = 'podium'; PODIUM.t = 0;
+  const G = new THREE.Group(); PODIUM.group = G;
+  const i = Math.round(9 / T.ds) % T.N;
+  const px = T.px[i], pz = T.pz[i], tx = T.tx[i], tz = T.tz[i], nx = T.nx[i], nz = T.nz[i];
+  const y0 = T.heightAt(px, pz, i);
+  const face = Math.atan2(-tx, -tz);
+  PODIUM.at = { x: px, y: y0, z: pz, tx, tz };
+  const spots = [[0, 1.05, 0xffd23f], [1.9, 0.7, 0xdfe6f2], [-1.9, 0.4, 0xffb38a]];
+  for (let k = 0; k < 3; k++) {
+    const [o, h, col] = spots[k];
+    const x = px + nx * o, z = pz + nz * o;
+    const ped = inked(new RoundedBoxGeometry(1.7, h, 1.5, 3, 0.18), toonMat(col, { spec: 0.7, rim: 0.3 }), 1);
+    ped.position.set(x, y0 + h / 2, z); ped.rotation.y = face; G.add(ped);
+    const numCv = document.createElement('canvas'); numCv.width = numCv.height = 128; const c = numCv.getContext('2d');
+    c.font = '900 96px "Lilita One", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 14; c.strokeStyle = '#2b1f40'; c.strokeText(String(k + 1), 64, 70); c.fillStyle = '#fff'; c.fillText(String(k + 1), 64, 70);
+    const nt = new THREE.CanvasTexture(numCv); nt.colorSpace = THREE.SRGBColorSpace;
+    const num = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.8), new THREE.MeshBasicMaterial({ map: nt, transparent: true }));
+    num.position.set(x - tx * 0.77, y0 + h * 0.5, z - tz * 0.77); num.rotation.y = face; G.add(num);
+    let top = y0 + h;
+    if (PGLB.ok) { const d = makeModel('soap_dish', 1.0); d.position.set(x, top, z); d.rotation.y = face + Math.PI / 2; G.add(d); top += 0.3; }
+    const r = order[k];
+    if (r) { r.x = x; r.z = z; r.y = top + 0.02; r.yaw = face; r.vx = r.vz = 0; r.alive = true; r.air = false; r.gnx = r.gnz = 0; r.boosting = false; r.thr = 0.3; r.brk = 0; r.podium = k + 1; }
+  }
+  for (const r of RACE.racers) { if (!r.podium) { const v = RACE.views.get(r); if (v) v.root.visible = false; r.hidden = true; } }
+  scene.add(G);
+  FX.confetti(px, y0 + 3, pz, 160);
+  sfx('fanfare', 0.7);
+}
+function podiumClear() { if (PODIUM.group) { scene.remove(PODIUM.group); disposeGroup(PODIUM.group); PODIUM.group = null; } }
+function podiumCam(dt) {
+  const A = PODIUM.at; if (!A) return;
+  PODIUM.t += dt;
+  const sway = Math.sin(PODIUM.t * 0.4) * 0.6;
+  const wide = innerWidth > 760;
+  // Stand in front of the podium; on wide screens shift it left of the results panel.
+  const sideX = wide ? -1 : 0;
+  _cv.set(A.x - A.tx * 7.4 + A.tz * (sway + sideX * 2.4), A.y + 2.7, A.z - A.tz * 7.4 - A.tx * (sway + sideX * 2.4));
+  if (PODIUM.t < 0.05) CAM.pos.copy(_cv); else CAM.pos.lerp(_cv, 1 - Math.exp(-dt * 3));
+  _cl.set(A.x + A.tz * sideX * 2.4, A.y + 1.15, A.z - A.tx * sideX * 2.4);
+  if (PODIUM.t < 0.05) { CAM.look.copy(_cl); CAM.fov = 46; } else CAM.look.lerp(_cl, 1 - Math.exp(-dt * 4));
+  CAM.fov = lerp(CAM.fov, 46, 1 - Math.exp(-dt * 3));
+  if (Math.random() < dt * 0.9) FX.confetti(A.x + (Math.random() - 0.5) * 4, A.y + 4, A.z + (Math.random() - 0.5) * 3, 40);
 }
 
 // ==== 13-ui.js ====
@@ -3430,13 +3542,13 @@ function showResults(res) {
   } else if (RACE.online) {
     buttons = `<button class="btn big" data-act="lobbyBack" style="--c:var(--pink)">Back to the room</button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage</button><button class="btn ghost" data-act="leaveOnline">Leave room</button>`;
   } else buttons = `<button class="btn big" data-act="again" style="--c:var(--mint)">Race again <span class="k">ENTER</span></button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage</button><button class="btn" data-act="quick" style="--c:var(--lemon)">Change track</button><button class="btn ghost" data-act="title">Menu</button>`;
-  screen('results', `${topbar()}<div class="panel card" style="width:min(980px,95vw)">
+  screen('results', `${topbar()}<div class="panel card res-panel">
     <header><h2>${me ? (me.place === 1 ? 'You win!' : ord(me.place) + ' place') : 'Race over'}</h2>${res.newBest ? '<span class="tag" style="background:var(--pink);color:var(--ink)">NEW BEST LAP</span>' : ''}</header>
-    <div class="scroll" style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px">
+    <div class="scroll res-grid">
       <div><table class="res">${rows}</table></div>
       <div style="display:flex;flex-direction:column;gap:12px"><div class="card" style="padding:12px 14px;box-shadow:none"><h3 style="font-size:22px">Bubbles earned</h3>${rw}<div class="reward" style="border:0"><span>Total</span><b style="font-size:24px">+${res.total}</b></div></div>${gpHtml}</div>
     </div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap">${buttons}</div></div>`, 'veil');
+    <div style="display:flex;gap:12px;flex-wrap:wrap">${buttons}</div></div>`, 'dim');
 }
 ACT.again = () => { const q = UI.quick; startRace({ track: RACE.trackId, laps: RACE.laps, cpus: RACE.lastCpuCount ?? q.cpus, diff: RACE.diff, mode: 'quick' }); };
 ACT.gpNext = () => gpNext();
@@ -3507,7 +3619,8 @@ function showHelp() {
         <p style="margin:0">🟫 <b>Dry floor and mats grip.</b> Slower, but you can actually turn. Use them as brakes.</p>
         <p style="margin:0">🧼 <b>Your bar wears down.</b> A smaller bar is quicker and turns faster, but gets shoved around, and small bars can slip down a drain.</p>
         <p style="margin:0">↪️ <b>Slide to charge boost.</b> Going sideways fills your boost. So does tailgating someone.</p>
-        <p style="margin:0">🫧 <b>Suds</b> cost a bit of your bar. Anyone who hits them spins out. Watch your own.</p></div>
+        <p style="margin:0">🫧 <b>Suds</b> cost a bit of your bar. Anyone who hits them spins out. Watch your own.</p>
+        <p style="margin:0">🪙 <b>Grab soap coins</b> for bubbles, <b>boost stars</b> and <b>fuel cans</b> for boost. Keep clear of <b>razors</b>: they shave your bar.</p></div>
       <div style="display:flex;flex-direction:column;gap:10px"><h3 style="font-size:24px">Garage</h3>
         <p style="margin:0">Win bubbles every race and spend them in the garage. Every bar, rocket and mod is a trade: something gets better and something gets worse, so pick what suits the track and the way you drive.</p></div>
     </div></div>`, 'veil');
@@ -3567,6 +3680,31 @@ function hudUpdate() {
   }
   const [X, Z] = HUD.mapT(me.x, me.z);
   c.save(); c.translate(X, Z); c.rotate(-me.yaw + Math.PI); c.fillStyle = hex(me.color); c.strokeStyle = '#2b1f40'; c.lineWidth = 3; c.beginPath(); c.moveTo(0, -10); c.lineTo(7, 7); c.lineTo(-7, 7); c.closePath(); c.fill(); c.stroke(); c.restore();
+}
+// Name tags over online racers.
+const _tv = new THREE.Vector3();
+function tagsUpdate() {
+  const box = $('hTags'); if (!box) return;
+  const show = RACE.online && RACE.me && !RACE.results;
+  if (!show) { if (box.childElementCount) box.innerHTML = ''; return; }
+  const want = RACE.racers.filter((r) => r !== RACE.me && r.kind === 'net' && r.alive);
+  while (box.childElementCount < want.length) { const d = document.createElement('div'); d.className = 'tag3'; box.appendChild(d); }
+  while (box.childElementCount > want.length) box.lastChild.remove();
+  want.forEach((r, k) => {
+    const el = box.children[k];
+    _tv.set(r.x, r.y + 1.1 * r.vis, r.z).project(camera);
+    const vis = _tv.z < 1 && Math.abs(_tv.x) < 1.1 && Math.abs(_tv.y) < 1.1;
+    el.style.display = vis ? '' : 'none';
+    if (!vis) return;
+    if (el.dataset.n !== r.name) { el.dataset.n = r.name; el.innerHTML = `<i style="background:${hex(r.color)}"></i>${esc(r.name)}`; }
+    el.style.left = ((_tv.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - _tv.y) / 2 * innerHeight) + 'px';
+  });
+}
+function controlsCard() {
+  const touch = document.body.classList.contains('touch');
+  const c = $('hCenter'); c.innerHTML = touch
+    ? `<div class="ctrlcard"><b>GO</b><span>Hold to thrust</span><b>◀ ▶</b><span>Steer</span><b>BOOST</b><span>Rocket boost</span><b>SUDS</b><span>Drop a slick behind you</span></div>`
+    : `<div class="ctrlcard"><b>W / ↑</b><span>Hold to thrust</span><b>A D</b><span>Steer</span><b>SPACE</b><span>Rocket boost</span><b>SHIFT</b><span>Drop a slick behind you</span><b>S / ↓</b><span>Brake</span></div>`;
 }
 function applyTouch() {
   const S = P.set.touch;
@@ -3965,7 +4103,7 @@ function startRace(opts) {
   document.body.classList.add('racing');
   hudReset();
   PERF.samples = []; PERF.checked = false;
-  if (!P.help && !opts.online) { P.help = 1; saveProfile(); setTimeout(() => { if (MODE === 'race') feed('Hold W to thrust, SPACE to boost, SHIFT for suds'); }, 2600); }
+  if ((P.st.races || 0) < 2) setTimeout(() => { if (MODE === 'race' && RACE.phase === 'intro') controlsCard(); }, 150);
 }
 // Title-screen camera: tracking shots that cut between racers.
 function attractCam(dt) {
@@ -4023,7 +4161,8 @@ function frame() {
   // Camera.
   const me = RACE.me;
   if (MODE === 'race' && me) {
-    if (RACE.phase === 'intro') camOrbit(me, dt, 3.1, 0.9, 0.85);
+    if (RACE.phase === 'podium') podiumCam(dt);
+    else if (RACE.phase === 'intro') camOrbit(me, dt, 3.1, 0.9, 0.85);
     else if (me.finished) camOrbit(me, dt, 3.8, 1.5, 0.32);
     else if (!me.alive && me.fall === 'edge') { _cl.set(me.x, me.y, me.z); CAM.look.lerp(_cl, 1 - Math.exp(-dt * 5)); }
     else camChase(me, dt);
@@ -4031,6 +4170,7 @@ function frame() {
   camApply(dt);
   playerLoops(dt);
   hudUpdate();
+  tagsUpdate();
   if (gradePass) { gradePass.uniforms.uBoost.value = me && me.boosting ? 1 : 0; }
   if (composer && !NORENDER) { renderer.shadowMap.needsUpdate = true; renderMirror(); composer.render(); }
   RACE.frame++;
