@@ -161,6 +161,7 @@ table.res tr.me td{background:var(--pink2)}
 #mSuds .t i{background:linear-gradient(#ffffff,#bfe6ff)}
 @keyframes pulse{to{transform:translateY(-3px) rotate(-1.5deg)}}
 #hTags .tag3{position:absolute;transform:translate(-50%,-100%);font-family:var(--font);font-weight:700;font-size:13px;background:#fff;border:3px solid var(--ink);border-radius:10px;padding:1px 8px;white-space:nowrap;box-shadow:0 3px 0 var(--ink)}
+#hTags .tag3.emo{animation:popIn .35s cubic-bezier(.2,1.8,.4,1) both;padding:0 8px 2px}
 #hTags .tag3 i{display:inline-block;width:10px;height:10px;border-radius:3px;border:2px solid var(--ink);margin-right:5px;vertical-align:-1px}
 .ctrlcard{display:grid;grid-template-columns:auto auto;gap:6px 14px;font-family:var(--font);font-weight:700;font-size:15px;background:rgba(255,255,255,.94);border:4px solid var(--ink);border-radius:18px;padding:12px 18px;box-shadow:0 6px 0 var(--ink);animation:popIn .45s cubic-bezier(.2,1.6,.4,1) both}
 .ctrlcard b{background:var(--ink);color:#fff;border-radius:7px;padding:1px 8px;text-align:center;font-weight:700}
@@ -188,6 +189,7 @@ table.res tr.me td{background:var(--pink2)}
 #tBo{right:40px;bottom:156px;width:84px;height:84px;background:rgba(255,217,90,.95);font-size:17px}
 #tSu{right:140px;bottom:118px;width:70px;height:70px;font-size:15px}
 #tHo{right:140px;bottom:200px;width:62px;height:62px;font-size:14px}
+#tEmo{left:22px;top:auto;bottom:140px;width:56px;height:56px;font-size:26px}
 #tPause{left:50%;top:10px;transform:translateX(-50%);width:50px;height:44px;border-radius:14px;font-size:18px}
 #tPause.on{transform:translateX(-50%) translateY(3px)}
 body.touch #hMeters{bottom:auto;top:auto;left:50%;transform:translateX(-50%) scale(.82);transform-origin:bottom center;bottom:6px}
@@ -239,7 +241,7 @@ body.touch #hMap{width:104px;top:58px;right:10px}
 <div id="touch" class="off">
   <div class="tb" id="tL">◀</div><div class="tb" id="tR">▶</div>
   <div class="tb" id="tGo">GO</div><div class="tb" id="tBr">BRAKE</div>
-  <div class="tb" id="tBo">BOOST</div><div class="tb" id="tSu">SUDS</div><div class="tb off" id="tHo">HONK</div>
+  <div class="tb" id="tBo">BOOST</div><div class="tb" id="tSu">SUDS</div><div class="tb off" id="tHo">HONK</div><div class="tb off" id="tEmo">😂</div>
   <div class="tb" id="tPause">II</div>
 </div>
 <div id="screens"></div>
@@ -1918,7 +1920,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040705";
+const ASSET_V = "202611040706";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -3022,6 +3024,7 @@ function bindTouch() {
     el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('pointerleave', off);
   }
   $('tPause').addEventListener('pointerdown', (e) => { e.preventDefault(); togglePause(); });
+  let emoI = 0; $('tEmo').addEventListener('pointerdown', (e) => { e.preventDefault(); sendEmote(emoI); emoI = (emoI + 1) % EMOTES.length; $('tEmo').textContent = EMOTES[emoI]; });
 }
 function pollPad() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -3856,7 +3859,7 @@ function showHelp() {
   screen('help', `${topbar('title')}<div class="panel card"><header><h2>How to play</h2><button class="btn sm" data-act="title" style="--c:var(--mint)">Got it</button></header>
     <div class="scroll" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;font-weight:600;line-height:1.35">
       <div style="display:flex;flex-direction:column;gap:8px"><h3 style="font-size:24px">Controls</h3>
-        ${row('W / ↑', 'Rocket thrust (hold)')}${row('A D / ← →', 'Steer')}${row('S / ↓', 'Brake, then reverse')}${row('SPACE', 'Boost')}${row('SHIFT', 'Drop a suds slick behind you')}${row('E', 'Honk or hop (Duck Horn or Spring Sole upgrade)')}${row('R', 'Back on track')}${row('Start', 'Tap thrust just as GO! appears for a rocket start')}${row('ESC', 'Pause')}
+        ${row('W / ↑', 'Rocket thrust (hold)')}${row('A D / ← →', 'Steer')}${row('S / ↓', 'Brake, then reverse')}${row('SPACE', 'Boost')}${row('SHIFT', 'Drop a suds slick behind you')}${row('E', 'Honk or hop (Duck Horn or Spring Sole upgrade)')}${row('R', 'Back on track')}${row('Start', 'Tap thrust just as GO! appears for a rocket start')}${row('ESC', 'Pause')}${row('1 to 4', 'Emotes when racing friends online')}
         <p style="margin:4px 0 0">Gamepads work too: stick to steer, RT go, LT brake, X boost, B suds.</p></div>
       <div style="display:flex;flex-direction:column;gap:10px"><h3 style="font-size:24px">Soap physics</h3>
         <p style="margin:0">💧 <b>Wet floor is fast but slippery.</b> You keep sliding the way you were going. Shiny = wet.</p>
@@ -3925,13 +3928,21 @@ function hudUpdate() {
   const [X, Z] = HUD.mapT(me.x, me.z);
   c.save(); c.translate(X, Z); c.rotate(-me.yaw + Math.PI); c.fillStyle = hex(me.color); c.strokeStyle = '#2b1f40'; c.lineWidth = 3; c.beginPath(); c.moveTo(0, -10); c.lineTo(7, 7); c.lineTo(-7, 7); c.closePath(); c.fill(); c.stroke(); c.restore();
 }
+const EMOTES = ['😂', '👋', '😤', '🫧'];
+function sendEmote(k) {
+  const me = RACE.me; if (!me || !RACE.online || !EMOTES[k]) return;
+  if (me.emoUntil > now() - 500 && me.emo === k) return;
+  me.emo = k; me.emoUntil = now() + 2200; sfx('pop', 0.5, 1.2);
+  netSend({ t: 'emo', r: NET.raceId, c: me.netId, k });
+}
 // Name tags over online racers.
 const _tv = new THREE.Vector3();
 function tagsUpdate() {
   const box = $('hTags'); if (!box) return;
   const show = RACE.online && RACE.me && !RACE.results;
   if (!show) { if (box.childElementCount) box.innerHTML = ''; return; }
-  const want = RACE.racers.filter((r) => r !== RACE.me && r.kind === 'net' && r.alive);
+  const tnow = now();
+  const want = RACE.racers.filter((r) => r.alive && ((r !== RACE.me && r.kind === 'net') || (r.emoUntil > tnow)));
   while (box.childElementCount < want.length) { const d = document.createElement('div'); d.className = 'tag3'; box.appendChild(d); }
   while (box.childElementCount > want.length) box.lastChild.remove();
   want.forEach((r, k) => {
@@ -3940,7 +3951,9 @@ function tagsUpdate() {
     const vis = _tv.z < 1 && Math.abs(_tv.x) < 1.1 && Math.abs(_tv.y) < 1.1;
     el.style.display = vis ? '' : 'none';
     if (!vis) return;
-    if (el.dataset.n !== r.name) { el.dataset.n = r.name; el.innerHTML = `<i style="background:${hex(r.color)}"></i>${esc(r.name)}`; }
+    const emo = r.emoUntil > tnow ? EMOTES[r.emo] || '' : '';
+    const key = r.name + '|' + emo;
+    if (el.dataset.n !== key) { el.dataset.n = key; el.innerHTML = emo ? `<span style="font-size:22px">${emo}</span>` + (r === RACE.me ? '' : ` ${esc(r.name)}`) : `<i style="background:${hex(r.color)}"></i>${esc(r.name)}`; el.classList.toggle('emo', !!emo); }
     el.style.left = ((_tv.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - _tv.y) / 2 * innerHeight) + 'px';
   });
 }
@@ -3957,6 +3970,7 @@ function applyTouch() {
   const show = on && RACE.me && !RACE.attract && !RACE.results && !$('hud').classList.contains('off');
   $('touch').classList.toggle('off', !show);
   $('tHo').classList.toggle('off', !(RACE.me && (RACE.me.S.horn || RACE.me.S.hop)));
+  $('tEmo').classList.toggle('off', !(RACE.me && RACE.online));
   if (RACE.me) $('tHo').textContent = RACE.me.S.hop ? 'HOP' : 'HONK';
   $('kBoost').textContent = on ? 'BOOST' : 'SPACE'; $('kSuds').textContent = on ? 'SUDS' : 'SHIFT';
 }
@@ -4221,6 +4235,11 @@ function netHandle(m) {
       if (!RACE.online || m.r !== NET.raceId) break;
       const me = RACE.me; sfxAt('honk', m.x, 0, m.z, 1); FX.ringAt(m.x, 0.1, m.z, 3.2, [1, 0.9, 0.3], 0.5);
       for (const r of RACE.racers) { if (r.kind === 'net') continue; const dx = r.x - m.x, dz = r.z - m.z, d = Math.hypot(dx, dz); if (d < 3.2 && d > 0.01) { const k = 7 * (1 - d / 3.2) + 2; r.vx += dx / d * k; r.vz += dz / d * k; r.w += (Math.random() - 0.5) * 6; } }
+      break;
+    }
+    case 'emo': {
+      const r = RACE.racers.find((x) => x.netId === m.c);
+      if (r && RACE.online && m.r === NET.raceId) { r.emo = m.k | 0; r.emoUntil = now() + 2200; sfxAt('pop', r.x, r.y, r.z, 0.6, 1.2); }
       break;
     }
     case 'fin': {
@@ -4500,6 +4519,7 @@ onKey = (e) => {
   if (e.code === 'KeyR' && MODE === 'race' && RACE.me && RACE.me.alive && RACE.phase === 'race' && !RACE.me.finished) {
     const m = RACE.me; if (!m.lastR || now() - m.lastR > 2000) { m.lastR = now(); m.respawn(RACE.T); }
   }
+  if (MODE === 'race' && RACE.online && /^Digit[1-4]$/.test(e.code)) sendEmote(+e.code.slice(5) - 1);
   if (e.code === 'KeyM') { P.set.sound = P.set.sound ? 0 : 1; audioVol(); if (!P.set.sound) loopsOff(); saveProfile(); toast(P.set.sound ? 'Sound on' : 'Sound off'); }
 };
 
