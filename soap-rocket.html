@@ -2055,7 +2055,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040803";
+const ASSET_V = "202611040804";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -4717,7 +4717,9 @@ function showLobby() {
   if (MODE !== 'attract') setMode('attract');
   const host = NET.role === 'host', L = NET.lobby;
   const ps = [...NET.players.values()];
-  const plist = ps.map((p) => `<div class="pill" style="justify-content:flex-start"><span class="chip" style="background:${hex(barColor(cleanLoadout(p.lo)))}"></span>${esc(p.name)} ${p.host ? '<span class="tag">host</span>' : ''}${p.cid === NET.cid ? '<span class="tag" style="background:var(--pink);color:var(--ink)">you</span>' : ''}</div>`).join('');
+  makePartThumbs();
+  const plist = ps.map((p) => { const lo = cleanLoadout(p.lo); const th = THUMBS['bar:' + lo.bar];
+    return `<div class="pill" style="justify-content:flex-start;gap:8px">${th ? `<img src="${th}" alt="" style="width:54px;height:30px;object-fit:cover;border-radius:8px;border:2px solid var(--ink)">` : `<span class="chip" style="background:${hex(barColor(lo))}"></span>`}${esc(p.name)} ${p.host ? '<span class="tag">host</span>' : ''}${p.cid === NET.cid ? '<span class="tag" style="background:var(--pink);color:var(--ink)">you</span>' : ''}</div>`; }).join('');
   const t = TRACK_BY[L.track] || TRACKS[0];
   screen('lobby', `${topbar()}<div class="panel card"><header><h2>Room <span style="background:var(--lemon);border:4px solid var(--ink);border-radius:14px;padding:0 12px;box-shadow:0 4px 0 var(--ink)">${esc(NET.code)}</span></h2>
     ${host ? `<button class="btn big" data-act="lobbyStart" style="--c:var(--mint)">Start race</button>` : '<span class="tag" style="font-size:16px">Waiting for the host to start</span>'}
