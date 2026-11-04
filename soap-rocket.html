@@ -1938,7 +1938,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040709";
+const ASSET_V = "202611040711";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -3795,7 +3795,7 @@ function showResults(res) {
   hudHide();
   const rows = res.order.map((r) => `<tr class="${r === me ? 'me' : ''}"><td>${r.place}</td><td><span class="chip" style="background:${hex(r.color)}"></span>${esc(r.name)}${r.kind === 'net' ? ' <span class="tag">online</span>' : ''}</td><td>${r.projected ? '<span style="opacity:.6">still racing</span>' : fmtT(r.finishT)}</td><td>${isFinite(r.bestLap) ? 'best ' + fmtT(r.bestLap) : ''}</td></tr>`).join('');
   const rw = res.rewards.map(([l, v]) => `<div class="reward"><span>${esc(l)}</span><b>+${v}</b></div>`).join('');
-  let gpHtml = '', buttons = '';
+  let gpHtml = '', buttons = '', trophy = '';
   if (RACE.mode === 'gp' && GP.on) {
     const st = gpStandings();
     const done = GP.idx >= TRACKS.length;
@@ -3805,7 +3805,8 @@ function showResults(res) {
       const prize = { rinse: [240, 160, 100], lather: [300, 200, 120], scrub: [420, 280, 170] }[GP.diff][myPos - 1] || 0;
       const ck = GP.diff + (GP.rev ? '-r' : '');
       if (prize) { P.bubbles += prize; if (!P.cups[ck] || P.cups[ck] > myPos) P.cups[ck] = myPos; saveProfile(); }
-      gpHtml += `<div class="pop ${myPos === 1 ? 'c2' : 'c4'} sm" style="text-align:center;animation-delay:.4s">${myPos <= 3 ? ['🥇 GOLD CUP!', '🥈 SILVER CUP!', '🥉 BRONZE CUP!'][myPos - 1] + ' +' + prize : 'No trophy this time'}</div>`;
+      trophy = `<div class="pop ${myPos === 1 ? 'c2' : 'c4'} sm" style="text-align:center;animation-delay:.3s;margin:-4px 0 2px">${myPos <= 3 ? ['🥇 GOLD CUP!', '🥈 SILVER CUP!', '🥉 BRONZE CUP!'][myPos - 1] + ' +' + prize : 'No trophy this time'}</div>`;
+      if (myPos <= 3) { sfx('fanfare', 0.8); const A = PODIUM.at; if (A) FX.confetti(A.x, A.y + 3, A.z, 200); }
       GP.on = false;
       buttons = `<button class="btn" data-act="gp" style="--c:var(--lemon)">New cup</button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage</button><button class="btn ghost" data-act="title">Menu</button>`;
     } else buttons = `<button class="btn big" data-act="gpNext" style="--c:var(--mint)">Next race: ${TRACKS[GP.idx].name}${GP.rev ? ' Reverse' : ''}</button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage</button><button class="btn sm ghost" data-act="title">Quit cup</button>`;
@@ -3814,6 +3815,7 @@ function showResults(res) {
   } else buttons = `<button class="btn big" data-act="again" style="--c:var(--mint)">Race again <span class="k">ENTER</span></button><button class="btn" data-act="garage" style="--c:var(--sky)">Garage</button><button class="btn" data-act="quick" style="--c:var(--lemon)">Change track</button><button class="btn ghost" data-act="title">Menu</button>`;
   screen('results', `${topbar()}<div class="panel card res-panel">
     <header><h2>${me ? (me.place === 1 ? 'You win!' : ord(me.place) + ' place') : 'Race over'}</h2>${res.newBest ? '<span class="tag" style="background:var(--pink);color:var(--ink)">NEW BEST LAP</span>' : ''}</header>
+    ${trophy}
     <div class="scroll res-grid">
       <div><table class="res">${rows}</table></div>
       <div style="display:flex;flex-direction:column;gap:12px"><div class="card" style="padding:12px 14px;box-shadow:none"><h3 style="font-size:22px">Bubbles earned</h3>${rw}<div class="reward" style="border:0"><span>Total</span><b style="font-size:24px">+${res.total}</b></div></div>${gpHtml}</div>
