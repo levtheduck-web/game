@@ -163,6 +163,8 @@ table.res.trophy th{font-size:13px;text-transform:uppercase;letter-spacing:.04em
 #mSoap .t i{background:linear-gradient(#ffb3d6,var(--pink))}
 #mBoost .t i{background:linear-gradient(#ffe48a,#ff9a3c)}
 #mBoost.full{animation:pulse .7s ease-in-out infinite alternate}
+#mBoost.charging{box-shadow:0 5px 0 var(--ink),0 0 0 4px #8ee8c8,0 0 18px 4px rgba(142,232,200,.9)}
+#mBoost.charging .k{background:#15935f}
 #mSuds .t i{background:linear-gradient(#ffffff,#bfe6ff)}
 @keyframes pulse{to{transform:translateY(-3px) rotate(-1.5deg)}}
 #hDrops{position:absolute;inset:0;overflow:hidden}
@@ -4071,6 +4073,8 @@ function hudUpdate() {
   if (L.soap !== soapPct) { $('mSoap').querySelector('i').style.width = soapPct + '%'; $('mSoapN').textContent = Math.round(me.size * 100) + '%'; L.soap = soapPct; }
   const bp = Math.round(me.boost);
   if (L.boost !== bp) { $('mBoost').querySelector('i').style.width = bp + '%'; $('mBoost').classList.toggle('full', bp >= 99); L.boost = bp; }
+  const chg = me.draft > 0 && me.speed > 4 ? 'SLIPSTREAM' : (me.slideT > 0.15 && !me.air ? 'SLIDE' : '');
+  if (L.chg !== chg) { L.chg = chg; const mb = $('mBoost'); mb.classList.toggle('charging', !!chg && bp < 99); $('kBoost').textContent = chg || (document.body.classList.contains('touch') ? 'BOOST' : 'SPACE'); }
   const sp = Math.round((1 - clamp(me.sudsCd / CFG.sudsCd, 0, 1)) * 100);
   if (L.suds !== sp) { $('mSuds').querySelector('i').style.width = sp + '%'; L.suds = sp; }
   // Board.
