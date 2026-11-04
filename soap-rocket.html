@@ -1912,7 +1912,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040638";
+const ASSET_V = "202611040639";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -3054,12 +3054,18 @@ function readControls(r, dt) {
 // throttle, boost or slide. If the sprite can't load, the game stays silent.
 // ---------------------------------------------------------------------------
 const SFXMAP = {"squeak1":[0.1,0.36,0],"squeak2":[0.71,0.42,0],"squeak3":[1.38,0.31,0],"duck":[1.94,0.34,0],"duck2":[2.53,0.31,0],"honk":[3.09,1.3,0],"thud1":[4.64,0.3,0],"thud2":[5.19,0.34,0],"knock":[5.78,0.26,0],"glass":[6.29,0.31,0],"bump":[6.85,0.4,0],"splash":[7.5,0.66,0],"splashBig":[8.41,1.64,0],"drip":[10.3,0.29,0],"pop1":[10.84,0.11,0],"pop2":[11.2,0.11,0],"pop3":[11.56,0.12,0],"suds":[11.93,0.76,0],"gurgle":[12.94,1.84,0],"whoosh":[15.03,0.46,0],"ignite":[15.74,0.36,0],"chime":[16.35,0.89,0],"fanfare":[17.49,2.44,0],"coin":[20.18,0.33,0],"click":[20.76,0.1,0],"hover":[21.11,0.08,0],"equip":[21.44,0.28,0],"whistle":[21.97,0.54,0],"thrust":[22.86,2.2,1],"boost":[25.51,2.6,1],"slide":[28.56,1.55,1]};
+// Per-clip trims measured offline so quiet recordings sit level with the rest.
+const SFX_GAIN = { knock: 1.9, glass: 1.7, thud1: 1.6, drip: 1.6, pop1: 1.5, pop2: 1.5, pop3: 1.5, click: 1.3, hover: 1.2, bump: 1.25, splashBig: 1.3 };
 const AU = { ctx: null, buf: null, out: null, ok: false, loops: {}, tried: false, last: {} };
 function audioUnlock() {
   if (MUTE) return;
   if (!AU.ctx) {
     try { AU.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
-    AU.out = AU.ctx.createGain(); AU.out.gain.value = P.set.sound ? P.set.vol : 0; AU.out.connect(AU.ctx.destination);
+    AU.out = AU.ctx.createGain(); AU.out.gain.value = P.set.sound ? P.set.vol : 0;
+    // A gentle compressor so a pile-up of bumps, squeaks and boost never clips.
+    const comp = AU.ctx.createDynamicsCompressor();
+    comp.threshold.value = -12; comp.knee.value = 8; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.18;
+    AU.out.connect(comp); comp.connect(AU.ctx.destination);
   }
   if (AU.ctx.state === 'suspended') AU.ctx.resume();
   if (!AU.tried && Object.keys(SFXMAP).length) {
@@ -3078,7 +3084,8 @@ function sfx(name, vol = 1, rate = 1, pan = 0) {
   if (AU.last[name] && now - AU.last[name] < 0.035) return;
   AU.last[name] = now;
   const src = AU.ctx.createBufferSource(); src.buffer = AU.buf; src.playbackRate.value = rate;
-  const g = AU.ctx.createGain(); g.gain.value = clamp(vol, 0, 1.5);
+  const key = Object.keys(SFXMAP).find((k) => SFXMAP[k] === m) || name;
+  const g = AU.ctx.createGain(); g.gain.value = clamp(vol * (SFX_GAIN[key] || 1), 0, 2);
   let node = g;
   if (pan && AU.ctx.createStereoPanner) { const p = AU.ctx.createStereoPanner(); p.pan.value = clamp(pan, -1, 1); g.connect(p); node = p; }
   src.connect(g); node.connect(AU.out);
