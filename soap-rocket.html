@@ -208,12 +208,11 @@ body.touch #hMap{width:104px;top:58px;right:10px}
 #rotate .big{font-family:var(--head);font-size:34px}
 @media (orientation:portrait) and (max-width:700px){ body.racing #rotate{display:flex} }
 #fps{position:fixed;right:8px;bottom:6px;z-index:70;font:700 12px var(--font);background:#fff;border:2px solid var(--ink);border-radius:8px;padding:1px 6px}
+@media (pointer:coarse){ .topbar{right:225px} }
+@media (max-width:600px){ .topbar{top:54px;left:12px;right:12px} .topbar [data-act=quitArcade]{display:none} #s-garage>.panel{margin-top:104px!important;max-height:calc(54vh - 110px)!important} .panel{margin-top:100px} }
 @media (max-width:760px){ .panel{padding:16px 14px} .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))} #hBoard{display:none} #hMap{width:120px} .meter{width:118px} }
-@media (max-height:520px){ #hPos.bump{animation:posUp .45s cubic-bezier(.2,1.8,.4,1)}
-#hPos.bumpd{animation:posDn .35s ease-out}
-@keyframes posUp{0%{transform:rotate(-3deg) scale(1.35)}100%{transform:rotate(-3deg) scale(1)}}
-@keyframes posDn{0%{transform:rotate(-3deg) translateY(6px);filter:saturate(.3)}100%{transform:rotate(-3deg)}}
-#hPos b{font-size:40px} #hLap{top:76px} #hTime{top:118px} #hBoard{top:170px} }
+@media (max-height:520px){ #hPos b{font-size:40px} #hLap{top:76px} #hTime{top:118px} #hCoins{top:118px} #hBoard{top:170px}
+  #s-title .col{padding-top:62px;padding-bottom:14px;gap:10px} .logo{font-size:clamp(44px,8.4vw,96px)} .logo small{margin-top:10px} }
 </style>
 <script type="importmap">
 {"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
@@ -1919,7 +1918,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040700";
+const ASSET_V = "202611040702";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
