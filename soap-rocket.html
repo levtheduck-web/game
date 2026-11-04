@@ -255,6 +255,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import * as BGU from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -1169,6 +1170,7 @@ function setupPost() {
   if (Q.bloom) { bloomPass = new UnrealBloomPass(new THREE.Vector2(w / 2, h / 2), 0.38, 0.42, 1.1); composer.addPass(bloomPass); }
   composer.addPass(new OutputPass());
   gradePass = new ShaderPass(GradeShader); composer.addPass(gradePass);
+  if (!Q.msaa) { const fx = new ShaderPass(FXAAShader); fx.uniforms.resolution.value.set(1 / (w * pr), 1 / (h * pr)); composer.addPass(fx); }
   sun.shadow.mapSize.set(Q.shadow, Q.shadow);
   if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
   if (MIRROR.rt) { MIRROR.rt.dispose(); MIRROR.rt = null; }
@@ -1912,7 +1914,7 @@ function buildWorld(T) {
 // Soap models: the user's soap_rocket.glb split into parts and rebuilt per
 // loadout (bar shape and colour, rocket layout), at three detail levels.
 // ---------------------------------------------------------------------------
-const ASSET_V = "202611040639";
+const ASSET_V = "202611040641";
 const LODS = { hi: 'models/soap-rocket-hi.glb', mid: 'models/soap-rocket-mid.glb', lo: 'models/soap-rocket-lo.glb' };
 const SRC = {};          // lod -> { bar, logo, suds, booster, flame, brackets, rightM, leftM, flameM, box }
 let MODELS_OK = false;
@@ -3186,6 +3188,7 @@ function raceSetup(opts) {
   RACE.racers.forEach((r) => { r.place = r.slot + 1; });
   RACE.sorted = [...RACE.racers].sort((a, b) => a.slot - b.slot);
   pickupsBuild(T);
+  ghostSetup();
   if (RACE.me) { camSnap(RACE.me); CAM.orbit = 0; }
   else if (RACE.racers[0]) camSnap(RACE.racers[0]);
   for (const r of RACE.racers) r.lapStart = 0;
@@ -3274,6 +3277,7 @@ function raceStep(dt) {
 function onLap(r) {
   if (r.lap <= 0) return;
   const lt = RACE.t - r.lapStart; r.lapStart = RACE.t; r.lapTimes.push(lt); r.bestLap = Math.min(r.bestLap, lt);
+  if (r === RACE.me && !RACE.attract) ghostLap(lt);
   if (r.lap >= RACE.laps && !r.finished) {
     r.finished = true; r.finishT = RACE.t; RACE.finishOrder.push(r);
     if (r === RACE.me) {
@@ -3547,6 +3551,72 @@ function podiumCam(dt) {
   if (Math.random() < dt * 0.9) FX.confetti(A.x + (Math.random() - 0.5) * 4, A.y + 4, A.z + (Math.random() - 0.5) * 3, 40);
 }
 
+// ==== 12b-ghost.js ====
+// ---------------------------------------------------------------------------
+// Ghost laps: your best lap on each track is recorded (15 samples a second)
+// and replayed as a see-through soap when you race alone.
+// ---------------------------------------------------------------------------
+const GHOST = { rec: [], recT: 0, play: null, view: null, mat: null, tag: null };
+const GHOST_HZ = 15;
+const ghostKey = (id) => 'soaprocket.ghost.' + id;
+function ghostLoad(id) { try { const g = JSON.parse(localStorage.getItem(ghostKey(id)) || 'null'); return g && g.s && g.s.length > 20 ? g : null; } catch (e) { return null; } }
+function ghostSave(id, lapTime, samples, lo) {
+  if (SMOKE || samples.length < 20) return;
+  try { localStorage.setItem(ghostKey(id), JSON.stringify({ t: lapTime, lo, s: samples })); } catch (e) { /* storage full */ }
+}
+function ghostClear() {
+  if (GHOST.view) scene.remove(GHOST.view.root);
+  GHOST.view = null; GHOST.play = null; GHOST.rec = []; GHOST.recT = 0;
+}
+// Called from raceSetup.
+function ghostSetup() {
+  ghostClear();
+  if (!RACE.me || RACE.online || RACE.attract || RACE.racers.length !== 1) return;
+  const g = ghostLoad(RACE.trackId); if (!g) return;
+  GHOST.play = g;
+  const v = new SoapView(cleanLoadout(g.lo), 'mid');
+  if (!GHOST.mat) { GHOST.mat = new THREE.MeshBasicMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.38, depthWrite: false }); GHOST.mat.userData.keep = true; }
+  v.root.traverse((o) => { if (o.isMesh) { if (o.userData.outline) o.visible = false; else o.material = GHOST.mat; o.castShadow = false; } });
+  v.root.visible = false;
+  scene.add(v.root); GHOST.view = v;
+  HIDE_IN_MIRROR.push(v.root);
+}
+// Record the player and drive the ghost (once per frame).
+const _gf = { x: 0, y: 0, z: 0, yaw: 0, gnx: 0, gnz: 0, accLong: 0, lean: 0, land: 0, vis: 1, thr: 0.4, brk: 0, boosting: false, alive: true };
+function ghostFrame(dt, t) {
+  const me = RACE.me;
+  if (!me || RACE.attract) return;
+  const racing = RACE.phase === 'race' && !me.finished;
+  if (racing) {
+    GHOST.recT += dt;
+    while (GHOST.recT >= 1 / GHOST_HZ) {
+      GHOST.recT -= 1 / GHOST_HZ;
+      GHOST.rec.push([Math.round(me.x * 100) / 100, Math.round(me.z * 100) / 100, Math.round(me.y * 100) / 100, Math.round(me.yaw * 1000) / 1000, Math.round(me.vis * 100) / 100, me.boosting ? 1 : 0]);
+    }
+  }
+  const v = GHOST.view, g = GHOST.play;
+  if (!v || !g) return;
+  const tl = RACE.t - me.lapStart;
+  const fi = tl * GHOST_HZ, i = Math.floor(fi), f = fi - i;
+  if (!racing || i < 0 || i >= g.s.length - 1) { v.root.visible = false; return; }
+  const a = g.s[i], b = g.s[i + 1];
+  _gf.x = lerp(a[0], b[0], f); _gf.z = lerp(a[1], b[1], f); _gf.y = lerp(a[2], b[2], f);
+  _gf.yaw = a[3] + wrapA(b[3] - a[3]) * f; _gf.vis = a[4]; _gf.boosting = !!a[5];
+  v.sync(_gf, dt, t);
+  // Fade the ghost when you're right on top of it.
+  const d = Math.hypot(_gf.x - me.x, _gf.z - me.z);
+  GHOST.mat.opacity = 0.38 * clamp((d - 0.6) / 2, 0.15, 1);
+  v.root.visible = true;
+}
+// A lap just finished: keep it if it beat the stored best, and show the gap.
+function ghostLap(lapTime) {
+  const id = RACE.trackId;
+  const prev = GHOST.play ? GHOST.play.t : (ghostLoad(id) || {}).t;
+  if (prev && isFinite(prev)) { const dlt = lapTime - prev; feed((dlt <= 0 ? '−' : '+') + Math.abs(dlt).toFixed(2) + 's vs your ghost'); }
+  if (!prev || lapTime < prev) { ghostSave(id, lapTime, GHOST.rec, RACE.me.lo); if (prev) feed('New ghost saved!'); }
+  GHOST.rec = []; GHOST.recT = 0;
+}
+
 // ==== 13-ui.js ====
 // ---------------------------------------------------------------------------
 // Screens and HUD.
@@ -3621,7 +3691,7 @@ function showQuick() {
     <div class="scroll"><div class="grid">${trackCards(q.track, 'pickTrack', q.rev)}</div></div>
     <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center">
       <label class="opt">Laps ${seg('laps', [[2, '2'], [3, '3'], [5, '5']], q.laps)}</label>
-      <label class="opt">Racers ${seg('cpus', [[0, 'Just me'], [3, '4'], [5, '6'], [7, '8']], q.cpus)}</label>
+      <label class="opt">Racers ${seg('cpus', [[0, 'Me vs my ghost'], [3, '4'], [5, '6'], [7, '8']], q.cpus)}</label>
       <label class="opt">CPU ${seg('diff', [['rinse', 'Rinse'], ['lather', 'Lather'], ['scrub', 'Scrub']], q.diff)}</label>
       <label class="opt">Direction ${seg('rev', [[0, 'Normal'], [1, 'Reverse']], q.rev)}</label>
     </div></div>`, 'veil');
@@ -4321,6 +4391,7 @@ function frame() {
   netInterp(); netTick(dt); netCpuFinishes();
   handleEvents();
   racersVisual(dt, T);
+  ghostFrame(dt, T);
   FX.update(dt, T);
   pickupsUpdate(dt, T);
   // Camera.
@@ -4386,7 +4457,7 @@ boot();
 // ---------------------------------------------------------------------------
 // Self-tests (#smoke) and a debug hook (#debug -> window.__SR).
 // ---------------------------------------------------------------------------
-if (DEBUG || SMOKE) window.__SR = { CpuDriver, tryDropSuds, __raceStep: (dt) => { raceStep(dt); handleEvents(); }, RACE, P, CFG, TRACKS, getTrack, startRace, showTitle, showGarage, showQuick, showResults, setQuality, CAM, Racer, SUDS, FX, WORLD, NET, netConnect, netHostStart, ACT, statsFor, displayStats, BARS, ROCKETS, MODS, UI, INPUT, KEYS, setMode, camera, renderer, scene, get MODE() { return MODE; } };
+if (DEBUG || SMOKE) window.__SR = { GHOST, ghostLoad, CpuDriver, tryDropSuds, __raceStep: (dt) => { raceStep(dt); handleEvents(); }, RACE, P, CFG, TRACKS, getTrack, startRace, showTitle, showGarage, showQuick, showResults, setQuality, CAM, Racer, SUDS, FX, WORLD, NET, netConnect, netHostStart, ACT, statsFor, displayStats, BARS, ROCKETS, MODS, UI, INPUT, KEYS, setMode, camera, renderer, scene, get MODE() { return MODE; } };
 
 // Drive one racer with fixed inputs on a fresh track and report what happened.
 function simRun(trackId, setup, secs, ctrl) {
