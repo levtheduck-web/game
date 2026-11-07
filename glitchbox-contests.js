@@ -28,7 +28,7 @@
   const isOwner = () => typeof lastState !== 'undefined' && lastState && !!lastState.isOwner;
   const PLACES = ['🥇', '🥈', '🥉', '4th', '5th'];
   // Games that report a score with GLITCHBOX.score(); `low` = lower is better.
-  const SCORE_GAMES = [{ file: 'neon-putt.html', low: true, unit: 'strokes' }, { file: 'haymaker.html', unit: 'survival wins in a row' }, { file: 'frontline.html', unit: "days of today's orders in a row" }, { file: 'rocket-roadster.html', low: true, unit: 'seconds to the summit' }];
+  const SCORE_GAMES = [{ file: 'neon-putt.html', low: true, unit: 'strokes' }, { file: 'haymaker.html', unit: 'survival wins in a row' }, { file: 'frontline.html', unit: "days of today's orders in a row" }, { file: 'rocket-roadster.html', low: true, unit: 'seconds to the summit' }, { file: 'mog-academy.html', low: true, unit: 'periods to ascend' }];
   const scoreInfo = f => SCORE_GAMES.find(g => g.file === f) || {};
 
   let data = { live: [], past: [] }, skew = 0, open = false, busy = false, form = false;
