@@ -102,6 +102,10 @@ a.quit:hover{color:var(--gold)}
 .look-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:1}
 .look-btns button{min-height:40px;border-radius:9px;background:var(--cream2);color:var(--ink);font-size:14px;letter-spacing:.06em;box-shadow:0 3px 0 var(--cream3)}
 .look-btns button:active{transform:translateY(2px);box-shadow:none}
+.closet{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:8px}
+.ci{display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 6px;border-radius:9px;background:var(--cream2);color:var(--ink3);text-align:center}
+.ci .e{font-size:22px;filter:grayscale(1);opacity:.6}.ci b{font-family:var(--hd);font-size:12px;color:var(--ink2)}.ci small{font-size:11.5px;line-height:1.2}
+.ci.got{background:#fff5d6;color:var(--ink);box-shadow:0 0 0 2px var(--gold) inset}.ci.got .e{filter:none;opacity:1}.ci.got b{color:var(--maroon)}
 
 /* ── LOBBY ── */
 .codebig{font-family:var(--hd);font-size:46px;letter-spacing:.2em;color:var(--maroon);text-align:center;line-height:1}
@@ -262,7 +266,12 @@ a.quit:hover{color:var(--gold)}
   .mv .e{font-size:20px}.mv small{display:none}.mv{padding:5px 2px}
   .callrow{margin-bottom:4px}.callrow button{height:28px}
   .ring{width:48px;height:48px}.ring .t{font-size:17px}
+  .plate{padding:4px 8px 5px}.plate .nm{font-size:13px}.abar{height:12px;margin-top:4px}.aline{margin-top:2px;font-size:11px}.pips i{width:14px;height:14px}
+  .caption{top:2%}.caption .c1{font-size:20px}.caption .c2{font-size:13px}.beatno,.hype{font-size:10px}
+  .controls{padding-top:2px}.hint{display:none}
 }
+/* phones and tablets show the arcade's MENU + SAVE as wide pills in the top-left corner: keep our HUD clear of them */
+@media (pointer:coarse) and (min-aspect-ratio:1/1){.hud{padding-left:188px}#s-mini .mhud,#s-mini .tbar{left:188px}}
 
 /* ── MINIGAME ── */
 #s-mini.on{display:block;overflow:hidden}
@@ -548,7 +557,9 @@ const SKIN=[['#ffe1cb','#ebbd9e'],['#f4c9a0','#d9a477'],['#e2ad77','#c08856'],['
 const HAIRC=['#211c1e','#4a2c18','#8a5a2b','#e6b64e','#c0542e','#ece5d3','#2f52c8','#e0559a'];
 const TOPC=['#7d1b33','#d23c3c','#1f8a4c','#7a3fc2','#f2a33a','#26282e','#9aa3ad','#2a62c9','#e86aa8','#f4efe2'];
 const HAIRN=['BUZZ','CROP','SLICK','CURLS','LONG','BUN','MULLET','BOWL','BALD','QUIFF'];
-const ACCN=['NONE','HEADBAND','CAP','SHADES UP','EARRING','GLASSES'];
+const ACCN=['NONE','HEADBAND','CAP','SHADES UP','EARRING','GLASSES','HEADPHONES','CROWN','DRIP SHADES'];
+const FITN={'-1':'AUTO','0':'TEE','1':'HOODIE','2':'VARSITY','3':'LEATHER','4':'FUR COAT','5':'TANK TOP','6':'TURTLENECK'};
+const FXN={'':'NONE',eyes:'HUNTER EYES',jaw:'JAW GLINT',aura:'AURA GLOW'};
 const TIERN=['TEE','HOODIE','VARSITY','LEATHER','FUR COAT','TANK TOP','TURTLENECK'];
 const INK='#1f1a1d';
 let OUT=0,OUTC='#fffaf0';
@@ -556,16 +567,17 @@ const dk=(hex,k)=>{const n=parseInt(hex.slice(1),16);let r=n>>16,g=n>>8&255,b=n&
 function fp(c,col,lw){if(OUT){c.fillStyle=c.strokeStyle=OUTC;c.lineWidth=OUT+(lw||3.2);c.lineJoin='round';c.lineCap='round';c.fill();c.stroke();return}
   c.fillStyle=col;c.fill();if(lw!==0){c.strokeStyle=INK;c.lineWidth=lw||3.2;c.lineJoin='round';c.lineCap='round';c.stroke()}}
 function sp2(c,col,w){if(OUT){c.strokeStyle=OUTC;c.lineWidth=w+OUT;c.lineCap='round';c.lineJoin='round';c.stroke();return}c.strokeStyle=col;c.lineWidth=w;c.lineCap='round';c.lineJoin='round';c.stroke()}
-const tierOf=(look,st)=>look.tier!=null&&look.tier>=0?look.tier:(st.drip<20?0:st.drip<40?1:st.drip<60?2:st.drip<80?3:4);
+// rivals wear a fixed fit; students wear the one they picked in the closet, or AUTO (it glows up with DRIP)
+const tierOf=(look,st)=>look.tier!=null&&look.tier>=0?look.tier:look.fit!=null&&look.fit>=0?look.fit:(st.drip<20?0:st.drip<40?1:st.drip<60?2:st.drip<80?3:4);
 // stats -> body shape. chad (0..1) morphs anyone toward the ascended form.
 function shapeOf(look,st,chad){chad=chad||0;const s=k=>clamp((st[k]||0)/100,0,1);
   return{J:clamp(s('jaw')*.95+chad*.55,0,1.15),F:clamp(s('flex')*.95+chad*.5,0,1.15),E:look.eye!=null&&look.eye>=0?clamp(look.eye/3+chad*.3,0,1.1):clamp(s('stare')+chad*.5,0,1.1),
-    T:tierOf(look,st),A:clamp(s('aura')+chad,0,1.5),chain:(look.tier==null||look.tier<0)?st.drip>=55:(look.tier===3||look.tier===4)}}
+    T:tierOf(look,st),A:clamp(s('aura')+chad,0,1.5),chain:(look.tier==null||look.tier<0)?(st.drip>=55||!!look.chain):(look.tier===3||look.tier===4)}}
 
 function drawStudent(c,P){
   // P: {look, st, pose, k, t, x, y, s, face, chad, hurt, mono, glow, blink}
   const look=P.look||{},st=P.st||{},S=shapeOf(look,st,P.chad),k=P.k||0,t=P.t||0,pose=P.pose||'idle';
-  const sk=SKIN[look.skin|0]||SKIN[0],hc=HAIRC[look.hc|0]||HAIRC[0],tc=TOPC[look.top|0]||TOPC[0];
+  const sk=SKIN[look.skin|0]||SKIN[0],hc=HAIRC[look.hc|0]||HAIRC[0],tc=TOPC[look.top|0]||TOPC[0],glow0=P.glow||(look.fx==='aura'?'rgba(255,207,46,.6)':null);
   c.save();c.translate(P.x,P.y);c.scale((P.s||1)*(P.face||1),P.s||1);
   const breathe=Math.sin(t*2.1)*1.6, hurt=P.hurt||0;
   c.translate(-hurt*18,breathe*.4+hurt*6);
@@ -581,7 +593,7 @@ function drawStudent(c,P){
   // the whole figure is drawn twice: sticker border then the real thing
   for(const pass of [1,0]){
     if(pass){if(P.noBorder)continue;OUT=P.border||13;OUTC=P.borderC||'#fffaf0'}else OUT=0;
-    if(pass&&P.glow){c.shadowColor=P.glow;c.shadowBlur=P.glowB||30}
+    if(pass&&glow0){c.shadowColor=glow0;c.shadowBlur=P.glowB||(P.glow?30:22)}
     if(look.hair===4||look.hair===6)hairBack(c,W);
     torso(c,W);
     c.save();c.translate(hx,hy);c.translate(0,34);c.rotate(hr);c.scale(1.1,1.1);c.translate(0,-38);
@@ -637,7 +649,10 @@ function torso(c,W){const{S,tc,sk}=W,F=S.F,T=S.T;
 }
 const neckP=(c,F)=>{c.beginPath();c.moveTo(-34-F*6,8);c.lineTo(-38-F*7,64);c.lineTo(28+F*7,64);c.lineTo(22+F*6,22);c.closePath()};
 function neck(c,W){const{S,sk}=W,F=S.F;neckP(c,F);fp(c,sk[0]);
-  if(OUT)return;c.save();neckP(c,F);c.clip();c.fillStyle=sk[1];c.fillRect(-64,0,42,70);c.restore()}
+  if(!OUT){c.save();neckP(c,F);c.clip();c.fillStyle=sk[1];c.fillRect(-64,0,42,70);c.restore()}
+  // a turtleneck wraps up over the neck
+  if(S.T===6){c.beginPath();c.moveTo(-38-F*7,30);c.quadraticCurveTo(-6,22,26+F*7,34);c.lineTo(29+F*7,66);c.quadraticCurveTo(-6,76,-40-F*7,64);c.closePath();fp(c,dk(W.tc,.85),3);
+    if(!OUT){c.strokeStyle='rgba(0,0,0,.25)';c.lineWidth=2;for(let i=0;i<3;i++){c.beginPath();c.moveTo(-38-F*7,38+i*9);c.quadraticCurveTo(-6,32+i*9,27+F*7,42+i*9);c.stroke()}}}}
 function jawPts(S){const J=S.J;return{cx:39+J*11,cy:45+J*10,jx:-4-J*11,jy:22+J*22}}
 function headSil(c,S,open){const p=jawPts(S),J=S.J,nose=0;
   c.beginPath();
@@ -655,14 +670,15 @@ function headSil(c,S,open){const p=jawPts(S),J=S.J,nose=0;
   c.lineTo(-34,26);c.closePath()}
 function head(c,W){const{S,sk,hc,k,pose,look,t}=W,p=jawPts(S),J=S.J;
   headSil(c,S,false);
-  if(OUT){fp(c,'#fff');hairFront(c,W);return}
+  if(OUT){fp(c,'#fff');hairFront(c,W);acc(c,W);return}
   c.fillStyle=sk[0];c.fill();
   // shading: back of the head and under the cheekbone
   c.save();headSil(c,S,false);c.clip();
   c.fillStyle=sk[1];c.beginPath();c.ellipse(-40,-10,30,56,.1,0,6.3);c.fill();
   c.globalAlpha=.55;c.beginPath();c.moveTo(p.jx,p.jy);c.quadraticCurveTo(14,12+J*6,p.cx-8,p.cy-6);c.lineTo(p.cx-8,p.cy+4);c.lineTo(p.jx,p.jy+6);c.closePath();c.fill();c.globalAlpha=1;
   // the jawline glints when you MEW
-  if(pose==='mew'&&k>.1){c.strokeStyle=`rgba(120,255,190,${.9*k})`;c.lineWidth=5;c.beginPath();c.moveTo(p.cx-4,p.cy);c.bezierCurveTo(p.cx-24,p.cy+1,p.jx+16,p.jy+3,p.jx,p.jy);c.quadraticCurveTo(p.jx-3,p.jy-12,-12,8);c.stroke()}
+  const jg=pose==='mew'&&k>.1?k:look.fx==='jaw'?.6:0;
+  if(jg>0){c.strokeStyle=`rgba(120,255,190,${.9*jg})`;c.lineWidth=5;c.beginPath();c.moveTo(p.cx-4,p.cy);c.bezierCurveTo(p.cx-24,p.cy+1,p.jx+16,p.jy+3,p.jx,p.jy);c.quadraticCurveTo(p.jx-3,p.jy-12,-12,8);c.stroke()}
   c.restore();
   headSil(c,S,true);c.strokeStyle=INK;c.lineWidth=3.4;c.lineJoin='round';c.stroke();
   c.beginPath();c.moveTo(-34,26);c.bezierCurveTo(-58,4,-58,-58,-8,-71);c.stroke();
@@ -675,7 +691,7 @@ function head(c,W){const{S,sk,hc,k,pose,look,t}=W,p=jawPts(S),J=S.J;
   if(pose==='mew'&&k>.3){c.beginPath();c.moveTo(p.jx+8,p.jy-14);c.lineTo(p.jx+12,p.jy-4);c.moveTo(p.jx+14,p.jy-16);c.lineTo(p.jx+18,p.jy-6);c.stroke()}
   eye(c,W);mouth(c,W);
   hairFront(c,W);acc(c,W);
-  if(pose==='drip'&&k>0||W.P.shades)shades(c,W,pose==='drip'?k:1);
+  if(pose==='drip'&&k>0||W.P.shades||look.acc===8)shades(c,W,pose==='drip'&&look.acc!==8?k:1);
   if(look.acc===5&&!(pose==='drip'&&k>.5))glasses(c);
   // sweat when it's going badly
   if(W.hurt>.2||pose==='hurt'){c.fillStyle='#bfe8ff';c.strokeStyle=INK;c.lineWidth=2;for(const [x,y,s] of [[38,-46,1],[-30,-40,.8]]){c.beginPath();c.moveTo(x,y-9*s);c.quadraticCurveTo(x+6*s,y,x,y+4*s);c.quadraticCurveTo(x-6*s,y,x,y-9*s);c.fill();c.stroke()}}
@@ -690,7 +706,7 @@ function eye(c,W){const{S,pose,k,t,P}=W;let E=S.E;
   c.beginPath();c.moveTo(ex-ew*.5,ey-tilt*.5);c.quadraticCurveTo(ex,ey-eh*1.15,ex+ew*.55,ey+tilt*.2);c.quadraticCurveTo(ex+2,ey+eh*.75,ex-ew*.5,ey-tilt*.5);
   c.fillStyle='#fff';c.fill();
   c.save();c.clip();
-  const glow=pose==='stare'&&k>.2;
+  const glow=pose==='stare'&&k>.2||W.look.fx==='eyes';
   c.fillStyle=glow?'#21b3e0':'#3b2a22';c.beginPath();c.arc(ex+4,ey+.5,lerp(4.4,3.8,clamp(E,0,1)),0,6.3);c.fill();
   c.fillStyle='#000';c.beginPath();c.arc(ex+4.6,ey+.6,2,0,6.3);c.fill();
   c.fillStyle='#fff';c.beginPath();c.arc(ex+3,ey-1.6,1.2,0,6.3);c.fill();
@@ -735,6 +751,11 @@ function hairFront(c,W){const{look,hc,t,pose,k}=W,h=look.hair|0;const wind=(pose
   if(h===0&&!OUT){c.fillStyle='rgba(0,0,0,.18)';for(let i=0;i<26;i++){const a=-.3-i/26*2.6;c.fillRect(Math.cos(a)*44-8,Math.sin(a)*52-20,2,2)}}
 }
 function acc(c,W){const a=W.look.acc|0;
+  if(a===6){c.beginPath();c.moveTo(-14,-8);c.bezierCurveTo(-42,-76,18,-106,38,-60);sp2(c,'#2b2b33',8);if(!OUT){c.strokeStyle='#5a5a66';c.lineWidth=2.5;c.stroke()}
+    c.beginPath();c.roundRect(-27,-19,23,36,10);fp(c,'#2b2b33',3);if(!OUT){c.fillStyle=TOPC[W.look.top|0]||'#d23c3c';c.beginPath();c.roundRect(-23,-13,15,24,6);c.fill()}}
+  if(a===7){const hy=W.look.hair===9?-102:W.look.hair===3||W.look.hair===1||W.look.hair===6?-92:-84;c.save();c.translate(4,hy);c.rotate(-.14);
+    c.beginPath();c.moveTo(-26,10);c.lineTo(-26,-8);c.lineTo(-13,2);c.lineTo(0,-17);c.lineTo(13,2);c.lineTo(26,-8);c.lineTo(26,10);c.closePath();fp(c,'#ffcf2e',3);
+    if(!OUT){for(const [x,y,col,r] of [[0,-17,'#d23c3c',3.6],[-26,-8,'#2a62c9',2.8],[26,-8,'#2a62c9',2.8],[0,4,'#1f8a4c',3]]){c.fillStyle=col;c.beginPath();c.arc(x,y,r,0,6.3);c.fill()}c.fillStyle='rgba(255,255,255,.5)';c.fillRect(-20,-1,10,2.5)}c.restore()}
   if(a===1){c.beginPath();c.moveTo(46,-44);c.bezierCurveTo(10,-64,-40,-60,-60,-26);c.lineTo(-58,-16);c.bezierCurveTo(-38,-48,10,-52,46,-34);c.closePath();fp(c,'#fffaf0',2.6);
     if(!OUT){c.strokeStyle='#d23c3c';c.lineWidth=2.4;c.beginPath();c.moveTo(44,-39);c.bezierCurveTo(10,-57,-38,-54,-59,-21);c.stroke()}}
   if(a===2){c.beginPath();c.moveTo(40,-40);c.bezierCurveTo(40,-90,-50,-92,-58,-30);c.lineTo(40,-40);fp(c,dk(W.tc,.9),3);c.beginPath();c.moveTo(-50,-34);c.quadraticCurveTo(-76,-38,-92,-26);c.quadraticCurveTo(-74,-24,-56,-24);c.closePath();fp(c,dk(W.tc,.7),3)}
@@ -1028,7 +1049,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(
 // ════════ TITLE ════════
 let titleT0=now();
 ENTER['s-title']=()=>{
-  const car=LS.get('career',null),cont=car&&!car.asc?`📚 CONTINUE<span class="sub">DAY ${car.day} · ${RANKS[rankOf(car)]}</span>`:car&&car.asc?`👑 ASCENDED<span class="sub">YEARBOOK · NEW SEMESTER</span>`:`📚 ENROLL<span class="sub">SOLO: TRAIN AND CLIMB THE LADDER</span>`;
+  const car=LS.get('career',null),cont=car&&!car.asc?`📚 CONTINUE<span class="sub">DAY ${car.day} · ${RANKS[rankOf(car)]}</span>`:car&&car.asc?(car.senior?`👑 SENIOR YEAR<span class="sub">CROWN DEFENDED ${car.def|0} IN A ROW · BEST ${car.defBest|0}</span>`:`👑 ASCENDED<span class="sub">YEARBOOK · DEFEND THE CROWN</span>`):`📚 ENROLL<span class="sub">SOLO: TRAIN AND CLIMB THE LADDER</span>`;
   $('tmenu').innerHTML=`<div class="tagline">from NPC to CHAD. one mog at a time.</div>
    <button class="btn gold big" data-act="friends">🎓 PLAY WITH FRIENDS<span class="sub">2 TO 8 PLAYERS · ONLINE ROOM</span></button>
    <button class="btn" data-act="career">${cont}</button>
@@ -1052,21 +1073,54 @@ function titleDraw(t){const cv=$('title-cv');if(!cv||SCREEN!=='s-title')return;c
 // ════════ LOOK EDITOR ════════
 let CREATE={ret:'s-title',mode:'edit',look:null,name:''};
 function openCreate(ret,mode){CREATE={ret,mode,look:Object.assign({},PROF.look),name:PROF.name||''};show('s-create')}
-ENTER['s-create']=()=>{const C=CREATE;
-  $('create-w').innerHTML=`<div class="card" style="--rot:-.4deg;max-width:640px;margin:20px auto">
+// ── the drip closet: fits, extras and effects you earn by mogging people ──
+const DRIP=[
+ {id:'headphones',k:'acc',v:6,n:'HEADPHONES',e:'🎧',from:'nathan'},
+ {id:'tank',k:'fit',v:5,n:'TANK TOP',e:'🎽',from:'gary'},
+ {id:'fur',k:'fit',v:4,n:'FUR COAT',e:'🧥',from:'dex'},
+ {id:'chain',k:'chain',v:1,n:'GOLD CHAIN',e:'⛓️',from:'dex'},
+ {id:'turtle',k:'fit',v:6,n:'TURTLENECK',e:'🧣',from:'hank'},
+ {id:'eyes',k:'fx',v:'eyes',n:'HUNTER EYES',e:'👁️',from:'hank'},
+ {id:'jaw',k:'fx',v:'jaw',n:'JAW GLINT',e:'🗿',from:'max'},
+ {id:'leather',k:'fit',v:3,n:'LEATHER JACKET',e:'🖤',from:'sam'},
+ {id:'varsity',k:'fit',v:2,n:'VARSITY JACKET',e:'🏈',from:'chad'},
+ {id:'crown',k:'acc',v:7,n:'CROWN',e:'👑',from:'asc'},
+ {id:'auraglow',k:'fx',v:'aura',n:'AURA GLOW',e:'✨',from:'asc'},
+ {id:'shades',k:'acc',v:8,n:'DRIP SHADES',e:'🕶️',from:'def3'},
+];
+const fromTxt=f=>f==='asc'?'Ascend, or win a semester online':f==='def3'?'Defend your crown 3 times in a row':'Beat '+RIVAL[f].name;
+let UNL=new Set(LS.get('unl',[]));
+function unlockFrom(src){const got=DRIP.filter(d=>d.from===src&&!UNL.has(d.id));for(const d of got)UNL.add(d.id);
+  if(got.length){LS.set('unl',[...UNL]);setTimeout(()=>toast('🔓 UNLOCKED '+got.map(d=>d.e+' '+d.n).join(' + ')+'. Wear it: ✂ CHANGE LOOK',3800),300)}return got}
+function canWear(k,v){if(k==='acc')return v<=5||DRIP.some(d=>d.k==='acc'&&d.v===v&&UNL.has(d.id));if(k==='fit')return v<=1||DRIP.some(d=>d.k==='fit'&&d.v===v&&UNL.has(d.id));
+  if(k==='fx')return !v||DRIP.some(d=>d.k==='fx'&&d.v===v&&UNL.has(d.id));if(k==='chain')return !v||UNL.has('chain');return true}
+const OPTS={acc:[0,1,2,3,4,5,6,7,8],fit:[-1,0,1,2,3,4,5,6],fx:['','eyes','jaw','aura'],chain:[0,1]};
+function cycleWear(k,cur){const o=OPTS[k].filter(v=>canWear(k,v));if(o.length<2)return null;const i=o.indexOf(cur);return o[(i+1)%o.length]}
+ENTER['s-create']=()=>{const C=CREATE,L=C.look,fit=L.fit==null?-1:L.fit,lockTag=k=>OPTS[k].filter(v=>canWear(k,v)).length<2?' 🔒':'';
+  $('create-w').innerHTML=`<div class="card" style="--rot:-.4deg;max-width:700px;margin:20px auto">
     <h2 style="font-size:28px">${C.mode==='enroll'?'ENROLLMENT FORM':'YOUR STUDENT'}</h2>
     <div class="ink2" style="margin:2px 0 10px;font-size:15px">${C.mode==='enroll'?'Every Chad started as an NPC. Fill this in and report to class.':'This is how your friends see you in the hallway.'}</div>
     <div class="look-edit"><canvas id="lookcv" width="300" height="340"></canvas>
       <div style="flex:1"><div class="field" style="margin-top:0"><label>NAME</label><input id="lk-name" class="inp" maxlength="14" placeholder="Your name" value="${esc(C.name)}"></div>
       <div class="look-btns">
-        <button data-act="lk" data-v="hair">✂ HAIR · ${HAIRN[C.look.hair|0]}</button><button data-act="lk" data-v="hc">🎨 HAIR COLOUR</button>
-        <button data-act="lk" data-v="skin">✋ SKIN</button><button data-act="lk" data-v="top">👕 FIT COLOUR</button>
-        <button data-act="lk" data-v="acc">🧢 EXTRA · ${ACCN[C.look.acc|0]}</button><button data-act="lk" data-v="rand">🎲 RANDOM</button>
+        <button data-act="lk" data-v="hair">✂ HAIR · ${HAIRN[L.hair|0]}</button><button data-act="lk" data-v="hc">🎨 HAIR COLOUR</button>
+        <button data-act="lk" data-v="skin">✋ SKIN</button><button data-act="lk" data-v="top">🎨 FIT COLOUR</button>
+        <button data-act="lk" data-v="fit">👕 FIT · ${FITN[fit]}${lockTag('fit')}</button><button data-act="lk" data-v="acc">🧢 EXTRA · ${ACCN[L.acc|0]}</button>
+        <button data-act="lk" data-v="chain">⛓ CHAIN · ${L.chain?'ON':'OFF'}${lockTag('chain')}</button><button data-act="lk" data-v="fx">✨ FX · ${FXN[L.fx||'']}${lockTag('fx')}</button>
+        <button data-act="lk" data-v="rand" style="grid-column:1/-1">🎲 RANDOM</button>
       </div></div></div>
+    <h3 style="margin-top:16px">THE DRIP CLOSET <small class="ink2" style="font-family:var(--ui);font-size:13px">${UNL.size}/${DRIP.length} unlocked · AUTO fit glows up with your DRIP stat</small></h3>
+    <div class="closet">${DRIP.map(d=>`<div class="ci ${UNL.has(d.id)?'got':''}"><span class="e">${UNL.has(d.id)?d.e:'🔒'}</span><b>${d.n}</b><small>${UNL.has(d.id)?'unlocked':esc(fromTxt(d.from))}</small></div>`).join('')}</div>
     <div class="btnrow"><button class="btn cream small" data-act="lkcancel">CANCEL</button><button class="btn gold" data-act="lksave">${C.mode==='enroll'?'✍ ENROLL':'✔ SAVE'}</button></div></div>`;
   $('lk-name').addEventListener('input',e=>{C.name=e.target.value})};
-ACT.lk=v=>{const L=CREATE.look;SFX.pop();if(v==='rand'){CREATE.look=randLook()}else if(v==='hair')L.hair=((L.hair|0)+1)%HAIRN.length;else if(v==='hc')L.hc=((L.hc|0)+1)%HAIRC.length;else if(v==='skin')L.skin=((L.skin|0)+1)%SKIN.length;
-  else if(v==='top')L.top=((L.top|0)+1)%TOPC.length;else if(v==='acc')L.acc=((L.acc|0)+1)%ACCN.length;const nm=$('lk-name').value;ENTER['s-create']();$('lk-name').value=nm;CREATE.name=nm};
+ACT.lk=v=>{const L=CREATE.look;SFX.pop();
+  if(v==='rand'){CREATE.look=Object.assign(randLook(),{fit:L.fit,chain:L.chain,fx:L.fx})}
+  else if(v==='hair')L.hair=((L.hair|0)+1)%HAIRN.length;else if(v==='hc')L.hc=((L.hc|0)+1)%HAIRC.length;else if(v==='skin')L.skin=((L.skin|0)+1)%SKIN.length;
+  else if(v==='top')L.top=((L.top|0)+1)%TOPC.length;
+  else{const cur=v==='fit'?(L.fit==null?-1:L.fit):v==='chain'?(L.chain?1:0):v==='fx'?(L.fx||''):(L.acc|0),nx=cycleWear(v,cur);
+    if(nx==null){toast('🔒 Mog rivals in the career to unlock more '+(v==='fx'?'effects':v==='chain'?'chains':v==='fit'?'fits':'extras'));return}
+    if(v==='chain')L.chain=nx;else L[v]=nx}
+  const nm=$('lk-name').value;ENTER['s-create']();$('lk-name').value=nm;CREATE.name=nm};
 ACT.lkcancel=()=>{SFX.ui();show(CREATE.ret)};
 ACT.lksave=()=>{const nm=($('lk-name').value||'').trim().slice(0,14);if(!nm){toast('Write your name on the form first');$('lk-name').focus();return}
   PROF.name=nm;PROF.look=Object.assign({},CREATE.look);saveProf();SFX.pencil();
@@ -1076,7 +1130,7 @@ ACT.lksave=()=>{const nm=($('lk-name').value||'').trim().slice(0,14);if(!nm){toa
   show(CREATE.ret)};
 function lookDraw(t){const cv=$('lookcv');if(!cv||SCREEN!=='s-create')return;const c=cv.getContext('2d');c.clearRect(0,0,300,340);
   const cyc=['idle','flex','stare','drip','mew'],ph=t/1000/1.8,pose=cyc[(ph|0)%5],f=ph%1,k=pose==='idle'?0:clamp(Math.sin(Math.min(1,f*1.5)*Math.PI*.5)*(f>.8?(1-f)*5:1),0,1);
-  const car=LS.get('career',null);drawStudent(c,{look:CREATE.look,st:car&&CREATE.mode!=='enroll'?car.st:{flex:12,stare:12,drip:12,jaw:12,aura:10},pose,k,t:t/1000,x:130,y:130,s:1.02,face:1,border:10})}
+  const car=LS.get('career',null);drawStudent(c,{look:CREATE.look,st:car&&CREATE.mode!=='enroll'?car.st:{flex:12,stare:12,drip:12,jaw:12,aura:10},pose,k,t:t/1000,x:128,y:150,s:.92,face:1,border:10})}
 
 // ════════ SETTINGS ════════
 ENTER['s-settings']=()=>{const seg=(k,opts)=>`<div class="seg">${opts.map(([v,l])=>`<button class="${SET[k]===v?'on':''}" data-act="set" data-v="${k}:${v}">${l}</button>`).join('')}</div>`;
@@ -1330,7 +1384,7 @@ function impact(r,sn){if(!BAT)return;const L=BAT.L,SC=BAT.sc,kOf=s=>s===L?'L':'R
   for(const s of ['a','b']){const v=sn[s];if(v.au>0&&v.au<=v.mx*CFG.BACK_AT&&!BAT.lowWarned[s]){BAT.lowWarned[s]=1;setTimeout(()=>{popAt(kOf(s),"IT'S OVER...",'tag',0,.7);SFX.low()},900)}}
   if(BAT.tut)tutAfter(r);
   // the rival talks back now and then (solo only; friends have the emoji buttons)
-  if(BAT.mode==='solo'&&BAT.duel&&!BAT.duel.win){const cs=BAT.R,R=BAT.duel.rival(cs),L=R&&SAY[R.id];
+  if(BAT.mode==='solo'&&BAT.duel&&!BAT.duel.win){const cs=BAT.R,R=BAT.duel.rival(cs),L=R&&SAY[R.base||R.id];
     if(L){const v=sn[cs];let kind=r.win===cs?'win':r.win===OTHER[cs]?'lose':null;if(v.au>0&&v.au<=v.mx*CFG.BACK_AT&&!BAT.saidLow){kind='low';BAT.saidLow=1}
       if(kind&&(kind==='low'||Math.random()<.45)){const lines=L[kind],line=lines[Math.random()*lines.length|0];setTimeout(()=>{if(BAT&&!BAT.ko&&BAT.cur&&BAT.cur.ph==='reveal')sayBub('R',line)},650)}}}
   if(sn.win||BAT.duel&&BAT.duel.win){const W=sn.win||BAT.duel.win;setTimeout(()=>ko(W),600)}}
@@ -1354,7 +1408,8 @@ function drawBattle(t,dt,sn){const cv=$('bcv');const d=fitCanvas(cv,1.75),c=cv.g
   if(BAT.res&&gnowUI()-BAT.resAt>2150&&!BAT.ko)for(const k of ['L','R'])if(SC[k].k<.05)SC[k].pose='idle';
   SC.shake*=Math.pow(.02,dt);SC.flash=Math.max(0,SC.flash-dt*2.2);SC.beams=Math.max(0,SC.beams-dt*1.1);SC.tint=Math.max(0,SC.tint-dt*.7);CROWD.jump=Math.max(0,CROWD.jump-dt*2.5);if(!BAT.ko)CROWD.phones=Math.max(0,CROWD.phones-dt*.35);
   const fl=SET.flashes?1:.25;
-  const portrait=w/h<.8,s=Math.min(h*.0027,w*(portrait?.0027:.0016)),y=h*(portrait?.47:.4),xs={L:w*(portrait?.26:.27),R:w*(portrait?.74:.73)};
+  // a phone on its side leaves a short stage: bigger heads, lower down
+  const portrait=w/h<.8,short=h/d<260,s=short?Math.min(h*.0034,w*.0016):Math.min(h*.0027,w*(portrait?.0027:.0016)),y=h*(portrait?.47:short?.5:.4),xs={L:w*(portrait?.26:.27),R:w*(portrait?.74:.73)};
   c.save();const sx=(Math.random()-.5)*SC.shake*fl*d,sy=(Math.random()-.5)*SC.shake*fl*d;c.translate(sx,sy);
   if(cut>0){const fx=xs[BAT.cine.wk],sh=clamp((w/2-fx)*.45*cut,-(w-fx)*(cz-1),fx*(cz-1));c.translate(fx+sh,y);c.scale(cz,cz);c.translate(-fx,-y);c.filter=`grayscale(${cut}) brightness(${1-.3*cut})`}
   c.drawImage(venueCanvas(venue,w,h),0,0);drawVenueFX(c,venue,w,h,t/1000);c.filter='none';
@@ -1362,7 +1417,7 @@ function drawBattle(t,dt,sn){const cv=$('bcv');const d=fitCanvas(cv,1.75),c=cv.g
   BAT.pos={L:{x:xs.L/d,y:(y-s*30)/d,s:s/d},R:{x:xs.R/d,y:(y-s*30)/d,s:s/d}};
   // bubbles + lock chips follow the heads
   const bL=$('bubL'),bR=$('bubR'),lL=$('lkL'),lR=$('lkR');
-  if(bL){const bx=portrait?0:s/d*30;bL.style.left=(xs.L/d+bx)+'px';bL.style.top=(y-s*125)/d+'px';bR.style.left=(xs.R/d-bx)+'px';bR.style.top=(y-s*125)/d+'px';
+  if(bL){const W0=w/d,bx=portrait?0:short?-s/d*95:s/d*30,by=short?(y-s*35)/d:(y-s*125)/d;bL.style.left=clamp(xs.L/d+bx,110,W0-110)+'px';bL.style.top=by+'px';bR.style.left=clamp(xs.R/d-bx,110,W0-110)+'px';bR.style.top=by+'px';
     const chip=(el,v,x)=>{if(sn.ph!=='choose'){el.style.display='none';return}el.style.display='';el.style.left=x+'px';el.style.top=(h/d-34)+'px';el.className='lockchip'+(v.l?' ok':'');el.textContent=v.l?'✓ LOCKED':'choosing…'};
     chip(lL,sn[BAT.L],xs.L/d);chip(lR,sn[BAT.R],xs.R/d);
     // trash talk sits beside the head, on the outside, so it never hides under the result caption
@@ -1577,23 +1632,51 @@ let CAR=null;
 function carSave(){LS.set('career',CAR)}
 function startCareer(){CAR=newCareer();carSave();toast('Welcome to Mog Academy, '+CAR.name+'. You are an NPC.',3200);show('s-plan')}
 function usePeriod(){CAR.periods++;CAR.per++;if(CAR.per>=4){CAR.per=0;CAR.day++;setTimeout(()=>{SFX.bell();toast("🔔 School's out. Day "+CAR.day+' starts now.',2600)},400)}carSave()}
-ACT.career=()=>{SFX.ui();const car=LS.get('career',null);if(!car){openCreate('s-title','enroll');return}CAR=car;if(CAR.asc){show('s-year');return}show('s-plan')};
+ACT.career=()=>{SFX.ui();const car=LS.get('career',null);if(!car){openCreate('s-title','enroll');return}CAR=car;if(CAR.asc){show(CAR.senior?'s-plan':'s-year');return}show('s-plan')};
 ACT.plan=()=>{SFX.ui();show('s-plan')};
 function statBars(st,cmp){return`<div class="statbars">${[['FLEX','flex'],['STARE','stare'],['DRIP','drip'],['JAW','jaw'],['AURA','aura']].map(([n,k])=>`<div class="sb"><span>${n}</span><div class="bar"><i style="width:${clamp(st[k],0,100)}%;background:${MVCOL[k==='jaw'?'mew':k]}"></i></div><b>${st[k]|0}</b></div>`).join('')}</div>`}
-ENTER['s-plan']=()=>{CAR=CAR||LS.get('career',null);if(!CAR){show('s-title');return}const car=CAR,rk=rankOf(car),nx=nextRival(car);
-  $('plan-w').innerHTML=`<div class="plan-top"><h2>📅 DAY ${car.day} · PERIOD ${car.per+1}/4</h2><div style="display:flex;gap:8px;align-items:center"><span class="patch gold">${RANKS[rk]}</span><span class="chip">${car.w}W · ${car.l}L</span><button class="btn small cream" data-act="title">◀ MENU</button></div></div>
-  <div class="grid2">
-   <div class="card" style="--rot:-.5deg"><div style="display:flex;gap:14px;align-items:center">
+function studentCard(car,rk){return`<div class="card" style="--rot:-.5deg"><div style="display:flex;gap:14px;align-items:center">
      <div class="yb" style="width:120px;--r:-2deg"><img src="${photoURL(car.look,car.st)}" alt=""><div class="nm">${esc(car.name)}</div></div>
-     <div><h2 style="font-size:24px">${esc(car.name)}</h2><div class="ink2" style="font-size:14px">${car.periods} periods so far</div>
+     <div><h2 style="font-size:24px">${esc(car.name)}</h2><div class="ink2" style="font-size:14px">${car.periods} periods so far · ${UNL.size}/${DRIP.length} drip unlocked</div>
      <div class="rankline">${RANKS.map((r,i)=>`<span class="rk ${i===rk?'on':i<rk?'done':''}">${r}</span>`).join('')}</div>
      <div style="margin-top:8px"><button class="btn small cream" data-act="restyle">✂ CHANGE LOOK</button></div></div></div>
-     <div style="margin-top:14px">${statBars(car.st)}</div></div>
+     <div style="margin-top:14px">${statBars(car.st)}</div></div>`}
+function trainRow(car){return`<div class="card" style="margin-top:18px;--rot:-.2deg"><h3>TRAIN <small class="ink2" style="font-family:var(--ui);font-size:13px">· each class uses one period · gains shrink as a stat gets high</small></h3>
+   <div class="trainrow" style="margin-top:10px">${Object.keys(MINI).map(id=>{const D=MINI[id],k=D.stat,v=car.st[k]|0;return`<button class="tbtn" data-act="train" data-v="${id}"><span class="e">${D.e}</span><b>${D.name}</b><small>${k==='jaw'?'JAW':k.toUpperCase()} ${v} → up to +${statGain(v,1)}</small></button>`}).join('')}</div></div>`}
+ENTER['s-plan']=()=>{CAR=CAR||LS.get('career',null);if(!CAR){show('s-title');return}const car=CAR,rk=rankOf(car),nx=nextRival(car);
+  if(car.asc&&car.senior){seniorPlan(car);return}
+  $('plan-w').innerHTML=`<div class="plan-top"><h2>📅 DAY ${car.day} · PERIOD ${car.per+1}/4</h2><div style="display:flex;gap:8px;align-items:center"><span class="patch gold">${RANKS[rk]}</span><span class="chip">${car.w}W · ${car.l}L</span><button class="btn small cream" data-act="title">◀ MENU</button></div></div>
+  <div class="grid2">${studentCard(car,rk)}
    <div class="card tape2" style="--rot:.4deg"><h3>THE MOG LADDER</h3><div class="ladder" style="margin-top:10px">${RIVALS.map((R,i)=>{const b=car.beaten.includes(R.id),isN=nx&&nx.id===R.id,locked=!b&&!isN;
       return`<div class="yb ${locked?'locked':''} ${isN?'next':''}" style="--r:${(i%2?1:-1)*1.5}deg"><img src="${photoURL(R.look,R.st)}" alt="">${b?'<div class="stamp">MOGGED</div>':''}<div class="nm">${locked?'???':esc(R.name)}</div></div>`}).join('')}</div>
-     ${nx?`<div class="btnrow"><button class="btn gold" data-act="scout">⚔ CHALLENGE ${esc(nx.name.toUpperCase())}</button></div><p class="ink2" style="text-align:center;font-size:15px;margin:10px 0 0"><span class="mk" style="color:var(--maroon);font-size:18px">"${esc(nx.quote)}"</span><br>${esc(nx.scout[0])}</p>`:''}</div></div>
-  <div class="card" style="margin-top:18px;--rot:-.2deg"><h3>TRAIN <small class="ink2" style="font-family:var(--ui);font-size:13px">· each class uses one period · gains shrink as a stat gets high</small></h3>
-   <div class="trainrow" style="margin-top:10px">${Object.keys(MINI).map(id=>{const D=MINI[id],k=D.stat,v=car.st[k]|0;return`<button class="tbtn" data-act="train" data-v="${id}"><span class="e">${D.e}</span><b>${D.name}</b><small>${k==='jaw'?'JAW':k.toUpperCase()} ${v} → up to +${statGain(v,1)}</small></button>`}).join('')}</div></div>`};
+     ${nx?`<div class="btnrow"><button class="btn gold" data-act="scout">⚔ CHALLENGE ${esc(nx.name.toUpperCase())}</button></div><p class="ink2" style="text-align:center;font-size:15px;margin:10px 0 0"><span class="mk" style="color:var(--maroon);font-size:18px">"${esc(nx.quote)}"</span><br>${esc(nx.scout[0])}${DRIP.some(d=>d.from===nx.id&&!UNL.has(d.id))?'<br><b>Mog him to unlock: '+DRIP.filter(d=>d.from===nx.id).map(d=>d.e+' '+d.n).join(' + ')+'</b>':''}</p>`:''}</div></div>
+  ${trainRow(car)}`};
+// ════════ SENIOR YEAR: you're the Chad now, and everyone wants the crown ════════
+function challenger(car){const n=car.def|0,ids=['gary','dex','hank','max','sam','chad','nathan'],base=RIVAL[ids[(n+(car.defSeed|0))%ids.length]],bump=12+6*n,st={};
+  for(const k in base.st)st[k]=Math.min(100,base.st[k]+bump);
+  const R=Object.assign({},base,{id:'sr_'+base.id,base:base.id,name:base.name+' 2.0',tag:'Glowed up · defense #'+(n+1),st,aura:Math.min(1600,base.aura+120+60*n),
+    adapt:Math.min(.9,(base.adapt||0)+.2),anti:Math.min(.9,(base.anti||0)+.2),react:Math.min(.85,(base.react||0)+.2),honest:Math.max(.45,base.honest-.1),
+    look:Object.assign({},base.look,n>=4?{acc:7}:{}),scout:[base.scout[0],'Glowed up: +'+bump+' to every stat, and reads you better.']});
+  RIVAL[R.id]=R;RIVAL_RANK[R.id]=3;return R}
+function seniorPlan(car){const R=challenger(car);
+  $('plan-w').innerHTML=`<div class="plan-top"><h2>👑 SENIOR YEAR · DAY ${car.day} · PERIOD ${car.per+1}/4</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="patch gold">CHAD</span><span class="chip">🛡 ${car.def|0} IN A ROW · BEST ${car.defBest|0}</span><button class="btn small cream" data-act="yearbook">📖 YEARBOOK</button><button class="btn small cream" data-act="title">◀ MENU</button></div></div>
+  <div class="grid2">${studentCard(car,4)}
+   <div class="card tape2" style="--rot:.4deg"><h3>THE CHALLENGER</h3><div style="display:flex;gap:14px;align-items:center;margin-top:8px">
+     <div class="yb" style="width:130px;--r:2deg"><img src="${photoURL(R.look,R.st)}" alt=""><div class="nm">${esc(R.name)}</div></div>
+     <div><div class="ink2" style="font-size:14px">${esc(R.tag)} · ${R.aura} AURA</div><div class="mk" style="color:var(--maroon);font-size:19px;margin:4px 0">"${esc(R.quote)}"</div>
+     <ul style="margin:4px 0 0;padding-left:18px;font-size:15px">${R.scout.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div></div>
+     <div class="btnrow"><button class="btn gold" data-act="defend">👑 DEFEND THE CROWN</button></div>
+     <p class="ink2" style="text-align:center;font-size:14px;margin:8px 0 0">Everyone wants your crown now. Every defense, the next challenger comes back stronger.${UNL.has('shades')?'':' Defend it 3 times in a row to unlock 🕶️ DRIP SHADES.'}</p></div></div>
+  ${trainRow(car)}`}
+ACT.senior=()=>{SFX.ui();const car=CAR;if(!car)return;if(!car.senior){car.senior=true;car.defSeed=Math.random()*7|0;car.def=car.def|0;carSave()}show('s-plan')};
+ACT.yearbook=()=>{SFX.ui();show('s-year')};
+ACT.defend=()=>{const car=CAR,R=challenger(car);SFX.locker();
+  const d=new Duel({id:'sr'+car.periods,a:soloSide(car),b:cpuSide(R),T:TIMERS[SET.timer],now:gnow()});
+  startBattle({mode:'solo',duel:d,me:'a',venue:['prom','roof','gym','hall','cafe','library'][(car.def|0)%6],onEnd:(win,du)=>seniorEnd(win==='a',du,R)})};
+function seniorEnd(won,du,R){const car=CAR;usePeriod();let unl=[],gain=0;
+  if(won){car.def=(car.def|0)+1;car.defBest=Math.max(car.defBest|0,car.def);car.defW=(car.defW|0)+1;gain=Math.min(100-car.st.aura,3);car.st.aura+=gain;if(car.def>=3)unl=unlockFrom('def3')}
+  else{car.defL=(car.defL|0)+1;car.def=0}
+  carSave();resultCard({won,them:R,du,gain,unl,extra:won?'👑 CROWN DEFENDED · '+car.def+' IN A ROW':'💀 CROWN LOST. The streak starts over (best: '+(car.defBest|0)+').',btns:won?[['plan','CONTINUE ▸','gold']]:[['plan','◀ BACK TO CAMPUS','cream']]})}
 ACT.restyle=()=>{SFX.ui();openCreate('s-plan','edit')};
 ACT.train=id=>{SFX.ui();const car=CAR,D=MINI[id];runMini(id,{look:car.look,st:car.st,gainOf:sc=>statGain(car.st[D.stat],sc),onCancel:()=>show('s-plan'),
   onDone:sc=>{const g=statGain(car.st[D.stat],sc);car.st[D.stat]=Math.min(100,car.st[D.stat]+g);car.train[id]=(car.train[id]||0)+1;car.best[id]=Math.max(car.best[id]||0,sc);usePeriod();show('s-plan');toast('+'+g+' '+(D.stat==='jaw'?'JAW':D.stat.toUpperCase()))}})};
@@ -1611,18 +1694,20 @@ function cpuSide(R,st){return{kind:'cpu',cid:'cpu',rival:R.id,name:R.name,look:R
 ACT.fight=()=>{const car=CAR,R=nextRival(car);if(!R)return;SFX.locker();
   const d=new Duel({id:'c'+car.periods,a:soloSide(car),b:cpuSide(R),T:TIMERS[SET.timer],now:gnow()});
   startBattle({mode:'solo',duel:d,me:'a',venue:R.venue,onEnd:(win,du)=>careerEnd(win==='a',du,R)})};
-function careerEnd(won,du,R){const car=CAR,rk0=rankOf(car);usePeriod();let gain=0;
+function careerEnd(won,du,R){const car=CAR,rk0=rankOf(car),first=won&&!car.beaten.includes(R.id);usePeriod();let gain=0;const unl=first?unlockFrom(R.id):[];
   if(won){if(!car.beaten.includes(R.id))car.beaten.push(R.id);car.w++;gain=Math.min(100-car.st.aura,6+RIVALS.indexOf(R)*2+(du.stats.a.called||0)*2);car.st.aura=Math.min(100,car.st.aura+gain)}else car.l++;
   carSave();const rk=rankOf(car);
-  if(won&&R.id==='chad'){car.asc=true;car.ascAt=Date.now();car.ascPer=car.periods;carSave();try{window.GLITCHBOX&&GLITCHBOX.score&&GLITCHBOX.score(car.periods,{low:true})}catch(e){}
+  if(won&&R.id==='chad'){car.asc=true;car.ascAt=Date.now();car.ascPer=car.periods;carSave();unlockFrom('asc');try{window.GLITCHBOX&&GLITCHBOX.score&&GLITCHBOX.score(car.periods,{low:true})}catch(e){}
     showAscend({look:car.look,st:car.st,name:car.name,line:'From NPC to CHAD in '+car.periods+' periods.',after:()=>show('s-year')});return}
-  resultCard({won,me:car.name,them:R,du,gain,rankUp:rk>rk0?RANKS[rk]:null,btns:won?[['plan','CONTINUE ▸','gold']]:[['fight','⚔ REMATCH','gold'],['plan','◀ TRAIN','cream']]})}
+  resultCard({won,me:car.name,them:R,du,gain,unl,rankUp:rk>rk0?RANKS[rk]:null,btns:won?[['plan','CONTINUE ▸','gold']]:[['fight','⚔ REMATCH','gold'],['plan','◀ TRAIN','cream']]})}
 function resultCard(o){const R=o.them,st=o.du&&o.du.stats?o.du.stats.a:{};
   $('result-w').innerHTML=`<div style="max-width:720px;margin:20px auto;text-align:center">
    <div class="big-t">${o.won?'YOU MOGGED':'GOT MOGGED'}</div><div style="font-family:var(--hd);font-size:22px;margin:6px 0 12px">${o.won?esc(R.name.toUpperCase()):'BY '+esc(R.name.toUpperCase())}</div>
    <div class="card plain" style="--rot:-.4deg;text-align:center"><div class="res-hero"><div class="yb" style="width:150px;--r:-2deg"><img src="${photoURL(R.look,R.st)}" alt="">${o.won?'<div class="stamp">MOGGED</div>':''}<div class="nm">${esc(R.name)}</div></div>
      <div style="max-width:320px"><div class="quote mk" style="font-size:22px;color:var(--maroon)">"${esc(o.won?R.lose:R.win)}"</div>
      ${o.gain?`<div class="gain" style="margin-top:8px">+${o.gain} AURA STAT</div>`:''}${o.rankUp?`<div style="margin-top:10px"><div class="ink2" style="letter-spacing:.2em">RANK UP</div><span class="patch gold" style="font-size:20px">${o.rankUp}</span></div>`:''}
+     ${o.unl&&o.unl.length?`<div style="margin-top:10px"><div class="ink2" style="letter-spacing:.2em">🔓 UNLOCKED</div><div style="font-family:var(--hd);font-size:17px;color:var(--maroon)">${o.unl.map(d=>d.e+' '+d.n).join(' + ')}</div><div class="ink2" style="font-size:13px">wear it: ✂ CHANGE LOOK</div></div>`:''}
+     ${o.extra?`<div style="margin-top:10px;font-family:var(--hd);font-size:18px;color:var(--maroon)">${esc(o.extra)}</div>`:''}
      ${!o.won?`<p class="ink2" style="font-size:15px">Tip: ${esc(R.scout[1]||R.scout[0])}</p>`:''}</div></div>
     <div class="statline" style="color:var(--ink)"><span style="background:var(--cream2)">aura dealt ${st.dealt|0}</span><span style="background:var(--cream2)">called it ×${st.called|0}</span><span style="background:var(--cream2)">mews ×${st.mew|0}</span>${st.aura?`<span style="background:var(--cream2)">auras landed ×${st.aura}</span>`:''}</div></div>
    <div class="btnrow">${o.btns.map(([a,l,c])=>`<button class="btn ${c||''}" data-act="${a}">${l}</button>`).join('')}</div></div>`;
@@ -1693,10 +1778,10 @@ ENTER['s-year']=()=>{const car=CAR||LS.get('career',null);if(!car){show('s-title
   const cols=['#1d4fb8','#c0392b','#1f8a4c','#7a3fc2','#b9670e','#1f1a1d','#7d1b33'];
   $('year-w').innerHTML=`<div class="yearbook"><div style="text-align:center;margin:8px 0 14px"><div class="motto" style="color:var(--gold)">MOG ACADEMY YEARBOOK · CLASS OF ${yr}</div></div>
    <div class="card" style="--rot:-.4deg" id="ybcard"><div class="page"><div style="text-align:center"><div class="photo"><img src="${photoURL(car.look,car.st,{chad:1,bg:'gold'})}" style="display:block;width:200px;height:224px" alt=""></div>
-     <h2 style="margin-top:14px;font-size:26px">${esc(car.name)}</h2><div class="superl">MOST LIKELY TO MOG</div><div class="ink2" style="font-size:14px">Ascended in ${car.ascPer||car.periods} periods · Day ${car.day} · ${car.w}W ${car.l}L</div></div>
+     <h2 style="margin-top:14px;font-size:26px">${esc(car.name)}</h2><div class="superl">MOST LIKELY TO MOG</div><div class="ink2" style="font-size:14px">Ascended in ${car.ascPer||car.periods} periods · ${car.w}W ${car.l}L${car.defBest?' · crown defended '+car.defBest+' in a row':''}</div></div>
     <div><h3>SIGN MY YEARBOOK</h3><div class="sigs">${RIVALS.map((R,i)=>`<div class="sig" style="--sc:${cols[i%cols.length]};--r:${((i*37)%7-3)*.8}deg">${esc(R.sign)} <span style="white-space:nowrap">- ${esc(R.name.split(' ').pop())}</span></div>`).join('')}</div>
      <div style="margin-top:10px">${statBars(car.st)}</div><p class="ink2" style="font-size:15px;margin-top:10px">The true mog was the aura you farmed along the way.</p></div></div></div>
-   <div class="btnrow"><button class="btn gold" data-act="friends">🎓 MOG YOUR FRIENDS</button><button class="btn" data-act="newsem">🔁 NEW SEMESTER</button><button class="btn cream" data-act="savephoto">💾 SAVE PHOTO</button><button class="btn cream" data-act="title">MENU</button></div></div>`;
+   <div class="btnrow"><button class="btn gold" data-act="senior">👑 DEFEND THE CROWN</button><button class="btn gold" data-act="friends">🎓 MOG YOUR FRIENDS</button><button class="btn" data-act="newsem">🔁 NEW SEMESTER</button><button class="btn cream" data-act="savephoto">💾 SAVE PHOTO</button><button class="btn cream" data-act="title">MENU</button></div></div>`;
   setTimeout(()=>{if(SCREEN==='s-year'){SFX.pencil()}},300)};
 let newSemArm=0;ACT.newsem=(v,b)=>{if(now()-newSemArm>3000){newSemArm=now();b.textContent='TAP AGAIN: START OVER AS AN NPC';return}CAR=null;LS.set('career',null);startCareer()};
 ACT.savephoto=()=>{const car=CAR;if(!car)return;const cv=document.createElement('canvas');cv.width=600;cv.height=760;const c=cv.getContext('2d');
@@ -1740,13 +1825,16 @@ let lastHostMsg=0,MYPICK=null,lastRp=0;
 const P=cid=>G.players.find(p=>p.cid===cid);
 function newPlayer(cid,name,look){return{cid,name:String(name||'Student').slice(0,14),look:look||randLook(),st:Object.assign({},BASE_ST),wins:0,dealt:0,taken:0,called:0,mews:0,froze:0,auras:0,cls:{},away:false,rk:0,late:false}}
 function uniqueName(name,cid){name=String(name||'Student').trim().slice(0,14)||'Student';let n=name,k=2;while(G.players.some(p=>p.cid!==cid&&p.name.toLowerCase()===n.toLowerCase()))n=name.slice(0,11)+' '+k++;return n}
-function cleanLook(l){l=l||{};return{skin:clamp(l.skin|0,0,5),hair:clamp(l.hair|0,0,9),hc:clamp(l.hc|0,0,7),top:clamp(l.top|0,0,9),acc:clamp(l.acc|0,0,5)}}
-function packState(){const t=now();return{t:'st',ph:G.phase,pl:G.players.map(p=>[p.cid,p.name,p.look,p.st,p.wins,p.dealt,p.rk,p.away?1:0,p.late?1:0,p.called,p.mews,p.taken]),h:G.host,set:G.set,r:G.round,
+function cleanLook(l){l=l||{};return{skin:clamp(l.skin|0,0,5),hair:clamp(l.hair|0,0,9),hc:clamp(l.hc|0,0,7),top:clamp(l.top|0,0,9),acc:clamp(l.acc|0,0,8),fit:l.fit==null?-1:clamp(l.fit|0,-1,6),chain:l.chain?1:0,fx:['','eyes','jaw','aura'].includes(l.fx)?l.fx:''}}
+function packState(){const t=now();return{t:'st',qm:G.qm?1:0,ph:G.phase,pl:G.players.map(p=>[p.cid,p.name,p.look,p.st,p.wins,p.dealt,p.rk,p.away?1:0,p.late?1:0,p.called,p.mews,p.taken]),h:G.host,set:G.set,r:G.round,
   du:Object.values(HS.duels).filter(d=>d.live).map(d=>d.snap(t)),cls:G.cls?Object.assign({},G.cls,{in:Math.round(G.cls.at-t)}):null,cr:G.clsRes,fin:G.fin,ch:G.champ,aw:G.awards,u:G.until?Math.max(0,Math.round(G.until-t)):0}}
 function pushState(){HS.lastPush=now();HS.dirty=false;const st=packState();if(MODE==='host')net.send(st);clientHandle(st);saveSession()}
 function hostOut(o){if(MODE==='host')net.send(o);clientHandle(o)}
 // ── host ──
-function hostAdd(cid,name,look){HS.seen[cid]=now();const p=P(cid);
+function hostAdd(cid,name,look){HS.seen[cid]=now();
+  // a quick-match host whose opponent has gone: the next searcher gets a fresh match, not the end screen
+  if(G.qm&&G.phase==='over'&&!P(cid)){G.players=G.players.filter(p=>p.cid===MY_CID||!p.away);ACT.again()}
+  const p=P(cid);
   if(p){if(G.phase==='lobby'){p.name=uniqueName(name||p.name,cid);if(look)p.look=cleanLook(look)}p.away=false;pushState();return}
   if(G.players.length>=MAX_PLAYERS){net.send({t:'full',to:cid});return}
   const np=newPlayer(cid,uniqueName(name,cid),cleanLook(look));
@@ -1800,6 +1888,7 @@ function hostAwards(){const ps=G.players.filter(p=>!p.late),top=(f,min)=>{let b=
 function hostTick(){if(MODE!=='host')return;const t=now();
   for(const p of G.players)if(p.cid!==MY_CID&&!p.away&&t-(HS.seen[p.cid]||t)>AWAY_MS){p.away=true;HS.dirty=true;for(const d of Object.values(HS.duels)){const s=sideOf(d,p.cid);if(s&&d.live)d.auto[s]=true}}
   for(const d of Object.values(HS.duels)){if(!d.live)continue;d.tick(t);if(d.needRv){d.needRv=false;hostOut({t:'rv',d:d.id,n:d.n})}if(d.ev.length){d.ev.length=0;HS.dirty=true}}
+  if(G.qm&&G.phase==='lobby'){const n=G.players.filter(p=>!p.away).length;if(n>=2){if(!HS.qmAt){HS.qmAt=t+2600;HS.dirty=true}else if(t>=HS.qmAt){HS.qmAt=0;hostStart()}}else HS.qmAt=0}
   if(G.phase==='class'&&(t>HS.clsEnd||G.players.filter(p=>!p.away&&!p.late||HS.cls[p.cid]!=null).every(p=>HS.cls[p.cid]!=null)&&t>G.cls.at))hostClassDone();
   else if(G.phase==='classres'&&t>=G.until)hostDuels();
   else if(G.phase==='duels'&&Object.values(HS.duels).filter(d=>d.live).every(d=>d.ph==='done'))hostRoundDone();
@@ -1813,7 +1902,8 @@ function handleNet(m){
   if(m.t==='created'){if(MODE==='host'){G.code=net.code;if(G.phase==='off'){G.phase='lobby';G.host=MY_CID;G.players=[newPlayer(MY_CID,myName(),PROF.look)]}pushState()}return}
   if(m.t==='joined'){net.send(hiMsg());return}
   if(m.t==='start'){if(MODE==='guest')net.send(hiMsg());return}
-  if(m.t==='error'){if(G.phase==='off'||MODE==='guest'&&!lastHostMsg){net.close();MODE='off';G.phase='off';onlineStatus(m.msg||'Could not join.',true);if(SCREEN!=='s-online')show('s-online')}else toast(m.msg||'Server error');return}
+  if(m.t==='error'&&QM&&G.phase==='off'){const msg=m.msg||'';net.close();if(/No game/i.test(msg)){hostRoom(QM_CODES[QM.i],true);return}if(/full/i.test(msg)){QM.i++;setTimeout(qmTry,150);return}if(/in use/i.test(msg)){setTimeout(qmTry,400);return}}
+  if(m.t==='error'){if(G.phase==='off'||MODE==='guest'&&!lastHostMsg){QM=null;net.close();MODE='off';G.phase='off';onlineStatus(m.msg||'Could not join.',true);if(SCREEN!=='s-online')show('s-online')}else toast(m.msg||'Server error');return}
   if(m.t==='left')return;
   if(m.t==='rx'){floatRx(m);return}
   if(MODE==='host'){hostMsg(m);return}
@@ -1824,7 +1914,7 @@ function sendLook(){if(MODE==='guest')net.send({t:'look',cid:MY_CID,name:myName(
 function clientHandle(m){
   if(m.t==='st'){const was=G.phase;G.duels=m.du||[];G.untilAt=now()+(m.u||0);
     // the host already owns the real state: only guests copy it in
-    if(MODE!=='host'){G.phase=m.ph;G.host=m.h;G.set=m.set;G.round=m.r;G.cls=m.cls;G.clsRes=m.cr;G.fin=m.fin;G.champ=m.ch;G.awards=m.aw;
+    if(MODE!=='host'){G.qm=!!m.qm;G.phase=m.ph;G.host=m.h;G.set=m.set;G.round=m.r;G.cls=m.cls;G.clsRes=m.cr;G.fin=m.fin;G.champ=m.ch;G.awards=m.aw;
       G.players=m.pl.map(a=>({cid:a[0],name:a[1],look:a[2],st:a[3],wins:a[4],dealt:a[5],rk:a[6],away:!!a[7],late:!!a[8],called:a[9],mews:a[10],taken:a[11]}));
       if(G.cls&&G.cls.in!=null)G.cls.atLocal=now()+G.cls.in}
     else if(G.cls)G.cls.atLocal=G.cls.at;
@@ -1858,7 +1948,7 @@ function onlineRender(was){if(MODE==='off')return;const ph=G.phase,md=myDuel();
     if(BAT.ended&&SCREEN==='s-battle'&&md.ph==='done'&&G.phase==='duels')hallShow();
     return}
   if(ph==='final'){const fd=G.duels.find(d=>d.fin);if(fd){if(!BAT||BAT.duelId!==fd.id){BAT=null;startBattle({mode:'spec',snap:fd,me:null,duelId:fd.id,venue:'prom'})}BAT.snap=fd;BAT.dlAt=now()+Math.max(0,fd.dl)}return}
-  if(ph==='ascend'){const c=P(G.champ);if(c&&!ascShown){ascShown=true;BAT=null;showAscend({look:c.look,st:Object.assign({},c.st),name:c.name,line:(c.cid===MY_CID?'YOU':c.name.toUpperCase())+' ASCENDED. CHAD OF THE SEMESTER.',after:()=>{if(MODE!=='off')hallShow()}})}return}
+  if(ph==='ascend'){const c=P(G.champ);if(c&&!ascShown){ascShown=true;BAT=null;if(c.cid===MY_CID)unlockFrom('asc');showAscend({look:c.look,st:Object.assign({},c.st),name:c.name,line:(c.cid===MY_CID?'YOU':c.name.toUpperCase())+' ASCENDED. CHAD OF THE SEMESTER.',after:()=>{if(MODE!=='off')hallShow()}})}return}
   if(SCREEN==='s-battle'&&BAT&&!BAT.ended)return;
   if(SCREEN!=='s-ascend')hallShow()}
 function hallShow(){if(SCREEN!=='s-hall')show('s-hall');else ENTER['s-hall']()}
@@ -1867,7 +1957,7 @@ ENTER['s-online']=()=>{$('online-w').innerHTML=`<div class="card" style="max-wid
   <div class="ink2" style="font-size:16px">2 to 8 students. Class periods, hallway mog-offs, then a final at prom. The winner <b>ascends</b>.</div>
   <div style="display:flex;gap:14px;align-items:center;margin-top:14px"><div class="yb" style="width:110px;--r:-2deg"><img src="${photoURL(PROF.look,BASE_ST)}" alt=""><div class="nm">${esc(myName())}</div></div>
    <div style="flex:1"><div class="field" style="margin-top:0"><label>YOUR NAME</label><input id="oname" class="inp" maxlength="14" placeholder="Your name" value="${esc(PROF.name||'')}"></div><button class="btn small cream" data-act="olook">✂ CHANGE LOOK</button></div></div>
-  <div class="btnrow" style="margin-top:16px"><button class="btn gold big" data-act="host" style="min-width:260px">🏫 HOST A ROOM</button></div>
+  <div class="btnrow" style="margin-top:16px"><button class="btn gold big" data-act="host" style="min-width:260px">🏫 HOST A ROOM<span class="sub">2 TO 8 FRIENDS · SEND THE LINK</span></button><button class="btn big" data-act="qm" style="min-width:260px">⚡ QUICK MATCH<span class="sub">1V1 WITH ANYONE SEARCHING NOW</span></button></div>
   <div class="field" style="margin-top:16px"><label>OR JOIN WITH A CODE</label><div style="display:flex;gap:8px"><input id="ocode" class="inp code" maxlength="4" placeholder="ABCD" autocomplete="off"><button class="btn" data-act="join">JOIN</button></div></div>
   <div class="status" id="ostatus"></div><div class="btnrow"><button class="btn cream small" data-act="title">◀ MENU</button></div></div>`;
   $('oname').addEventListener('input',e=>{PROF.name=e.target.value.slice(0,14);saveProf()});$('ocode').addEventListener('keydown',e=>{if(e.key==='Enter')ACT.join()})};
@@ -1875,15 +1965,24 @@ ACT.olook=()=>{SFX.ui();openCreate('s-online','edit')};
 function needName(){const nm=(PROF.name||'').trim();if(!nm){onlineStatus('Write your name first.',true);const e=$('oname');e&&e.focus();return false}return true}
 ACT.host=()=>{if(!needName())return;SFX.ui();hostRoom()};
 ACT.join=()=>{if(!needName())return;const c=($('ocode').value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');if(c.length!==4){onlineStatus('Room codes are 4 letters.',true);return}SFX.ui();joinRoom(c)};
-function hostRoom(code){MODE='host';G.phase='off';G.set=Object.assign({},DEF_SET,LS.get('roomset',{}));code=code||rcode(4);net.connect(code,'host',()=>hostCreate(code))}
-function hostCreate(code){net.send({t:'create',code,max:MAX_PLAYERS,resume:G.phase!=='off'?1:0})}
+function hostRoom(code,qm){MODE='host';G.phase='off';G.qm=!!qm;G.set=qm?{rounds:2,timer:6,classes:0}:Object.assign({},DEF_SET,LS.get('roomset',{}));code=code||rcode(4);if(qm)onlineStatus('Waiting for an opponent…');net.connect(code,'host',()=>hostCreate(code))}
+function hostCreate(code){net.send({t:'create',code,max:G.qm?2:MAX_PLAYERS,resume:G.phase!=='off'?1:0})}
+// QUICK MATCH: six shared rooms; join one with somebody waiting, or wait in the first empty one
+const QM_CODES=['MQ01','MQ02','MQ03','MQ04','MQ05','MQ06'];let QM=null;
+function qmTry(){if(!QM)return;if(QM.i>=QM_CODES.length){QM=null;onlineStatus('Every quick-match room is busy. Host a room or try again in a moment.',true);return}onlineStatus('Looking for an opponent… ('+(QM.i+1)+'/'+QM_CODES.length+')');joinRoom(QM_CODES[QM.i])}
+ACT.qm=()=>{if(!needName())return;SFX.ui();QM={i:0};qmTry()};
 function joinRoom(code){MODE='guest';G.phase='off';lastHostMsg=0;net.connect(code,'guest',()=>net.send({t:'join',code}))}
 function leaveRoom(){if(MODE==='guest')net.send({t:'bye',cid:MY_CID});dropToHome('')}
 ACT.leave=()=>{SFX.ui();leaveRoom()};
-function dropToHome(msg){clearSession();setConn('');net.close();MODE='off';G.phase='off';G.players=[];G.duels=[];lastHostMsg=0;BAT=null;MG=null;ascShown=false;show('s-online');onlineStatus(msg||'',!!msg)}
+function dropToHome(msg){clearSession();setConn('');net.close();MODE='off';G.phase='off';G.qm=false;QM=null;G.players=[];G.duels=[];lastHostMsg=0;BAT=null;MG=null;ascShown=false;show('s-online');onlineStatus(msg||'',!!msg)}
 function inviteURL(){return location.origin+location.pathname+'#room='+net.code}
 ACT.copy=(v,b)=>{const url=inviteURL();(navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(()=>{b.textContent='LINK COPIED!'},()=>{b.textContent=url});setTimeout(()=>{b.textContent='📋 COPY INVITE LINK'},2500)};
 ENTER['s-lobby']=()=>{const host=MODE==='host',me=P(MY_CID),S=G.set;
+  if(G.qm){const two=G.players.filter(p=>!p.away).length>=2,qh=`<div class="card" style="max-width:560px;margin:30px auto;text-align:center;--rot:-.3deg"><h2 style="font-size:30px">⚡ QUICK MATCH</h2>
+     <p style="font-size:17px">${two?'<b>Opponent found!</b> Best of three: two mog-offs, then a final at prom.':'Waiting for someone to search too… Send a friend to QUICK MATCH and you\'ll meet here.'}</p>
+     <div class="players" style="max-width:320px;margin:10px auto">${G.players.map(p=>`<div class="pl"><img src="${photoURL(p.look,BASE_ST)}" alt=""><div class="nm">${esc(p.name)}${p.cid===MY_CID?' (you)':''}</div></div>`).join('')}${two?'':'<div class="pl" style="opacity:.5"><div style="font-size:54px;line-height:110px">❔</div><div class="nm">searching…</div></div>'}</div>
+     ${two?'<div class="patch gold" style="font-size:16px">STARTING…</div>':''}<div class="btnrow"><button class="btn small cream" data-act="leave">CANCEL</button></div></div>`;
+    const w0=$('lobby-w');if(w0.__h!==qh){w0.__h=qh;w0.innerHTML=qh}return}
   const seg=(k,opts)=>`<div class="seg">${opts.map(([v,l])=>`<button class="${S[k]===v?'on':''}" data-act="rset" data-v="${k}:${v}" ${host?'':'disabled'}>${l}</button>`).join('')}</div>`;
   const html=`<div class="card" style="--rot:-.4deg;margin-top:10px"><div class="lobtop"><div style="text-align:center;flex:1"><div class="ink2" style="letter-spacing:.2em">ROOM CODE</div><div class="codebig">${esc(net.code)}</div>
      <div class="btnrow" style="margin-top:8px"><button class="btn small" data-act="copy">📋 COPY INVITE LINK</button></div></div><div id="qr"></div></div><div id="lobby-friends" class="hidden"></div></div>
@@ -1924,7 +2023,7 @@ ENTER['s-hall']=()=>{const ph=G.phase,me=P(MY_CID),left=Math.max(0,Math.ceil(((G
      <div class="card" style="margin-top:16px;--rot:-.3deg;text-align:center">${c?`<div class="res-hero"><div class="photo"><img src="${photoURL(c.look,c.st,{chad:1,bg:'gold'})}" style="display:block;width:180px;height:202px" alt=""></div><div><div class="ink2" style="letter-spacing:.2em">CHAD OF THE SEMESTER</div><h2 style="font-size:34px">${esc(c.name)}</h2><div class="superl">ASCENDED</div></div></div>`:''}
      <h3 style="margin-top:14px">YEARBOOK SUPERLATIVES</h3><div class="awards">${(G.awards||[]).filter(a=>a.t!=='CHAD').map(a=>{const p=P(a.c);return p?`<div class="award"><img src="${photoURL(p.look,p.st)}" alt=""><div><b>${a.e} ${a.t}</b><span>${esc(p.name)}</span><div class="ink2" style="font-size:13px">${esc(a.v)}</div></div></div>`:''}).join('')}</div></div>
      ${standingsHTML('FINAL STANDINGS','',true)}
-     <div class="btnrow">${MODE==='host'?'<button class="btn gold" data-act="again">🔁 NEW SEMESTER</button>':'<div class="patch">The host can start a new semester</div>'}<button class="btn cream" data-act="leave">LEAVE ROOM</button></div></div>`}
+     <div class="btnrow">${G.qm?'<button class="btn gold" data-act="qmnext">⚡ FIND ANOTHER MATCH</button>':''}${MODE==='host'?'<button class="btn '+(G.qm?'':'gold')+'" data-act="again">'+(G.qm?'🔁 REMATCH':'🔁 NEW SEMESTER')+'</button>':G.qm?'':'<div class="patch">The host can start a new semester</div>'}<button class="btn cream" data-act="leave">LEAVE ROOM</button></div></div>`}
   else if(ph==='ascend'){html='<div class="card" style="max-width:500px;margin:40px auto;text-align:center"><h2>ASCENSION IN PROGRESS…</h2></div>'}
   const w=$('hall-w');if(w.__h!==html){w.__h=html;w.innerHTML=html}};
 function duelCard(d){const pct=v=>clamp(v.au/v.mx*100,0,100),st=d.ph==='done'?'🏁 '+esc(d[d.win].nm)+' MOGGED '+esc(d[OTHER[d.win]].nm):d.ph==='intro'?'getting ready':'bell '+(d.n+1)+(d.res?' · last: '+(d.res.ma?MV[d.res.ma].e:'🥶')+' vs '+(d.res.mb?MV[d.res.mb].e:'🥶'):'');
@@ -1933,6 +2032,7 @@ function duelCard(d){const pct=v=>clamp(v.au/v.mx*100,0,100),st=d.ph==='done'?'�
 function standingsHTML(title,sub,plain){const ps=G.players.slice().sort((a,b)=>(b.cid===G.champ)-(a.cid===G.champ)||b.wins-a.wins||b.dealt-a.dealt);
   return`<div class="card" style="max-width:720px;margin:${plain?'16px':'24px'} auto;--rot:.2deg"><h2>${title}</h2><table class="standings"><tr><th>#</th><th></th><th>STUDENT</th><th>RANK</th><th>W</th><th>AURA DEALT</th></tr>
    ${ps.map((p,i)=>`<tr class="${p.cid===MY_CID?'me':''}"><td>${i+1}</td><td><img src="${photoURL(p.look,p.st)}" alt=""></td><td>${esc(p.name)}${p.away?' 💤':''}${p.late?' <small>(new)</small>':''}</td><td><span class="patch ${p.rk>=4?'gold':''}">${RANKS[p.rk|0]}</span></td><td>${p.wins}</td><td>${p.dealt}</td></tr>`).join('')}</table>${sub?`<p class="ink2" style="text-align:center">${sub}</p>`:''}</div>`}
+ACT.qmnext=()=>{SFX.ui();leaveRoom();setTimeout(()=>ACT.qm(),400)};
 ACT.again=()=>{if(MODE!=='host')return;G.phase='lobby';G.round=0;G.duels=[];HS.duels={};G.champ='';G.awards=null;for(const p of G.players){p.wins=0;p.rk=0;p.dealt=0;p.late=false}pushState()};
 setInterval(()=>{if(SCREEN==='s-hall'&&MODE!=='off')ENTER['s-hall']()},500);
 // ── reactions ──
@@ -2103,6 +2203,28 @@ async function runSmoke(){const out=[];let fails=0,n=0;const ok=(name,cond,extra
    ok('odd number of students: one fights a CPU sub',r3.length===2&&r3.filter(d=>d.S.b.kind==='cpu').length===1,G.phase+' '+r3.length+' '+r3.map(d=>d.S.a.kind+'/'+d.S.b.kind).join()+' players='+G.players.map(p=>p.cid+(p.away?'z':'')+(p.late?'L':'')).join());
    const pk=packState();ok('state message is small',JSON.stringify(pk).length<12000,JSON.stringify(pk).length);
    net.send=realSend;window.__nowOverride=realNow;MODE='off';G.phase='off';G.players=[];G.duels=[];HS.duels={};show('s-title')}
+  // ── the drip closet, senior year, quick match ──
+  {ok('closet ids are unique',new Set(DRIP.map(d=>d.id)).size===DRIP.length);ok('every rival unlocks something',RIVALS.every(R=>DRIP.some(d=>d.from===R.id)));
+   UNL=new Set();ok('locked fits stay locked',!canWear('fit',4)&&canWear('fit',1)&&canWear('fit',-1)&&!canWear('acc',7)&&canWear('acc',5));
+   ok('a FIT with nothing unlocked still cycles AUTO/TEE/HOODIE',cycleWear('fit',-1)===0&&cycleWear('fit',1)===-1);ok('no FX until you earn one',cycleWear('fx','')===null);
+   const g=unlockFrom('dex');ok('beating Dex unlocks the fur coat + chain',g.length===2&&canWear('fit',4)&&canWear('chain',1));ok('unlocking twice gives nothing new',unlockFrom('dex').length===0);
+   const cl=cleanLook({skin:9,hair:2,hc:1,top:3,acc:99,fit:4,chain:5,fx:'hack'});ok('online looks are cleaned',cl.skin===5&&cl.acc===8&&cl.fit===4&&cl.chain===1&&cl.fx==='');
+   const cv=document.createElement('canvas');cv.width=300;cv.height=300;const c2=cv.getContext('2d');let err='';
+   try{for(const look of [{acc:6},{acc:7,hair:9},{acc:8},{fit:2},{fit:5},{fit:6},{chain:1},{fx:'eyes'},{fx:'jaw'},{fx:'aura'}])for(const pose of ['idle','flex','drip','mew'])drawStudent(c2,{look:Object.assign(randLook(),look),st:BASE_ST,pose,k:1,t:1,x:150,y:120,s:.8,face:-1})}catch(e){err=e.message}
+   ok('every closet item draws in every pose',!err,err);
+   UNL=new Set();CAR=newCareer();CAR.name='T';const fd={stats:{a:{called:0,mew:0,froze:0,dealt:500,aura:0},b:{}}};careerEnd(true,fd,RIVAL.hank);ok('first win over Hank unlocks his drip',UNL.has('turtle')&&UNL.has('eyes'));
+   for(const id of ['nathan','gary','dex','max','sam'])careerEnd(true,fd,RIVAL[id]);careerEnd(true,fd,RIVAL.chad);ascEnd();ok('ascending unlocks the crown + aura glow',UNL.has('crown')&&UNL.has('auraglow'));
+   ACT.senior();ok('senior year opens the challenger board',CAR.senior&&SCREEN==='s-plan'&&/THE CHALLENGER/.test($('plan-w').textContent));
+   const c0=challenger(CAR);ok('challengers come back glowed up',c0.st.flex>RIVAL[c0.base].st.flex&&!!RIVAL[c0.id]&&c0.name.endsWith('2.0'));
+   for(let i=0;i<3;i++)seniorEnd(true,fd,challenger(CAR));ok('three defenses in a row unlock drip shades',CAR.def===3&&CAR.defBest===3&&UNL.has('shades'));
+   const c3=challenger(CAR);ok('each defense the next one is stronger',c3.st.stare>=c0.st.stare+18);seniorEnd(false,fd,c3);ok('losing the crown resets the streak, keeps the best',CAR.def===0&&CAR.defBest===3);
+   // quick match: two students in a quick-match room start on their own, no classes
+   const sent=[];const rs=net.send;net.send=o=>sent.push(o);let clock=5e6;const rn=window.__nowOverride;window.__nowOverride=()=>clock;
+   MODE='host';G.qm=true;G.set={rounds:2,timer:6,classes:0};G.phase='lobby';G.host=MY_CID;G.players=[newPlayer(MY_CID,'A',randLook())];HS.duels={};
+   hostMsg({t:'hi',cid:'Q1',name:'B',look:{}});for(const p of G.players)HS.seen[p.cid]=clock;hostTick();ok('quick match waits a beat before starting',G.phase==='lobby'&&HS.qmAt>0);
+   clock+=3000;for(const p of G.players)HS.seen[p.cid]=clock;hostTick();ok('then starts straight into a mog-off',G.phase==='duels'&&Object.values(HS.duels).some(d=>d.live));
+   G.phase='over';hostMsg({t:'bye',cid:'Q1'});hostMsg({t:'hi',cid:'Q2',name:'C',look:{}});ok('a new searcher resets a finished quick match',G.phase==='lobby'&&!!P('Q2'));
+   net.send=rs;window.__nowOverride=rn;MODE='off';G.qm=false;G.phase='off';G.players=[];HS.duels={};HS.qmAt=0;CAR=null}
   // ── screens ──
   {for(const id of ['s-title','s-online','s-settings','s-howto','s-quick'])show(id),ok('screen '+id+' renders',$(id).classList.contains('on')&&$(id).textContent.length>40);
    openCreate('s-title','edit');ok('look editor opens',SCREEN==='s-create'&&!!$('lookcv'));ACT.lk('hair');ACT.lk('rand');ok('look editor buttons work',!!CREATE.look);
