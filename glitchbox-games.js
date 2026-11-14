@@ -3,7 +3,6 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
-  {name:'Last One Standing',  file:'last-one-standing.html',      emoji:'🔥',color:['#2a0a04','#6e1a05'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Six fighters, one burning arena. Block, throw, punish, land your super. Fight a friend online or clear the arcade'},
   {name:'Mog Academy',        file:'mog-academy.html',            emoji:'🗿',color:['#3a0816','#5c1022'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Pick a pose, read your rival, mog them. Train from NPC to Chad, beat Chadwick at prom and ascend. 2 to 8 friends online, or solo'},
   {name:'Rocket Roadster',    file:'rocket-roadster.html',        emoji:'🏎️',color:['#2b1418','#d06a3a'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Drive, hop and fly a rocket car over a mountain range. Race up to 7 friends to the summit pad, or winch them out of trouble'},
   {name:'Frontline',          file:'frontline.html',              emoji:'🦾',color:['#070a1c','#2a1622'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Start as a regular soldier. Level up, bolt on robot parts and push the machines back with friends or CPU squadmates. 1 to 4 players'},
@@ -53,25 +52,6 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
-'last-one-standing':(c)=>{
-  // a burning arena: a cyber-samurai squares up to an iron golem with a raised hammer
-  _GV(c,0,0,320,200,'#3a0c03','#a8400c','#6e1a05');
-  for(let i=0;i<9;i++){const g=c.createRadialGradient((i*41)%320,60+(i*29)%90,4,(i*41)%320,60+(i*29)%90,70);g.addColorStop(0,'rgba(255,200,80,.55)');g.addColorStop(1,'rgba(255,120,20,0)');c.fillStyle=g;c.fillRect(0,0,320,200)}
-  c.fillStyle='rgba(30,6,0,.6)';c.fillRect(60,30,22,150);c.fillRect(240,30,26,150);_F(c,0,176,320,24,'#140604');
-  const px=(x,y,w,h,col)=>_F(c,x,y,w,h,col);
-  // samurai
-  px(96,120,10,34,'#1a1b22');px(108,120,10,34,'#23242d');px(94,152,12,5,'#e8402c');px(108,152,12,5,'#e8402c');
-  px(94,94,26,28,'#e8402c');px(100,84,12,11,'#e2b59a');px(99,82,14,5,'#14151b');px(106,87,8,3,'#3fe0ff');
-  px(118,100,22,6,'#e2b59a');_L(c,140,103,176,92,'#d8fbff',2);_L(c,140,103,176,92,'rgba(63,224,255,.5)',5);
-  _L(c,94,96,62,108,'#b32a1c',4);
-  // golem
-  px(206,128,16,28,'#5c616e');px(226,128,16,28,'#4a4e5a');px(202,154,22,6,'#34373f');px(224,154,22,6,'#34373f');
-  px(198,86,52,44,'#6e7482');px(192,80,20,14,'#8a909e');px(238,80,20,14,'#8a909e');px(216,72,16,14,'#545966');px(219,77,10,3,'#ff8a1f');
-  _C(c,224,100,6,'#ff8a1f');_C(c,224,100,3,'#ffe2b0');
-  px(250,60,8,40,'#7c8291');_L(c,254,62,226,22,'#3a2a1e',4);px(212,8,30,20,'#3a3e48');_L(c,216,12,206,30,'#4fa8ff',2);
-  c.font='bold 26px Impact, Arial Narrow, sans-serif';c.textAlign='center';c.fillStyle='#08080c';c.fillText('LAST ONE STANDING',162,40);c.fillStyle='#fff';c.fillText('LAST ONE STANDING',160,38);c.textAlign='left';
-  _SC(c);
-},
 'mog-academy':(c)=>{
   // the school hallway: teal lockers, a spotlight, and the academy's moai mascot
   _GV(c,0,0,320,200,'#6a142a','#4a0b1b','#2a0710');
@@ -1007,7 +987,7 @@ const THUMB_IMGS = {};
 // Which games actually have a painted thumbs/<gid>.png. Asking for every game's file
 // meant ~43 failed downloads (404s) on every hub and play-page visit. Add a gid here
 // when a new shot goes into thumbs/.
-const THUMB_FILES = new Set(['last-one-standing','gridlock','haymaker','tank-war-3d','frontline','rocket-roadster','mog-academy']);
+const THUMB_FILES = new Set(['gridlock','haymaker','tank-war-3d','frontline','rocket-roadster','mog-academy']);
 function drawThumb(ctx, g){
   const gid = g.file.replace('.html','');
   (DRAW[gid] || DRAW.fallback)(ctx, g);
