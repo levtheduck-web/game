@@ -50,7 +50,7 @@ const NET_RE = /^net:[0-9a-f]{16}$/;
 const RAW_IP_RE = /^[0-9a-f.:]{3,64}$/i;
 function utcDay(t) { return new Date(t).toISOString().slice(0, 10); }
 // The relay games — what "Party Animal" counts, and the only games a friend can be joined in.
-const MP_FILES = ["mog-academy.html", "rocket-roadster.html", "haymaker.html", "car-mechanic.html", "bomb-squad.html", "heist-crew.html", "imposter.html", "most-likely-to.html", "rhyme-bomb.html", "scrawl.html", "gridlock.html",
+const MP_FILES = ["last-one-standing.html", "mog-academy.html", "rocket-roadster.html", "haymaker.html", "car-mechanic.html", "bomb-squad.html", "heist-crew.html", "imposter.html", "most-likely-to.html", "rhyme-bomb.html", "scrawl.html", "gridlock.html",
   "blast-radius.html", "quoridor.html", "fib-factory.html", "spaceship-mp.html", "frontline.html"];
 // "Dave Smith" → "Dave S." — leaderboards are seen by people who aren't your friends.
 function shortName(n) {
