@@ -3,6 +3,7 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
+  {name:'Mog Academy',        file:'mog-academy.html',            emoji:'🗿',color:['#3a0816','#5c1022'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Pick a pose, read your rival, mog them. Train from NPC to Chad, beat Chadwick at prom and ascend. 2 to 8 friends online, or solo'},
   {name:'Rocket Roadster',    file:'rocket-roadster.html',        emoji:'🏎️',color:['#2b1418','#d06a3a'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Drive, hop and fly a rocket car over a mountain range. Race up to 7 friends to the summit pad, or winch them out of trouble'},
   {name:'Frontline',          file:'frontline.html',              emoji:'🦾',color:['#070a1c','#2a1622'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Start as a regular soldier. Level up, bolt on robot parts and push the machines back with friends or CPU squadmates. 1 to 4 players'},
   {name:'Tank War 3D',        file:'tank-war-3d.html',            emoji:'🪖',color:['#0b1a10','#1c3a52'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Tanks, ships, jets and choppers in 3D. Rack up kills to unlock variants, fight 7v7 or take on friends online'},
@@ -51,6 +52,17 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
+'mog-academy':(c)=>{
+  // the school hallway: teal lockers, a spotlight, and the academy's moai mascot
+  _GV(c,0,0,320,200,'#6a142a','#4a0b1b','#2a0710');
+  for(let x=0;x<320;x+=20){c.fillStyle=(x/20)%2?'#2b6a70':'#245a5f';c.fillRect(x,96,19,104);c.fillStyle='rgba(0,0,0,.3)';for(let v=0;v<3;v++)c.fillRect(x+4,104+v*5,11,2)}
+  c.fillStyle='rgba(30,4,10,.4)';c.fillRect(0,96,320,104);
+  const g=c.createRadialGradient(160,70,6,160,90,120);g.addColorStop(0,'rgba(255,214,120,.45)');g.addColorStop(1,'rgba(255,214,120,0)');c.fillStyle=g;c.fillRect(0,0,320,200);
+  c.save();c.translate(160,96);c.fillStyle='#9aa0a8';c.strokeStyle='#1f1a1d';c.lineWidth=3;c.beginPath();c.moveTo(-24,-52);c.quadraticCurveTo(-28,-64,0,-66);c.quadraticCurveTo(28,-64,24,-52);c.lineTo(27,-18);c.lineTo(25,34);c.quadraticCurveTo(0,44,-25,34);c.lineTo(-27,-18);c.closePath();c.fill();c.stroke();
+  c.fillStyle='rgba(0,0,0,.35)';c.fillRect(-23,-38,46,8);c.beginPath();c.moveTo(-5,-30);c.lineTo(-10,4);c.lineTo(10,4);c.lineTo(5,-30);c.closePath();c.stroke();c.beginPath();c.moveTo(-12,16);c.lineTo(12,16);c.stroke();c.restore();
+  c.fillStyle='#ffd34d';for(const [x,y,s] of [[118,40,4],[204,52,3],[126,104,3],[198,96,4]]){c.beginPath();c.moveTo(x,y-s*2);c.lineTo(x+s*.5,y-s*.5);c.lineTo(x+s*2,y);c.lineTo(x+s*.5,y+s*.5);c.lineTo(x,y+s*2);c.lineTo(x-s*.5,y+s*.5);c.lineTo(x-s*2,y);c.lineTo(x-s*.5,y-s*.5);c.fill()}
+  c.textAlign='left';c.font='bold 26px Impact, system-ui, sans-serif';c.lineJoin='round';c.lineWidth=5;c.strokeStyle='#3f0817';c.strokeText('MOG ACADEMY',12,188);c.fillStyle='#f2b632';c.fillText('MOG ACADEMY',12,188);
+},
 'rocket-roadster':(c)=>{
   // late afternoon in canyon country: a red roadster hovers over a gap on white jets
   c.save();
@@ -975,7 +987,7 @@ const THUMB_IMGS = {};
 // Which games actually have a painted thumbs/<gid>.png. Asking for every game's file
 // meant ~43 failed downloads (404s) on every hub and play-page visit. Add a gid here
 // when a new shot goes into thumbs/.
-const THUMB_FILES = new Set(['gridlock','haymaker','tank-war-3d','frontline','rocket-roadster']);
+const THUMB_FILES = new Set(['gridlock','haymaker','tank-war-3d','frontline','rocket-roadster','mog-academy']);
 function drawThumb(ctx, g){
   const gid = g.file.replace('.html','');
   (DRAW[gid] || DRAW.fallback)(ctx, g);

@@ -1,0 +1,43 @@
+MOG ACADEMY - SOUND CREDITS
+
+Every sound in mog-academy-sfx.m4a is a real recording released under Creative Commons Zero (public domain).
+No attribution is required, but here is where they came from. Thank you!
+
+Freesound.org (all CC0):
+  Projection Crash Cymbal by deleted_user_7146007 - https://freesound.org/people/deleted_user_7146007/sounds/383884/ (reversed)
+  School bell.wav by deleted_user_7020630 - https://freesound.org/people/deleted_user_7020630/sounds/378394/
+  door metal locker or shed close hard slam rattle solid nice.wav by kyles - https://freesound.org/people/kyles/sounds/450792/
+  Referee whistle blow, gymnasium.wav by SpliceSound - https://freesound.org/people/SpliceSound/sounds/218318/
+  metal whistle.wav by strongbot - https://freesound.org/people/strongbot/sounds/568995/
+  Crowd laugh.wav by deleted_user_2104797 - https://freesound.org/people/deleted_user_2104797/sounds/324894/
+  Small Crowd Laughing by snakebarney - https://freesound.org/people/snakebarney/sounds/138112/
+  Small applause by Breviceps - https://freesound.org/people/Breviceps/sounds/462362/
+  sneaker squeak rubber.wav by shakaharu - https://freesound.org/people/shakaharu/sounds/88502/
+  unzip-fast.wav by birdOfTheNorth - https://freesound.org/people/birdOfTheNorth/sounds/577441/
+  Zipper_fast.aif by tmkappelt - https://freesound.org/people/tmkappelt/sounds/85712/
+  Finger Snapping by sazarret - https://freesound.org/people/sazarret/sounds/726409/
+  Choir of Voices - Single Chord by bone666138 - https://freesound.org/people/bone666138/sounds/274121/
+  Strong wind by lextrack - https://freesound.org/people/lextrack/sounds/344887/
+  wind_gust.aif by joseph.larralde - https://freesound.org/people/joseph.larralde/sounds/352421/
+  Human Heartbeat (60 BPM) by FenrirFangs - https://freesound.org/people/FenrirFangs/sounds/213181/
+  record_scratch.wav by ludvique - https://freesound.org/people/ludvique/sounds/71853/
+  Scratch 4x.wav by LiftPizzas - https://freesound.org/people/LiftPizzas/sounds/610676/
+  Scribble by Tomoyo Ichijouji - https://freesound.org/people/Tomoyo%20Ichijouji/sounds/211247/
+  scribble.mp3 by indigosierra - https://freesound.org/people/indigosierra/sounds/82610/
+  Page Flip by qubodup - https://freesound.org/people/qubodup/sounds/454707/
+  flip page by ROFD - https://freesound.org/people/ROFD/sounds/188485/
+  Mouth pop by fleurescence - https://freesound.org/people/fleurescence/sounds/573153/
+  Mouth pop by fleurescence - https://freesound.org/people/fleurescence/sounds/573152/
+  buzzer of car wash.wav by cognito perceptu - https://freesound.org/people/cognito%20perceptu/sounds/17468/
+  service bell ring by AlaskaRobotics - https://freesound.org/people/AlaskaRobotics/sounds/221515/
+  desk bell center.mp3 by tonmayster - https://freesound.org/people/tonmayster/sounds/685111/
+  OBJGym-Int_GymPlatesDrop_Zus_OwSfx_Hard by ZusIsKing - https://freesound.org/people/ZusIsKing/sounds/766862/
+  frying steak.wav by simosco - https://freesound.org/people/simosco/sounds/235537/
+  traditional stamp.wav by I.fekry - https://freesound.org/people/I.fekry/sounds/470710/
+  es-stamp.wav by eddies2000 - https://freesound.org/people/eddies2000/sounds/448474/
+  Single Cricket Chirping, Close Perspective 02 by HECKFRICKER - https://freesound.org/people/HECKFRICKER/sounds/753272/
+  Cash Register Fake.wav by CapsLok - https://freesound.org/people/CapsLok/sounds/184438/ (built by the author from real recordings of a printer, a ratchet, a box of junk and a small bell)
+
+Reused from haymaker-sfx.m4a (all CC0; every source is listed in sfx/CREDITS.txt):
+  crowd ooh, big ooh, gasp and cheer; whooshes; camera shutter; UI click; gleam chime; metal and plate hits;
+  explosions; glass hit; count ticks; cloth grabs; body falls
