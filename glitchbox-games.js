@@ -3,6 +3,8 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
+  {name:'Soap Rocket',        file:'soap-rocket.html',            emoji:'🧼',color:['#bfe6ff','#ffd6ea'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Make your perfect soap in the Soap Lab: oils, mold, colour and mix-ins. Then strap a rocket on it and race it around a slippery bathroom. Up to 8 friends online'},
+  {name:'Inheritance',        file:'inheritance.html',            emoji:'👑',color:['#120d17','#2c2134'],category:'action',     tags:['new','hot'],blurb:'A pixel spell roguelike. When you die, that character waits downstairs as the next boss, with your spells and your habits. Beat them to take something back'},
   {name:'Mog Academy',        file:'mog-academy.html',            emoji:'🗿',color:['#3a0816','#5c1022'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Pick a pose, read your rival, mog them. Train from NPC to Chad, beat Chadwick at prom and ascend. 2 to 8 friends online, or solo'},
   {name:'Rocket Roadster',    file:'rocket-roadster.html',        emoji:'🏎️',color:['#2b1418','#d06a3a'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Drive, hop and fly a rocket car over a mountain range. Race up to 7 friends to the summit pad, or winch them out of trouble'},
   {name:'Frontline',          file:'frontline.html',              emoji:'🦾',color:['#070a1c','#2a1622'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Start as a regular soldier. Level up, bolt on robot parts and push the machines back with friends or CPU squadmates. 1 to 4 players'},
@@ -52,6 +54,92 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
+'soap-rocket':(c)=>{
+  // a pink soap bar with two rockets, sliding across wet pastel tiles
+  c.save();
+  _GV(c,0,0,320,200,'#cfeeff','#e9f4ff','#fde3f0');
+  // tiled wall + floor
+  c.strokeStyle='rgba(120,140,200,.35)';c.lineWidth=2;
+  for(let x=0;x<=320;x+=32){c.beginPath();c.moveTo(x,0);c.lineTo(x,92);c.stroke();}
+  for(let y=0;y<=92;y+=32){c.beginPath();c.moveTo(0,y);c.lineTo(320,y);c.stroke();}
+  _GV(c,0,92,320,108,'#f2f6ff','#e3ecff');
+  c.strokeStyle='rgba(120,140,200,.3)';
+  for(let i=-8;i<=8;i++){c.beginPath();c.moveTo(160+i*22,92);c.lineTo(160+i*70,200);c.stroke();}
+  for(const y of [104,122,148,182]){c.beginPath();c.moveTo(0,y);c.lineTo(320,y);c.stroke();}
+  // wet shine + reflection
+  c.fillStyle='rgba(255,255,255,.65)';c.beginPath();c.ellipse(150,168,120,10,0,0,6.28);c.fill();
+  c.fillStyle='rgba(255,143,194,.25)';c.beginPath();c.ellipse(168,172,70,12,0,0,6.28);c.fill();
+  const ink='#2b1f40';
+  const rr=(x,y,w,h,r)=>{c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();};
+  // flames
+  const flame=(x,y)=>{c.fillStyle='#ff7a3a';c.strokeStyle=ink;c.lineWidth=4;c.beginPath();c.moveTo(x,y-9);c.quadraticCurveTo(x-40,y-6,x-72,y);c.quadraticCurveTo(x-40,y+6,x,y+9);c.closePath();c.stroke();c.fill();
+    c.fillStyle='#ffd23f';c.beginPath();c.moveTo(x,y-6);c.quadraticCurveTo(x-24,y-3,x-44,y);c.quadraticCurveTo(x-24,y+3,x,y+6);c.fill();c.fillStyle='#fff6d8';c.beginPath();c.ellipse(x-6,y,8,4,0,0,6.28);c.fill();};
+  flame(98,118);flame(104,166);
+  // rockets
+  const rocket=(x,y)=>{c.lineWidth=4;c.strokeStyle=ink;rr(x,y-11,92,22,10);c.fillStyle='#fffaf0';c.fill();c.stroke();
+    c.fillStyle='#f2443b';c.beginPath();c.moveTo(x+92,y-11);c.quadraticCurveTo(x+120,y,x+92,y+11);c.closePath();c.fill();c.stroke();
+    _F(c,x+40,y-10,8,20,'#ffc93c');_F(c,x+16,y-10,6,20,'#f2443b');
+    c.fillStyle='#f2443b';c.beginPath();c.moveTo(x+12,y-11);c.lineTo(x-6,y-22);c.lineTo(x+26,y-11);c.closePath();c.fill();c.stroke();
+    c.fillStyle='#4b5262';rr(x-8,y-9,12,18,4);c.fill();c.stroke();};
+  rocket(104,118);
+  // the bar
+  c.lineWidth=5;c.strokeStyle=ink;rr(118,104,150,74,28);c.fillStyle='#ff8fc2';c.fill();c.stroke();
+  c.fillStyle='rgba(255,255,255,.35)';rr(128,110,126,20,10);c.fill();
+  c.lineWidth=3;c.strokeStyle='#ffd6ea';c.beginPath();c.ellipse(194,140,58,24,0,0,6.28);c.stroke();
+  c.font='900 28px "Arial Black",Impact,sans-serif';c.textAlign='center';c.textBaseline='middle';c.lineWidth=5;c.strokeStyle=ink;c.strokeText('SOAP',194,141);c.fillStyle='#ffe6f2';c.fillText('SOAP',194,141);
+  rocket(110,166);
+  // suds on the corner
+  for(const [x,y,r] of [[246,100,12],[262,104,10],[232,98,9],[252,92,8]]){c.fillStyle='#f4fbff';c.strokeStyle=ink;c.lineWidth=3;c.beginPath();c.arc(x,y,r,0,6.28);c.fill();c.stroke();}
+  // floating bubbles
+  for(const [x,y,r] of [[40,40,14],[70,70,7],[286,40,18],[300,82,8],[24,150,9],[290,150,12]]){
+    const g=c.createRadialGradient(x-r*.35,y-r*.35,1,x,y,r);g.addColorStop(0,'rgba(255,255,255,.95)');g.addColorStop(.5,'rgba(220,240,255,.35)');g.addColorStop(1,'rgba(200,170,255,.5)');
+    c.fillStyle=g;c.strokeStyle=ink;c.lineWidth=2.5;c.beginPath();c.arc(x,y,r,0,6.28);c.fill();c.stroke();}
+  c.restore();
+},
+
+'inheritance':(c)=>{
+  // a crypt: you (red robe) face the Heir, your last dead self, crowned and see-through, with an echo of the habit it learned
+  c.save();
+  c.imageSmoothingEnabled=false;
+  // floor: Cellar stone, 20px flags
+  for(let y=40;y<200;y+=20) for(let x=0;x<320;x+=20){ const o=((x/20)+(y/20))%2; _F(c,x,y,20,20,o?'#251b2c':'#2a1f31'); _F(c,x,y,20,1,'#1a1220'); _F(c,x,y,1,20,'#1a1220'); }
+  // back wall + bricks
+  _F(c,0,0,320,40,'#2c2134'); _F(c,0,34,320,6,'#3b2d45'); _F(c,0,40,320,2,'#57406a');
+  for(let y=0;y<34;y+=8) for(let x=((y/8)%2)*10;x<320;x+=20) _F(c,x,y,1,8,'#211829');
+  for(let y=0;y<34;y+=8) _F(c,0,y,320,1,'#211829');
+  // candles + warm pools of light
+  const glow=(x,y,r,col)=>{const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,col);g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2);};
+  [[44,22],[160,22],[276,22]].forEach(([x,y])=>{ glow(x,y,46,'rgba(239,125,60,.30)'); _F(c,x-3,y,6,12,'#e8dcc4'); _F(c,x-1,y-6,2,6,'#ef7d3c'); _F(c,x-1,y-4,2,2,'#ffe08a'); });
+  // a pixel sprite: '#' robe, 'd' robe shade, '-' face, 'e' eyes, '|' trim
+  const S=["....####....","...######...","..##----##..","..#-e--e-#..","..##----##..","...######...","..###||###..",".####||####.",".d###||###d.","dd###||###dd","d####||####d",".##########.",".d########d.","..##....##.."];
+  const sprite=(x,y,p,cols,alpha)=>{ c.globalAlpha=alpha; S.forEach((row,j)=>{ for(let i=0;i<row.length;i++){ const k=row[i]; if(k!=='.') _F(c,x+i*p,y+j*p,p,p,cols[k]); } }); c.globalAlpha=1; };
+  // the Heir: cyan ghost, bigger, crowned, with an echo where it learned to dash
+  glow(232,100,90,'rgba(143,240,222,.22)');
+  const ghost={'#':'#8ff0de','d':'#3d8f86','-':'#0b1a1c','e':'#ffffff','|':'#e3b341'};
+  sprite(244,58,6,ghost,.18); sprite(232,52,6,ghost,.30);
+  sprite(196,52,6,ghost,.82);
+  // its crown
+  const cx=196+24, cy=52-14;
+  _F(c,cx,cy+8,24,6,'#e3b341'); _F(c,cx,cy,4,8,'#e3b341'); _F(c,cx+10,cy-2,4,10,'#e3b341'); _F(c,cx+20,cy,4,8,'#e3b341'); _F(c,cx+11,cy+9,2,2,'#c2364a');
+  // you: red robe, casting
+  const you={'#':'#c2364a','d':'#7a1e2c','-':'#120d17','e':'#e8dcc4','|':'#e3b341'};
+  glow(70,140,40,'rgba(180,140,242,.18)');
+  sprite(52,112,3,you,1);
+  // the violet bolt between you, with sparks
+  c.strokeStyle='rgba(180,140,242,.35)'; c.lineWidth=8; c.beginPath(); c.moveTo(92,128); c.lineTo(186,98); c.stroke();
+  c.strokeStyle='#b48cf2'; c.lineWidth=3; c.beginPath(); c.moveTo(92,128); c.lineTo(186,98); c.stroke();
+  _F(c,180,94,8,8,'#f4ecff'); _F(c,88,124,6,6,'#f4ecff');
+  [[120,112],[140,124],[158,104],[110,130],[172,112]].forEach(([x,y],i)=>_F(c,x,y,i%2?2:3,i%2?2:3,'#d8c4ff'));
+  // the Heir's answer: a cyan missile on its way
+  _F(c,150,150,6,6,'#8ff0de'); _F(c,158,151,10,4,'rgba(143,240,222,.45)'); _F(c,170,152,10,2,'rgba(143,240,222,.2)');
+  // coins and bones on the floor
+  [[34,176],[44,182],[288,182],[120,186]].forEach(([x,y])=>{ _F(c,x,y,6,6,'#e3b341'); _F(c,x+1,y+1,2,2,'#fff0b0'); });
+  _F(c,268,170,16,3,'#e8dcc4'); _F(c,266,168,3,7,'#e8dcc4'); _F(c,283,168,3,7,'#e8dcc4');
+  // vignette
+  const v=c.createRadialGradient(160,110,60,160,110,220); v.addColorStop(0,'rgba(0,0,0,0)'); v.addColorStop(1,'rgba(8,4,10,.7)'); c.fillStyle=v; c.fillRect(0,0,320,200);
+  c.restore();
+},
+
 'mog-academy':(c)=>{
   // the school hallway: teal lockers, a spotlight, and the academy's moai mascot
   _GV(c,0,0,320,200,'#6a142a','#4a0b1b','#2a0710');
@@ -987,7 +1075,7 @@ const THUMB_IMGS = {};
 // Which games actually have a painted thumbs/<gid>.png. Asking for every game's file
 // meant ~43 failed downloads (404s) on every hub and play-page visit. Add a gid here
 // when a new shot goes into thumbs/.
-const THUMB_FILES = new Set(['gridlock','haymaker','tank-war-3d','frontline','rocket-roadster','mog-academy']);
+const THUMB_FILES = new Set(['gridlock','haymaker','tank-war-3d','frontline','rocket-roadster','mog-academy','soap-rocket']);
 function drawThumb(ctx, g){
   const gid = g.file.replace('.html','');
   (DRAW[gid] || DRAW.fallback)(ctx, g);

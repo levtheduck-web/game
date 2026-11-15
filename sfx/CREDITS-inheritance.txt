@@ -1,0 +1,77 @@
+INHERITANCE - SOUND CREDITS
+
+Every sound in inheritance-sfx.m4a is a real recording released under Creative Commons Zero (CC0, public domain).
+Nothing was synthesized: the clips were trimmed, pitched, filtered, faded, layered and echoed from these recordings.
+No attribution is required, but here is where every sound came from. Thank you!
+
+name in sprite | source | title | author | URL | license
+cast_bolt, cast_scythe, eyes, slash, getsuga | Freesound 60009 | swosh-22.flac | qubodup | https://freesound.org/people/qubodup/sounds/60009/ | CC0
+cast_bolt, zap | Freesound 189630 | Spark | elliott.klein | https://freesound.org/people/elliott.klein/sounds/189630/ | CC0
+cast_nova, explode | Freesound 637533 | flame burst ignite bbq barbecue.flac | kyles | https://freesound.org/people/kyles/sounds/637533/ | CC0
+cast_nova, player_die, note_strike | Kenney Impact Sounds | impactSoft_heavy_000.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+cast_nova, cast_orb, sande_on, sande_off, inf_off, purple_charge, purple_fire, world, rasengan, kame, transform | Freesound 60013 | Whoosh | qubodup | https://freesound.org/people/qubodup/sounds/60013/ | CC0
+cast_beam | Freesound 264779 | Civilian Stun Gun 1/10s zap | AnthonyChan0 | https://freesound.org/people/AnthonyChan0/sounds/264779/ | CC0
+cast_orb, burn, rasengan | Freesound 386385 | Torch - Ignite flame on soft | ldezem | https://freesound.org/people/ldezem/sounds/386385/ | CC0
+summon | Freesound 361427 | Wind_Chime_Monte_00.wav | monte32 | https://freesound.org/people/monte32/sounds/361427/ | CC0
+summon, ward, sande_off, stone | Freesound 198388 | ANI - Champagne flute - Hard 1a | ani_music | https://freesound.org/people/ani_music/sounds/198388/ | CC0
+ward, sande_on, eyes, kame, transform | Freesound 198401 | ANI - Wine Glass - Hard | ani_music | https://freesound.org/people/ani_music/sounds/198401/ | CC0
+hit | Kenney Impact Sounds | impactSoft_medium_001.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+hit | Kenney Impact Sounds | impactGeneric_light_000.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+enemy_die, dust | Freesound 202091 | Falling Bones.wav | spookymodem | https://freesound.org/people/spookymodem/sounds/202091/ | CC0
+enemy_die | Kenney Impact Sounds | impactMining_001.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+player_hurt | Kenney Impact Sounds | impactPunch_medium_000.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+player_hurt | Kenney RPG Audio | cloth2.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/rpg-audio | CC0
+player_die | Freesound 82027 | Body Fall Over.wav | raubana | https://freesound.org/people/raubana/sounds/82027/ | CC0
+player_die | Kenney Impact Sounds | impactBell_heavy_001.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+dash, clone | Freesound 494793 | Jacket/Cloth Rustle 7 | brandondelehoy | https://freesound.org/people/brandondelehoy/sounds/494793/ | CC0
+potion, clone | Freesound 335357 | Cork pop | Andre_Desartistes | https://freesound.org/people/Andre_Desartistes/sounds/335357/ | CC0
+potion | Freesound 574077 | Potion - drink - swallow.wav | ValentinPetiteau | https://freesound.org/people/ValentinPetiteau/sounds/574077/ | CC0
+coin | Freesound 163451 | Money Pickup | LeMudCrab | https://freesound.org/people/LeMudCrab/sounds/163451/ | CC0
+pickup, rank_up | Kenney Impact Sounds | impactGlass_light_002.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+pickup | Kenney Impact Sounds | impactMining_000.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+door, curse | Freesound 530987 | stone door close.wav | patchytherat | https://freesound.org/people/patchytherat/sounds/530987/ | CC0
+door | Kenney RPG Audio | doorClose_4.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/rpg-audio | CC0
+heir_appear, heir_die, mirror, sande_on, world, transform | Freesound 633208 | Old Church Bell (no noise) | igroglaz | https://freesound.org/people/igroglaz/sounds/633208/ | CC0
+heir_die | Freesound 221528 | Glass Break | unfa | https://freesound.org/people/unfa/sounds/221528/ | CC0
+heir_die | Freesound 233607 | Breaking Glass #1.wav | abstraktgeneriert | https://freesound.org/people/abstraktgeneriert/sounds/233607/ | CC0
+explode, purple_fire | Freesound 251759 | BOOMING PUNCHY EXPLOSION - close, big SCHOEPS MK41.wav | misosound | https://freesound.org/people/misosound/sounds/251759/ | CC0
+zap | Freesound 94132 | Spark.wav | BMacZero | https://freesound.org/people/BMacZero/sounds/94132/ | CC0
+ui_click | Kenney RPG Audio | metalClick.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/rpg-audio | CC0
+ui_hover | Kenney Impact Sounds | impactWood_light_000.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+descend | Kenney RPG Audio | footstep03.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/rpg-audio | CC0
+descend | Kenney Impact Sounds | footstep_concrete_000.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+descend | Kenney RPG Audio | footstep01.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/rpg-audio | CC0
+descend | Kenney Impact Sounds | footstep_concrete_001.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+descend | Kenney RPG Audio | footstep00.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/rpg-audio | CC0
+descend | Kenney Impact Sounds | footstep_concrete_002.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+will, note_write | Freesound 841413 | Fountainpen_Write_1_Texture | hanasmusic | https://freesound.org/people/hanasmusic/sounds/841413/ | CC0
+shop_buy | Kenney RPG Audio | handleCoins.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/rpg-audio | CC0
+shop_buy, wheel | Kenney RPG Audio | metalLatch.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/rpg-audio | CC0
+cast_blink, skitter | Freesound 494797 | Jacket/Cloth Rustle 9 | brandondelehoy | https://freesound.org/people/brandondelehoy/sounds/494797/ | CC0
+cast_blink | Freesound 398496 | wind chimes - single 04.wav | Anthousai | https://freesound.org/people/Anthousai/sounds/398496/ | CC0
+cast_scythe, slash | Kenney RPG Audio | knifeSlice.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/rpg-audio | CC0
+grasp_mark | Kenney RPG Audio | creak1.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/rpg-audio | CC0
+cast_grasp, slam | Freesound 447922 | Thud / Falling on wooden floor / Snapping, breaking neck | Breviceps | https://freesound.org/people/Breviceps/sounds/447922/ | CC0
+cast_grasp | Freesound 641236 | bones.wav | CaptainYulef | https://freesound.org/people/CaptainYulef/sounds/641236/ | CC0
+cast_grasp | Kenney Impact Sounds | impactMining_002.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+cast_hex, note_write | Freesound 841409 | Fountainpen_Draw_3_Flick | hanasmusic | https://freesound.org/people/hanasmusic/sounds/841409/ | CC0
+cast_hex | Freesound 676470 | Lighter - Medium | NearTheAtmoshphere | https://freesound.org/people/NearTheAtmoshphere/sounds/676470/ | CC0
+cast_hex, curse, wheel | Freesound 73678 | TollBell.wav | daytripper | https://freesound.org/people/daytripper/sounds/73678/ | CC0
+ricochet | Kenney Impact Sounds | impactMetal_light_002.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+dig | Kenney Impact Sounds | footstep_snow_000.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+dig | Kenney Impact Sounds | footstep_grass_002.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+dig | Kenney Impact Sounds | impactMining_003.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+slam | Kenney Impact Sounds | impactPlate_heavy_000.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+slam, hammer | Kenney Impact Sounds | impactMetal_heavy_001.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+skitter | Kenney RPG Audio | creak2.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/rpg-audio | CC0
+mirror | Kenney Impact Sounds | impactGlass_heavy_000.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/impact-sounds | CC0
+inf_on, purple_charge | Freesound 841989 | Sing bowl ring | Tpkmusic | https://freesound.org/people/Tpkmusic/sounds/841989/ | CC0
+inf_on, inf_off | Freesound 810426 | temple bowl | midge-f | https://freesound.org/people/midge-f/sounds/810426/ | CC0
+note_tick, world | Freesound 54848 | Ticking Clock.wav | Izkhanilov | https://freesound.org/people/Izkhanilov/sounds/54848/ | CC0
+note_strike, haki | Freesound 213181 | Human Heartbeat (60 BPM) | FenrirFangs | https://freesound.org/people/FenrirFangs/sounds/213181/ | CC0
+snap | Freesound 332604 | Single Finger Snap | vckhaze | https://freesound.org/people/vckhaze/sounds/332604/ | CC0
+snap | Freesound 496088 | Finger Snap | dastudiospr | https://freesound.org/people/dastudiospr/sounds/496088/ | CC0
+dust | Freesound 326302 | sandfall2.wav | Wagna | https://freesound.org/people/Wagna/sounds/326302/ | CC0
+purple_fire, haki, getsuga, hammer, kame | Freesound 151854 | Thunder rumbling, underwater, outdoors_Thunder rumbling.aif | carroll27 | https://freesound.org/people/carroll27/sounds/151854/ | CC0
+rank_up | Kenney RPG Audio | bookOpen.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/rpg-audio | CC0
+rank_up | Kenney RPG Audio | bookFlip2.ogg | Kenney (kenney.nl) | https://kenney.nl/assets/rpg-audio | CC0
