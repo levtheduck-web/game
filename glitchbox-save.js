@@ -42,14 +42,18 @@
   // ── account ────────────────────────────────────────────────────────────
   // Same keys the hub (index.html) writes. Games are same-origin with it on
   // GitHub Pages, so reading them here needs no extra plumbing.
+  // A downloaded copy (glitchbox-download.js) has no account to sign in to, so its
+  // saves belong to this computer: a fixed local "player", kept in localStorage only.
+  var OFFLINE = window.GLITCHBOX_OFFLINE || null;
   function user() {
+    if (OFFLINE) return { sub: 'offline', name: 'player' };
     try { return JSON.parse(localStorage.getItem('glitchbox_user') || 'null'); }
     catch (_) { return null; }
   }
   function session() { try { return localStorage.getItem('glitchbox_session') || ''; } catch (_) { return ''; } }
 
   function gameId() {
-    var f = (location.pathname.split('/').pop() || 'game').replace(/\.html?$/i, '');
+    var f = ((OFFLINE && OFFLINE.file) || location.pathname.split('/').pop() || 'game').replace(/\.html?$/i, '');
     return f || 'game';
   }
   function key(sub) { return 'gbsave:' + sub + ':' + gameId(); }
@@ -71,7 +75,7 @@
 
   // Cloud mirror - only attempted once the Worker URL is real. Every call is
   // best-effort: a dead backend must never cost someone their local save.
-  function cloudOn() { return !!(window.GLITCHBOX_BACKEND_READY && session()); }
+  function cloudOn() { return !!(!OFFLINE && window.GLITCHBOX_BACKEND_READY && session()); }
   function cloudPush(box) {
     if (!cloudOn()) return Promise.resolve(false);
     return fetch(window.GLITCHBOX_API + '/api/save', {

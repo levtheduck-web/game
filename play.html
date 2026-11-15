@@ -8,7 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <script src="glitchbox-config.js"></script>
 <!-- Game roster + thumbnail art, shared with index.html -->
-<script src="glitchbox-games.js?v=20261115s"></script>
+<script src="glitchbox-games.js?v=20261115t"></script>
+<!-- ⬇ Download: packs the game into one file to keep (or the app builds, for Moving Mountains) -->
+<script src="glitchbox-download.js?v=20261115a"></script>
 <style>
 *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
 :root {
@@ -137,6 +139,8 @@ body.expanded .float-bar:hover { opacity:1; }
 .tool.primary:hover { color:#001014; box-shadow:0 0 26px var(--glow-c); }
 .tool.star.on { color:var(--yellow); border-color:rgba(255,230,0,0.55); text-shadow:0 0 8px var(--yellow); }
 .tool.right { margin-left:auto; }
+.tool.dl { border-color:rgba(0,255,136,0.3); color:#5fd9a0; }
+.tool.dl:hover { border-color:var(--green); color:var(--green); box-shadow:0 0 14px rgba(0,255,136,0.18); }
 .tool.quit { border-color:rgba(255,0,128,0.3); }
 .tool.quit:hover { border-color:var(--pink); color:var(--pink); box-shadow:0 0 14px var(--glow-p); }
 
@@ -247,6 +251,7 @@ body.expanded .float-bar:hover { opacity:1; }
       <button class="tool" onclick="restart()"><span class="t-i">⟳</span>Restart</button>
       <button class="tool star" id="fav-tool" onclick="toggleFav()"><span class="t-i" id="fav-icon">☆</span><span id="fav-text">Favorite</span></button>
       <a class="tool" id="raw-link" href="#" target="_blank" rel="noopener" title="Open the game on its own page"><span class="t-i">↗</span>New tab</a>
+      <button class="tool dl" id="dl-tool" onclick="downloadGame()" title="Save this game to your computer and play it any time, even offline"><span class="t-i">⬇</span>Download</button>
       <label class="pref" id="pref-full" title="Skip this page and jump straight into the game next time">
         <span class="box" id="pref-box"></span>Always fullscreen
       </label>
@@ -443,6 +448,18 @@ document.getElementById('pref-full').addEventListener('click', () => {
   paintPref(); renderGrids();
 });
 paintPref();
+
+// ══════════════════ DOWNLOAD ══════════════════
+// Web games get packed into one .html file (glitchbox-download.js); games that are
+// real apps offer their Windows / Mac builds instead.
+function downloadGame(){
+  if(!game || !window.GBDownload) return;
+  try{ if(document.fullscreenElement) document.exitFullscreen(); }catch(e){}
+  GBDownload.start(game.file, game.name);
+}
+if(game && window.GBDownload && GBDownload.isApp(game.file)){
+  document.getElementById('dl-tool').lastChild.textContent = 'Download app';
+}
 
 // ══════════════════ FAVORITE ══════════════════
 function paintFav(){

@@ -25,9 +25,15 @@
   if (window.__glitchboxMenu) return;            // never inject twice
   window.__glitchboxMenu = true;
 
+  // A downloaded copy (glitchbox-download.js) sets this. There's no arcade next to
+  // the file and no account, so: no ban/terms bounces, no pings, no favorites.
+  var OFFLINE = window.GLITCHBOX_OFFLINE || null;
+  // This script's own folder, where glitchbox-download.js lives too.
+  var MENU_SRC = (document.currentScript && document.currentScript.src) || '';
+
   // A banned player gets bounced back to the hub, which shows them the ban screen.
   // Same key the hub writes when the server answers "banned".
-  try { if (localStorage.getItem('glitchbox.banned') !== null) { location.replace('index.html'); return; } }
+  try { if (!OFFLINE && localStorage.getItem('glitchbox.banned') !== null) { location.replace('index.html'); return; } }
   catch (_) {}
   // Nobody plays until they've agreed to the current terms - signed in or guest. The
   // hub shows them, then brings you straight back here (room code and all).
@@ -40,7 +46,7 @@
     var have = [localStorage.getItem('glitchbox.tos.' + tid), localStorage.getItem('glitchbox.tosv.' + tid)]
       .filter(Boolean).sort(function (a, b) { return b.localeCompare(a, undefined, { numeric: true }); })[0] || '';
     var agreed = !!have && have.localeCompare(TOS_VERSION, undefined, { numeric: true }) >= 0;
-    if (!agreed && !/smoke|check|debug|menuquit/.test(location.hash)) {
+    if (!agreed && !OFFLINE && !/smoke|check|debug|menuquit/.test(location.hash)) {
       location.replace('index.html#terms:' + encodeURIComponent((location.pathname.split('/').pop() || '') + location.hash));
       return;
     }
@@ -50,7 +56,7 @@
   // the owner console which game you're in, and closes the game during maintenance
   // (for everyone but the owner). Self-test hashes stay offline.
   var BAN_API = window.GLITCHBOX_API || 'https://glitchbox-api.levtheduck.workers.dev';
-  var PING_GAME = (location.pathname.split('/').pop() || '');
+  var PING_GAME = OFFLINE ? OFFLINE.file : (location.pathname.split('/').pop() || '');
   // A guest has no account, so this random device id is what lets the owner see,
   // kick and ban them. Same key and format as index.html's guestId().
   function guestId() {
@@ -117,7 +123,7 @@
   window.GLITCHBOX = window.GLITCHBOX || {};
   window.GLITCHBOX.score = function (n, opts) {
     var s = ''; try { s = localStorage.getItem('glitchbox_session') || ''; } catch (_) {}
-    if (!s || !window.fetch || !isFinite(+n)) return Promise.resolve(null);
+    if (OFFLINE || !s || !window.fetch || !isFinite(+n)) return Promise.resolve(null);
     return fetch(BAN_API + '/api/score', { method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + s },
       body: JSON.stringify({ game: PING_GAME, score: +n, low: !!(opts && opts.low) }) })
@@ -126,7 +132,7 @@
   function banCheck() {
     var s = '';
     try { s = localStorage.getItem('glitchbox_session') || ''; } catch (_) {}
-    if (document.hidden || !window.fetch || /smoke|check|debug|menuquit/.test(location.hash)) return;
+    if (OFFLINE || document.hidden || !window.fetch || /smoke|check|debug|menuquit/.test(location.hash)) return;
     var tosv = ''; try { tosv = localStorage.getItem('glitchbox.tosv.guest') || localStorage.getItem('glitchbox.tos.guest') || ''; } catch (_) {}
     fetch(BAN_API + '/api/ping?game=' + encodeURIComponent(PING_GAME) + (currentRoom() ? '&room=' + currentRoom() : '') +
           '&gid=' + guestId() + (s ? '' : '&tos=' + encodeURIComponent(tosv)),
@@ -168,7 +174,7 @@
   // Favorites are shared with the hub (index.html): same localStorage key, same
   // shape - a JSON array of game filenames. Keep the two in step.
   var FAV_KEY = 'glitchbox.favs';
-  var GAME_FILE = (location.pathname.split('/').pop() || '');
+  var GAME_FILE = OFFLINE ? OFFLINE.file : (location.pathname.split('/').pop() || '');
   function favList() {
     try { var v = JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); return v instanceof Array ? v : []; }
     catch (_) { return []; }
@@ -251,7 +257,10 @@
       '.pop .fav:hover{color:#ffe600;border-color:rgba(255,230,0,.6)}' +
       '.pop .fav.on{color:#ffe600;border-color:rgba(255,230,0,.6);' +
         'box-shadow:0 0 10px rgba(255,230,0,.2)}' +
-      '.pop .fav .st{font-size:13px;line-height:1}';
+      '.pop .fav .st{font-size:13px;line-height:1}' +
+      '.pop .dl{display:flex;align-items:center;gap:7px;width:100%;margin:0 0 10px;padding:7px 10px;text-align:left}' +
+      '.pop .dl .st{font-size:13px;line-height:1}' +
+      '.pop .off .fav,.pop .off .dl{display:none}';
 
     var wrap = document.createElement('div');
     wrap.className = 'wrap';
@@ -259,11 +268,14 @@
       '<button class="btn" type="button" title="Quit to GLITCHBOX menu" aria-label="Quit to menu">' +
         '<span class="ico">\u25C0</span><span class="lbl">MENU</span>' +
       '</button>' +
-      '<div class="pop" role="dialog" aria-label="Game menu">' +
+      '<div class="pop' + (OFFLINE ? ' off' : '') + '" role="dialog" aria-label="Game menu">' +
         // \u escapes, not literal stars: this file is loaded without a charset
         // over file://, where literal non-ASCII comes through as mojibake
         '<button class="fav" type="button"><span class="st">\u2606</span>' +
           '<span class="ft">FAVORITE</span></button>' +
+        // keep a copy of the game: packed into one file by glitchbox-download.js
+        '<button class="dl" type="button"><span class="st">\u2B07</span>' +
+          '<span>DOWNLOAD</span></button>' +
         '<p>Quit to menu?</p>' +
         // a real link, not a button: it still navigates if a game interferes
         // with scripted clicks, and supports middle/ctrl-click to open a tab
@@ -309,6 +321,20 @@
       e.preventDefault(); e.stopPropagation();
       if (isGuest()) { location.href = 'index.html#signin'; return; }
       toggleFav(); paintFav();          // stays open: favoriting is not quitting
+    });
+    wrap.querySelector('.dl').addEventListener('click', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      setOpen(false);
+      try { if (document.fullscreenElement) document.exitFullscreen(); } catch (_) {}
+      // the page title's first part makes a fine name ("RHYME BOMB \u2014 Rhyme It..." -> "Rhyme Bomb")
+      var nm = (document.title || '').split(/\s+[\u2014\u2013|\u00b7-]\s+/)[0].trim();
+      if (nm && nm === nm.toUpperCase()) nm = nm.toLowerCase().replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+      var go = function () { window.GBDownload.start(GAME_FILE, nm || undefined); };
+      if (window.GBDownload) return go();
+      var sc = document.createElement('script');
+      sc.src = new URL('glitchbox-download.js', MENU_SRC || location.href).href;
+      sc.onload = go;
+      document.head.appendChild(sc);
     });
     wrap.querySelector('.go').addEventListener('click', function (e) {
       e.stopPropagation();

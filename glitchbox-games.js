@@ -3,6 +3,7 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
+  {name:'Moving Mountains',   file:'moving-mountains.html',       emoji:'⛰️',color:['#3d7fd0','#9fd36a'],category:'simulation', tags:['new','hot','mp'],blurb:'A 2,700,000,000-rock mountain is ruining Mr. Grumbleton\'s sunset. Get rid of it. You start with a spoon, then work up to pickaxes, C4, dump trucks and diggers. Bring friends with a room code, or download it for Windows and Mac'},
   {name:'Soap Rocket',        file:'soap-rocket.html',            emoji:'🧼',color:['#bfe6ff','#ffd6ea'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Make your perfect soap in the Soap Lab: oils, mold, colour and mix-ins. Then strap a rocket on it and race it around a slippery bathroom. Up to 8 friends online'},
   {name:'Inheritance',        file:'inheritance.html',            emoji:'👑',color:['#120d17','#2c2134'],category:'action',     tags:['new','hot'],blurb:'A pixel spell roguelike. When you die, that character waits downstairs as the next boss, with your spells and your habits. Beat them to take something back'},
   {name:'Mog Academy',        file:'mog-academy.html',            emoji:'🗿',color:['#3a0816','#5c1022'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Pick a pose, read your rival, mog them. Train from NPC to Chad, beat Chadwick at prom and ascend. 2 to 8 friends online, or solo'},
@@ -54,6 +55,26 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
+'moving-mountains':(c)=>{
+  // a big grey mountain over a meadow, a tiny orange dump truck and the rock counter
+  c.save();
+  _GV(c,0,0,320,200,'#2f6fc4','#6aa5e0','#cfe6f5');
+  const peak=(pts,col)=>{c.fillStyle=col;c.beginPath();c.moveTo(pts[0],pts[1]);for(let i=2;i<pts.length;i+=2)c.lineTo(pts[i],pts[i+1]);c.closePath();c.fill();};
+  peak([20,150,95,78,120,92,160,34,196,74,214,64,300,150],'#9b9a95');
+  peak([160,34,196,74,180,96,150,120,128,104,120,92],'#b7b6b0');
+  peak([160,34,176,52,166,58,154,50],'#f4f6f8');peak([214,64,226,78,214,80,204,74],'#f4f6f8');
+  c.fillStyle='rgba(80,80,78,.35)';for(let i=0;i<40;i++){const x=70+(i*53)%170,y=96+(i*29)%50;c.fillRect(x,y,6,3);}
+  _GV(c,0,140,320,60,'#a6d86a','#7cbc4a');
+  for(let i=0;i<14;i++){const x=6+i*23,h=18+(i*7)%12;c.fillStyle='#2e6b3a';c.beginPath();c.moveTo(x,148-h);c.lineTo(x-7,150);c.lineTo(x+7,150);c.fill();}
+  // dump truck
+  _F(c,150,150,46,20,'#eef0f2');_F(c,196,148,24,22,'#ff9a1f');_F(c,203,152,11,8,'#1d2430');
+  _F(c,150,170,72,7,'#1b1b1b');[160,176,212].forEach(x=>{_C(c,x,178,6,'#151515');_C(c,x,178,2.5,'#cfd3d8');});
+  c.fillStyle='#c0392b';c.font='bold 7px sans-serif';c.fillText('HADRIEN',156,162);
+  // the counter
+  c.fillStyle='rgba(10,30,60,.55)';c.fillRect(92,8,136,24);
+  c.fillStyle='#fff';c.font='bold 15px sans-serif';c.textAlign='center';c.fillText('2,700,000,000',160,26);
+  c.restore();
+},
 'soap-rocket':(c)=>{
   // a pink soap bar with two rockets, sliding across wet pastel tiles
   c.save();
@@ -1075,7 +1096,7 @@ const THUMB_IMGS = {};
 // Which games actually have a painted thumbs/<gid>.png. Asking for every game's file
 // meant ~43 failed downloads (404s) on every hub and play-page visit. Add a gid here
 // when a new shot goes into thumbs/.
-const THUMB_FILES = new Set(['gridlock','haymaker','tank-war-3d','frontline','rocket-roadster','mog-academy','soap-rocket']);
+const THUMB_FILES = new Set(['moving-mountains','gridlock','haymaker','tank-war-3d','frontline','rocket-roadster','mog-academy','soap-rocket']);
 function drawThumb(ctx, g){
   const gid = g.file.replace('.html','');
   (DRAW[gid] || DRAW.fallback)(ctx, g);
