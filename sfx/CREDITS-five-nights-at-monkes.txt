@@ -1,0 +1,38 @@
+FIVE NIGHTS AT MONKES - SOUND CREDITS
+
+Every sound in five-nights-at-monkes-sfx.m4a is a real recording released under Creative Commons Zero (public domain).
+Nothing was synthesized: the recordings were only trimmed, pitched, filtered, faded and (some clips) layered two at a time.
+No attribution is required, but here is where they came from. Thank you!
+
+Kenney - Impact Sounds (www.kenney.nl, CC0): impactGlass_light_000, impactMetal_light_000, impactPunch_heavy_000
+
+Freesound.org (all CC0):
+  Metal Door Slam_SoundSmith.wav by Lunardrive - https://freesound.org/people/Lunardrive/sounds/48980/
+  Affen schreit.mp3 by Bidone - https://freesound.org/people/Bidone/sounds/67361/
+  heavy barefoot on wood_bip.wav by iggy1345 - https://freesound.org/people/iggy1345/sounds/76932/
+  Wind Up Toy.wav by lmbubec - https://freesound.org/people/lmbubec/sounds/118816/
+  Kill Switch (Large Breaker Switch) .WAV by EchoCinematics - https://freesound.org/people/EchoCinematics/sounds/131599/
+  Power Down by peepholecircus - https://freesound.org/people/peepholecircus/sounds/169994/
+  Short Alarm bell in school hall (some clock ticks etc).aif by sbyandiji - https://freesound.org/people/sbyandiji/sounds/217486/
+  Light Switch ON / OFF by FillSoko - https://freesound.org/people/FillSoko/sounds/257958/
+  camera-video-button-press.wav by vacuumfan7072 - https://freesound.org/people/vacuumfan7072/sounds/265766/
+  Monkey toy with cymbals.wav by Archeos - https://freesound.org/people/Archeos/sounds/325550/
+  Howler Monkeys - short clip.wav by sethlind - https://freesound.org/people/sethlind/sounds/332724/
+  Heater Vent Hit Lower Part by Ev-Dawg - https://freesound.org/people/Ev-Dawg/sounds/336355/
+  Heater Vent Hit Higher Part.wav by Ev-Dawg - https://freesound.org/people/Ev-Dawg/sounds/336356/
+  banging on door by iamadam19 - https://freesound.org/people/iamadam19/sounds/362633/
+  Picking up a banana, peeling & eating.mp3 by Caitlin_100 - https://freesound.org/people/Caitlin_100/sounds/365518/
+  Chest banging.wav by shutup_outcast - https://freesound.org/people/shutup_outcast/sounds/367821/
+  Gorillaschrei.wav by J0ck0 - https://freesound.org/people/J0ck0/sounds/397054/
+  banana - tear 02.wav by Anthousai - https://freesound.org/people/Anthousai/sounds/398760/
+  Breaker-1.wav by Deathscyp - https://freesound.org/people/Deathscyp/sounds/404049/
+  door metal big heavy close kinda slam thud echo offmic.wav by kyles - https://freesound.org/people/kyles/sounds/406197/
+  Metal Scratching by BenjaminNelan - https://freesound.org/people/BenjaminNelan/sounds/410361/
+  Mud Splat by Breviceps - https://freesound.org/people/Breviceps/sounds/445109/
+  tv channel change static blips (scanner CB radio tuning static blips +static sharp +scanner CB radio blips on+off good2).flac by kyles - https://freesound.org/people/kyles/sounds/454259/
+  Cuckoo Clock Chimes 12.aif by DiArchangeli - https://freesound.org/people/DiArchangeli/sounds/462930/
+  S27-30 Chimpanzee Loud screams.wav by craigsmith - https://freesound.org/people/craigsmith/sounds/675430/
+  Howler monkey howling in the evening jungle by zachrau - https://freesound.org/people/zachrau/sounds/812933/
+  quiet metal creaking by squarfington - https://freesound.org/people/squarfington/sounds/815606/
+  Primates - Vervet Monkey by TheKingOfGeeks360 - https://freesound.org/people/TheKingOfGeeks360/sounds/839838/
+  Primates - Geoffroy's Spider Monkey, Take 2 by TheKingOfGeeks360 - https://freesound.org/people/TheKingOfGeeks360/sounds/843477/

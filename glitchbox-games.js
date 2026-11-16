@@ -3,6 +3,7 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
+  {name:'Five Nights at Monkes',file:'five-nights-at-monkes.html',emoji:'🐒',color:['#0b120c','#2a1a08'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Night keeper at a jungle play place. Listen for the monkes, shut the doors, feed Clappy a banana and make it to 6 AM. Split the jobs with up to 4 friends, or let one friend BE the monkes'},
   {name:'Moving Mountains',   file:'moving-mountains.html',       emoji:'⛰️',color:['#3d7fd0','#9fd36a'],category:'simulation', tags:['new','hot','mp'],blurb:'A 2,700,000,000-rock mountain is ruining Mr. Grumbleton\'s sunset. Get rid of it. You start with a spoon, then work up to pickaxes, C4, dump trucks and diggers. Bring friends with a room code, or download it for Windows and Mac'},
   {name:'Soap Rocket',        file:'soap-rocket.html',            emoji:'🧼',color:['#bfe6ff','#ffd6ea'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Make your perfect soap in the Soap Lab: oils, mold, colour and mix-ins. Then strap a rocket on it and race it around a slippery bathroom. Up to 8 friends online'},
   {name:'Inheritance',        file:'inheritance.html',            emoji:'👑',color:['#120d17','#2c2134'],category:'action',     tags:['new','hot'],blurb:'A pixel spell roguelike. When you die, that character waits downstairs as the next boss, with your spells and your habits. Beat them to take something back'},
@@ -568,6 +569,33 @@ const DRAW={
   c.fillStyle='#fff8e0';c.shadowColor='#ffb020';c.shadowBlur=18;c.beginPath();for(let i=0;i<16;i++){const a=i*Math.PI/8,r=i%2?7:19;c.lineTo(194+Math.cos(a)*r,72+Math.sin(a)*r)}c.closePath();c.fill();c.shadowBlur=0;
   for(let i=0;i<10;i++){c.fillStyle='rgba(220,240,255,.85)';c.beginPath();c.arc(198+i*4.5,62+((i*13)%14)-i*1.5,1.6,0,6.3);c.fill()}
   const vg=c.createRadialGradient(160,100,60,160,100,210);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.65)');c.fillStyle=vg;c.fillRect(0,0,320,200);
+  _SC(c);
+},
+'five-nights-at-monkes':(c)=>{
+  // the keeper's office at 2 AM: a lit west doorway with Bongo grinning in it, a shut east shutter, eyes in the vent
+  _GV(c,0,0,320,200,'#10201a','#0a140f');
+  c.fillStyle='#16291f';for(let y=0;y<160;y+=12)for(let x=(y/12%2)*9;x<320;x+=18)c.fillRect(x+1,y+1,16,10);
+  c.fillStyle='#2a1a08';c.fillRect(96,8,128,20);c.fillStyle='#e3b830';c.font='900 13px sans-serif';c.textAlign='center';c.fillText('MONKE MOUNTAIN',160,23);
+  // window with Howla's red eyes
+  c.fillStyle='#2b2b24';c.fillRect(116,36,88,60);_GV(c,120,40,80,52,'#05081a','#14223a');_C(c,150,62,3,'#ff3b3b');_C(c,166,62,3,'#ff3b3b');c.fillStyle='#2b2b24';c.fillRect(158,40,3,52);
+  // west door, lit, Bongo
+  c.fillStyle='#3a3a32';c.fillRect(4,40,74,160);const g=c.createRadialGradient(41,70,4,41,120,90);g.addColorStop(0,'rgba(255,226,140,.85)');g.addColorStop(1,'rgba(70,55,15,.25)');c.fillStyle='#020302';c.fillRect(10,46,62,154);c.fillStyle=g;c.fillRect(10,46,62,154);
+  c.save();c.beginPath();c.rect(10,46,62,154);c.clip();
+  c.fillStyle='#22222a';c.beginPath();c.ellipse(41,160,40,38,0,0,6.283);c.fill();
+  _C(c,24,104,9,'#34343c');_C(c,58,104,9,'#34343c');_C(c,41,108,22,'#34343c');c.fillStyle='#5c5c68';c.beginPath();c.ellipse(41,113,15,13,0,0,6.283);c.fill();c.fillStyle='#1c1c22';c.fillRect(25,99,32,7);
+  c.shadowColor='#ffb02e';c.shadowBlur=8;_C(c,34,108,2.6,'#ffb02e');_C(c,48,108,2.6,'#ffb02e');c.shadowBlur=0;
+  c.fillStyle='#2a0806';c.beginPath();c.ellipse(41,121,8,5,0,0,6.283);c.fill();c.fillStyle='#f4ecd0';for(let i=0;i<4;i++)c.fillRect(35+i*3.5,117,2.2,3);
+  c.fillStyle='#c2452d';c.beginPath();c.moveTo(31,132);c.lineTo(41,137);c.lineTo(31,142);c.fill();c.beginPath();c.moveTo(51,132);c.lineTo(41,137);c.lineTo(51,142);c.fill();c.restore();
+  // east shutter
+  c.fillStyle='#3a3a32';c.fillRect(242,40,74,160);c.fillStyle='#55584e';c.fillRect(248,46,62,154);c.fillStyle='#45483f';for(let y=58;y<200;y+=10)c.fillRect(248,y,62,2);
+  for(let x=248;x<310;x+=12){c.fillStyle='#e3b830';c.beginPath();c.moveTo(x,190);c.lineTo(x+6,190);c.lineTo(x+12,182);c.lineTo(x+6,182);c.fill()}
+  // vent with Mimi's pink eyes, desk, bananas
+  c.fillStyle='#2d302a';c.fillRect(86,112,46,26);c.fillStyle='#020302';c.fillRect(89,115,40,20);c.shadowColor='#ff6fb5';c.shadowBlur=6;_C(c,104,125,1.8,'#ff6fb5');_C(c,114,125,1.8,'#ff6fb5');c.shadowBlur=0;c.fillStyle='#50544a';for(let x=91;x<129;x+=5)c.fillRect(x,115,1.5,20);
+  c.fillStyle='#3a2614';c.beginPath();c.moveTo(92,150);c.lineTo(236,150);c.lineTo(250,200);c.lineTo(78,200);c.fill();c.fillStyle='#5a3a1e';c.fillRect(92,148,144,5);
+  c.fillStyle='#22241e';c.fillRect(140,120,46,32);c.fillStyle='#0d2a18';c.fillRect(144,124,38,24);c.fillStyle='rgba(141,255,176,.35)';for(let y=126;y<148;y+=4)c.fillRect(144,y,38,1);
+  c.fillStyle='#e8c030';for(let i=0;i<3;i++){c.save();c.translate(206,146);c.rotate(-.5+i*.3);c.beginPath();c.ellipse(9,0,10,3,0,0,6.283);c.fill();c.restore()}
+  c.fillStyle='#ffd23f';c.font='900 20px sans-serif';c.textAlign='right';c.shadowColor='#000';c.shadowBlur=4;c.fillText('2 AM',236,116);c.shadowBlur=0;c.textAlign='left';
+  const vg=c.createRadialGradient(160,120,40,160,100,220);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.55)');c.fillStyle=vg;c.fillRect(0,0,320,200);
   _SC(c);
 },
 'heist-crew':(c)=>{
