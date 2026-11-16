@@ -9,6 +9,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Monkes">
+<link rel="apple-touch-icon" href="thumbs/five-nights-at-monkes-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=VT323&display=swap" rel="stylesheet">
 <script src="glitchbox-config.js"></script>
@@ -144,6 +145,8 @@ input.tx{font-family:inherit;font-size:26px;background:#05100a;border:2px solid 
   #hourc{font-size:min(90px,20vh)}#toasts{top:50px}.tst{font-size:18px}}
 body.touch .cbtn small,body.touch #b_cams small,body.touch #b_ban small,body.touch .mk button small{display:none}
 button{touch-action:manipulation}
+#b_camdown{width:min(340px,30vw)}
+@media (min-height:900px) and (min-width:1100px){.cbtn{width:112px;height:82px;font-size:28px;border-radius:10px}.cbtn::before{width:9px;height:9px}#map{width:430px;height:320px}#map .cb{font-size:21px;line-height:26px;padding:0 7px}#b_ban{width:250px;height:72px;font-size:28px;bottom:84px}#b_cams,#b_camdown{height:46px;font-size:28px}#b_ht{left:calc(50% - 360px)}#b_howl{left:calc(50% + 250px);width:120px}#clock b{font-size:48px}#clock small{font-size:26px}#power{font-size:30px}#sndBtn,#fsBtn{font-size:26px;top:110px}#fsBtn{right:76px}}
 </style>
 </head>
 <body>
@@ -188,7 +191,7 @@ button{touch-action:manipulation}
 <div id="intro" class="ov"></div>
 <div id="six" class="ov"><b>6 AM</b><span id="sixSub"></span></div>
 <div id="sheetOv" class="ov"><div id="sheet"></div></div>
-<div id="rot" class="ov"><b>↻</b>Turn your phone sideways to keep watch.<br><small style="color:#9a9a86">The night is paused.</small></div>
+<div id="rot" class="ov"><b>↻</b>Turn your screen sideways to keep watch.<br><small style="color:#9a9a86">The night is paused.</small></div>
 
 <script>
 'use strict';
@@ -410,7 +413,8 @@ const cv=$('cv');let ctx=cv.getContext('2d');const MAINCTX=ctx;
 let DPR=1,SC=1,OX=0,OY=0,VW=1280,VH=720;
 function layout(){DPR=Math.min(2,devicePixelRatio||1);cv.width=Math.round(innerWidth*DPR);cv.height=Math.round(innerHeight*DPR);SC=Math.min(innerWidth/1280,innerHeight/720);
   // short, wide phone screens: zoom in a little and trim some ceiling and desk front instead of shrinking the room
-  if(innerHeight<520)SC=Math.max(SC,Math.min(innerWidth/1180,innerHeight/615));
+  // fill the screen: cover it, but never trim the sides past the doorways or the top/bottom past the room
+  SC=Math.max(SC,Math.min(Math.max(innerWidth/1280,innerHeight/720),innerWidth/1120,innerHeight/505));
   OX=(innerWidth-1280*SC)/2;OY=(innerHeight-720*SC)/2;CROPY=Math.max(0,-OY/SC);checkRot()}
 let CROPY=0;
 addEventListener('resize',layout);
@@ -518,7 +522,7 @@ function animEvent(n,p){const side=+p<0?'W':'E';
   else if(n==='power_out'){ANIM.pwo=1.7;ANIM.shake=Math.max(ANIM.shake,3)}
   else if(n==='fuse')ANIM.shake=Math.max(ANIM.shake,7);else if(n==='chest')ANIM.shake=Math.max(ANIM.shake,1.6);else if(n==='clang')ANIM.shake=Math.max(ANIM.shake,1)}
 // ── the office: a room in one-point perspective, painted once, then lit every frame ──
-const OFFX=-300,OFFW=1880;
+const OFFX=-300,OFFW=1880,OFFY=-140,OFFH=1000;
 const OFC={bg:null,win:null,glass:null,grime:null,lm:null,lmx:null,jc:null,jcx:null,grainP:null,gi:0,dc:null,dcx:null,tex:null};
 const PAN={x:0,tx:0};
 const MOUSE={x:640,y:420,seen:false};const TOUCHUI=('ontouchstart' in window)||navigator.maxTouchPoints>0;
@@ -550,9 +554,9 @@ function cinder(g,w,h,tone){ // cinderblock texture
   for(let i=0;i<w/60;i++){const x=rnd(0,w),l=rnd(60,320),q=g.createLinearGradient(0,0,0,l);q.addColorStop(0,'rgba(44,30,8,.5)');q.addColorStop(1,'rgba(44,30,8,0)');g.fillStyle=q;g.fillRect(x,0,rnd(2,8),l)}
 }
 function paintOffice(){
-  const c=mkC(OFFW,720);
+  const c=mkC(OFFW,OFFH);
   withCtx(c.getContext('2d'),()=>{
-    ctx.translate(-OFFX,0);
+    ctx.translate(-OFFX,-OFFY);
     // side walls: the same block texture warped into perspective, then darkened toward you
     const tex=mkC(700,900);cinder(tex.getContext('2d'),700,900,'#22261e');
     for(const L of[1,0]){const q=L?{xl:RM.nx0,tl:RM.ny0,bl:RM.ny1,xr:RM.bx0,tr:RM.by0,br:RM.by1}:{xl:RM.bx1,tl:RM.by0,bl:RM.by1,xr:RM.nx1,tr:RM.ny0,br:RM.ny1};warpQ(tex,q);
@@ -568,9 +572,9 @@ function paintOffice(){
     ctx.strokeStyle='rgba(0,0,0,.6)';ctx.lineWidth=3;ctx.strokeRect(RM.bx0,RM.by0,RM.bx1-RM.bx0,RM.by1-RM.by0);
     // floor tiles running to the back wall
     ctx.fillStyle='#070806';ctx.beginPath();ctx.moveTo(RM.nx0,RM.ny1);ctx.lineTo(RM.nx1,RM.ny1);ctx.lineTo(RM.bx1,RM.by1);ctx.lineTo(RM.bx0,RM.by1);ctx.fill();
-    const rows=[0,.18,.38,.6,.84,1.12];for(let r=0;r<rows.length-1;r++)for(let k=-12;k<12;k++){const d0=rows[r],d1=rows[r+1],P=(d,kk)=>{const y=lerp(RM.by1,RM.ny1,Math.min(1,d));const t=(y-RM.by1)/(RM.ny1-RM.by1);const xl=lerp(RM.bx0,RM.nx0,t),xr=lerp(RM.bx1,RM.nx1,t);return[lerp(xl,xr,(kk+12)/24)+(kk+12-12)*0,y]};
+    const rows=[0,.18,.38,.6,.84,1.12,1.45];for(let r=0;r<rows.length-1;r++)for(let k=-12;k<12;k++){const d0=rows[r],d1=rows[r+1],P=(d,kk)=>{const y=lerp(RM.by1,RM.ny1,Math.min(1,d));const t=(y-RM.by1)/(RM.ny1-RM.by1);const xl=lerp(RM.bx0,RM.nx0,t),xr=lerp(RM.bx1,RM.nx1,t);return[lerp(xl,xr,(kk+12)/24)+(kk+12-12)*0,y]};
       const a=P(d0,k),b=P(d0,k+1),cc=P(d1,k+1),dd=P(d1,k);ctx.fillStyle=(k+r)%2?'#1d1f1a':'#111310';ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.lineTo(cc[0],cc[1]);ctx.lineTo(dd[0],dd[1]);ctx.fill()}
-    for(let i=0;i<5000;i++){ctx.fillStyle=`rgba(0,0,0,${rnd(.1,.3)})`;ctx.fillRect(rnd(OFFX,OFFX+OFFW),rnd(RM.by1,720),rnd(1,3),rnd(1,2))}
+    for(let i=0;i<5000;i++){ctx.fillStyle=`rgba(0,0,0,${rnd(.1,.3)})`;ctx.fillRect(rnd(OFFX,OFFX+OFFW),rnd(RM.by1,OFFY+OFFH),rnd(1,3),rnd(1,2))}
     // the sign: painted wood, worn at the edges, one letter missing
     const sg=mkC(460,74);withCtx(sg.getContext('2d'),()=>{ctx.fillStyle=lingrad(0,0,0,74,['#4a2e14','#2e1a0a']);rr(0,0,460,74,8);ctx.strokeStyle='rgba(0,0,0,.3)';ctx.lineWidth=1;for(let y=5;y<74;y+=6){ctx.beginPath();ctx.moveTo(0,y+rnd(-1,1));ctx.bezierCurveTo(150,y+rnd(-3,3),300,y+rnd(-3,3),460,y+rnd(-1,1));ctx.stroke()}
       ctx.font='44px "Luckiest Guy",cursive';ctx.textAlign='center';ctx.textBaseline='middle';const txt='MONKE MOUNTAIN';ctx.fillStyle='#160c04';ctx.fillText(txt,233,44);ctx.fillStyle='#d8a836';ctx.fillText(txt,230,40);
@@ -591,7 +595,7 @@ function paintOffice(){
     // the desk: deep top in perspective, front panel, grain
     ctx.fillStyle=lingrad(0,560,0,652,['#3e2814','#5a3a1c']);ctx.beginPath();ctx.moveTo(360,560);ctx.lineTo(920,560);ctx.lineTo(1050,652);ctx.lineTo(230,652);ctx.fill();
     ctx.strokeStyle='rgba(20,10,4,.3)';ctx.lineWidth=1;for(let i=0;i<46;i++){const f=i/46,y=560+f*92,xl=lerp(360,230,f),xr=lerp(920,1050,f);ctx.beginPath();ctx.moveTo(xl,y);ctx.bezierCurveTo(lerp(xl,xr,.3),y+rnd(-1.5,1.5),lerp(xl,xr,.7),y+rnd(-1.5,1.5),xr,y);ctx.stroke()}
-    ctx.fillStyle='rgba(255,220,170,.18)';ctx.fillRect(230,651,820,2);ctx.fillStyle=lingrad(0,653,0,720,['#2a190b','#0e0804']);ctx.fillRect(230,653,820,70);
+    ctx.fillStyle='rgba(255,220,170,.18)';ctx.fillRect(230,651,820,2);ctx.fillStyle=lingrad(0,653,0,860,['#2a190b','#0e0804','#050302']);ctx.fillRect(230,653,820,210);
     ctx.strokeStyle='rgba(0,0,0,.6)';ctx.lineWidth=2;ctx.strokeRect(256,664,230,52);ctx.strokeRect(794,664,230,52);ctx.fillStyle='#5a4a32';rr(350,686,42,7,3);rr(888,686,42,7,3);
     // desk clutter: papers, keyboard
     for(const[x,y,a]of[[620,630,-.06],[690,636,.1],[455,612,.05]]){ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.scale(1,.45);ctx.fillStyle='#cfc6aa';ctx.fillRect(-42,-34,84,68);ctx.fillStyle='rgba(40,40,40,.35)';for(let i=0;i<8;i++)ctx.fillRect(-32,-24+i*7,rnd(30,62),2);ctx.restore()}
@@ -623,7 +627,7 @@ function paintOffice(){
     ctx.fillStyle=lingrad(632,0,648,0,['#1e1b16','#3a342a','#1e1b16']);ctx.fillRect(632,170,16,182);ctx.fillStyle=lingrad(0,252,0,266,['#1e1b16','#3a342a','#1e1b16']);ctx.fillRect(488,252,304,14)});
   OFC.grime=mkC(256,256);withCtx(OFC.grime.getContext('2d'),()=>{for(let i=0;i<60;i++){const x=rnd(0,256),y=rnd(0,256),r=rnd(8,50),g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,`rgba(0,0,0,${rnd(.15,.4)})`);g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2)}for(let i=0;i<5000;i++){ctx.fillStyle=`rgba(0,0,0,${rnd(.1,.4)})`;ctx.fillRect(rnd(0,256),rnd(0,256),1,1)}});
   OFC.grain=[0,1,2,3].map(()=>{const c=mkC(200,200),g=c.getContext('2d'),d=g.createImageData(200,200);for(let i=0;i<d.data.length;i+=4){const v=Math.random()*255|0;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=255}g.putImageData(d,0,0);return c});
-  OFC.lm=mkC(OFFW/4,180);OFC.lmx=OFC.lm.getContext('2d');OFC.jc=mkC(1280,720);OFC.jcx=OFC.jc.getContext('2d');OFC.dc=mkC(DOORW,DOORH);OFC.dcx=OFC.dc.getContext('2d');OFC.grainP=null;
+  OFC.lm=mkC(OFFW/4,OFFH/4);OFC.lmx=OFC.lm.getContext('2d');OFC.jc=mkC(1280,720);OFC.jcx=OFC.jc.getContext('2d');OFC.dc=mkC(DOORW,DOORH);OFC.dcx=OFC.dc.getContext('2d');OFC.grainP=null;
   // the steel door insert (frame drawn per door in perspective)
   OFC.frame=mkC(DOORW+60,DOORH+70);withCtx(OFC.frame.getContext('2d'),()=>{ctx.fillStyle=lingrad(0,0,DOORW+60,0,['#2a2c27','#5a5e55','#34372f','#2a2c27','#34372f','#5a5e55','#2a2c27']);ctx.fillRect(0,0,DOORW+60,DOORH+70);
     ctx.save();ctx.beginPath();ctx.rect(0,0,DOORW+60,30);ctx.clip();for(let x=-40;x<DOORW+100;x+=28){ctx.fillStyle='#c09a1c';ctx.beginPath();ctx.moveTo(x,30);ctx.lineTo(x+14,30);ctx.lineTo(x+36,0);ctx.lineTo(x+22,0);ctx.fill()}ctx.fillStyle='rgba(0,0,0,.3)';ctx.fillRect(0,0,DOORW+60,30);ctx.restore();
@@ -633,14 +637,14 @@ function paintOffice(){
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{OFC.bg=null});
 function grainPass(a){
   if(!OFC.grainP)OFC.grainP=OFC.grain.map(c=>MAINCTX.createPattern(c,'repeat'));
-  ctx.save();ctx.globalCompositeOperation='overlay';ctx.globalAlpha=a;ctx.fillStyle=OFC.grainP[(OFC.gi=(OFC.gi+1)%4)];ctx.translate(rnd(-100,0),rnd(-100,0));ctx.fillRect(-500,0,2380,820);ctx.restore();
-  const vg=ctx.createRadialGradient(640,360,280,640,360,880);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.8)');ctx.fillStyle=vg;ctx.fillRect(-500,0,2280,720);
+  ctx.save();ctx.globalCompositeOperation='overlay';ctx.globalAlpha=a;ctx.fillStyle=OFC.grainP[(OFC.gi=(OFC.gi+1)%4)];ctx.translate(rnd(-100,0),rnd(-100,0));ctx.fillRect(-500,-200,2380,1220);ctx.restore();
+  const vg=ctx.createRadialGradient(640,360,280,640,360,880);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.8)');ctx.fillStyle=vg;ctx.fillRect(-500,-200,2280,1120);
 }
 function lightPass(L,dark){
-  const l=OFC.lmx;l.setTransform(1,0,0,1,0,0);l.globalCompositeOperation='source-over';l.clearRect(0,0,OFC.lm.width,180);l.fillStyle=`rgba(0,0,0,${dark})`;l.fillRect(0,0,OFC.lm.width,180);
-  l.globalCompositeOperation='destination-out';l.setTransform(.25,0,0,.25,-OFFX*.25,0);
+  const l=OFC.lmx;l.setTransform(1,0,0,1,0,0);l.globalCompositeOperation='source-over';l.clearRect(0,0,OFC.lm.width,OFC.lm.height);l.fillStyle=`rgba(0,0,0,${dark})`;l.fillRect(0,0,OFC.lm.width,OFC.lm.height);
+  l.globalCompositeOperation='destination-out';l.setTransform(.25,0,0,.25,-OFFX*.25,-OFFY*.25);
   for(const[x,y,r,a]of L){if(a<=0)continue;const g=l.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,`rgba(0,0,0,${a})`);g.addColorStop(.5,`rgba(0,0,0,${a*.5})`);g.addColorStop(1,'rgba(0,0,0,0)');l.fillStyle=g;l.fillRect(x-r,y-r,r*2,r*2)}
-  ctx.drawImage(OFC.lm,OFFX,0,OFFW,720);
+  ctx.drawImage(OFC.lm,OFFX,OFFY,OFFW,OFFH);
 }
 // what is inside one doorway, drawn flat (door space DOORW x DOORH), later warped onto the wall
 function paintDoor(side,g,t,title){
@@ -672,7 +676,7 @@ function drawOffice(t,opt){
   const tube=!g.out&&!dead&&!(DREAD.tubeOff>0&&Math.random()<.7)?1:0;
   EYES=[];ctx.save();
   const px=PAN.x+Math.sin(t*.37)*6,py=Math.sin(t*.29)*3+(dead?Math.sin(t*3)*2:0);ctx.translate(640,360);ctx.scale(1.03,1.03);ctx.translate(-640-px,-360+py);
-  ctx.drawImage(OFC.bg,OFFX,0);
+  ctx.drawImage(OFC.bg,OFFX,OFFY);
   // window
   ctx.drawImage(OFC.win,488,170);
   ctx.save();ctx.beginPath();ctx.rect(488,170,304,182);ctx.clip();
@@ -726,7 +730,7 @@ function drawOffice(t,opt){
   lightPass(L,g.out?.985:.955);
   ctx.save();ctx.globalCompositeOperation='screen';const mb=ctx.createLinearGradient(640,170,600,700);mb.addColorStop(0,'rgba(120,150,190,.10)');mb.addColorStop(1,'rgba(120,150,190,0)');ctx.fillStyle=mb;ctx.beginPath();ctx.moveTo(500,180);ctx.lineTo(780,180);ctx.lineTo(880,720);ctx.lineTo(420,720);ctx.fill();
   if(lamp>.5){ctx.globalCompositeOperation='overlay';const wg=ctx.createRadialGradient(780,580,0,780,580,480);wg.addColorStop(0,'rgba(255,170,60,.4)');wg.addColorStop(1,'rgba(255,170,60,0)');ctx.fillStyle=wg;ctx.fillRect(250,100,1100,620)}ctx.restore();
-  if(g.out&&ANIM.pwo>0&&Math.random()<.3){ctx.fillStyle='rgba(255,240,200,.12)';ctx.fillRect(OFFX,0,OFFW,720)}
+  if(g.out&&ANIM.pwo>0&&Math.random()<.3){ctx.fillStyle='rgba(255,240,200,.12)';ctx.fillRect(OFFX,OFFY,OFFW,OFFH)}
   flushEyes();ctx.restore();
   grainPass(.11);
 }
@@ -862,8 +866,8 @@ function scareTick(dt){ // called every frame while dead
 }
 function glitchSlices(n,amp){ctx.save();ctx.setTransform(1,0,0,1,0,0);const W=cv.width,H=cv.height;for(let i=0;i<n;i++){const h=Math.max(2,Math.random()*H*.07),y=Math.random()*(H-h),dx=(Math.random()-.5)*amp*DPR;ctx.drawImage(cv,0,y,W,h,dx,y,W,h)}ctx.restore()}
 function drawJump(T,t){
-  if(!OFC.bg)paintOffice();const k=G.who==='howla'?'bongo':G.who;ctx.fillStyle='#000';ctx.fillRect(-500,0,2280,720);
-  if(T>=1.35){if(T>1.75){const q=Math.min(1,(T-1.75)/.3);const M2=PHOTOS[k]&&PHOTO_META[k];ctx.globalAlpha=.85*q;drawMonke(k,640+Math.sin(t*40)*3,330,M2?520/(120*(M2.k||1)):5,{t,voidEyes:true,filter:'grayscale(1) brightness(.8) contrast(1.9)'});ctx.globalAlpha=1;ctx.fillStyle='rgba(60,0,0,.25)';ctx.fillRect(-500,0,2280,720);for(let i=0;i<1500*q;i++){ctx.fillStyle=Math.random()<.5?'#d8d8d8':'#141414';ctx.fillRect(-500+Math.random()*2280,Math.random()*720,9,5)}}return}
+  if(!OFC.bg)paintOffice();const k=G.who==='howla'?'bongo':G.who;ctx.fillStyle='#000';ctx.fillRect(-500,-200,2280,1120);
+  if(T>=1.35){if(T>1.75){const q=Math.min(1,(T-1.75)/.3);const M2=PHOTOS[k]&&PHOTO_META[k];ctx.globalAlpha=.85*q;drawMonke(k,640+Math.sin(t*40)*3,330,M2?520/(120*(M2.k||1)):5,{t,voidEyes:true,filter:'grayscale(1) brightness(.8) contrast(1.9)'});ctx.globalAlpha=1;ctx.fillStyle='rgba(60,0,0,.25)';ctx.fillRect(-500,-200,2280,1120);for(let i=0;i<1500*q;i++){ctx.fillStyle=Math.random()<.5?'#d8d8d8':'#141414';ctx.fillRect(-500+Math.random()*2280,Math.random()*720,9,5)}}return}
   // render the face into its own layer so it can be warped
   const M=PHOTOS[k]&&PHOTO_META[k],s=M?500/(120*(M.k||1)):5.2,sh=Math.max(12,46*(1-T/1.2));
   const rot=Math.sin(T*52)*.11+Math.sin(T*23)*.05+(Math.random()-.5)*.06,x=640+Math.sin(T*47)*30+(Math.random()-.5)*sh,y=(k==='bongo'?300:k==='chip'?250:k==='clappy'?330:290)+Math.sin(T*39)*16+(Math.random()-.5)*sh,zs=s*(1+Math.sin(T*41)*.06+T*.1);
@@ -877,10 +881,10 @@ function drawJump(T,t){
   // warp it in bands, hardest on impact
   const bands=40,bh=720/bands,amp=10+26*Math.max(0,1-T/.3);
   for(let i=0;i<bands;i++){const yy=i*bh,off=Math.sin(i*.7+T*38)*amp+(Math.random()<.07?(Math.random()-.5)*160:0);ctx.drawImage(OFC.jc,0,yy,1280,bh+1,off,yy,1280,bh+1)}
-  if(T>0){const a=.14+.2*Math.max(0,Math.sin(T*Math.PI*2*1.5));ctx.fillStyle=`rgba(140,0,0,${a})`;ctx.fillRect(-500,0,2280,720)}
-  const vg=ctx.createRadialGradient(640,380,140,640,380,760);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(10,0,0,.9)');ctx.fillStyle=vg;ctx.fillRect(-500,0,2280,720);
-  if(T<.07){ctx.fillStyle=`rgba(255,255,255,${1-T/.07})`;ctx.fillRect(-500,0,2280,720)}
-  if(T>.62&&T<.67){const o=['bongo','chip','mimi','howla'].filter(q=>q!==k)[Math.floor(t*7)%3];ctx.fillStyle='#000';ctx.fillRect(-500,0,2280,720);drawMonke(o,640,400,PHOTO_META[o]?620/(120*PHOTO_META[o].k):5,{t,filter:'invert(1) contrast(2.4)',voidEyes:true})}
+  if(T>0){const a=.14+.2*Math.max(0,Math.sin(T*Math.PI*2*1.5));ctx.fillStyle=`rgba(140,0,0,${a})`;ctx.fillRect(-500,-200,2280,1120)}
+  const vg=ctx.createRadialGradient(640,380,140,640,380,760);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(10,0,0,.9)');ctx.fillStyle=vg;ctx.fillRect(-500,-200,2280,1120);
+  if(T<.07){ctx.fillStyle=`rgba(255,255,255,${1-T/.07})`;ctx.fillRect(-500,-200,2280,1120)}
+  if(T>.62&&T<.67){const o=['bongo','chip','mimi','howla'].filter(q=>q!==k)[Math.floor(t*7)%3];ctx.fillStyle='#000';ctx.fillRect(-500,-200,2280,1120);drawMonke(o,640,400,PHOTO_META[o]?620/(120*PHOTO_META[o].k):5,{t,filter:'invert(1) contrast(2.4)',voidEyes:true})}
   if(Math.random()<.7)glitchSlices(3+Math.floor(Math.random()*7),70+Math.random()*110);
   grainPass(.18);
 }
@@ -1184,16 +1188,17 @@ function render(){
   if(mode!=='play'||!G){const g=G;drawTitle(TIME);G=g;return}
   if(G.ph==='dead'&&JS.t>=0){if(JS.t<JS.doom){if(has('cams')&&ANIM.cam>.001)drawTablet(ANIM.cam);else drawOffice(TIME)}else drawJump(JS.t-JS.doom,TIME);return}
   if(ANIM.shake>0)ctx.translate((Math.random()-.5)*ANIM.shake*2,(Math.random()-.5)*ANIM.shake*2);
-  if(isMonke(ME)){drawOffice(TIME);ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(-500,0,2280,720);return}
+  if(isMonke(ME)){drawOffice(TIME);ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(-500,-200,2280,1120);return}
   const ce=has('cams')?ANIM.cam:0;
   if(ce<=.001)drawOffice(TIME);
-  else if(ce>=.999&&CAM.on){ctx.save();ctx.beginPath();ctx.rect(0,0,1280,720);ctx.clip();drawCam(CAM.i,TIME);ctx.restore()}
+  else if(ce>=.999&&CAM.on){ctx.fillStyle='#1b1d1f';rr(-34,-40,1348,800,48);ctx.fillStyle='#2a2d30';rr(-34,-40,1348,10,6);if((innerHeight-OY)/SC>752){ctx.fillStyle='#3a3d40';ctx.font='22px VT323';ctx.textAlign='center';ctx.fillText('MONKE-CAM 3000',640,746)}
+    ctx.save();ctx.beginPath();ctx.rect(0,0,1280,720);ctx.clip();drawCam(CAM.i,TIME);ctx.restore()}
   else drawTablet(ce);
 }
 
 // the camera tablet swinging up from your lap (or back down), screen powering on like an old TV
 function drawTablet(ce){
-  drawOffice(TIME);ctx.fillStyle=`rgba(0,0,0,${.55*ce})`;ctx.fillRect(-500,0,2280,720);
+  drawOffice(TIME);ctx.fillStyle=`rgba(0,0,0,${.55*ce})`;ctx.fillRect(-500,-200,2280,1120);
   const e=easeOut(ce),y=(1-e)*820,sc=.84+.16*e,rot=(1-e)*(CAM.on?-.14:.1);
   ctx.save();ctx.translate(640,360+y);ctx.rotate(rot);ctx.scale(sc,sc);ctx.translate(-640,-360);
   ctx.fillStyle='rgba(0,0,0,.5)';rr(-20,-10,1340,790,50);ctx.fillStyle='#1b1d1f';rr(-34,-34,1348,788,48);ctx.fillStyle='#2a2d30';rr(-34,-34,1348,10,6);
@@ -1211,6 +1216,8 @@ if(window.GBSave)GBSave.register({save:()=>best()?{v:1,best:best(),custom:CUSTOM
 
 // ═══════════════════════ boot ═══════════════════════
 if('ontouchstart' in window||navigator.maxTouchPoints>0)document.body.classList.add('touch');
+// keep a copy on the device so the home-screen icon works with no internet (only this game's page)
+if('serviceWorker' in navigator&&!window.GLITCHBOX_OFFLINE&&(location.protocol==='https:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname))&&!SMOKE){try{navigator.serviceWorker.register('five-nights-sw.js',{scope:'five-nights-at-monkes'}).catch(()=>{})}catch(e){}}
 layout();buildMap();setSound(SOUND);goTitle();
 {const h=new URLSearchParams(HASH.replace(/^#/,''));const room=(h.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
   if(room.length>=3&&room.length<=8){mpHome(h.get('host')?'Making the room...':'Joining...');netConnect(room,h.get('host')?'host':'guest')}}
