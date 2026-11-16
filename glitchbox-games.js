@@ -1124,7 +1124,7 @@ const THUMB_IMGS = {};
 // Which games actually have a painted thumbs/<gid>.png. Asking for every game's file
 // meant ~43 failed downloads (404s) on every hub and play-page visit. Add a gid here
 // when a new shot goes into thumbs/.
-const THUMB_FILES = new Set(['moving-mountains','gridlock','haymaker','tank-war-3d','frontline','rocket-roadster','mog-academy','soap-rocket']);
+const THUMB_FILES = new Set(['five-nights-at-monkes','moving-mountains','gridlock','haymaker','tank-war-3d','frontline','rocket-roadster','mog-academy','soap-rocket']);
 function drawThumb(ctx, g){
   const gid = g.file.replace('.html','');
   (DRAW[gid] || DRAW.fallback)(ctx, g);
