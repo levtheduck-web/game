@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Five Nights at Monkes</title>
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Monkes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=VT323&display=swap" rel="stylesheet">
 <script src="glitchbox-config.js"></script>
@@ -32,6 +37,7 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:0;background:none
 #calls{position:absolute;left:50%;top:44px;transform:translateX(-50%);display:flex;gap:6px;pointer-events:auto}
 #calls button{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px 10px;font-size:20px}
 #calls button:hover{border-color:var(--banana)}
+#fsBtn{position:absolute;right:62px;top:84px;pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px 9px;font-size:20px}
 #sndBtn{position:absolute;right:14px;top:84px;pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px 9px;font-size:20px}
 /* office controls */
 .cbtn{pointer-events:auto;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;width:84px;height:62px;border-radius:8px;background:linear-gradient(#2a2c27,#16170f);border:1px solid #4a4d45;font-size:22px;line-height:1;color:#c8c2ae;box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 3px 8px rgba(0,0,0,.7);opacity:.88}
@@ -130,7 +136,14 @@ input.tx{font-family:inherit;font-size:26px;background:#05100a;border:2px solid 
 @keyframes pop{from{transform:scale(.4);opacity:0}}
 #rot{background:#000;flex-direction:column;text-align:center;z-index:20;font-size:28px}
 #rot b{font-size:60px;display:block}
-@media (max-height:520px){.cbtn{width:78px;height:56px;font-size:21px}.cbtn small{display:none}#map{width:250px;height:190px}#map .cb{font-size:14px;line-height:16px}#b_ban{width:170px;height:50px;font-size:20px;bottom:60px}#clock b{font-size:30px}#b_ht{left:calc(50% - 250px)}#b_howl{left:calc(50% + 150px);width:96px}.mk{width:150px}#role{font-size:17px}}
+@media (max-height:520px){.cbtn{width:72px;height:50px;font-size:19px}.cbtn small{display:none}#map{width:240px;height:178px}#map .cb{font-size:14px;line-height:16px;padding:0 4px}#b_ban{width:160px;height:46px;font-size:19px;bottom:58px}#clock b{font-size:28px}#clock small{font-size:17px}#b_ht{left:calc(50% - 250px)}#b_howl{left:calc(50% + 160px);width:80px}#role{font-size:16px;top:6px}#calls{top:34px}#calls button{font-size:16px;padding:1px 7px}#power{font-size:19px}
+  #title{gap:4px}#title h1{font-size:min(84px,11vw,16vh)}#title .tag{font-size:17px;margin:0 0 4px}.mb{font-size:21px;padding:5px 10px}.mb small{font-size:15px}.menu{gap:6px}
+  #intro h2{font-size:min(80px,15vh)}#intro .t{font-size:22px;margin-bottom:8px}#intro .note{font-size:18px;padding:10px 14px;max-width:620px}#intro .skip{margin-top:8px}
+  #sheet{padding:10px 14px}#sheet h2{font-size:30px}#sheet p{font-size:19px;margin:4px 0}.pick{font-size:20px;padding:3px 10px}.row{margin:6px 0}
+  #mkMap{top:40px;height:calc(100vh - 170px);width:min(560px,74vw)}#b_camdown{width:min(290px,33vw);height:38px;font-size:21px}#b_cams{width:min(290px,33vw)}#mkPanel{bottom:6px;gap:5px;flex-wrap:nowrap;width:auto}.mk{width:auto;min-width:104px;padding:3px 6px}.mk h4{font-size:17px}.mk p{font-size:14px;min-height:16px;margin:0 0 2px}.mk button{font-size:16px;padding:2px 6px;margin:1px}
+  #hourc{font-size:min(90px,20vh)}#toasts{top:50px}.tst{font-size:18px}}
+body.touch .cbtn small,body.touch #b_cams small,body.touch #b_ban small,body.touch .mk button small{display:none}
+button{touch-action:manipulation}
 </style>
 </head>
 <body>
@@ -142,6 +155,7 @@ input.tx{font-family:inherit;font-size:26px;background:#05100a;border:2px solid 
   <div id="role" class="hide"></div>
   <div id="calls" class="hide"><button data-call="WEST!">WEST!</button><button data-call="EAST!">EAST!</button><button data-call="VENT!">VENT!</button><button data-call="CLAPPY!">CLAPPY!</button><button data-call="HOWL!">HOWL!</button></div>
   <button id="sndBtn" title="Sound (M)">🔊</button>
+  <button id="fsBtn" class="hide" title="Fullscreen">⛶</button>
 </div>
 
 <div id="ctl" class="hide">
@@ -394,7 +408,11 @@ function setSound(on){SOUND=on;LS.set('sound',on?'1':'0');$('sndBtn').textConten
 // ═══════════════════════ drawing ═══════════════════════
 const cv=$('cv');let ctx=cv.getContext('2d');const MAINCTX=ctx;
 let DPR=1,SC=1,OX=0,OY=0,VW=1280,VH=720;
-function layout(){DPR=Math.min(2,devicePixelRatio||1);cv.width=Math.round(innerWidth*DPR);cv.height=Math.round(innerHeight*DPR);SC=Math.min(innerWidth/1280,innerHeight/720);OX=(innerWidth-1280*SC)/2;OY=(innerHeight-720*SC)/2;checkRot()}
+function layout(){DPR=Math.min(2,devicePixelRatio||1);cv.width=Math.round(innerWidth*DPR);cv.height=Math.round(innerHeight*DPR);SC=Math.min(innerWidth/1280,innerHeight/720);
+  // short, wide phone screens: zoom in a little and trim some ceiling and desk front instead of shrinking the room
+  if(innerHeight<520)SC=Math.max(SC,Math.min(innerWidth/1180,innerHeight/615));
+  OX=(innerWidth-1280*SC)/2;OY=(innerHeight-720*SC)/2;CROPY=Math.max(0,-OY/SC);checkRot()}
+let CROPY=0;
 addEventListener('resize',layout);
 const PAL={
   bongo:{fur:'#34343c',fur2:'#22222a',face:'#5c5c68',eye:'#ffb02e',acc:'#c2452d'},
@@ -503,7 +521,7 @@ function animEvent(n,p){const side=+p<0?'W':'E';
 const OFFX=-300,OFFW=1880;
 const OFC={bg:null,win:null,glass:null,grime:null,lm:null,lmx:null,jc:null,jcx:null,grainP:null,gi:0,dc:null,dcx:null,tex:null};
 const PAN={x:0,tx:0};
-const MOUSE={x:640,y:420,seen:false};
+const MOUSE={x:640,y:420,seen:false};const TOUCHUI=('ontouchstart' in window)||navigator.maxTouchPoints>0;
 addEventListener('pointermove',e=>{PAN.tx=(e.clientX/innerWidth-.5)*-90;MOUSE.x=(e.clientX-OX)/SC;MOUSE.y=(e.clientY-OY)/SC;MOUSE.seen=true});
 addEventListener('pointerdown',e=>{MOUSE.x=(e.clientX-OX)/SC;MOUSE.y=(e.clientY-OY)/SC;MOUSE.seen=true});
 function mkC(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c}
@@ -518,7 +536,7 @@ function peel(c,n,maxr,edge){const g=c.getContext('2d');g.save();g.globalComposi
 const RM={bx0:330,bx1:950,by0:70,by1:548,nx0:-320,nx1:1600,ny0:-190,ny1:820};
 function wallTB(x){const L=x<640,t=clamp(L?(x-RM.nx0)/(RM.bx0-RM.nx0):(RM.nx1-x)/(RM.nx1-RM.bx1),0,1);return[lerp(RM.ny0,RM.by0,t),lerp(RM.ny1,RM.by1,t)]}
 // a door on a side wall as a trapezoid: screen-left edge (xl,tl,bl) to screen-right edge (xr,tr,br)
-const DOOR3={W:[30,250],E:[1030,1250]};
+const DOOR3={W:[96,304],E:[976,1184]};
 function doorQ(side){const[a,b]=DOOR3[side],[ta,ba]=wallTB(a),[tb,bb]=wallTB(b),H=.74;return{xl:a,tl:ba-(ba-ta)*H,bl:ba,xr:b,tr:bb-(bb-tb)*H,br:bb}}
 function qPt(q,u,v){const x=lerp(q.xl,q.xr,u);return[x,lerp(lerp(q.tl,q.tr,u),lerp(q.bl,q.br,u),v)]}
 function qPath(q,pad){const p=pad||0;ctx.beginPath();ctx.moveTo(q.xl-p,q.tl-p);ctx.lineTo(q.xr+p,q.tr-p);ctx.lineTo(q.xr+p,q.br+p);ctx.lineTo(q.xl-p,q.bl+p);ctx.closePath()}
@@ -822,11 +840,11 @@ function drawCam(ci,t){
   if(glt>0||sw>0){const a=Math.max(glt/.6,sw/.3);for(let i=0;i<900*a;i++){ctx.fillStyle=Math.random()<.5?'#cfd':'#122';ctx.fillRect(Math.random()*1280,Math.random()*720,6,3)}
     if(sw>0){ctx.fillStyle='rgba(220,255,230,.5)';const ty=720-(sw/.3)*720;ctx.fillRect(0,ty,1280,6);ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,ty+6,1280,18)}}
   // labels
-  ctx.textAlign='left';ctx.fillStyle='#c8ffd8';ctx.font='40px VT323';ctx.fillText('CAM '+CAMS[ci].k+'  '+CAMS[ci].n,110,52);
-  if((t*1.4|0)%2){ctx.fillStyle='#ff3b3b';circ(122,84,9)}ctx.fillStyle='#c8ffd8';ctx.font='28px VT323';ctx.fillText('REC',140,94);
-  if(id==='toys'&&G&&(G.lv.clappy>0||G.monke)){const gg=G.cl.loose?100:G.cl.g;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(490,66,300,64);ctx.fillStyle='#c8ffd8';ctx.font='24px VT323';ctx.fillText(G.cl.loose?'CLAP-O-METER: HE IS GONE':'CLAP-O-METER',500,90);
-    ctx.fillStyle='#173';ctx.fillRect(500,100,280,20);ctx.fillStyle=gg>=60?'#ff4a3a':'#e3b830';ctx.fillRect(500,100,280*gg/100,20);ctx.fillStyle='#fff';ctx.fillRect(500+280*.6,96,3,28)}
-  if(G&&G.bn[id]>0){ctx.fillStyle='#ffe98a';ctx.font='28px VT323';ctx.textAlign='left';ctx.fillText('🍌 EATING, '+Math.ceil(G.bn[id])+'s LEFT',110,134)}
+  ctx.textAlign='left';ctx.fillStyle='#c8ffd8';ctx.font='40px VT323';const LX=TOUCHUI?330:110,LY=CROPY;ctx.fillText('CAM '+CAMS[ci].k+'  '+CAMS[ci].n,LX,52+LY);
+  if((t*1.4|0)%2){ctx.fillStyle='#ff3b3b';circ(LX+12,84+LY,9)}ctx.fillStyle='#c8ffd8';ctx.font='28px VT323';ctx.fillText('REC',LX+30,94+LY);
+  if(id==='toys'&&G&&(G.lv.clappy>0||G.monke)){const gg=G.cl.loose?100:G.cl.g;ctx.fillStyle='rgba(0,0,0,.6)';ctx.save();ctx.translate(0,LY);ctx.fillRect(490,66,300,64);ctx.fillStyle='#c8ffd8';ctx.font='24px VT323';ctx.fillText(G.cl.loose?'CLAP-O-METER: HE IS GONE':'CLAP-O-METER',500,90);
+    ctx.fillStyle='#173';ctx.fillRect(500,100,280,20);ctx.fillStyle=gg>=60?'#ff4a3a':'#e3b830';ctx.fillRect(500,100,280*gg/100,20);ctx.fillStyle='#fff';ctx.fillRect(500+280*.6,96,3,28);ctx.restore()}
+  if(G&&G.bn[id]>0){ctx.fillStyle='#ffe98a';ctx.font='28px VT323';ctx.textAlign='left';ctx.fillText('🍌 EATING, '+Math.ceil(G.bn[id])+'s LEFT',LX,134+LY)}
 }
 // ── jump scare ──
 const JS={t:-1,doom:0,snd:null,freeze:false,phase:0};
@@ -960,6 +978,11 @@ $('b_cams').addEventListener('pointerdown',e=>{e.preventDefault();setCam(true)})
 $('b_camdown').addEventListener('pointerdown',e=>{e.preventDefault();setCam(false)});
 $('b_ban').addEventListener('pointerdown',e=>{e.preventDefault();if(G&&G.bcd<=0)press('banana',CAM.i)});
 $('sndBtn').addEventListener('click',()=>setSound(!SOUND));
+// phones: fullscreen + landscape lock where the browser allows it (Android); iPhones use Add to Home Screen
+const FS_OK=!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen)&&('ontouchstart' in window);
+function goFull(){const el=document.documentElement,rq=el.requestFullscreen||el.webkitRequestFullscreen;if(!rq||document.fullscreenElement)return;try{const p=rq.call(el);if(p&&p.then)p.then(()=>{try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{})}catch(e){}}).catch(()=>{})}catch(e){}}
+$('fsBtn').addEventListener('click',goFull);if(FS_OK)$('fsBtn').classList.remove('hide');
+document.addEventListener('fullscreenchange',()=>setTimeout(layout,100));
 for(const b of document.querySelectorAll('#calls button'))b.addEventListener('click',()=>{const w=b.dataset.call;netSend({t:'call',name:myName(),w});toast('You: '+w,'call',1800)});
 addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT')return;const k=e.key.toLowerCase();
@@ -1011,11 +1034,11 @@ function beginNight(){ // shared by solo + online: hide menus, show the intro ca
   $('title').classList.remove('on');hideSheet();$('six').classList.remove('on');
   const n=G.night,lvl=G.lv;const meet=ALLM.filter(k=>lvl[k]>0).map(k=>(MK[k]||EXTRA[k]).emoji+' '+(MK[k]||EXTRA[k]).n).join('   ');
   const role=NETROLE==='solo'?'':`<p style="color:#ffd23f;font-size:28px;margin:0 0 12px">YOUR JOB: ${isMonke(ME)?'YOU ARE THE MONKES. Get one of them into the office before 6 AM.':esc(roleName(myCtl()))}</p>`;
-  $('intro').innerHTML=`<h2>${G.monke?'VERSUS':n===7?'CUSTOM NIGHT':'NIGHT '+n}</h2><div class="t">12 AM · ${meet||'nobody?'}</div>${role}<div class="note">${G.monke?(isMonke(ME)?'Creep your monkes forward when the keepers are not looking. Watched monkes cannot move. A monke at a shut door gives up. Wind up Clappy, and howl to make them burn power.':'A friend is playing the monkes tonight. Same rules: listen, check, shut, and save power.<br>- Gus'):NOTES[Math.min(6,n)]||NOTES[6]}</div><div class="skip">${NETROLE==='guest'?'starting soon...':'click to start'}</div>`;
+  $('intro').innerHTML=`<h2>${G.monke?'VERSUS':n===7?'CUSTOM NIGHT':'NIGHT '+n}</h2><div class="t">12 AM · ${meet||'nobody?'}</div>${role}<div class="note">${G.monke?(isMonke(ME)?'Creep your monkes forward when the keepers are not looking. Watched monkes cannot move. A monke at a shut door gives up. Wind up Clappy, and howl to make them burn power.':'A friend is playing the monkes tonight. Same rules: listen, check, shut, and save power.<br>- Gus'):NOTES[Math.min(6,n)]||NOTES[6]}</div><div class="skip">${NETROLE==='guest'?'starting soon...':TOUCHUI?'tap to start':'click to start'}</div>`;
   $('intro').classList.add('on');checkRot();
 }
 $('intro').addEventListener('click',()=>{if(G&&NETROLE!=='guest')G.wait=0});
-function startSolo(n,lv){netClose();NETROLE='solo';ME='solo';G=newNight(n,lv,{solo:CTL_ALL.slice()},null);beginNight()}
+function startSolo(n,lv){if(FS_OK)goFull();netClose();NETROLE='solo';ME='solo';G=newNight(n,lv,{solo:CTL_ALL.slice()},null);beginNight()}
 let ENDT=0,LASTPH='play';
 function endSheet(){
   auGain(.9,0);
@@ -1187,6 +1210,7 @@ function drawTablet(ce){
 if(window.GBSave)GBSave.register({save:()=>best()?{v:1,best:best(),custom:CUSTOM}:null,load:d=>{if(d&&d.v===1){if((d.best|0)>best())LS.set('best',String(d.best|0));if(d.custom){Object.assign(CUSTOM,d.custom);LS.set('custom',JSON.stringify(CUSTOM))}if(mode==='title')goTitle()}},autosave:0});
 
 // ═══════════════════════ boot ═══════════════════════
+if('ontouchstart' in window||navigator.maxTouchPoints>0)document.body.classList.add('touch');
 layout();buildMap();setSound(SOUND);goTitle();
 {const h=new URLSearchParams(HASH.replace(/^#/,''));const room=(h.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
   if(room.length>=3&&room.length<=8){mpHome(h.get('host')?'Making the room...':'Joining...');netConnect(room,h.get('host')?'host':'guest')}}
