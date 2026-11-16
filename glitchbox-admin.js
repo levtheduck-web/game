@@ -1146,7 +1146,12 @@
     sec.style.paddingTop = '6px';
     sec.innerHTML = '<div class="sidebar-label">' + (isOwner ? 'OWNER' : 'MODERATOR') + '</div>';
     sec.appendChild(a);
-    anchor.parentNode.insertBefore(sec, anchor);
+    // Right under the logo, not above the account block at the bottom: the sidebar is
+    // taller than most laptop windows and its scrollbar is hidden, so down there the
+    // console link sat below the screen edge and looked like it had vanished.
+    const logo = anchor.parentNode.querySelector('.sidebar-logo');
+    if (logo && logo.parentNode === anchor.parentNode) anchor.parentNode.insertBefore(sec, logo.nextSibling);
+    else anchor.parentNode.insertBefore(sec, anchor);
   }
 
   // The server decides who the owner is; /api/me carries the verdict, so the console
