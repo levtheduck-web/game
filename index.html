@@ -9,12 +9,12 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="glitchbox-config.js"></script>
 <!-- Game roster + thumbnail art, shared with play.html -->
-<script src="glitchbox-games.js?v=20261116p"></script>
+<script src="glitchbox-games.js?v=20261116q"></script>
 <!-- Owner console (Ctrl+Shift+A). Deferred so it loads after the hub's own script. -->
 <script src="glitchbox-social.js?v=20261013b" defer></script>
 <script src="glitchbox-admin.js?v=20261017a" defer></script>
 <script src="glitchbox-cmd.js?v=20261013a" defer></script>
-<script src="glitchbox-contests.js?v=20261116m" defer></script>
+<script src="glitchbox-contests.js?v=20261116p" defer></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -1744,6 +1744,7 @@ var lastState = { profile:null, friends:[], incoming:[], outgoing:[], blocked:[]
 // work from GitHub Pages with no server to run. Add a game here once it speaks the
 // relay protocol (see Room in glitchbox-api/src/index.js).
 const MP_GAMES = [
+  { file:'carry-the-couch.html', name:'Carry the Couch', emoji:'🛋️', desc:'2-4 players · lift together, pivot, get the couch in the van' },
   { file:'five-nights-at-monkes.html', name:'Five Nights at Monkes', emoji:'🐒', desc:'1-5 players · split the doors and cameras, or one friend plays the monkes' },
   { file:'soap-rocket.html', name:'Soap Rocket', emoji:'🧼', desc:'1-8 players · make a soap, strap a rocket on it, race your friends' },
   { file:'mog-academy.html', name:'Mog Academy', emoji:'🗿', desc:'2-8 players · hallway mog-offs, the winner ascends to Chad' },

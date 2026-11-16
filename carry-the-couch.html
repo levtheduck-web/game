@@ -1,0 +1,1523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Carry the Couch</title>
+<script src="glitchbox-config.js"></script>
+<script src="glitchbox-save.js" data-pos="top-left"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Permanent+Marker&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/planck@1.0.6/dist/planck.min.js"></script>
+<style>
+/* Moving day: kraft cardboard, black marker, blue painter's tape, the orange of the van. */
+:root{--kraft:#c99c63;--kraft2:#b3854b;--kraft3:#e0bf8d;--ink:#241b14;--paper:#f7f0e1;--tape:#5c95e8;--orange:#ee6a22;--red:#cc2f2b;--green:#2b9455;--mut:#6d5843}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#2a2119;color:var(--ink);font-family:'Barlow Condensed',system-ui,sans-serif;-webkit-user-select:none;user-select:none;touch-action:none}
+canvas#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
+.hidden{display:none!important}
+button{font-family:inherit}
+.scr{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:20;padding:18px 16px;background:rgba(30,22,16,.5)}
+.scr.clear{background:transparent;pointer-events:none}.scr.clear .card{pointer-events:auto}
+.card{position:relative;width:min(560px,100%);max-height:100%;overflow:auto;padding:26px 28px 24px;border-radius:5px;color:var(--ink);
+  background:repeating-linear-gradient(92deg,rgba(255,255,255,.035) 0 2px,transparent 2px 7px),repeating-linear-gradient(88deg,rgba(0,0,0,.035) 0 1px,transparent 1px 5px),linear-gradient(160deg,var(--kraft3),var(--kraft) 38%,var(--kraft2));
+  box-shadow:0 22px 60px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,.12);scrollbar-width:thin}
+.card.wide{width:min(780px,100%)}
+.tape{position:absolute;width:118px;height:30px;background:rgba(92,149,232,.86);box-shadow:0 1px 2px rgba(0,0,0,.18);pointer-events:none;
+  -webkit-mask:linear-gradient(90deg,transparent 0 2px,#000 2px calc(100% - 2px),transparent 0);mask:linear-gradient(90deg,transparent 0 2px,#000 2px calc(100% - 2px),transparent 0)}
+.tape.tl{top:-11px;left:-26px;transform:rotate(-27deg)}.tape.tr{top:-11px;right:-26px;transform:rotate(25deg)}
+.mk{font-family:'Permanent Marker',cursive;font-weight:400;letter-spacing:.5px}
+h1.mk{font-size:clamp(40px,8.4vw,74px);line-height:.92;transform:rotate(-2deg);margin:6px 0 4px}
+h2.mk{font-size:clamp(26px,4.4vw,36px);line-height:1;margin-bottom:6px;transform:rotate(-1deg)}
+.sub{font-size:19px;font-weight:600;color:#3d2e22;margin-bottom:14px}
+.co{display:inline-block;font-weight:800;font-size:14px;letter-spacing:2px;text-transform:uppercase;color:#fff;background:var(--orange);padding:3px 9px;border-radius:2px;transform:rotate(-1.5deg)}
+.btn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font-weight:800;font-size:22px;letter-spacing:1px;text-transform:uppercase;padding:11px 16px;margin-top:10px;
+  border:3px solid var(--ink);border-radius:4px;background:var(--paper);color:var(--ink);cursor:pointer;box-shadow:0 4px 0 var(--ink);transition:transform .07s,box-shadow .07s}
+.btn small{display:block;font-size:15px;font-weight:600;letter-spacing:.3px;text-transform:none;color:var(--mut);margin-top:1px}
+.btn .ic{font-size:26px;width:32px;text-align:center;flex:none}
+.btn:hover{transform:translateY(-2px);box-shadow:0 6px 0 var(--ink)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.btn.pri{background:var(--orange);color:#fff}.btn.pri small{color:#ffe5d4}
+.btn.slim{font-size:18px;padding:8px 14px;margin-top:8px}
+.btn:disabled{opacity:.45;pointer-events:none}
+.row{display:flex;gap:10px;align-items:stretch}.row>*{flex:1}
+.lnk{background:none;border:0;color:var(--ink);font-weight:700;font-size:17px;text-decoration:underline;cursor:pointer;padding:6px 2px}
+.note{font-size:16px;font-weight:600;color:#4a3828;line-height:1.3}
+.err{color:var(--red)}
+input.fld{width:100%;font:700 22px 'Barlow Condensed';padding:9px 12px;border:3px solid var(--ink);border-radius:4px;background:var(--paper);color:var(--ink);outline:none;text-transform:none}
+input.fld.code{text-transform:uppercase;letter-spacing:6px;text-align:center;font-size:26px}
+label.lb{display:block;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;font-size:14px;margin:12px 0 4px;color:#3a2a1d}
+/* job board */
+.jobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:12px}
+.job{position:relative;text-align:left;border:3px solid var(--ink);border-radius:3px;background:var(--paper);padding:10px 12px 9px;cursor:pointer;box-shadow:0 4px 0 var(--ink);color:var(--ink);transition:transform .07s}
+.job:hover{transform:translateY(-2px) rotate(-.4deg)}
+.job .no{font-weight:800;font-size:13px;letter-spacing:2px;color:var(--mut)}
+.job .nm{font-family:'Permanent Marker';font-size:21px;line-height:1.05;margin:2px 0 4px}
+.job .ds{font-size:15px;font-weight:600;color:#4b3a2b;line-height:1.2;min-height:36px}
+.job .ft{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-weight:800;font-size:16px}
+.job .st{letter-spacing:2px;color:var(--orange);font-size:18px}.job .st i{color:#c9b89b;font-style:normal}
+.job.lock{opacity:.5;cursor:default}.job.lock:hover{transform:none}
+.job.sel{outline:4px solid var(--tape);outline-offset:2px}
+.job .lk{position:absolute;right:10px;top:8px;font-size:18px}
+/* manifest / invoice */
+.man{margin:10px 0 4px;border-top:2px dashed rgba(36,27,20,.45)}
+.man div{display:flex;justify-content:space-between;gap:10px;padding:5px 2px;border-bottom:2px dashed rgba(36,27,20,.25);font-size:18px;font-weight:600}
+.man div b{font-weight:800}.man .neg{color:var(--red)}.man .pos{color:var(--green)}
+.man .tot{font-size:24px;border-bottom:0;padding-top:8px}.man .tot b{font-family:'Permanent Marker';font-weight:400;font-size:28px}
+.stars{font-size:46px;letter-spacing:6px;color:var(--orange);text-align:center;margin:4px 0 0;line-height:1}.stars i{font-style:normal;color:rgba(36,27,20,.22)}
+.stamp{position:absolute;right:20px;top:24px;transform:rotate(12deg);border:4px solid var(--red);color:var(--red);font-family:'Permanent Marker';font-size:26px;padding:2px 12px;border-radius:4px;opacity:.85}
+.stamp.ok{border-color:var(--green);color:var(--green)}
+/* lobby */
+.code{font-family:'Permanent Marker';font-size:52px;letter-spacing:10px;text-align:center;background:var(--paper);border:3px solid var(--ink);border-radius:4px;margin:6px 0 4px}
+.plist{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.prow{display:flex;align-items:center;gap:10px;background:var(--paper);border:2px solid var(--ink);border-radius:3px;padding:6px 10px;font-weight:800;font-size:19px}
+.prow .dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--ink)}
+.prow .tg{margin-left:auto;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mut)}
+.wi-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-weight:700;font-size:17px}
+.wi-dot{width:9px;height:9px;border-radius:50%;background:#9c8b77}.wi-dot.on{background:var(--green)}
+.wi-btn{margin-left:auto;font:800 14px 'Barlow Condensed';letter-spacing:1px;text-transform:uppercase;border:2px solid var(--ink);background:var(--paper);border-radius:3px;padding:3px 10px;cursor:pointer}
+/* help */
+.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:18px;font-weight:600;margin:8px 0}
+kbd{display:inline-block;min-width:26px;text-align:center;font:800 15px 'Barlow Condensed';background:var(--paper);border:2px solid var(--ink);border-bottom-width:4px;border-radius:4px;padding:1px 6px;margin-right:2px}
+.tip{display:flex;gap:10px;margin:8px 0;font-size:17px;font-weight:600;line-height:1.25}.tip b{font-weight:800}
+/* HUD */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:6}
+#tag{position:absolute;top:8px;left:50%;transform:translateX(-50%) rotate(-1deg);display:flex;align-items:stretch;gap:0;background:var(--paper);border:3px solid var(--ink);border-radius:4px;box-shadow:0 4px 0 var(--ink);white-space:nowrap}
+#tag>div{padding:3px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:2px dashed rgba(36,27,20,.35)}
+#tag>div:first-child{border-left:0}
+#tag small{font-size:11px;font-weight:800;letter-spacing:1.6px;color:var(--mut);text-transform:uppercase;line-height:1}
+#tag b{font-family:'Permanent Marker';font-weight:400;font-size:24px;line-height:1.1}
+#clock.low{color:var(--red)}
+#pausebtn{position:absolute;top:8px;right:10px;pointer-events:auto;width:44px;height:44px;border:3px solid var(--ink);border-radius:4px;background:var(--paper);box-shadow:0 3px 0 var(--ink);font:800 18px 'Barlow Condensed';cursor:pointer}
+#toast{position:absolute;left:50%;top:76px;transform:translateX(-50%);font-family:'Permanent Marker';font-size:24px;color:var(--paper);text-shadow:0 2px 0 var(--ink),0 0 10px rgba(0,0,0,.6);white-space:nowrap;transition:opacity .3s}
+#hint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);font-weight:700;font-size:16px;color:var(--paper);background:rgba(36,27,20,.78);padding:5px 12px;border-radius:4px;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
+#hint kbd{font-size:13px;padding:0 5px;min-width:20px;color:var(--ink)}
+#netstat{position:absolute;right:12px;bottom:10px;font-size:13px;font-weight:800;letter-spacing:1px;color:rgba(247,240,225,.75);text-transform:uppercase}
+#count{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%) rotate(-3deg);font-family:'Permanent Marker';font-size:min(18vw,130px);color:var(--paper);text-shadow:0 5px 0 var(--ink)}
+/* touch */
+#touch{position:fixed;inset:0;z-index:7;pointer-events:none}
+#touch .tb{position:absolute;pointer-events:auto;border:3px solid var(--ink);border-radius:50%;background:rgba(247,240,225,.88);box-shadow:0 4px 0 var(--ink);font:800 17px 'Barlow Condensed';letter-spacing:1px;display:flex;align-items:center;justify-content:center;color:var(--ink)}
+#tb-grab{right:118px;bottom:26px;width:78px;height:78px}
+#tb-lift{right:22px;bottom:66px;width:90px;height:90px;background:rgba(238,106,34,.92)!important;color:#fff!important}
+#tb-lift.on,#tb-grab.on{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+#tcalls{position:absolute;right:14px;top:62px;display:flex;gap:6px;pointer-events:auto}
+#tcalls button{border:2px solid var(--ink);border-radius:3px;background:var(--paper);font:800 14px 'Barlow Condensed';padding:5px 8px}
+#joy{position:absolute;left:0;top:0;width:50%;height:100%;pointer-events:auto}
+#rotate{position:fixed;inset:0;z-index:60;background:#2a2119;color:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:30px}
+#rotate .ph{width:70px;height:110px;border:5px solid var(--paper);border-radius:12px;animation:rot 2.2s ease-in-out infinite}
+@keyframes rot{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(90deg)}}
+@media (max-height:520px){.scr{padding-top:50px;padding-bottom:6px}.man{columns:2;column-gap:18px}.man div{padding:2px;font-size:15px;break-inside:avoid}.man .tot{column-span:all}.job{padding:7px 10px 6px}.job .nm{font-size:18px}.job .ds{font-size:13px}h2.mk{font-size:25px}.card{padding:16px 18px}.btn{padding:7px 12px;font-size:19px;margin-top:7px}.btn small{font-size:13px}h1.mk{font-size:42px}.sub{margin-bottom:6px}.jobs{gap:8px}.job .ds{min-height:0}}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="tag">
+    <div><small id="tag-job">Job</small><b id="clock">0:00</b></div>
+    <div><small>Loaded</small><b id="h-items">0/0</b></div>
+    <div><small>Earned</small><b id="h-cash">$0</b></div>
+    <div><small>Deposit</small><b id="h-dep">$0</b></div>
+  </div>
+  <button id="pausebtn" title="Pause (Esc)">II</button>
+  <div id="toast"></div>
+  <div id="count"></div>
+  <div id="hint"></div>
+  <div id="netstat"></div>
+</div>
+
+<div id="touch" class="hidden">
+  <div id="joy"></div>
+  <div id="tcalls"><button data-c="0">LIFT!</button><button data-c="1">DROP!</button><button data-c="2">PIVOT!</button><button data-c="3">GO!</button></div>
+  <div class="tb" id="tb-grab">GRAB</div>
+  <div class="tb" id="tb-lift">LIFT</div>
+</div>
+
+<!-- TITLE -->
+<div class="scr" id="s-title"><div class="card">
+  <div class="tape tl"></div><div class="tape tr"></div>
+  <span class="co">Two Ends Moving Co.</span>
+  <h1 class="mk">Carry the<br>Couch</h1>
+  <div class="sub">Grab an end. Lift together. Pivot. Get it in the van before it leaves.</div>
+  <button class="btn pri" id="b-online"><span class="ic">📦</span><span>Play with friends<small>2-4 movers online, share a 4-letter code</small></span></button>
+  <button class="btn" id="b-solo"><span class="ic">🛋️</span><span>Solo + CPU buddy<small>you lead, your buddy takes the other end</small></span></button>
+  <button class="btn" id="b-local"><span class="ic">⌨️</span><span>Same keyboard<small>2 movers on one computer</small></span></button>
+  <div class="row" style="margin-top:4px"><button class="lnk" id="b-help" style="text-align:left">How to carry</button><button class="lnk" id="b-sound" style="text-align:right">Sound: on</button></div>
+</div></div>
+
+<!-- JOBS -->
+<div class="scr hidden" id="s-jobs"><div class="card wide">
+  <div class="tape tl"></div>
+  <h2 class="mk">Today's jobs</h2>
+  <div class="note" id="jobs-sub">Every job pays for what reaches the van, minus damage. Get stars to unlock the next one.</div>
+  <div class="jobs" id="jobs-list"></div>
+  <button class="btn slim" id="jobs-back" style="width:auto;display:inline-flex;margin-top:14px">Back</button>
+</div></div>
+
+<!-- BRIEF -->
+<div class="scr hidden" id="s-brief"><div class="card">
+  <div class="tape tr"></div>
+  <div class="note" id="br-no">JOB 1</div>
+  <h2 class="mk" id="br-name">Job</h2>
+  <div class="note" id="br-desc"></div>
+  <div class="man" id="br-man"></div>
+  <div class="note" id="br-time" style="margin-top:6px"></div>
+  <div class="row"><button class="btn slim" id="br-back">Back</button><button class="btn pri slim" id="br-go">Start the job</button></div>
+</div></div>
+
+<!-- ONLINE -->
+<div class="scr hidden" id="s-online"><div class="card">
+  <div class="tape tl"></div>
+  <h2 class="mk">Play with friends</h2>
+  <div class="note">One of you hosts and picks the job. Everyone else types the code.</div>
+  <label class="lb" for="myname">Your name</label>
+  <input class="fld" id="myname" maxlength="12" autocomplete="off" placeholder="Mover">
+  <button class="btn pri" id="b-host"><span class="ic">🏠</span><span>Host a room<small>you get a code to share</small></span></button>
+  <label class="lb" for="joincode">Or join with a code</label>
+  <div class="row"><input class="fld code" id="joincode" maxlength="4" autocomplete="off" placeholder="CODE"><button class="btn slim" id="b-join" style="margin-top:0;flex:.6;justify-content:center">Join</button></div>
+  <div class="note" id="on-status" style="min-height:22px;margin-top:8px"></div>
+  <button class="btn slim" id="on-back" style="width:auto;display:inline-flex">Back</button>
+</div></div>
+
+<!-- LOBBY -->
+<div class="scr hidden" id="s-lobby"><div class="card wide">
+  <div class="tape tl"></div><div class="tape tr"></div>
+  <div class="row" style="gap:18px;flex-wrap:wrap">
+    <div style="flex:1;min-width:220px">
+      <h2 class="mk">The crew</h2>
+      <div class="note">Room code</div>
+      <div class="code" id="lb-code">····</div>
+      <div class="plist" id="lb-list"></div>
+      <div id="lb-invite" class="hidden" style="margin-top:10px"><label class="lb">Invite a friend</label><div id="lb-friends"></div></div>
+    </div>
+    <div style="flex:1.5;min-width:260px">
+      <h2 class="mk" id="lb-jt">Pick the job</h2>
+      <div class="jobs" id="lb-jobs" style="grid-template-columns:repeat(auto-fill,minmax(190px,1fr))"></div>
+      <div class="note hidden" id="lb-wait" style="margin-top:10px">Waiting for the host to pick a job and start...</div>
+      <button class="btn pri" id="lb-start">Start the job</button>
+    </div>
+  </div>
+  <button class="btn slim" id="lb-leave" style="width:auto;display:inline-flex;margin-top:12px">Leave</button>
+</div></div>
+
+<!-- PAUSE -->
+<div class="scr hidden" id="s-pause"><div class="card">
+  <div class="tape tl"></div>
+  <h2 class="mk">Break time</h2>
+  <div class="note" id="pa-note">The clock is stopped.</div>
+  <button class="btn pri" id="pa-resume">Back to work</button>
+  <button class="btn" id="pa-restart">Restart this job</button>
+  <button class="btn" id="pa-help">How to carry</button>
+  <button class="btn" id="pa-jobs">Quit the job</button>
+  <button class="lnk" id="pa-sound">Sound: on</button>
+</div></div>
+
+<!-- RESULT -->
+<div class="scr hidden" id="s-result"><div class="card">
+  <div class="tape tr"></div>
+  <div class="stamp" id="rs-stamp">PAID</div>
+  <div class="note" id="rs-no">INVOICE</div>
+  <h2 class="mk" id="rs-name">Job</h2>
+  <div class="man" id="rs-man"></div>
+  <div class="stars" id="rs-stars"></div>
+  <div class="note" id="rs-note" style="text-align:center;margin-top:4px"></div>
+  <div class="row"><button class="btn slim" id="rs-retry">Retry</button><button class="btn pri slim" id="rs-next">Next job</button></div>
+  <button class="btn slim" id="rs-jobs">All jobs</button>
+</div></div>
+
+<!-- HELP -->
+<div class="scr hidden" id="s-help"><div class="card wide">
+  <div class="tape tl"></div>
+  <h2 class="mk">How to carry</h2>
+  <div class="keys">
+    <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows</span><span>walk</span>
+    <span><kbd>E</kbd> or <kbd>Space</kbd></span><span>grab the nearest thing / let go</span>
+    <span>hold <kbd>Shift</kbd></span><span>lift what you're holding</span>
+    <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd></span><span>shout LIFT! DROP! PIVOT! GO! to your crew</span>
+  </div>
+  <div class="note">Same keyboard: mover 1 is <kbd>WASD</kbd> <kbd>E</kbd> <kbd>Left Shift</kbd>, mover 2 is arrows <kbd>Enter</kbd> <kbd>Right Shift</kbd>. Phones: left thumb walks, GRAB and LIFT on the right.</div>
+  <div class="tip">🏋️<span><b>Heavy things need two lifters.</b> A couch only comes off the floor when everyone it needs is holding Shift. One mover can't even drag it.</span></div>
+  <div class="tip">🪵<span><b>Dragging is slow and scratches wood floors</b> (that comes out of your deposit). Lifting is fast but tires your arms. Put it down to get your grip back.</span></div>
+  <div class="tip">🪜<span><b>Stairs: lift or it slides.</b> Anything left on the floor on a staircase goes down on its own and smashes. The mover at the bottom of the stairs tires fastest, so rest on the landings.</span></div>
+  <div class="tip">🔄<span><b>Pivot.</b> A long couch won't turn in a hallway. Let one end stand still while the other swings, back up, try another angle.</span></div>
+  <div class="tip">💥<span><b>Bumps cost money.</b> Hitting walls dents the furniture and the building. Glass, lamps and TVs crack fast.</span></div>
+  <div class="tip">🚚<span><b>Load it.</b> It counts when the whole thing is inside the van.</span></div>
+  <button class="btn slim" id="help-back" style="width:auto;display:inline-flex">Got it</button>
+</div></div>
+
+<div id="rotate" class="hidden"><div class="ph"></div><div class="mk" style="font-size:28px">Turn your phone sideways</div><div style="font-weight:600;font-size:18px">The job is paused until you do.</div></div>
+<script>
+(()=>{
+'use strict';
+// ═══════════════════════════════ CARRY THE COUCH ═══════════════════════════════
+// Top-down co-op furniture moving. Every mover is a physics body; grabbing pins your
+// hands to the item, so a couch turns because two people pull its ends different ways.
+// The host (or the single local page) runs the only simulation; guests send inputs.
+const $=id=>document.getElementById(id);
+const HASH=location.hash;
+const SMOKE=/smoke/.test(HASH), DEBUG=/debug/.test(HASH);
+const pl=window.planck;
+const V=(x,y)=>pl.Vec2(x,y);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v, lerp=(a,b,t)=>a+(b-a)*t, hyp=Math.hypot;
+const now=()=>performance.now();
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>(n<0?'-$':'$')+Math.abs(Math.round(n)).toLocaleString('en-US');
+const angDiff=(a,b)=>{let d=(b-a)%(Math.PI*2);if(d>Math.PI)d-=Math.PI*2;if(d<-Math.PI)d+=Math.PI*2;return d};
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const LS={get(k,d){try{const v=localStorage.getItem('ctc.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('ctc.'+k,JSON.stringify(v))}catch(e){}}};
+const SET=Object.assign({sound:true,vol:.85},LS.get('set',{}));
+function saveSet(){LS.set('set',SET)}
+
+// ═══════════════════════════════ SOUND ═══════════════════════════════
+// Real recordings only (sfx/carry-the-couch-sfx.m4a, credits in sfx/CREDITS-carry-the-couch.txt).
+// Event-only: nothing plays unless something happens; the scrape loop only runs while
+// something is actually being dragged.
+const SMAP=/*SMAP*/{"ui":[[0.1,0.1],[0.45,0.11]],"thud":[[0.81,0.54],[1.6,0.54],[2.39,0.49]],"bump":[[3.13,0.28],[3.66,0.27],[4.18,0.3]],"scrape":[[4.83,1.2,1]],"stair":[[6.38,0.32],[6.95,0.4],[7.6,0.42]],"grunt":[[8.27,0.46],[8.98,0.38],[9.61,0.34],[10.2,0.3]],"set":[[10.75,0.46],[11.46,0.46]],"crash":[[12.17,1.34],[13.76,1.74]],"glass":[[15.75,0.84],[16.84,0.89]],"crack":[[17.98,0.89],[19.12,0.82]],"box":[[20.19,0.46],[20.9,0.49],[21.64,0.56]],"tape":[[22.45,0.64],[23.34,0.54]],"horn":[[24.13,0.58]],"cash":[[24.96,1.09]],"load":[[26.3,0.64],[27.19,0.64]],"whistle":[[28.08,0.62],[28.95,0.62]],"tick":[[29.82,0.14]],"door":[[30.21,0.86]],"rip":[[31.32,0.6]],"clap":[[32.17,1.54]]}/*END*/;
+const NOAUDIO=/smoke|mute|norender/.test(HASH);
+const AU={ctx:null,sfx:null,buf:null,off:0,raw:null,st:0,scr:null,scrG:null};
+function auInit(){if(AU.ctx||NOAUDIO)return;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+  try{AU.ctx=new AC()}catch(e){return}AU.sfx=AU.ctx.createGain();AU.sfx.connect(AU.ctx.destination);auVol();sprLoad();sprDecode()}
+function auVol(){if(!AU.ctx)return;AU.sfx.gain.setTargetAtTime(SET.sound?SET.vol:0,AU.ctx.currentTime,.02)}
+function sprLoad(){if(AU.st||NOAUDIO)return;AU.st=1;fetch('sfx/carry-the-couch-sfx.m4a').then(r=>r.ok?r.arrayBuffer():Promise.reject(r.status)).then(ab=>{AU.raw=ab;sprDecode()}).catch(()=>{AU.st=-1})}
+function sprDecode(){if(!AU.ctx||!AU.raw||AU.buf)return;const ab=AU.raw;AU.raw=null;
+  const ok=b=>{const d=b.getChannelData(0),sr=b.sampleRate;let mi=0,mv=0;for(let i=0,n=Math.min(d.length,sr*.4|0);i<n;i++){const v=Math.abs(d[i]);if(v>mv){mv=v;mi=i}}
+    // the first clip's attack sits at 0.10 s in the file; whatever the decoder added in front shows up here
+    AU.off=clamp(mi/sr-.1,-.05,.15);AU.buf=b};
+  try{const pr=AU.ctx.decodeAudioData(ab,ok,()=>{AU.st=-1});if(pr&&pr.catch)pr.catch(()=>{AU.st=-1})}catch(e){AU.st=-1}}
+document.addEventListener('pointerdown',()=>{auInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume()},true);
+document.addEventListener('keydown',()=>{auInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume()},true);
+// one take: {v volume, r rate, pan, at delay, i take}
+function snd(name,o){o=o||{};const L=SMAP[name];if(!AU.buf||!L||!SET.sound)return null;const c=AU.ctx,seg=o.i!=null?L[o.i%L.length]:L[Math.random()*L.length|0];
+  const t=c.currentTime+(o.at||0),r=o.r||1,s=c.createBufferSource();s.buffer=AU.buf;s.playbackRate.value=r;
+  const g=c.createGain();let out=g;if(o.pan&&c.createStereoPanner){const p=c.createStereoPanner();p.pan.value=clamp(o.pan,-1,1);g.connect(p);out=p}out.connect(AU.sfx);
+  g.gain.value=o.v==null?1:o.v;s.connect(g);s.start(t,Math.max(0,seg[0]+AU.off),seg[1]/r+.02);return s}
+const rnd=(a,b)=>a+Math.random()*(b-a);
+// world-positioned: pans with the camera and fades with distance
+function sndAt(name,x,y,o){o=Object.assign({},o||{});if(CAM.s){const sx=(x-CAM.x)*CAM.s/(VW/2);o.pan=clamp(sx*.7,-.8,.8);
+  const d=hyp(x-CAM.x,y-CAM.y);o.v=(o.v==null?1:o.v)*clamp(1.25-d/22,.35,1)}return snd(name,o)}
+function scrapeTick(level){if(!AU.buf||!SMAP.scrape||!AU.ctx)return;const c=AU.ctx;
+  if(!AU.scr&&level>.02){const seg=SMAP.scrape[0];const s=c.createBufferSource();s.buffer=AU.buf;s.loop=true;s.loopStart=seg[0]+AU.off;s.loopEnd=seg[0]+AU.off+seg[1];
+    const g=c.createGain();g.gain.value=0;s.connect(g);g.connect(AU.sfx);s.start(0,seg[0]+AU.off);AU.scr=s;AU.scrG=g}
+  if(AU.scr){AU.scrG.gain.setTargetAtTime(SET.sound?clamp(level,0,1)*.55:0,c.currentTime,.06);AU.scr.playbackRate.setTargetAtTime(.85+clamp(level,0,1)*.3,c.currentTime,.1);
+    if(level<=.02){AU.scrIdle=(AU.scrIdle||0)+1;if(AU.scrIdle>40){try{AU.scr.stop()}catch(e){}AU.scr=null;AU.scrIdle=0}}else AU.scrIdle=0}}
+
+// ═══════════════════════════════ FURNITURE ═══════════════════════════════
+// w×h in metres (w is the long side). wt = lifters needed. heavy = how fast it tires arms.
+// frag = damage multiplier. parts = extra rectangles for odd shapes (local cx,cy,w,h).
+const KIND={
+  couch:   {name:'Couch',      w:2.1, h:.9,  wt:2,heavy:1,  val:400, frag:1,  col:'#c8922c'},
+  loveseat:{name:'Loveseat',   w:1.5, h:.85, wt:2,heavy:.8, val:260, frag:1,  col:'#4f7f8c',draw:'couch'},
+  sectional:{name:'Sectional', w:2.4, h:.9,  wt:2,heavy:1.4,val:700, frag:1,  col:'#7c5ea8',parts:[[0,0,2.4,.9],[.75,.95,.9,1]]},
+  chair:   {name:'Armchair',   w:.9,  h:.85, wt:1,heavy:1.1,val:140, frag:1,  col:'#b04a3c'},
+  box:     {name:'Box',        w:.55, h:.55, wt:1,heavy:.6, val:40,  frag:1,  label:'MISC'},
+  books:   {name:'Box of books',w:.5, h:.5,  wt:1,heavy:1.5,val:70,  frag:.8, label:'BOOKS',draw:'box'},
+  dishes:  {name:'Box of dishes',w:.55,h:.55,wt:1,heavy:.8, val:90,  frag:2.6,label:'FRAGILE',draw:'box'},
+  lamp:    {name:'Floor lamp', w:.46, h:.46, wt:1,heavy:.3, val:80,  frag:3,  round:1},
+  plant:   {name:'Fig tree',   w:.62, h:.62, wt:1,heavy:.7, val:60,  frag:1.5,round:1},
+  tv:      {name:'TV',         w:1.25,h:.24, wt:1,heavy:.7, val:300, frag:3},
+  mirror:  {name:'Mirror',     w:1.1, h:.14, wt:1,heavy:.4, val:220, frag:4},
+  mattress:{name:'Mattress (on its side)',w:2,h:.32,wt:2,heavy:.6,val:220,frag:.7},
+  fridge:  {name:'Fridge',     w:.8,  h:.76, wt:2,heavy:1.6,val:520, frag:.8},
+  piano:   {name:'Piano',      w:1.5, h:.64, wt:2,heavy:1.7,val:1200,frag:1.6},
+  shelf:   {name:'Bookshelf',  w:1,   h:.38, wt:2,heavy:1.1,val:180, frag:1},
+  dresser: {name:'Dresser',    w:1.25,h:.55, wt:2,heavy:1.3,val:260, frag:1},
+  glass:   {name:'Glass table',w:1.4, h:.8,  wt:2,heavy:.7, val:350, frag:3},
+  desk:    {name:'Desk',       w:1.4, h:.7,  wt:2,heavy:1.1,val:200, frag:1},
+};
+for(const k in KIND){const K=KIND[k];K.id=k;K.draw=K.draw||k;if(!K.parts)K.parts=[[0,0,K.w,K.h]];
+  let r=0;for(const p of K.parts)for(const sx of[-1,1])for(const sy of[-1,1])r=Math.max(r,hyp(p[0]+sx*p[2]/2,p[1]+sy*p[3]/2));K.r=K.round?K.w/2:r;
+  K.mass=K.wt*2.4*(.75+.25*K.heavy)}
+
+// ═══════════════════════════════ JOBS ═══════════════════════════════
+// Floor plans in metres. floors: [x,y,w,h,type] painted in order. doors: [x,y,w,h] (a gap in a wall).
+// stairs: [x,y,w,h,dir] dir = the way DOWN. fix: solid fixtures [x,y,w,h,kind].
+// van: [x,y] = top-left of the cargo floor; it opens to the west.
+// items: [kind,x,y,angle,label?]. Everything outside a floor/door/stairs rect is wall.
+const VAN={w:4.2,h:2.3,wall:.18,cab:1.6};
+const JOBS=[
+ {id:'studio',name:'Studio on Elm St',client:'Dana, moving in with her girlfriend',w:24,h:12,time:150,deposit:150,
+  desc:'Ground floor, one door, a straight shot to the van. Learn to lift together.',
+  floors:[[.5,.5,10,7.5,'wood'],[.5,8.25,3.5,3.25,'tile'],[10.75,2,3,8,'tile'],[14.25,0,2.5,12,'walk'],[16.75,0,7.25,12,'street']],
+  doors:[[1.5,8,1,.25],[10.5,4.75,.25,1.5],[13.75,4.75,.5,1.5]],
+  fix:[[6.2,.5,4.3,.62,'counter'],[.5,9.4,.8,2.1,'tub'],[3.3,10.85,.55,.65,'toilet'],[.5,2.6,.22,1.6,'radiator']],
+  labels:[[4,1.4,'STUDIO'],[2.2,10,'BATH'],[12.25,8.9,'LOBBY'],[15.5,1.2,'ELM ST']],
+  van:[17.6,4.4],spawn:[[6.5,6.6],[7.4,6.6],[6.5,7.3],[7.4,7.3]],
+  items:[['couch',4.6,4.4,0],['chair',2.1,2.1,.35],['box',8.4,2.6,.1],['dishes',9.3,3.3,-.2],['lamp',1.4,6.9,0],['plant',9.7,7.3,0],['books',8.7,4.2,.3]]},
+
+ {id:'hall',name:'The Long Hallway',client:'Mr. Petrov, retired, very particular',w:26,h:13,time:220,deposit:200,
+  desc:'The living room opens onto a narrow hall. The couch will not just turn. Pivot.',
+  floors:[[.5,.5,8.5,6,'carpet'],[.5,6.75,8.5,5.75,'wood'],[9.25,.5,2,12,'wood'],[11.75,9.5,2,3,'tile'],[14.25,0,2.5,13,'walk'],[16.75,0,9.25,13,'street']],
+  doors:[[9,1.5,.25,1.5],[9,10.5,.25,1.25],[11.25,10.5,.5,1.5],[13.75,10.25,.5,1.5]],
+  fix:[[.5,7.6,2.2,2.6,'bed'],[.5,2.4,.22,1.6,'radiator'],[6.6,12,2.4,.5,'wardrobe']],
+  labels:[[4.2,4.6,'LIVING ROOM'],[4.5,11.8,'BEDROOM'],[10.25,6.4,'HALL'],[12.75,9.9,'PORCH']],
+  van:[17.6,9.4],spawn:[[10.25,4],[10.25,5],[10.25,6],[10.25,7]],
+  items:[['couch',4.4,2.2,0],['chair',7.2,4.6,-.4],['tv',2.1,5.8,0],['shelf',6.4,.95,0],['lamp',1.2,1.2,0],['box',3.2,4.2,.2],['books',5.6,8,0],['dresser',5,7.4,0],['mattress',4.4,10.6,0]]},
+
+ {id:'walkup',name:'Third Floor Walk-Up',client:'Priya and Sam, first kid on the way',w:34,h:14,time:260,deposit:200,
+  desc:'Two flights of stairs and no elevator. Lift on the stairs or it slides. Rest on the landings.',
+  floors:[[.5,.5,9,6.5,'wood'],[.5,.5,3.5,2.5,'tile'],[.5,7.25,5.5,6.25,'carpet'],[9.75,.5,3.5,4,'conc'],[9.75,9,6,2.5,'conc'],[20.25,7,3.5,6,'tile'],[24.25,0,2.25,14,'walk'],[26.5,0,7.5,14,'street']],
+  stairs:[[9.75,4.5,1.75,4.5,'S'],[15.75,9.5,4.5,1.75,'E']],
+  doors:[[2,7,1.25,.25],[9.5,2.25,.25,1.5],[23.75,8.75,.5,1.5]],
+  fix:[[.5,.5,3.5,.6,'counter'],[.5,1.1,.6,2,'counter'],[.5,10.3,2,3.2,'bed'],[8.9,.5,.6,.9,'radiator']],
+  labels:[[6.6,6.5,'3F'],[11.5,1.3,'3F'],[12.7,10.2,'2F'],[22,12.4,'1F'],[25.3,1.2,'OAK AVE']],
+  van:[27.3,7.7],spawn:[[11,2],[12,2],[11,3],[12,3]],
+  items:[['couch',5.6,3.8,0],['chair',7.8,5.8,.5],['tv',5.4,1,0],['dresser',3.6,12.8,0],['mattress',3.4,8.2,0],['box',1.8,4.4,0],['dishes',2.8,2.2,0],['books',8.3,1.8,.2],['lamp',8.6,6.3,0],['plant',1.2,6.2,0]]},
+
+ {id:'townhouse',name:'The Narrow Townhouse',client:'Gloria, downsizing after 30 years',w:30,h:14,time:250,deposit:250,
+  desc:'Steep narrow stairs off a narrow hall. A glass table, a mirror and the fridge. Go slow.',
+  floors:[[.5,.5,6,6,'carpet'],[.5,6.75,6,5.5,'wood'],[6.75,.5,1.5,12,'wood'],[12.25,.5,7,11,'wood'],[15.5,.5,3.75,4.25,'tile'],[19.75,0,2.25,14,'walk'],[22,0,8,14,'street']],
+  stairs:[[8.25,4,4,1.5,'E']],
+  doors:[[6.5,2,.25,1.25],[6.5,8.25,.25,1.25],[19.25,6.25,.5,1.5]],
+  fix:[[.5,.5,2,2.4,'bed'],[15.5,.5,3.75,.6,'counter'],[12.25,8.8,.6,2.7,'radiator'],[.5,11.6,2.6,.65,'wardrobe']],
+  labels:[[3.5,5.6,'BEDROOM'],[3.5,11,'STUDY'],[7.5,11.5,'2F'],[14,10.4,'1F'],[17.4,4,'KITCHEN'],[20.9,1.2,'BAY ST']],
+  van:[22.9,5.4],spawn:[[7.5,5.8],[7.5,6.8],[7.5,7.8],[7.5,8.8]],
+  items:[['glass',3.6,9.3,0],['mirror',4.2,3.4,1.57],['dresser',4.4,1.1,0],['desk',2.4,7.5,0],['books',5.6,10.8,0],['lamp',5.8,6,0],['fridge',17.2,1.6,0],['couch',15.6,8.4,0],['tv',14.4,6,1.57],['plant',18.5,10.6,0]]},
+
+ {id:'piano',name:'The Piano',client:'The Hartleys, their grandmother\'s piano',w:32,h:14,time:280,deposit:250,
+  desc:'A piano on the second floor and an L-shaped sectional downstairs. The piano tires arms fast.',
+  floors:[[.5,.5,8,7,'wood'],[8.75,.5,3,3.25,'conc'],[8.75,7,4.5,2,'conc'],[8.75,9.25,7.5,4.25,'carpet'],[16.5,4.5,4,8,'tile'],[21,0,2.25,14,'walk'],[23.25,0,8.75,14,'street']],
+  stairs:[[8.75,3.75,1.75,3.25,'S'],[13.25,7.25,3.25,1.75,'E']],
+  doors:[[8.5,1.5,.25,1.5],[16.25,10.5,.25,1.75],[20.5,7,.5,2]],
+  fix:[[.5,6.2,.22,1.3,'radiator'],[8.75,12.9,2.6,.6,'counter']],
+  labels:[[4.5,6.4,'MUSIC ROOM'],[10.2,1.2,'2F'],[11.6,8.5,'LANDING'],[12.2,12.6,'1F'],[18.4,11.8,'LOBBY'],[22.1,1.2,'PINE ST']],
+  van:[24.1,6.4],spawn:[[9.5,1.5],[10.5,1.5],[9.5,2.5],[10.5,2.5]],
+  items:[['piano',3.6,1.05,0],['chair',6.6,4.6,.4],['lamp',1.2,1.2,0],['mirror',1.1,4.2,1.57],['box',5.8,5.9,0],['sectional',11.6,10.4,0],['plant',15.6,13,0],['dishes',9.4,12.1,.3]]},
+
+ {id:'rush',name:'Rush Job',client:'Leon, who booked the van for too short',w:34,h:14,time:200,deposit:200,
+  desc:'The walk-up again, more stuff, less time. Split up: light things go alone.',
+  base:'walkup',
+  items:[['couch',5.6,3.8,0],['loveseat',3.4,5.6,0],['chair',7.8,5.8,.5],['tv',5.4,1,0],['dresser',3.6,12.8,0],['mattress',3.4,8.2,0],['fridge',2.6,1.8,0],['box',1.8,4.4,0],['box',6.6,1.4,.4],['dishes',4.4,2.2,0],['books',8.3,1.8,.2],['books',8.4,2.6,-.2],['lamp',8.6,6.3,0],['plant',1.2,6.2,0]]},
+];
+for(const J of JOBS){if(J.base){const B=JOBS.find(j=>j.id===J.base);for(const k of['w','h','floors','stairs','doors','fix','labels','van','spawn'])if(J[k]==null)J[k]=B[k]}
+  J.stairs=J.stairs||[];J.doors=J.doors||[];J.fix=J.fix||[];J.labels=J.labels||[]}
+const JOB=id=>JOBS.find(j=>j.id===id)||JOBS[0];
+
+// ═══════════════════════════════ LEVEL BUILD ═══════════════════════════════
+const RES=.25;
+const FT={wood:1,carpet:2,tile:3,conc:4,stairs:5,walk:6,street:7,door:8};
+// mu = floor friction for something dragged; scuff = dragging leaves scratches (deposit)
+const FPROP={1:{mu:1,scuff:1},2:{mu:1.2},3:{mu:.95,scuff:1},4:{mu:1},5:{mu:1},6:{mu:1},7:{mu:1.1},8:{mu:1,scuff:1},9:{mu:.85}};
+const DIRV={N:[0,-1],S:[0,1],E:[1,0],W:[-1,0]};
+function buildLevel(J){
+  const gw=Math.round(J.w/RES),gh=Math.round(J.h/RES),N=gw*gh;
+  const ft=new Uint8Array(N);
+  const cellsOf=(x,y,w,h)=>[Math.max(0,Math.round(x/RES)),Math.max(0,Math.round(y/RES)),Math.min(gw,Math.round((x+w)/RES)),Math.min(gh,Math.round((y+h)/RES))];
+  const paint=(r,t)=>{const[x0,y0,x1,y1]=cellsOf(r[0],r[1],r[2],r[3]);for(let j=y0;j<y1;j++)for(let i=x0;i<x1;i++)ft[j*gw+i]=t};
+  for(const f of J.floors)paint(f,FT[f[4]]);
+  for(const d of J.doors)paint(d,FT.door);
+  for(const s of J.stairs)paint(s,FT.stairs);
+  // 1 = wall (within half a metre of a floor), 2 = solid building beyond it
+  const wall=new Uint8Array(N);
+  for(let j=0;j<gh;j++)for(let i=0;i<gw;i++){if(ft[j*gw+i])continue;let near=0;
+    for(let dj=-2;dj<=2&&!near;dj++)for(let di=-2;di<=2;di++){const a=i+di,b=j+dj;if(a>=0&&b>=0&&a<gw&&b<gh&&ft[b*gw+a]){near=1;break}}
+    wall[j*gw+i]=near?1:2}
+  // merge solid cells into rectangles for the physics walls
+  const rects=[],used=new Uint8Array(N);
+  for(let j=0;j<gh;j++)for(let i=0;i<gw;i++){const k=j*gw+i;if(!wall[k]||used[k])continue;
+    let w=1;while(i+w<gw&&wall[k+w]&&!used[k+w])w++;
+    let h=1;outer:while(j+h<gh){for(let a=0;a<w;a++){const q=(j+h)*gw+i+a;if(!wall[q]||used[q])break outer}h++}
+    for(let b=0;b<h;b++)for(let a=0;a<w;a++)used[(j+b)*gw+i+a]=1;
+    rects.push([i*RES,j*RES,w*RES,h*RES])}
+  const vx=J.van[0],vy=J.van[1];
+  const van={x:vx,y:vy,w:VAN.w,h:VAN.h};
+  const vanWalls=[[vx,vy-VAN.wall,VAN.w,VAN.wall],[vx,vy+VAN.h,VAN.w,VAN.wall],[vx+VAN.w,vy-VAN.wall,VAN.cab,VAN.h+VAN.wall*2]];
+  const solids=J.fix.map(f=>f.slice(0,4)).concat(vanWalls);
+  // which grid cells a mover can stand in (for the CPU buddy's walking)
+  const solidCell=new Uint8Array(N);
+  for(let k=0;k<N;k++)if(!ft[k])solidCell[k]=1;
+  for(const s of solids){const x0=Math.floor(s[0]/RES),y0=Math.floor(s[1]/RES),x1=Math.ceil((s[0]+s[2])/RES),y1=Math.ceil((s[1]+s[3])/RES);
+    for(let j=Math.max(0,y0);j<Math.min(gh,y1);j++)for(let i=Math.max(0,x0);i<Math.min(gw,x1);i++)solidCell[j*gw+i]=1}
+  const walk=new Uint8Array(N);
+  for(let j=1;j<gh-1;j++)for(let i=1;i<gw-1;i++){let ok=1;for(let dj=-1;dj<=1&&ok;dj++)for(let di=-1;di<=1;di++)if(solidCell[(j+dj)*gw+i+di]){ok=0;break}walk[j*gw+i]=ok}
+  const stairs=J.stairs.map(s=>({x:s[0],y:s[1],w:s[2],h:s[3],dir:s[4],d:DIRV[s[4]]}));
+  return {J,w:J.w,h:J.h,gw,gh,ft,wall,rects,solids,vanWalls,van,walk,solidCell,stairs};
+}
+function floorAt(lv,x,y){const i=Math.floor(x/RES),j=Math.floor(y/RES);if(i<0||j<0||i>=lv.gw||j>=lv.gh)return 0;
+  if(x>=lv.van.x&&x<=lv.van.x+lv.van.w&&y>=lv.van.y&&y<=lv.van.y+lv.van.h)return 9;return lv.ft[j*lv.gw+i]}
+function stairsAt(lv,x,y){for(const s of lv.stairs)if(x>=s.x&&x<=s.x+s.w&&y>=s.y&&y<=s.y+s.h)return s;return null}
+
+// ═══════════════════════════════ GAME STATE + PHYSICS ═══════════════════════════════
+const PH={dt:1/60,moverR:.24,speed:3.1,holdSpeed:2.35,stairsMul:.72,fMax:15,tau:.08,reach:.5,
+  floorMu:10,liftDrag:.6,stairPull:3.4,hitDv:.95,dmgK:.14,scuffDv:1.25,scuffCost:6,scratchCost:2.5,
+  drain:.1,regen:.35,regenHold:.25,tiredT:1.4,step:.28,stairDmg:.03,loadT:.45,timeBonus:2};
+const CAT={WALL:1,ITEM:2,MOVER:4};
+const COLORS=[{c:'#2f6fdb',n:'blue'},{c:'#ee6a22',n:'orange'},{c:'#2b9455',n:'green'},{c:'#8d55c8',n:'purple'}];
+const SKIN=['#e8b896','#9a6440','#c98f62','#f0c9a8'];
+const CALLS=['LIFT!','DROP!','PIVOT!','GO!'];
+let G=null;
+
+function makeGame(J,opts){
+  const lv=buildLevel(J);
+  const g={J,lv,sim:!!opts.sim,t:0,frame:0,timeLeft:Math.round(J.time*(opts.timeMul||1)),time0:0,cash:0,dep:J.deposit,scuffs:0,scratches:0,
+    items:[],movers:[],ev:[],hits:[],phase:'count',countT:SMOKE?0:3.2,doneT:0,endWhy:'',tickSec:99,horned:false,solo:!!opts.solo,mode:opts.mode||'solo',lastCall:null};
+  g.time0=g.timeLeft;
+  if(g.sim){
+    // nothing here moves more than ~5 cm a step against 25 cm walls, so no continuous collision
+    // (planck 1.0.6's time-of-impact solver can also read past a shape's vertices and throw)
+    const w=g.world=new pl.World({gravity:V(0,0),continuousPhysics:false});
+    g.anchor=w.createBody();                         // friction joints hang off this (it has no fixtures)
+    const wb=g.wallBody=w.createBody();
+    const wf={friction:.12,restitution:.02,filterCategoryBits:CAT.WALL,filterMaskBits:0xffff,userData:{t:'w'}};
+    const addBox=(x,y,ww,hh)=>wb.createFixture(new pl.Box(ww/2,hh/2,V(x+ww/2,y+hh/2),0),wf);
+    for(const r of lv.rects)addBox(r[0],r[1],r[2],r[3]);
+    for(const s of lv.solids)addBox(s[0],s[1],s[2],s[3]);
+    addBox(-1,-1,J.w+2,1);addBox(-1,J.h,J.w+2,1);addBox(-1,0,1,J.h);addBox(J.w,0,1,J.h);
+    w.on('post-solve',(c,imp)=>{const ua=c.getFixtureA().getUserData(),ub=c.getFixtureB().getUserData();if(!ua||!ub)return;
+      if(ua.t!=='i'&&ub.t!=='i')return;let s=0;const n=c.getManifold().pointCount;for(let i=0;i<n;i++)s+=imp.normalImpulses[i];if(s<.3)return;
+      const wm=c.getWorldManifold(null),p=wm&&wm.points[0];const x=p?p.x:0,y=p?p.y:0;
+      if(ua.t==='i'&&ub.t!=='m')g.hits.push({it:ua.it,imp:s,x,y,wall:ub.t==='w'});
+      if(ub.t==='i'&&ua.t!=='m')g.hits.push({it:ub.it,imp:s,x,y,wall:ua.t==='w'})});
+  }
+  J.items.forEach((d,i)=>{const K=KIND[d[0]];const it={id:i,K,x:d[1],y:d[2],a:d[3]||0,cond:1,state:'floor',grabbers:[],lifted:false,liftV:0,need:0,
+      inVan:0,lastHit:-9,stIdx:null,dragAcc:0,drag:false,slide:false,vx:0,vy:0,va:0,flash:0,seed:(i*977+13)|0};
+    if(g.sim)makeItemBody(g,it);g.items.push(it)});
+  (opts.seats||[]).forEach((s,i)=>addMover(g,s,i));
+  return g;
+}
+function makeItemBody(g,it){const K=it.K;
+  const b=g.world.createBody({type:'dynamic',position:V(it.x,it.y),angle:it.a,linearDamping:.3,angularDamping:2.5});
+  let area=0;for(const p of K.parts)area+=K.round?Math.PI*K.w*K.w/4:p[2]*p[3];
+  const fd={density:K.mass/area,friction:.15,restitution:.04,filterCategoryBits:CAT.ITEM,filterMaskBits:CAT.WALL|CAT.ITEM|CAT.MOVER,userData:{t:'i',it}};
+  for(const p of K.parts)b.createFixture(K.round?new pl.Circle(V(p[0],p[1]),K.w/2):new pl.Box(p[2]/2,p[3]/2,V(p[0],p[1]),0),fd);
+  it.body=b;it.mass=b.getMass();
+  it.fj=g.world.createJoint(new pl.FrictionJoint({maxForce:10,maxTorque:5},g.anchor,b,b.getWorldCenter()))}
+function addMover(g,s,i){const sp=g.J.spawn[i%g.J.spawn.length];
+  const m={seat:s.seat!=null?s.seat:i,name:s.name||'Mover',cid:s.cid||'',local:!!s.local,keys:s.keys!=null?s.keys:-1,bot:s.bot?{t:0,path:null,pathT:0,pi:0,goal:{x:0,y:0},trail:[],D:null,wait:false,waitT:0,forceLift:false,drop:0,target:null,retarget:0,grabCD:0,stuck:0,callT:null}:null,
+    col:COLORS[(s.seat!=null?s.seat:i)%4],skin:SKIN[(s.seat!=null?s.seat:i)%4],x:sp[0],y:sp[1],vx:0,vy:0,face:-Math.PI/2,hold:null,joint:null,gripL:null,
+    in:{mx:0,my:0,g:0,l:0,c:0,cc:-1},gSeen:0,cSeen:0,st:1,tired:0,liftWant:false,lifting:false,call:null,walkPh:0,seen:now()};
+  if(g.sim){const b=g.world.createBody({type:'dynamic',position:V(sp[0],sp[1]),fixedRotation:true,linearDamping:0});
+    b.createFixture(new pl.Circle(PH.moverR),{density:1/(Math.PI*PH.moverR*PH.moverR),friction:0,restitution:0,filterCategoryBits:CAT.MOVER,filterMaskBits:CAT.WALL|CAT.ITEM,userData:{t:'m',m}});
+    m.body=b;m.mass=b.getMass()}
+  g.movers.push(m);return m}
+function removeMover(g,m){if(m.hold)release(g,m);if(m.body)g.world.destroyBody(m.body);g.movers.splice(g.movers.indexOf(m),1)}
+function ev(g,e){g.ev.push(e);fxEvent(e,g)}
+
+// nearest point of an item's outline to (px,py), from its pose. d < 0 means inside.
+function closestOnPose(K,x,y,a,px,py){const c=Math.cos(a),s=Math.sin(a);const lx=(px-x)*c+(py-y)*s,ly=-(px-x)*s+(py-y)*c;
+  let best=null;
+  for(const p of K.parts){let qx,qy,d;
+    if(K.round){const r=K.w/2,dx=lx-p[0],dy=ly-p[1],l=hyp(dx,dy)||1e-6;qx=p[0]+dx/l*r;qy=p[1]+dy/l*r;d=l-r}
+    else{const hw=p[2]/2,hh=p[3]/2,dx=lx-p[0],dy=ly-p[1];
+      if(Math.abs(dx)>hw||Math.abs(dy)>hh){const cx=clamp(dx,-hw,hw),cy=clamp(dy,-hh,hh);qx=p[0]+cx;qy=p[1]+cy;d=hyp(dx-cx,dy-cy)}
+      else{const ex=hw-Math.abs(dx),ey=hh-Math.abs(dy);if(ex<ey){qx=p[0]+Math.sign(dx||1)*hw;qy=ly}else{qx=lx;qy=p[1]+Math.sign(dy||1)*hh}d=-Math.min(ex,ey)}}
+    if(!best||d<best.d)best={d,lx:qx,ly:qy}}
+  best.x=x+best.lx*c-best.ly*s;best.y=y+best.lx*s+best.ly*c;return best}
+function nearestItem(g,px,py,reach){let best=null,bq=null;
+  for(const it of g.items){if(it.state!=='floor'||it.grabbers.length>=4)continue;const q=closestOnPose(it.K,it.x,it.y,it.a,px,py);
+    if(q.d<=reach&&(!bq||q.d<bq.d)){best=it;bq=q}}
+  return best?{it:best,q:bq}:null}
+function tryGrab(g,m){const p=m.body.getPosition();const n=nearestItem(g,p.x,p.y,PH.reach);if(!n){ev(g,{k:'miss',s:m.seat});return false}
+  const it=n.it;m.joint=g.world.createJoint(new pl.RevoluteJoint({collideConnected:false},m.body,it.body,p));
+  m.hold=it;m.gripL={x:n.q.lx,y:n.q.ly};const hl=it.body.getLocalPoint(p);m.handleL={x:hl.x,y:hl.y};it.grabbers.push(m);
+  ev(g,{k:'grab',s:m.seat,id:it.id,x:n.q.x,y:n.q.y});return true}
+function release(g,m,say){if(!m.hold)return;const it=m.hold;if(m.joint){try{g.world.destroyJoint(m.joint)}catch(e){}}
+  m.joint=null;it.grabbers=it.grabbers.filter(x=>x!==m);m.hold=null;m.gripL=null;m.lifting=false;if(say)ev(g,{k:'rel',s:m.seat,id:it.id})}
+function dropItemBody(g,it){for(const m of it.grabbers.slice())release(g,m);if(it.fj){try{g.world.destroyJoint(it.fj)}catch(e){}it.fj=null}
+  if(it.body){g.world.destroyBody(it.body);it.body=null}}
+function inVanZone(lv,it){const v=lv.van,c=Math.cos(it.a),s=Math.sin(it.a),m=.03;
+  for(const p of it.K.parts){const pts=it.K.round?[[it.K.w/2,0],[-it.K.w/2,0],[0,it.K.w/2],[0,-it.K.w/2]]:[[-p[2]/2,-p[3]/2],[p[2]/2,-p[3]/2],[p[2]/2,p[3]/2],[-p[2]/2,p[3]/2]];
+    for(const q of pts){const lx=p[0]+q[0],ly=p[1]+q[1];const x=it.x+lx*c-ly*s,y=it.y+lx*s+ly*c;
+      if(x<v.x+m||x>v.x+v.w-m||y<v.y+m||y>v.y+v.h-m)return false}}
+  return true}
+function loadItem(g,it){dropItemBody(g,it);it.state='loaded';it.pay=Math.round(it.K.val*Math.max(0,it.cond));g.cash+=it.pay;
+  ev(g,{k:'load',id:it.id,pay:it.pay,x:it.x,y:it.y})}
+function breakItem(g,it){dropItemBody(g,it);it.state='broken';it.cond=0;it.pay=0;ev(g,{k:'brk',id:it.id,x:it.x,y:it.y,gl:it.K.frag>=2.5?1:0})}
+
+// One fixed step of the whole job. Only the host (or a local game) calls this.
+function simStep(g,dt){
+  g.t+=dt;g.frame++;
+  if(g.phase==='count'){g.countT-=dt;if(g.countT<=0){g.phase='play';ev(g,{k:'go'})}}
+  const playing=g.phase==='play';
+  for(const m of g.movers){if(m.bot)botThink(g,m,dt);moverStep(g,m,dt,playing)}
+  for(const it of g.items){if(it.state!=='floor')continue;itemPre(g,it,dt)}
+  g.hits.length=0;
+  g.world.step(dt,8,3);
+  // read back poses
+  for(const m of g.movers){const p=m.body.getPosition(),v=m.body.getLinearVelocity();m.x=p.x;m.y=p.y;m.vx=v.x;m.vy=v.y}
+  for(const it of g.items){if(!it.body)continue;const p=it.body.getPosition(),v=it.body.getLinearVelocity();it.x=p.x;it.y=p.y;it.a=it.body.getAngle();it.vx=v.x;it.vy=v.y;it.va=it.body.getAngularVelocity()}
+  // impacts
+  const best=new Map();for(const h of g.hits){const dv=h.imp/(h.it.mass||1);const b=best.get(h.it);if(!b||dv>b.dv)best.set(h.it,{dv,x:h.x,y:h.y,wall:h.wall})}
+  for(const[it,h]of best){if(it.state!=='floor'||g.t-it.lastHit<.12)continue;if(h.dv<PH.hitDv*.7)continue;it.lastHit=g.t;
+    const d=h.dv>PH.hitDv?(h.dv-PH.hitDv)*PH.dmgK*it.K.frag:0;
+    if(d>0)it.cond-=d;
+    ev(g,{k:'hit',id:it.id,x:+h.x.toFixed(2),y:+h.y.toFixed(2),v:+h.dv.toFixed(2),d:+d.toFixed(3)});
+    if(h.wall&&h.dv>PH.scuffDv&&playing){g.dep=Math.max(0,g.dep-PH.scuffCost);g.scuffs++;ev(g,{k:'scuff',x:+h.x.toFixed(2),y:+h.y.toFixed(2)})}
+    if(it.cond<=0)breakItem(g,it)}
+  for(const it of g.items){if(it.state!=='floor')continue;itemPost(g,it,dt,playing)}
+  for(const m of g.movers)moverPost(g,m,dt);
+  // the clock
+  if(playing){g.timeLeft=Math.max(0,g.timeLeft-dt);
+    if(!g.horned&&g.timeLeft<=30&&g.time0>45){g.horned=true;ev(g,{k:'horn'})}
+    const s=Math.ceil(g.timeLeft);if(s<=10&&s<g.tickSec&&s>0){g.tickSec=s;ev(g,{k:'tick',n:s})}
+    const left=g.items.some(it=>it.state==='floor');
+    if(!left){g.doneT+=dt;if(g.doneT>1)endJob(g,'done')}
+    else if(g.timeLeft<=0)endJob(g,'time')}
+}
+function moverStep(g,m,dt,playing){
+  const inp=m.in;
+  if(inp.g!==m.gSeen){m.gSeen=inp.g;if(playing){if(m.hold)release(g,m,true);else tryGrab(g,m)}}
+  if(inp.c!==m.cSeen){m.cSeen=inp.c;if(inp.cc>=0&&inp.cc<4){m.call={c:inp.cc,t:1.6};g.lastCall={s:m.seat,c:inp.cc,t:g.t};ev(g,{k:'call',s:m.seat,c:inp.cc})}}
+  if(m.tired>0)m.tired-=dt;
+  m.liftWant=!!inp.l&&m.tired<=0&&m.st>0&&!!m.hold;
+  let mx=playing?inp.mx:0,my=playing?inp.my:0;const l=hyp(mx,my);if(l>1){mx/=l;my/=l}
+  const p=m.body.getPosition();let sp=m.hold?PH.holdSpeed:PH.speed;if(stairsAt(g.lv,p.x,p.y))sp*=PH.stairsMul;
+  const v=m.body.getLinearVelocity();let fx=(mx*sp-v.x)*m.mass/PH.tau,fy=(my*sp-v.y)*m.mass/PH.tau;
+  const fl=hyp(fx,fy),fm=PH.fMax*(m.tired>0?.6:1);if(fl>fm){fx*=fm/fl;fy*=fm/fl}
+  m.body.applyForceToCenter(V(fx,fy),true);
+  if(l>.15)m.moveDir=Math.atan2(my,mx);
+}
+function itemPre(g,it,dt){const K=it.K,b=it.body;
+  const lifters=it.grabbers.filter(m=>m.liftWant);
+  const was=it.lifted;it.lifted=lifters.length>=K.wt;
+  it.need=(!it.lifted&&lifters.length>0)?K.wt:0;
+  for(const m of it.grabbers)m.lifting=it.lifted&&m.liftWant;
+  if(it.lifted!==was){if(it.lifted)ev(g,{k:'lift',id:it.id,s:lifters[0].seat});else ev(g,{k:'set',id:it.id,x:it.x,y:it.y})}
+  const c=b.getWorldCenter(),st=stairsAt(g.lv,c.x,c.y);
+  if(it.lifted){it.fj.setMaxForce(it.mass*PH.liftDrag);it.fj.setMaxTorque(it.mass*.3);b.setLinearDamping(1.6);b.setAngularDamping(3.5)}
+  else{const fp=FPROP[floorAt(g.lv,c.x,c.y)]||FPROP[1];const f=PH.floorMu*K.wt*fp.mu*(st?.22:1);
+    it.fj.setMaxForce(f);it.fj.setMaxTorque(f*K.r*.7);
+    // dragging is slow: the floor fights you harder the faster you go
+    b.setLinearDamping(st?.3:3.2);b.setAngularDamping(st?2.5:4.5);
+    if(st)b.applyForceToCenter(V(st.d[0]*it.mass*PH.stairPull,st.d[1]*it.mass*PH.stairPull),true)}
+}
+function itemPost(g,it,dt,playing){const K=it.K;const sp=hyp(it.vx,it.vy);
+  const st=stairsAt(g.lv,it.x,it.y);
+  it.slide=!!st&&!it.lifted&&sp>.4;
+  if(st&&!it.lifted){const s=it.x*st.d[0]+it.y*st.d[1],idx=Math.floor(s/PH.step);
+    if(it.stIdx!=null&&idx!==it.stIdx&&sp>.5){const d=PH.stairDmg*K.frag*clamp(sp/2,.5,1.6);it.cond-=d;ev(g,{k:'stair',id:it.id,x:+it.x.toFixed(2),y:+it.y.toFixed(2),d:+d.toFixed(3)});if(it.cond<=0){breakItem(g,it);return}}
+    it.stIdx=idx}else it.stIdx=null;
+  const fl=floorAt(g.lv,it.x,it.y);
+  it.drag=!it.lifted&&!st&&sp>.18&&it.grabbers.length>0;
+  if(it.drag&&playing&&(FPROP[fl]||{}).scuff){it.dragAcc+=sp*dt;if(it.dragAcc>=1){it.dragAcc-=1;g.dep=Math.max(0,g.dep-PH.scratchCost);g.scratches++}}
+  if(inVanZone(g.lv,it)){it.inVan+=dt;if(it.inVan>=PH.loadT&&playing)loadItem(g,it)}else it.inVan=0;
+}
+function moverPost(g,m,dt){
+  if(m.lifting&&m.hold){const it=m.hold,K=it.K;const lifters=it.grabbers.filter(x=>x.lifting).length||1;
+    let f=1;const st=stairsAt(g.lv,it.x,it.y);
+    if(st){const s=((m.x-it.x)*st.d[0]+(m.y-it.y)*st.d[1])/Math.max(.3,K.w/2);f=clamp(1+.8*clamp(s,-1,1),.25,1.9)}
+    m.drainF=f;m.st-=PH.drain*K.wt*K.heavy/lifters*f*dt;
+    if(m.st<=0){m.st=0;m.tired=PH.tiredT;m.liftWant=false;m.lifting=false;ev(g,{k:'tired',s:m.seat})}}
+  else{m.drainF=0;m.st=Math.min(1,m.st+(m.hold?PH.regenHold:PH.regen)*dt)}
+  if(m.call){m.call.t-=dt;if(m.call.t<=0)m.call=null}
+  m.walkPh+=hyp(m.vx,m.vy)*dt*7;
+}
+
+// ═══════════════════════════════ THE INVOICE ═══════════════════════════════
+function invoiceOf(g){const lines=[];let items=0,par=0;
+  for(const it of g.items){par+=it.K.val;
+    if(it.state==='loaded'){lines.push({t:it.K.name+(it.cond<.995?' ('+Math.round(it.cond*100)+'%)':''),v:it.pay});items+=it.pay}
+    else if(it.state==='broken')lines.push({t:it.K.name+': broken',v:0,bad:1});
+    else lines.push({t:it.K.name+': left behind',v:0,bad:1})}
+  const all=g.items.every(it=>it.state!=='floor');
+  const bonus=all?Math.round(g.timeLeft*PH.timeBonus):0;
+  const depLost=g.J.deposit-g.dep;
+  const total=items+g.dep+bonus;
+  const parTot=par+g.J.deposit+Math.round(g.time0*.18*PH.timeBonus);
+  const r=total/parTot;const stars=r>=.86?3:r>=.68?2:r>=.42&&items>0?1:0;
+  return {job:g.J.id,lines,items,dep:g.dep,depLost,scuffs:g.scuffs,scratches:g.scratches,bonus,timeLeft:Math.round(g.timeLeft),total,par:parTot,stars,all,why:g.endWhy}}
+
+// ═══════════════════════════════ ROUTE PLANNER ═══════════════════════════════
+// Searches every position AND angle an item could be at (a 3-D grid) for a way from where
+// it stands to inside the van. Used by the self-tests to prove each job can be done, to
+// prove the hallway really needs a pivot, and to drive the scripted "good crew".
+class Heap{constructor(){this.k=[];this.v=[]}push(key,val){const k=this.k,v=this.v;let i=k.length;k.push(key);v.push(val);
+    while(i>0){const p=(i-1)>>1;if(k[p]<=key)break;k[i]=k[p];v[i]=v[p];i=p}k[i]=key;v[i]=val}
+  pop(){const k=this.k,v=this.v,top=v[0],lk=k.pop(),lv=v.pop();const n=k.length;if(n){let i=0;while(1){let c=2*i+1;if(c>=n)break;if(c+1<n&&k[c+1]<k[c])c++;if(k[c]>=lk)break;k[i]=k[c];v[i]=v[c];i=c}k[i]=lk;v[i]=lv}return top}
+  get size(){return this.k.length}}
+function planRoute(lv,K,start,opt){opt=opt||{};
+  const R=.125,gw=Math.ceil(lv.w/R),gh=Math.ceil(lv.h/R),N=gw*gh;
+  const solid=new Uint8Array(N);
+  for(let j=0;j<gh;j++)for(let i=0;i<gw;i++){const x=(i+.5)*R,y=(j+.5)*R;const ci=Math.floor(x/RES),cj=Math.floor(y/RES);
+    if(ci<0||cj<0||ci>=lv.gw||cj>=lv.gh||!lv.ft[cj*lv.gw+ci])solid[j*gw+i]=1}
+  for(const s of lv.solids){for(let j=Math.max(0,Math.floor(s[1]/R));j<Math.min(gh,Math.ceil((s[1]+s[3])/R));j++)for(let i=Math.max(0,Math.floor(s[0]/R));i<Math.min(gw,Math.ceil((s[0]+s[2])/R));i++)solid[j*gw+i]=1}
+  const B=[];for(let j=0;j<gh;j++)for(let i=0;i<gw;i++){const k=j*gw+i;if(!solid[k])continue;
+    if(i===0||j===0||i===gw-1||j===gh-1||!solid[k-1]||!solid[k+1]||!solid[k-gw]||!solid[k+gw])B.push(k)}
+  const sym=K.round?1:(K.parts.length===1?Math.PI:Math.PI*2);
+  const NA=K.round?1:(opt.fixAngle?1:(sym===Math.PI?36:72));
+  const step=sym/(K.round?1:(sym===Math.PI?36:72));
+  const a0=K.round?0:Math.round((((start.a%sym)+sym)%sym)/step)%(sym===Math.PI?36:72);
+  const angOf=ai=>opt.fixAngle?a0*step:ai*step;
+  const marg=(opt.margin!=null?opt.margin:.03)+R*.5;
+  const coll=[],ext=[];
+  for(let ai=0;ai<NA;ai++){const ang=angOf(ai),c=Math.cos(ang),s=Math.sin(ang);const st=[];let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+    const rr=Math.ceil((K.r+marg)/R)+1;
+    for(let dy=-rr;dy<=rr;dy++)for(let dx=-rr;dx<=rr;dx++){const px=dx*R,py=dy*R;const lx=px*c+py*s,ly=-px*s+py*c;
+      for(const p of K.parts){if(K.round){if(hyp(lx-p[0],ly-p[1])<=K.w/2+marg){st.push(dx,dy);break}}
+        else if(Math.abs(lx-p[0])<=p[2]/2+marg&&Math.abs(ly-p[1])<=p[3]/2+marg){st.push(dx,dy);break}}}
+    for(const p of K.parts)for(const qx of[-1,1])for(const qy of[-1,1]){const lx=p[0]+qx*(K.round?K.w/2:p[2]/2),ly=p[1]+qy*(K.round?K.w/2:p[3]/2);
+      const wx=lx*c-ly*s,wy=lx*s+ly*c;x0=Math.min(x0,wx);x1=Math.max(x1,wx);y0=Math.min(y0,wy);y1=Math.max(y1,wy)}
+    ext.push([x0,x1,y0,y1]);
+    const cm=new Uint8Array(N);
+    for(const k of B){const bx=k%gw,by=(k/gw)|0;for(let q=0;q<st.length;q+=2){const x=bx-st[q],y=by-st[q+1];if(x>=0&&y>=0&&x<gw&&y<gh)cm[y*gw+x]=1}}
+    coll.push(cm)}
+  const goal=opt.goal||lv.van;
+  const isGoal=(x,y,ai)=>{const px=(x+.5)*R,py=(y+.5)*R,e=ext[ai];return px+e[0]>=goal.x+.05&&px+e[1]<=goal.x+goal.w-.05&&py+e[2]>=goal.y+.05&&py+e[3]<=goal.y+goal.h-.05};
+  const sx=Math.floor(start.x/R),sy=Math.floor(start.y/R),sa=opt.fixAngle?0:(K.round?0:a0);
+  const G0=new Float32Array(NA*N).fill(Infinity),from=new Int32Array(NA*N).fill(-1);
+  const gx=(goal.x+goal.w/2)/R,gy=(goal.y+goal.h/2)/R;
+  const S=sa*N+sy*gw+sx;
+  const res={ok:false,exp:0,path:null,startFree:!coll[sa][sy*gw+sx]};
+  if(!res.startFree)return res;
+  const H=new Heap(),closed=new Uint8Array(NA*N);G0[S]=0;H.push(hyp(sx-gx,sy-gy),S);
+  const rotCost=Math.max(.6,K.r*step/R);const maxExp=opt.maxExp||4e6;let found=-1;
+  const D=[[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.414],[1,-1,1.414],[-1,1,1.414],[-1,-1,1.414]];
+  while(H.size&&res.exp<maxExp){const s=H.pop();if(closed[s])continue;closed[s]=1;res.exp++;const ai=(s/N)|0,r=s-ai*N,y=(r/gw)|0,x=r-y*gw;const gc=G0[s];
+    if(isGoal(x,y,ai)){found=s;break}
+    const tryS=(nx,ny,na,cost)=>{if(nx<0||ny<0||nx>=gw||ny>=gh)return;if(coll[na][ny*gw+nx])return;const ns=na*N+ny*gw+nx,ng=gc+cost;
+      if(ng<G0[ns]){G0[ns]=ng;from[ns]=s;H.push(ng+hyp(nx-gx,ny-gy),ns)}};
+    for(const d of D){
+      // diagonal moves must not cut a corner
+      if(d[2]>1&&(coll[ai][y*gw+x+d[0]]||coll[ai][(y+d[1])*gw+x]))continue;
+      tryS(x+d[0],y+d[1],ai,d[2])}
+    if(NA>1){tryS(x,y,(ai+1)%NA,rotCost);tryS(x,y,(ai+NA-1)%NA,rotCost)}}
+  if(found<0)return res;
+  const path=[];let s=found;while(s>=0){const ai=(s/N)|0,r=s-ai*N,y=(r/gw)|0,x=r-y*gw;path.push({x:(x+.5)*R,y:(y+.5)*R,a:angOf(ai)});s=from[s]}
+  path.reverse();
+  // unwrap the angles (a couch turned 180° is the same couch) so a controller can follow them smoothly
+  const wrap=d=>{while(d>sym/2)d-=sym;while(d<-sym/2)d+=sym;return d};
+  if(path.length&&!K.round){path[0].a=start.a+wrap(path[0].a-start.a);for(let i=1;i<path.length;i++)path[i].a=path[i-1].a+wrap(path[i].a-path[i-1].a)}
+  res.ok=true;res.path=path;return res}
+
+// ═══════════════════════════════ WALKING (CPU buddy) ═══════════════════════════════
+function navPath(g,x0,y0,x1,y1,avoid){const lv=g.lv,gw=lv.gw,gh=lv.gh,N=gw*gh;
+  const cx=v=>clamp(Math.floor(v/RES),0,gw-1),cy=v=>clamp(Math.floor(v/RES),0,gh-1);
+  let s=cy(y0)*gw+cx(x0),t=cy(y1)*gw+cx(x1);
+  const near=k=>{if(lv.walk[k])return k;const i=k%gw,j=(k/gw)|0;let best=-1,bd=1e9;for(let dj=-3;dj<=3;dj++)for(let di=-3;di<=3;di++){const a=i+di,b=j+dj;if(a<0||b<0||a>=gw||b>=gh)continue;const q=b*gw+a;if(lv.walk[q]&&di*di+dj*dj<bd){bd=di*di+dj*dj;best=q}}return best};
+  s=near(s);t=near(t);if(s<0||t<0)return null;
+  const cost=new Float32Array(N);
+  if(avoid)for(const it of g.items){if(it.state!=='floor'||avoid.skip===it)continue;const r=it.K.r+.3;
+    for(let j=cy(it.y-r);j<=cy(it.y+r);j++)for(let i=cx(it.x-r);i<=cx(it.x+r);i++){const q=closestOnPose(it.K,it.x,it.y,it.a,(i+.5)*RES,(j+.5)*RES);if(q.d<.22)cost[j*gw+i]+=40}}
+  const G0=new Float32Array(N).fill(Infinity),from=new Int32Array(N).fill(-1);const H=new Heap();
+  const tx=t%gw,ty=(t/gw)|0;G0[s]=0;H.push(0,s);let n=0;
+  while(H.size&&n<20000){const k=H.pop();n++;if(k===t)break;const i=k%gw,j=(k/gw)|0,gc=G0[k];
+    for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){if(!di&&!dj)continue;const a=i+di,b=j+dj;if(a<0||b<0||a>=gw||b>=gh)continue;const q=b*gw+a;if(!lv.walk[q])continue;
+      if(di&&dj&&(!lv.walk[j*gw+a]||!lv.walk[b*gw+i]))continue;const ng=gc+(di&&dj?1.414:1)+cost[q];
+      if(ng<G0[q]){G0[q]=ng;from[q]=k;H.push(ng+hyp(a-tx,b-ty),q)}}}
+  if(from[t]<0&&s!==t)return null;
+  const pts=[];let k=t;while(k>=0){pts.push({x:(k%gw+.5)*RES,y:(((k/gw)|0)+.5)*RES});if(k===s)break;k=from[k]}
+  pts.reverse();
+  // string-pull: skip points we can see past
+  const out=[pts[0]];let i=0;while(i<pts.length-1){let j=pts.length-1;while(j>i+1&&!lineWalk(lv,pts[i],pts[j],cost))j--;out.push(pts[j]);i=j}
+  out.push({x:x1,y:y1});return out}
+function lineWalk(lv,a,b,cost){const d=hyp(b.x-a.x,b.y-a.y),n=Math.ceil(d/(RES*.5));for(let i=1;i<n;i++){const x=lerp(a.x,b.x,i/n),y=lerp(a.y,b.y,i/n);const k=Math.floor(y/RES)*lv.gw+Math.floor(x/RES);if(!lv.walk[k]||(cost&&cost[k]>0))return false}return true}
+
+// ═══════════════════════════════ DRAWING ═══════════════════════════════
+// The level is an architect's floor plan on kraft paper: ink walls, door swings, hatched
+// solid building, real floor materials. The floor is painted once into a layer; scuffs
+// and drag scratches are painted into that layer as they happen, so damage stays.
+const cv=$('cv'),cx=cv.getContext('2d');let VW=innerWidth,VH=innerHeight,DPR=1;
+const CAM={x:0,y:0,s:0,init:false};
+const PXM=48,INK='#231a13';
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);VW=innerWidth;VH=innerHeight;cv.width=Math.round(VW*DPR);cv.height=Math.round(VH*DPR)}
+addEventListener('resize',resize);resize();
+function shade(hex,f){const n=parseInt(hex.slice(1),16);let r=n>>16,g=n>>8&255,b=n&255;
+  if(f<0){r*=1+f;g*=1+f;b*=1+f}else{r+=(255-r)*f;g+=(255-g)*f;b+=(255-b)*f}
+  return 'rgb('+(r|0)+','+(g|0)+','+(b|0)+')'}
+function rrect(c,x,y,w,h,r){r=Math.min(r,w/2,h/2);c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
+// text in metre-space without tiny font sizes
+function mtext(c,str,x,y,size,col,font,align,rot){c.save();c.translate(x,y);if(rot)c.rotate(rot);c.scale(.01,.01);c.fillStyle=col;c.textAlign=align||'center';c.textBaseline='middle';
+  c.font=(font==='m'?"400 ":"800 ")+Math.round(size*100)+'px '+(font==='m'?"'Permanent Marker',cursive":"'Barlow Condensed',sans-serif");c.fillText(str,0,0);c.restore()}
+
+function buildLayer(lv){const J=lv.J;
+  const c=document.createElement('canvas');c.width=Math.ceil(lv.w*PXM);c.height=Math.ceil(lv.h*PXM);const x=c.getContext('2d');x.scale(PXM,PXM);
+  const R=mulberry(J.id.length*7919+J.w*131);
+  // solid building: kraft with hatching
+  x.fillStyle='#b98b54';x.fillRect(0,0,lv.w,lv.h);
+  x.strokeStyle='rgba(36,27,20,.2)';x.lineWidth=.03;x.beginPath();for(let d=-lv.h;d<lv.w;d+=.32){x.moveTo(d,0);x.lineTo(d+lv.h,lv.h)}x.stroke();
+  for(const f of J.floors)drawFloor(x,f[0],f[1],f[2],f[3],f[4],R);
+  for(const d of J.doors)drawFloor(x,d[0],d[1],d[2],d[3],'door',R,d);
+  for(const s of lv.stairs)drawStairs(x,s);
+  // walls (with a soft shadow onto the floor)
+  const runs=[];for(let j=0;j<lv.gh;j++){let i=0;while(i<lv.gw){if(lv.wall[j*lv.gw+i]===1){let k=i;while(k<lv.gw&&lv.wall[j*lv.gw+k]===1)k++;runs.push([i*RES,j*RES,(k-i)*RES,RES]);i=k}else i++}}
+  x.save();x.shadowColor='rgba(25,14,6,.55)';x.shadowBlur=PXM*.22;x.fillStyle=INK;for(const r of runs)x.fillRect(r[0],r[1],r[2],r[3]+.002);x.restore();
+  x.fillStyle=INK;for(const r of runs)x.fillRect(r[0]-.002,r[1]-.002,r[2]+.004,r[3]+.004);
+  for(const d of J.doors)drawDoorLeaf(x,lv,d);
+  for(const f of J.fix)drawFixture(x,f,R);
+  drawVan(x,lv);
+  for(const l of J.labels)mtext(x,l[2],l[0],l[1],.42,'rgba(36,27,20,.32)','m','center',-.04);
+  return c}
+function drawFloor(x,X,Y,W,H,t,R,door){x.save();x.beginPath();x.rect(X,Y,W,H);x.clip();
+  if(t==='wood'||t==='door'){const along=door?(W<H?'v':'h'):(W>=H?'h':'v');const pal=['#d2a066','#c8955b','#dba96f','#c18c52','#cc9a60'];
+    const pw=.17;const L=along==='h'?H:W,S=along==='h'?W:H;
+    for(let k=0;k*pw<L+pw;k++){let s=-R()*2;while(s<S){const len=1.1+R()*1.6;x.fillStyle=pal[R()*pal.length|0];
+      if(along==='h')x.fillRect(X+s,Y+k*pw,len,pw);else x.fillRect(X+k*pw,Y+s,pw,len);
+      x.fillStyle='rgba(70,40,15,.35)';if(along==='h')x.fillRect(X+s+len-.012,Y+k*pw,.012,pw);else x.fillRect(X+k*pw,Y+s+len-.012,pw,.012);s+=len}
+      x.fillStyle='rgba(70,40,15,.28)';if(along==='h')x.fillRect(X,Y+k*pw,W,.01);else x.fillRect(X+k*pw,Y,.01,H)}
+    x.strokeStyle='rgba(90,55,25,.12)';x.lineWidth=.008;x.beginPath();for(let i=0;i<W*H*3;i++){const px=X+R()*W,py=Y+R()*H,l=.2+R()*.5;if(along==='h'){x.moveTo(px,py);x.lineTo(px+l,py+(R()-.5)*.01)}else{x.moveTo(px,py);x.lineTo(px+(R()-.5)*.01,py+l)}}x.stroke()}
+  else if(t==='carpet'){x.fillStyle='#8d9c80';x.fillRect(X,Y,W,H);for(let i=0;i<W*H*90;i++){x.fillStyle=R()<.5?'rgba(255,255,240,.07)':'rgba(30,40,20,.09)';x.fillRect(X+R()*W,Y+R()*H,.03,.03)}
+    x.strokeStyle='rgba(30,40,20,.18)';x.lineWidth=.04;x.strokeRect(X+.08,Y+.08,W-.16,H-.16)}
+  else if(t==='tile'){const s=.4;for(let j=0;j*s<H;j++)for(let i=0;i*s<W;i++){x.fillStyle=(i+j)%2?'#e9e1cf':'#d6ccb6';x.fillRect(X+i*s,Y+j*s,s,s)}
+    x.strokeStyle='rgba(90,80,60,.35)';x.lineWidth=.012;x.beginPath();for(let i=0;i*s<=W;i++){x.moveTo(X+i*s,Y);x.lineTo(X+i*s,Y+H)}for(let j=0;j*s<=H;j++){x.moveTo(X,Y+j*s);x.lineTo(X+W,Y+j*s)}x.stroke()}
+  else if(t==='conc'){x.fillStyle='#b3aca0';x.fillRect(X,Y,W,H);for(let i=0;i<W*H*60;i++){x.fillStyle=R()<.5?'rgba(255,255,255,.08)':'rgba(0,0,0,.08)';x.fillRect(X+R()*W,Y+R()*H,.025,.025)}}
+  else if(t==='walk'){x.fillStyle='#c6c1b5';x.fillRect(X,Y,W,H);for(let i=0;i<W*H*40;i++){x.fillStyle='rgba(0,0,0,.05)';x.fillRect(X+R()*W,Y+R()*H,.03,.03)}
+    x.strokeStyle='rgba(60,55,45,.35)';x.lineWidth=.02;x.beginPath();for(let j=0;j<=H;j+=1.2){x.moveTo(X,Y+j);x.lineTo(X+W,Y+j)}x.moveTo(X+W/2,Y);x.lineTo(X+W/2,Y+H);x.stroke();
+    x.fillStyle='#9b968b';x.fillRect(X+W-.12,Y,.12,H)}
+  else if(t==='street'){x.fillStyle='#45474b';x.fillRect(X,Y,W,H);for(let i=0;i<W*H*70;i++){x.fillStyle=R()<.5?'rgba(255,255,255,.05)':'rgba(0,0,0,.12)';x.fillRect(X+R()*W,Y+R()*H,.03,.03)}
+    x.fillStyle='#e0b13a';const lx=X+W-1.4;for(let j=Y+.3;j<Y+H;j+=1.6)x.fillRect(lx,j,.1,.9);
+    x.fillStyle='rgba(240,240,235,.75)';x.fillRect(X+.25,Y,.06,H)}
+  x.restore()}
+function drawStairs(x,s){x.save();x.beginPath();x.rect(s.x,s.y,s.w,s.h);x.clip();
+  x.fillStyle='#bdb5a6';x.fillRect(s.x,s.y,s.w,s.h);
+  const vert=s.dir==='S'||s.dir==='N';const L=vert?s.h:s.w,n=Math.floor(L/PH.step);
+  for(let k=0;k<n;k++){const f=k/n;const t=(s.dir==='S'||s.dir==='E')?f:1-f;
+    const col=`rgb(${Math.round(196-70*t)},${Math.round(188-68*t)},${Math.round(172-62*t)})`;x.fillStyle=col;
+    const o=k*PH.step;
+    if(vert){const y=s.dir==='S'?s.y+o:s.y+s.h-o-PH.step;x.fillRect(s.x,y,s.w,PH.step);x.fillStyle='rgba(30,20,10,.45)';x.fillRect(s.x,s.dir==='S'?y+PH.step-.03:y,s.w,.03)}
+    else{const xx=s.dir==='E'?s.x+o:s.x+s.w-o-PH.step;x.fillRect(xx,s.y,PH.step,s.h);x.fillStyle='rgba(30,20,10,.45)';x.fillRect(s.dir==='E'?xx+PH.step-.03:xx,s.y,.03,s.h)}}
+  // rails
+  x.fillStyle='#5a3d24';if(vert){x.fillRect(s.x+.03,s.y,.07,s.h);x.fillRect(s.x+s.w-.1,s.y,.07,s.h)}else{x.fillRect(s.x,s.y+.03,s.w,.07);x.fillRect(s.x,s.y+s.h-.1,s.w,.07)}
+  // DOWN arrow at the top
+  const ax=vert?s.x+s.w/2:(s.dir==='E'?s.x+.55:s.x+s.w-.55),ay=vert?(s.dir==='S'?s.y+.55:s.y+s.h-.55):s.y+s.h/2;
+  const ang=Math.atan2(s.d[1],s.d[0]);x.save();x.translate(ax,ay);x.rotate(ang);x.fillStyle='rgba(255,250,235,.85)';x.beginPath();x.moveTo(.32,0);x.lineTo(.02,-.22);x.lineTo(.02,-.09);x.lineTo(-.3,-.09);x.lineTo(-.3,.09);x.lineTo(.02,.09);x.lineTo(.02,.22);x.closePath();x.fill();x.restore();
+  mtext(x,'DOWN',ax+(vert?0:0),ay+(vert?(s.dir==='S'?.42:-.42):.42),.2,'rgba(255,250,235,.85)','b');
+  x.restore()}
+function drawDoorLeaf(x,lv,d){const vert=d[2]<d[3];const W=vert?d[3]:d[2];
+  // swing into the side that has a room (not the street)
+  const room=t=>t===1||t===2||t===3||t===4;
+  let sx,sy,a0;if(vert){const east=floorAt(lv,d[0]+d[2]+.3,d[1]+W/2),west=floorAt(lv,d[0]-.3,d[1]+W/2);const toEast=room(east)&&!(room(west)&&west!==4&&east===4)?1:room(west)?-1:1;
+      sx=toEast>0?d[0]+d[2]:d[0];sy=d[1];a0=toEast>0?0:Math.PI}
+  else{const south=floorAt(lv,d[0]+W/2,d[1]+d[3]+.3),north=floorAt(lv,d[0]+W/2,d[1]-.3);const toS=room(south)?1:-1;sx=d[0];sy=toS>0?d[1]+d[3]:d[1];a0=toS>0?Math.PI/2:-Math.PI/2}
+  x.save();x.translate(sx,sy);
+  const along=vert?Math.PI/2:0;// the doorway runs this way from the hinge
+  x.strokeStyle='rgba(36,27,20,.45)';x.lineWidth=.02;x.setLineDash([.08,.06]);x.beginPath();x.arc(0,0,W,Math.min(along,a0),Math.max(along,a0));x.stroke();x.setLineDash([]);
+  x.rotate(a0);x.fillStyle='#e8dcc3';x.strokeStyle=INK;x.lineWidth=.025;x.fillRect(0,-.03,W,.06);x.strokeRect(0,-.03,W,.06);x.restore()}
+function drawFixture(x,f,R){const [X,Y,W,H,k]=f;x.save();x.lineWidth=.03;x.strokeStyle=INK;
+  if(k==='counter'){x.fillStyle='#ddd7cc';x.fillRect(X,Y,W,H);x.strokeRect(X,Y,W,H);
+    const long=W>=H;if(long&&W>1.6){x.fillStyle='#b9c4cc';rrect(x,X+W*.3,Y+.1,.55,H-.2,.06);x.fill();x.stroke();x.fillStyle=INK;x.beginPath();x.arc(X+W*.3+.275,Y+.1,.03,0,7);x.fill();
+      for(const[a,b]of[[.72,.25],[.86,.25],[.72,.75],[.86,.75]]){x.beginPath();x.arc(X+W*a,Y+H*b,.09,0,7);x.stroke()}}}
+  else if(k==='tub'){x.fillStyle='#f4f2ee';rrect(x,X,Y,W,H,.15);x.fill();x.stroke();x.fillStyle='#dfe7ea';rrect(x,X+.08,Y+.08,W-.16,H-.16,.12);x.fill();x.fillStyle=INK;x.beginPath();x.arc(X+W/2,Y+H-.25,.035,0,7);x.fill()}
+  else if(k==='toilet'){x.fillStyle='#f4f2ee';x.fillRect(X,Y+H-.18,W,.18);x.strokeRect(X,Y+H-.18,W,.18);x.beginPath();x.ellipse(X+W/2,Y+H*.42,W*.42,H*.4,0,0,7);x.fill();x.stroke()}
+  else if(k==='radiator'){x.fillStyle='#a9abad';x.fillRect(X,Y,W,H);x.strokeRect(X,Y,W,H);x.strokeStyle='rgba(36,27,20,.5)';x.lineWidth=.015;x.beginPath();
+    if(W<H)for(let y=Y+.08;y<Y+H;y+=.08){x.moveTo(X,y);x.lineTo(X+W,y)}else for(let xx=X+.08;xx<X+W;xx+=.08){x.moveTo(xx,Y);x.lineTo(xx,Y+H)}x.stroke()}
+  else if(k==='bed'){x.fillStyle='#8a5a34';x.fillRect(X,Y,W,H);x.strokeRect(X,Y,W,H);x.fillStyle='#f1ede4';x.fillRect(X+.06,Y+.06,W-.12,H-.12);
+    const pw=W<H;x.fillStyle='#ffffff';if(pw){rrect(x,X+.12,Y+.12,(W-.36)/2,.42,.08);x.fill();x.stroke();rrect(x,X+.24+(W-.36)/2,Y+.12,(W-.36)/2,.42,.08);x.fill();x.stroke();x.fillStyle='#6f8fb4';x.fillRect(X+.06,Y+.75,W-.12,H-.81)}
+    else{rrect(x,X+.12,Y+.12,.42,(H-.36)/2,.08);x.fill();x.stroke();rrect(x,X+.12,Y+.24+(H-.36)/2,.42,(H-.36)/2,.08);x.fill();x.stroke();x.fillStyle='#6f8fb4';x.fillRect(X+.75,Y+.06,W-.81,H-.12)}}
+  else if(k==='wardrobe'){x.fillStyle='#9a6a3e';x.fillRect(X,Y,W,H);x.strokeRect(X,Y,W,H);x.beginPath();x.moveTo(X+W/2,Y);x.lineTo(X+W/2,Y+H);x.stroke()}
+  x.restore()}
+function drawVan(x,lv){const v=lv.van,w=VAN.wall;x.save();
+  // ramp
+  x.fillStyle='#8c9097';x.fillRect(v.x-1,v.y+.35,1,v.h-.7);x.strokeStyle='rgba(30,30,30,.4)';x.lineWidth=.02;x.beginPath();for(let i=v.y+.45;i<v.y+v.h-.35;i+=.18){x.moveTo(v.x-1,i);x.lineTo(v.x,i)}x.stroke();
+  // cargo floor
+  x.fillStyle='#7c8189';x.fillRect(v.x,v.y,v.w,v.h);x.fillStyle='rgba(255,255,255,.12)';for(let i=v.y+.08;i<v.y+v.h;i+=.14)x.fillRect(v.x,i,v.w,.035);
+  x.strokeStyle='rgba(255,240,200,.35)';x.lineWidth=.04;x.setLineDash([.15,.1]);x.strokeRect(v.x+.06,v.y+.06,v.w-.12,v.h-.12);x.setLineDash([]);
+  mtext(x,'LOAD HERE',v.x+v.w/2,v.y+v.h/2,.36,'rgba(255,245,220,.28)','m');
+  // walls + cab
+  x.lineWidth=.03;x.strokeStyle=INK;x.fillStyle='#f0eee8';
+  for(const r of lv.vanWalls){x.fillRect(r[0],r[1],r[2],r[3]);x.strokeRect(r[0],r[1],r[2],r[3])}
+  x.fillStyle='#ee6a22';x.fillRect(v.x,v.y-w*.55,v.w,w*.3);x.fillRect(v.x,v.y+v.h+w*.25,v.w,w*.3);
+  const cx0=v.x+v.w,cy0=v.y-w;x.fillStyle='#f0eee8';rrect(x,cx0,cy0,VAN.cab,v.h+2*w,.25);x.fill();x.stroke();
+  x.fillStyle='#8fb3c9';rrect(x,cx0+VAN.cab-.55,cy0+.2,.35,v.h+2*w-.4,.08);x.fill();x.stroke();
+  x.fillStyle='#ee6a22';x.fillRect(cx0+.1,cy0+.12,VAN.cab-.8,.1);x.fillRect(cx0+.1,cy0+v.h+2*w-.22,VAN.cab-.8,.1);
+  mtext(x,'TWO ENDS',cx0+.5,cy0+(v.h+2*w)/2,.2,'#ee6a22','b','center',Math.PI/2);
+  x.fillStyle=INK;x.fillRect(cx0+VAN.cab-.7,cy0-.12,.14,.12);x.fillRect(cx0+VAN.cab-.7,cy0+v.h+2*w,.14,.12);
+  // back doors swung open
+  x.fillStyle='#e6e3db';x.save();x.translate(v.x,v.y-w);x.rotate(-2.3);x.fillRect(0,-.04,v.h/2,.08);x.strokeRect(0,-.04,v.h/2,.08);x.restore();
+  x.save();x.translate(v.x,v.y+v.h+w);x.rotate(2.3);x.fillRect(0,-.04,v.h/2,.08);x.strokeRect(0,-.04,v.h/2,.08);x.restore();
+  x.restore()}
+
+// ── furniture ──
+function drawItemShape(c,it,K,cond,seed){const w=K.w,h=K.h,R=mulberry(seed);c.lineWidth=.035;c.strokeStyle=INK;c.lineJoin='round';
+  const col=K.col||'#888';
+  switch(K.draw){
+  case 'couch':{const arm=Math.min(.2,w*.12);c.fillStyle=shade(col,-.18);rrect(c,-w/2,-h/2,w,h,.12);c.fill();c.stroke();
+    c.fillStyle=shade(col,-.08);rrect(c,-w/2+.03,-h/2+.03,w-.06,h*.28,.08);c.fill();
+    c.fillStyle=shade(col,-.05);rrect(c,-w/2+.03,-h/2+.03,arm,h-.06,.08);c.fill();c.stroke();rrect(c,w/2-.03-arm,-h/2+.03,arm,h-.06,.08);c.fill();c.stroke();
+    const n=w>1.8?3:2,sw=(w-.06-2*arm)/n;for(let i=0;i<n;i++){c.fillStyle=i%2?col:shade(col,.06);rrect(c,-w/2+.03+arm+i*sw+.01,-h/2+h*.3,sw-.02,h*.66,.07);c.fill();c.stroke()}
+    break}
+  case 'sectional':{c.fillStyle=shade(col,-.18);for(const p of K.parts){rrect(c,p[0]-p[2]/2,p[1]-p[3]/2,p[2],p[3],.1);c.fill()}
+    c.beginPath();c.moveTo(-1.2,-.45);c.lineTo(1.2,-.45);c.lineTo(1.2,1.45);c.lineTo(.3,1.45);c.lineTo(.3,.45);c.lineTo(-1.2,.45);c.closePath();c.stroke();
+    c.fillStyle=shade(col,-.06);c.fillRect(-1.17,-.42,2.34,.24);c.fillRect(1.0,-.42,.17,1.84);
+    c.fillStyle=col;for(let i=0;i<3;i++){rrect(c,-1.15+i*.72,-.16,.68,.58,.06);c.fill();c.stroke()}rrect(c,.34,.46,.62,.94,.06);c.fill();c.stroke();break}
+  case 'chair':{c.fillStyle=shade(col,-.2);rrect(c,-w/2,-h/2,w,h,.12);c.fill();c.stroke();c.fillStyle=shade(col,-.07);rrect(c,-w/2+.03,-h/2+.03,w-.06,h*.28,.08);c.fill();
+    rrect(c,-w/2+.03,-h/2+.03,.16,h-.06,.06);c.fill();c.stroke();rrect(c,w/2-.19,-h/2+.03,.16,h-.06,.06);c.fill();c.stroke();c.fillStyle=col;rrect(c,-w/2+.2,-h/2+h*.3,w-.4,h*.64,.07);c.fill();c.stroke();break}
+  case 'box':{c.fillStyle='#c79a5d';c.fillRect(-w/2,-h/2,w,h);c.strokeRect(-w/2,-h/2,w,h);c.fillStyle='rgba(255,255,255,.18)';c.fillRect(-w/2,-.05,w,.1);
+    c.strokeStyle='rgba(36,27,20,.35)';c.lineWidth=.012;c.beginPath();c.moveTo(-w/2,0);c.lineTo(w/2,0);c.stroke();
+    const lab=K.label||'MISC';mtext(c,lab,0,h*.26,lab.length>5?.1:.12,K.label==='FRAGILE'?'#cc2f2b':INK,'m','center',-.08);
+    if(K.label==='FRAGILE'){c.strokeStyle='#cc2f2b';c.lineWidth=.02;c.strokeRect(-w/2+.05,-h/2+.05,w*.36,h*.3)}break}
+  case 'lamp':{c.fillStyle='#3b342e';c.beginPath();c.arc(0,0,w/2,0,7);c.fill();c.stroke();c.fillStyle='#f3e2b8';c.beginPath();c.arc(0,0,w*.36,0,7);c.fill();c.stroke();c.fillStyle='#fff7d6';c.beginPath();c.arc(0,0,w*.12,0,7);c.fill();break}
+  case 'plant':{c.fillStyle='#b5562f';c.beginPath();c.arc(0,0,w*.3,0,7);c.fill();c.stroke();
+    for(let i=0;i<9;i++){const a=i*.7+R()*.4,r=w*(.28+R()*.2);c.fillStyle=i%2?'#3f7d3a':'#55974a';c.save();c.rotate(a);c.beginPath();c.ellipse(r*.75,0,w*.2,w*.1,0,0,7);c.fill();c.restore()}break}
+  case 'tv':{c.fillStyle='#1d1d20';rrect(c,-w/2,-h/2,w,h,.03);c.fill();c.stroke();c.fillStyle='#3a3d44';c.fillRect(-w/2+.04,-h/2+.04,w-.08,h*.35);c.fillStyle='#cc2f2b';c.fillRect(w*.2,-.03,.16,.06);break}
+  case 'mirror':{c.fillStyle='#7a5532';c.fillRect(-w/2,-h/2,w,h);c.stroke&&c.strokeRect(-w/2,-h/2,w,h);c.fillStyle='#cfe0e8';c.fillRect(-w/2+.03,-h/2+.03,w-.06,h-.06);c.fillStyle='rgba(255,255,255,.7)';c.fillRect(-w*.3,-h/2+.03,w*.12,h-.06);break}
+  case 'mattress':{c.fillStyle='#c9d6e8';rrect(c,-w/2,-h/2,w,h,.1);c.fill();c.stroke();c.fillStyle='#f6f2e8';rrect(c,-w/2+.06,-h/2+.07,w-.12,h-.14,.06);c.fill();
+    c.strokeStyle='#7f97bd';c.lineWidth=.018;c.beginPath();for(let i=-w/2+.12;i<w/2-.1;i+=.14){c.moveTo(i,-h/2+.07);c.lineTo(i+.07,0);c.lineTo(i,h/2-.07)}c.stroke();
+    c.fillStyle='#7f97bd';for(let i=-w/2+.19;i<w/2-.1;i+=.28){c.beginPath();c.arc(i,0,.022,0,7);c.fill()}break}
+  case 'fridge':{c.fillStyle='#f2f1ec';rrect(c,-w/2,-h/2,w,h,.06);c.fill();c.stroke();c.fillStyle='#d5d4cf';c.fillRect(-w/2+.05,-h/2+.05,w-.1,.12);c.fillStyle='#9a9a96';c.fillRect(-w/2+.08,h/2-.07,w-.16,.04);break}
+  case 'piano':{c.fillStyle='#16110f';rrect(c,-w/2,-h/2,w,h,.04);c.fill();c.stroke();c.fillStyle='#2c2420';c.fillRect(-w/2+.04,-h/2+.04,w-.08,h*.55);
+    c.fillStyle='#f4efe2';c.fillRect(-w/2+.08,h/2-.17,w-.16,.13);c.fillStyle='#16110f';for(let i=-w/2+.13;i<w/2-.1;i+=.07)c.fillRect(i,h/2-.17,.03,.08);
+    c.fillStyle='rgba(255,255,255,.18)';c.fillRect(-w/2+.1,-h/2+.07,w*.5,.03);break}
+  case 'shelf':{c.fillStyle='#a8743f';c.fillRect(-w/2,-h/2,w,h);c.strokeRect(-w/2,-h/2,w,h);const cols=['#cc2f2b','#2f6fdb','#2b9455','#e2b13c','#6d5843'];
+    let xx=-w/2+.05;while(xx<w/2-.08){const bw=.04+R()*.05;c.fillStyle=cols[R()*5|0];c.fillRect(xx,-h/2+.05,bw,h-.1);xx+=bw+.01}break}
+  case 'dresser':{c.fillStyle='#8e5f36';c.fillRect(-w/2,-h/2,w,h);c.strokeRect(-w/2,-h/2,w,h);c.strokeStyle='rgba(36,27,20,.35)';c.lineWidth=.012;c.beginPath();for(let i=-h/2+.1;i<h/2;i+=.1){c.moveTo(-w/2,i);c.lineTo(w/2,i)}c.stroke();
+    c.fillStyle='#e9e1cf';c.fillRect(w*.15,-h*.25,.2,.16);break}
+  case 'glass':{c.fillStyle='rgba(170,215,230,.55)';c.fillRect(-w/2,-h/2,w,h);c.strokeStyle='#5d8796';c.lineWidth=.03;c.strokeRect(-w/2,-h/2,w,h);c.fillStyle='#6c6c6c';
+    for(const sx of[-1,1])for(const sy of[-1,1]){c.beginPath();c.arc(sx*(w/2-.1),sy*(h/2-.1),.04,0,7);c.fill()}c.strokeStyle='rgba(255,255,255,.8)';c.lineWidth=.025;c.beginPath();c.moveTo(-w*.35,-h*.3);c.lineTo(-w*.1,-h*.3);c.moveTo(-w*.38,-h*.18);c.lineTo(-w*.25,-h*.18);c.stroke();break}
+  case 'desk':{c.fillStyle='#b88a57';c.fillRect(-w/2,-h/2,w,h);c.strokeRect(-w/2,-h/2,w,h);c.fillStyle='#3a3d44';rrect(c,-.25,-.18,.5,.32,.03);c.fill();c.fillStyle='#e9e1cf';c.fillRect(.3,-.15,.25,.2);break}
+  }
+  // damage: scratches and cracks that grow as the condition drops
+  const dmg=1-cond;if(dmg>.08){const n=Math.min(9,Math.floor(dmg*12));c.strokeStyle=K.frag>=2.5?'rgba(255,255,255,.85)':'rgba(25,15,8,.55)';c.lineWidth=.018;c.beginPath();
+    for(let i=0;i<n;i++){let px=(R()-.5)*w*.8,py=(R()-.5)*h*.8;c.moveTo(px,py);for(let k=0;k<3;k++){px+=(R()-.5)*.25;py+=(R()-.5)*.2;c.lineTo(px,py)}}c.stroke()}
+}
+function drawItem(c,it,x,y,a,lift,cond,s,alpha){const K=it.K;c.save();c.translate(x,y);c.rotate(a);if(alpha!=null)c.globalAlpha=alpha;
+  const so=.05+lift*.2;c.save();c.translate(so*.7,so);c.fillStyle=`rgba(20,10,4,${.22+lift*.08})`;for(const p of K.parts){if(K.round){c.beginPath();c.arc(p[0],p[1],K.w/2,0,7);c.fill()}else{rrect(c,p[0]-p[2]/2,p[1]-p[3]/2,p[2],p[3],.08);c.fill()}}c.restore();
+  if(lift>0){const k=1+lift*.035;c.scale(k,k)}
+  drawItemShape(c,it,K,cond,it.seed);c.restore()}
+
+// ── movers ──
+function drawMover(c,m,x,y,face,t){const col=m.col.c;c.save();c.translate(x,y);
+  c.fillStyle='rgba(20,10,4,.25)';c.beginPath();c.ellipse(.05,.07,.26,.26,0,0,7);c.fill();
+  c.rotate(face);
+  const sw=Math.sin(m.walkPh||0)*.06;
+  // arms
+  c.strokeStyle=m.skin;c.lineCap='round';c.lineWidth=m.lifting?.11:.09;
+  if(m.gx!=null){const dx=m.gx-x,dy=m.gy-y,cs=Math.cos(-face),sn=Math.sin(-face);const lx=dx*cs-dy*sn,ly=dx*sn+dy*cs;
+    c.beginPath();c.moveTo(0,-.17);c.lineTo(lx,ly-.07);c.moveTo(0,.17);c.lineTo(lx,ly+.07);c.stroke();
+    c.fillStyle=m.skin;c.beginPath();c.arc(lx,ly-.07,.05,0,7);c.arc(lx,ly+.07,.05,0,7);c.fill()}
+  else{c.beginPath();c.moveTo(0,-.18);c.lineTo(.1+sw,-.22);c.moveTo(0,.18);c.lineTo(.1-sw,.22);c.stroke()}
+  c.lineWidth=.03;c.strokeStyle=INK;
+  c.fillStyle=col;c.beginPath();c.ellipse(0,0,.16,.25,0,0,7);c.fill();c.stroke();
+  c.fillStyle=m.skin;c.beginPath();c.arc(-.01,0,.12,0,7);c.fill();c.stroke();
+  c.fillStyle=shade(col,-.15);c.beginPath();c.arc(-.02,0,.11,Math.PI/2,Math.PI*1.5);c.lineTo(.04,-.1);c.arc(.04,0,.1,-Math.PI/2,Math.PI/2);c.closePath();c.fill();
+  c.fillStyle=shade(col,-.28);c.beginPath();c.ellipse(.13,0,.05,.09,0,0,7);c.fill();
+  c.restore();
+  // grip ring
+  if(m.st<.985){const r=.36;c.lineWidth=.05;c.strokeStyle='rgba(36,27,20,.35)';c.beginPath();c.arc(x,y,r,0,7);c.stroke();
+    c.strokeStyle=m.st>.5?'#2b9455':m.st>.25?'#e2a13c':'#cc2f2b';c.beginPath();c.arc(x,y,r,-Math.PI/2,-Math.PI/2+Math.PI*2*m.st);c.stroke()}
+}
+
+// ── particles + floating text ──
+const PART=[];
+function puff(x,y,n,col,sp,life){for(let i=0;i<n;i++){const a=Math.random()*6.28,v=(sp||.8)*(.4+Math.random());PART.push({k:'dust',x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:0,max:(life||.6)*(.6+Math.random()*.6),s:.06+Math.random()*.08,col:col||'rgba(225,205,170,'})}}
+function chips(x,y,n,col,glass){for(let i=0;i<n;i++){const a=Math.random()*6.28,v=1+Math.random()*2.2;PART.push({k:glass?'shard':'chip',x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:0,max:.5+Math.random()*.6,s:.04+Math.random()*.06,col,r:Math.random()*6})}}
+function floatText(x,y,txt,col,big){PART.push({k:'txt',x,y,vx:0,vy:-.7,l:0,max:big?1.8:1.1,txt,col,big})}
+function drawParts(c,dt){for(let i=PART.length-1;i>=0;i--){const p=PART[i];p.l+=dt;if(p.l>=p.max){PART.splice(i,1);continue}
+  const f=1-p.l/p.max;p.x+=p.vx*dt;p.y+=p.vy*dt;const dmp=p.k==='txt'?1:Math.pow(.04,dt);p.vx*=dmp;p.vy*=dmp;
+  if(p.k==='dust'){c.fillStyle=p.col+(.35*f)+')';c.beginPath();c.arc(p.x,p.y,p.s*(1.6-f*.6),0,7);c.fill()}
+  else if(p.k==='chip'||p.k==='shard'){c.save();c.translate(p.x,p.y);c.rotate(p.r+=dt*8);c.globalAlpha=f;c.fillStyle=p.col;if(p.k==='shard'){c.beginPath();c.moveTo(0,-p.s);c.lineTo(p.s*.6,p.s);c.lineTo(-p.s*.6,p.s*.4);c.fill()}else c.fillRect(-p.s,-p.s*.3,p.s*2,p.s*.6);c.restore()}
+  else if(p.k==='txt'){c.save();c.globalAlpha=Math.min(1,f*2.2);mtext(c,p.txt,p.x+.025,p.y+.025,p.big?.42:.3,'rgba(20,12,6,.7)','m');mtext(c,p.txt,p.x,p.y,p.big?.42:.3,p.col,'m');c.restore()}}
+  if(PART.length>500)PART.splice(0,PART.length-500)}
+
+// ── events → sound, particles, words ──
+let toastT=0;
+function toast(t,sec){const el=$('toast');if(!el||(SCR&&SCR!=='s-lobby'&&G))return;el.textContent=t;el.style.opacity=1;toastT=sec||1.8}
+function fxEvent(e,g){if(!g||g.headless)return;
+  const it=e.id!=null?g.items[e.id]:null,m=e.s!=null?g.movers.find(q=>q.seat===e.s):null;
+  switch(e.k){
+  case 'hit':{const soft=it&&/couch|chair|sectional|mattress/.test(it.K.draw);const v=clamp((e.v-.5)/1.8,.12,1);
+    sndAt(soft?'bump':'thud',e.x,e.y,{v,r:rnd(.92,1.08)});puff(e.x,e.y,Math.round(2+v*5));
+    if(e.d>0){floatText(e.x,e.y-.35,'-'+Math.max(1,Math.round(e.d*100))+'%','#ff7a63');if(it)chips(e.x,e.y,Math.round(3+e.d*30),it.K.frag>=2.5?'#d8eef5':'#8a5a34',it.K.frag>=2.5);
+      if(it&&e.d>.04)sndAt(it.K.frag>=2.5?'glass':'crack',e.x,e.y,{v:clamp(e.d*6,.25,.8),i:it.K.frag>=2.5?1:null});CAM.shake=Math.min(.3,CAM.shake+e.d*1.5)}
+    break}
+  case 'scuff':if(g.layer)paintScuff(g,e.x,e.y);break;
+  case 'stair':{sndAt('stair',e.x,e.y,{v:.8,r:rnd(.9,1.1)});puff(e.x,e.y,3);if(e.d>0)floatText(e.x,e.y-.4,'-'+Math.max(1,Math.round(e.d*100))+'%','#ff7a63');break}
+  case 'lift':{if(it)sndAt('grunt',it.x,it.y,{v:.55,r:rnd(.95,1.08)});break}
+  case 'set':{sndAt('set',e.x,e.y,{v:.45});break}
+  case 'grab':{if(it&&it.K.draw==='box')sndAt('box',e.x,e.y,{v:.6});break}
+  case 'load':{snd('load',{v:.8});snd('cash',{v:.7,at:.18});floatText(e.x,e.y-.4,'+'+money(e.pay),'#7fe08f',true);if(it)toast(it.K.name+' loaded  +'+money(e.pay),1.6);break}
+  case 'brk':{snd(e.gl?'glass':'crash',{v:.9});if(it){chips(e.x,e.y,28,e.gl?'#d8eef5':'#8a5a34',!!e.gl);puff(e.x,e.y,10,null,1.6,.9);floatText(e.x,e.y-.5,'BROKEN','#ff5a4a',true);toast('The '+it.K.name.toLowerCase()+' broke!',2)}CAM.shake=.35;break}
+  case 'tired':{if(m){sndAt('grunt',m.x,m.y,{v:.4,r:.85});floatText(m.x,m.y-.5,'arms!','#ffd27a');for(let i=0;i<4;i++)PART.push({k:'dust',x:m.x,y:m.y-.2,vx:(Math.random()-.5)*.8,vy:-.4-Math.random()*.4,l:0,max:.6,s:.04,col:'rgba(120,190,255,'})}break}
+  case 'call':{if(m){m.call={c:e.c,t:1.6};sndAt('whistle',m.x,m.y,{v:.45,r:rnd(.97,1.05)})}break}
+  case 'horn':snd('horn',{v:.8});toast('30 seconds! The van is about to leave',2.4);break;
+  case 'tick':snd('tick',{v:.5});break;
+  case 'go':snd('tape',{v:.6});toast('GO!',1);break;
+  }}
+function paintScuff(g,x,y){const c=g.layer.getContext('2d');c.save();c.setTransform(PXM,0,0,PXM,0,0);c.fillStyle='rgba(28,18,10,.38)';c.beginPath();c.ellipse(x,y,.09+Math.random()*.06,.05,Math.random()*3,0,7);c.fill();c.restore()}
+// drag scratches: two feet of the item scrape the floor while it's dragged
+function paintScratches(g){const c=g.layer.getContext('2d');c.save();c.setTransform(PXM,0,0,PXM,0,0);c.strokeStyle='rgba(70,40,18,.28)';c.lineWidth=.022;c.lineCap='round';
+  for(const it of g.items){if(it.state!=='floor'){it.feet=null;continue}const K=it.K,cs=Math.cos(it.a),sn=Math.sin(it.a);
+    const ft=K.round?[[0,0]]:[[-K.w/2+.12,K.h/2-.1],[K.w/2-.12,K.h/2-.1],[-K.w/2+.12,-K.h/2+.1],[K.w/2-.12,-K.h/2+.1]];
+    const pts=ft.map(f=>[it.x+f[0]*cs-f[1]*sn,it.y+f[0]*sn+f[1]*cs]);
+    if(it.drag&&it.feet){const fl=floorAt(g.lv,it.x,it.y);if((FPROP[fl]||{}).scuff){c.beginPath();for(let i=0;i<pts.length;i++){c.moveTo(it.feet[i][0],it.feet[i][1]);c.lineTo(pts[i][0],pts[i][1])}c.stroke()}}
+    it.feet=pts}
+  c.restore()}
+
+// ── camera ──
+CAM.shake=0;
+function localFocus(g){const ms=g.movers.filter(m=>m.local&&!m.bot);const use=ms.length?ms:g.movers;if(!use.length)return {x:g.lv.w/2,y:g.lv.h/2,spread:0};
+  let x=0,y=0;for(const m of use){x+=m.x;y+=m.y}x/=use.length;y/=use.length;let spread=0;for(const m of use)spread=Math.max(spread,Math.abs(m.x-x)*2+2,Math.abs(m.y-y)*2+2);return {x,y,spread}}
+function camUpdate(g,dt){const lv=g.lv;const fit=Math.min(VW/(lv.w+.4),VH/(lv.h+.4));
+  const want=clamp(Math.min(VW,VH)/9.5,30,62);
+  let s,tx,ty;
+  if(fit>=want*.9){s=fit;tx=lv.w/2;ty=lv.h/2}
+  else{const f=localFocus(g);s=want;if(f.spread){s=Math.max(fit,Math.min(want,VW/(f.spread+3),VH/(f.spread*.7+3)))}
+    tx=f.x;ty=f.y;const hw=VW/s/2,hh=VH/s/2;tx=lv.w<=hw*2?lv.w/2:clamp(tx,hw-.2,lv.w-hw+.2);ty=lv.h<=hh*2?lv.h/2:clamp(ty,hh-.2,lv.h-hh+.2)}
+  if(!CAM.init){CAM.x=tx;CAM.y=ty;CAM.s=s;CAM.init=true}
+  const k=1-Math.pow(.02,dt);CAM.x+=(tx-CAM.x)*k;CAM.y+=(ty-CAM.y)*k;CAM.s+=(s-CAM.s)*k;
+  CAM.shake=Math.max(0,CAM.shake-dt)}
+function toScreen(x,y){return [(x-CAM.x)*CAM.s+VW/2,(y-CAM.y)*CAM.s+VH/2]}
+
+// per-frame visuals both host and guests derive from the pose data
+function visuals(g,dt){for(const it of g.items){const tl=it.lifted?1:0;it.liftV+=(tl-it.liftV)*Math.min(1,dt*10)}
+  for(const m of g.movers){const it=m.holdId!=null?g.items[m.holdId]:m.hold;
+    if(it&&it.state==='floor'&&m.gripL){const c=Math.cos(it.a),s=Math.sin(it.a);m.gx=it.x+m.gripL.x*c-m.gripL.y*s;m.gy=it.y+m.gripL.x*s+m.gripL.y*c;m.faceT=Math.atan2(m.gy-m.y,m.gx-m.x)}
+    else{m.gx=null;if(hyp(m.vx,m.vy)>.25)m.faceT=Math.atan2(m.vy,m.vx)}
+    if(m.faceT!=null)m.face+=angDiff(m.face,m.faceT)*Math.min(1,dt*12)}}
+
+function render(dt){
+  cx.setTransform(DPR,0,0,DPR,0,0);cx.fillStyle='#2a2119';cx.fillRect(0,0,VW,VH);
+  const g=G||DEMO;if(!g)return;
+  if(!g.layer)g.layer=buildLayer(g.lv);
+  visuals(g,dt);paintScratches(g);camUpdate(g,dt);
+  const s=CAM.s,sh=CAM.shake>0?(Math.random()-.5)*CAM.shake*.25:0;
+  cx.setTransform(DPR*s,0,0,DPR*s,DPR*(VW/2-(CAM.x+sh)*s),DPR*(VH/2-(CAM.y+sh)*s));
+  cx.drawImage(g.layer,0,0,g.lv.w,g.lv.h);
+  // what local movers would grab
+  const cand=new Set();if(g===G)for(const m of g.movers){if(!m.local||m.bot||m.hold||m.holdId!=null)continue;const n=nearestItem(g,m.x,m.y,PH.reach);if(n){cand.add(n.it);m.cand=n.it}else m.cand=null}
+  const order=g.items.filter(it=>it.state==='floor').sort((a,b)=>a.liftV-b.liftV);
+  for(const it of order){drawItem(cx,it,it.x,it.y,it.a,it.liftV,it.cond,s);
+    if(cand.has(it)){cx.save();cx.translate(it.x,it.y);cx.rotate(it.a);cx.strokeStyle='#5c95e8';cx.lineWidth=.06;cx.setLineDash([.14,.09]);cx.lineDashOffset=-performance.now()/400;
+      for(const p of it.K.parts){if(it.K.round){cx.beginPath();cx.arc(p[0],p[1],it.K.w/2+.08,0,7);cx.stroke()}else{rrect(cx,p[0]-p[2]/2-.08,p[1]-p[3]/2-.08,p[2]+.16,p[3]+.16,.1);cx.stroke()}}cx.restore()}}
+  for(const m of g.movers)drawMover(cx,m,m.x,m.y,m.face,0);
+  // lifter dots above anything being held: one dot per mover it needs, filled when they're lifting
+  for(const it of order){const held=g.sim?it.grabbers.length:(it.held|0);if(!held)continue;
+    const n=it.K.wt,lif=g.sim?it.grabbers.filter(m=>m.lifting||m.liftWant).length:(it.lifters|0);
+    const y=it.y-it.K.r-.25;for(let i=0;i<n;i++){const x=it.x+(i-(n-1)/2)*.26;cx.fillStyle=i<lif?(it.lifted?'#2b9455':'#e2a13c'):'rgba(247,240,225,.85)';cx.strokeStyle=INK;cx.lineWidth=.03;cx.beginPath();cx.arc(x,y,.085,0,7);cx.fill();cx.stroke()}
+    if(it.need&&!it.lifted)mtext(cx,'NEEDS '+it.need,it.x,y-.27,.22,'#ffd27a','m');
+    if(it.slide)mtext(cx,'LIFT IT!',it.x,y-.27,.26,'#ff7a63','m')}
+  for(const it of order){if(it.inVan>0){const f=clamp(it.inVan/PH.loadT,0,1);cx.strokeStyle='#7fe08f';cx.lineWidth=.08;cx.beginPath();cx.arc(it.x,it.y,.35,-Math.PI/2,-Math.PI/2+f*Math.PI*2);cx.stroke()}}
+  drawParts(cx,dt);
+  // calls + name tags
+  for(const m of g.movers){if(m.call){const t=CALLS[m.call.c]||'';const y=m.y-.62;cx.save();cx.globalAlpha=clamp(m.call.t*2,0,1);
+      cx.fillStyle='#f7f0e1';cx.strokeStyle=INK;cx.lineWidth=.035;const w=.22*t.length+.25;rrect(cx,m.x-w/2,y-.22,w,.42,.1);cx.fill();cx.stroke();cx.beginPath();cx.moveTo(m.x-.08,y+.2);cx.lineTo(m.x,y+.34);cx.lineTo(m.x+.08,y+.2);cx.fill();
+      mtext(cx,t,m.x,y,.27,m.col.c,'m');cx.restore();if(g===DEMO)m.call.t-=dt}
+    else if(g===G&&(MODE==='host'||MODE==='guest'||MODE==='local')){mtext(cx,m.name,m.x+.015,m.y-.48+.015,.2,'rgba(20,12,6,.6)','b');mtext(cx,m.name,m.x,m.y-.48,.2,m.col.c==='#2f6fdb'?'#a9c8ff':shade(m.col.c,.35),'b')}}
+  cx.setTransform(DPR,0,0,DPR,0,0);
+  // where's the van?
+  if(g===G){const v=g.lv.van;const[vx,vy]=toScreen(v.x+v.w/2,v.y+v.h/2);if(vx<-20||vx>VW+20||vy<-20||vy>VH+20){const a=Math.atan2(vy-VH/2,vx-VW/2);
+    const ex=clamp(VW/2+Math.cos(a)*VW,40,VW-40),ey=clamp(VH/2+Math.sin(a)*VH,70,VH-(TOUCH?190:40));cx.save();cx.translate(ex,ey);cx.rotate(a);cx.fillStyle='#ee6a22';cx.strokeStyle=INK;cx.lineWidth=3;
+      cx.beginPath();cx.moveTo(22,0);cx.lineTo(-8,-15);cx.lineTo(-8,15);cx.closePath();cx.fill();cx.stroke();cx.restore();cx.font="400 16px 'Permanent Marker'";cx.fillStyle='#f7f0e1';cx.textAlign='center';cx.fillText('VAN',ex-Math.cos(a)*30,ey-Math.sin(a)*30+5)}}
+}
+
+// ── title screen backdrop: two movers carry a couch out on their own ──
+let DEMO=null;
+function demoStart(){if(SMOKE)return;try{const g=makeGame(JOBS[0],{sim:true,seats:[{seat:0,name:'A'},{seat:1,name:'B'}],mode:'demo'});g.phase='play';g.countT=0;g.timeLeft=9999;g.demo=true;
+  const it=g.items[0];for(const o of g.items)if(o!==it)o.cond=1;gripEnds(g,it,g.movers);const r=planRoute(g.lv,crewShape(it.K,g.movers),{x:it.x,y:it.y,a:it.a});g.dpath=r.ok?r.path:null;g.dS={i:0,look:5,smart:1,rest:0,spd:.55};DEMO=g;CAM.init=false}catch(e){DEMO=null}}
+function demoTick(dt){const g=DEMO;if(!g||G)return;const it=g.items[0];
+  if(g.dpath&&it.state==='floor')crewDrive(g,it,g.dpath,g.movers,g.dS);else{g.wait=(g.wait||0)+dt;for(const m of g.movers){m.in.mx=m.in.my=0}if(g.wait>2.5){DEMO.layer=null;demoStart();return}}
+  if(Math.random()<dt*.15){const m=g.movers[Math.random()*2|0];m.call={c:[0,2,3][Math.random()*3|0],t:1.4}}
+  simStep(g,dt);g.ev.length=0}
+function endJob(g,why){if(g.demo){g.ended=why;return}if(g.ended)return;g.ended=why;g.endWhy=why;if(g.mode==='test')return;onJobEnd(g)}
+
+// ── HUD ──
+let hudT=0;
+function hud(g,dt){hudT-=dt;if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0}
+  if(hudT>0)return;hudT=.1;
+  const s=Math.ceil(g.timeLeft),cl=$('clock');cl.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');cl.classList.toggle('low',s<=30);
+  const tot=g.items.length,done=g.items.filter(it=>it.state==='loaded').length;$('h-items').textContent=done+'/'+tot;$('h-cash').textContent=money(g.cash);$('h-dep').textContent=money(g.dep);
+  $('count').textContent=g.phase==='count'?String(Math.max(1,Math.ceil(g.countT))):'';
+  // a hint for whoever is playing on this screen
+  let h='';const me=g.movers.find(m=>m.local&&!m.bot);const touch=TOUCH;
+  if(me&&g.phase==='play'){const it=me.hold||(me.holdId!=null?g.items[me.holdId]:null);
+    const G_=touch?'GRAB':'<kbd>E</kbd>',L_=touch?'LIFT':'<kbd>Shift</kbd>';
+    if(!it){if(me.cand)h=G_+' grab the '+esc(me.cand.K.name.toLowerCase());else if(g.J.id==='studio')h='Walk up to the furniture';}
+    else if(it.need&&!it.lifted)h='The '+esc(it.K.name.toLowerCase())+' needs '+it.K.wt+' lifters. '+(g.solo?'Your buddy is coming.':'Get someone on the other end.');
+    else if(it.slide)h='Hold '+L_+'! It is sliding down the stairs';
+    else if(!it.lifted&&me.st<.3)h='Resting. Your grip is coming back';
+    else if(!it.lifted)h='Hold '+L_+' to lift (dragging is slow and scratches floors)';
+    else if(me.st<.35)h='Arms giving out. Put it down somewhere flat';
+    else h=(touch?'':'<kbd>1</kbd>-<kbd>4</kbd> shout to your crew. ')+'Get it into the van';}
+  const el=$('hint');if(el._h!==h){el._h=h;el.innerHTML=h;el.style.display=h?'':'none'}}
+
+// ═══════════════════════════════ THE CPU BUDDY ═══════════════════════════════
+// You lead. When you grab something heavy your buddy walks round to the far end, grabs it
+// and follows the path your hands take (it doesn't cut corners). It lifts when you lift,
+// always lifts on stairs, and listens to your calls: LIFT! / DROP! / PIVOT! (plants its
+// feet so you can swing round it) / GO!. When you carry a light thing it fetches another.
+function botMove(g,m,tx,ty,skip,dt){const B=m.bot;B.pathT-=dt;
+  if(!B.path||B.pathT<=0||hyp(B.goal.x-tx,B.goal.y-ty)>.6){B.path=navPath(g,m.x,m.y,tx,ty,{skip})||[{x:tx,y:ty}];B.pi=0;B.pathT=.7;B.goal={x:tx,y:ty}}
+  let p=B.path[Math.min(B.pi,B.path.length-1)];while(B.pi<B.path.length-1&&hyp(p.x-m.x,p.y-m.y)<.3){B.pi++;p=B.path[B.pi]}
+  let dx=p.x-m.x,dy=p.y-m.y;const l=hyp(dx,dy);const sp=clamp(hyp(tx-m.x,ty-m.y)*2.5,0,1);
+  if(l>.01){m.in.mx=dx/l*sp;m.in.my=dy/l*sp}else{m.in.mx=m.in.my=0}
+  // unstick
+  if(sp>.5&&hyp(m.vx,m.vy)<.12)B.stuck+=dt;else B.stuck=Math.max(0,B.stuck-dt);
+  if(B.stuck>1.2){B.stuck=0;B.pathT=0;m.in.mx+=(Math.random()-.5);m.in.my+=(Math.random()-.5)}
+  return hyp(tx-m.x,ty-m.y)}
+function farGrip(g,it,L){// a walkable spot at the far side of the item from the leader's hands
+  const K=it.K,c=Math.cos(it.a),s=Math.sin(it.a);const cand=[];
+  if(K.round){for(let i=0;i<8;i++){const a=i*Math.PI/4;cand.push([Math.cos(a)*K.w/2,Math.sin(a)*K.w/2,Math.cos(a),Math.sin(a)])}}
+  else for(const p of K.parts){const hw=p[2]/2,hh=p[3]/2;
+    for(const t of[-.7,0,.7]){cand.push([p[0]+hw,p[1]+t*hh,1,0],[p[0]-hw,p[1]+t*hh,-1,0])}
+    for(const t of[-.75,-.35,.35,.75]){cand.push([p[0]+t*hw,p[1]+hh,0,1],[p[0]+t*hw,p[1]-hh,0,-1])}}
+  let best=null,bs=-1e9;
+  for(const q of cand){const px=it.x+q[0]*c-q[1]*s,py=it.y+q[0]*s+q[1]*c;const nx=q[2]*c-q[3]*s,ny=q[2]*s+q[3]*c;const tx=px+nx*.3,ty=py+ny*.3;
+    const k=Math.floor(ty/RES)*g.lv.gw+Math.floor(tx/RES);if(!g.lv.walk[k])continue;
+    // is it really on the outline (not inside another part)?
+    const cq=closestOnPose(K,it.x,it.y,it.a,tx,ty);if(cq.d<.15)continue;
+    // far from the leader's hands, and close to the line through their hands and the middle (an end, not a corner)
+    const lx=L.gx??L.x,ly=L.gy??L.y,ax=it.x-lx,ay=it.y-ly,al=hyp(ax,ay)||1;const qx=px-lx,qy=py-ly;const lat=Math.abs(qx*ay-qy*ax)/al;
+    const sc=hyp(qx,qy)-1.2*lat;if(sc>bs){bs=sc;best={x:tx,y:ty}}}
+  return best}
+function nearStairs(g,it){if(stairsAt(g.lv,it.x,it.y))return true;const v=hyp(it.vx,it.vy);if(v<.1)return false;
+  for(const k of[.6,1.2]){if(stairsAt(g.lv,it.x+it.vx/v*k,it.y+it.vy/v*k))return true}return false}
+function botThink(g,m,dt){const B=m.bot,inp=m.in;
+  if(g.phase!=='play'){inp.mx=inp.my=0;inp.l=0;return}
+  const L=g.movers.find(x=>!x.bot&&x.local)||g.movers.find(x=>!x.bot);
+  if(!L){inp.mx=inp.my=0;inp.l=0;return}
+  if(g.lastCall&&g.lastCall.t!==B.callT&&g.lastCall.s===L.seat){B.callT=g.lastCall.t;const c=g.lastCall.c;
+    if(c===0){B.forceLift=true;B.wait=false}else if(c===1){B.forceLift=false;B.drop=1.5}else if(c===2){B.wait=true;B.waitT=5}else if(c===3){B.wait=false;B.forceLift=false}}
+  if(B.drop>0)B.drop-=dt;if(B.waitT>0){B.waitT-=dt;if(B.waitT<=0)B.wait=false}
+  const it=m.hold;
+  if(it){
+    if(L.hold===it){// carrying it together
+      const lp={x:L.x,y:L.y};const tr=B.trail;const last=tr[tr.length-1];if(!last||hyp(last.x-lp.x,last.y-lp.y)>.05){tr.push(lp);if(tr.length>500)tr.shift()}
+      if(B.D==null)B.D=hyp(m.x-L.x,m.y-L.y);
+      const st=nearStairs(g,it);
+      inp.l=(B.drop>0)?0:((L.liftWant||L.in.l||B.forceLift||st)&&m.st>.04)?1:0;
+      if(B.wait){inp.mx=inp.my=0;return}
+      const ux=(m.x-L.x),uy=(m.y-L.y),ul=hyp(ux,uy)||1;const lv=hyp(L.vx,L.vy);
+      if(lv>.25&&(L.vx*ux+L.vy*uy)/ul>lv*.55){// the leader is pushing it towards us: back up
+        B.trail=[{x:m.x,y:m.y},{x:L.x,y:L.y}];inp.mx=ux/ul*clamp(lv/PH.holdSpeed,0,1);inp.my=uy/ul*clamp(lv/PH.holdSpeed,0,1);return}
+      // walk back along the leader's trail to the point D behind them
+      let need=B.D,tx=null,ty=null;for(let i=tr.length-1;i>0;i--){const a=tr[i],b=tr[i-1],d=hyp(a.x-b.x,a.y-b.y);if(d>=need){const f=need/d;tx=a.x+(b.x-a.x)*f;ty=a.y+(b.y-a.y)*f;break}need-=d}
+      if(tx==null){tx=L.x+ux/ul*B.D;ty=L.y+uy/ul*B.D}
+      // jammed (the leader pushes, nothing moves)? line up straight behind where they're heading, like you would at a doorway
+      const li=hyp(L.in.mx,L.in.my),iv=hyp(it.vx,it.vy);
+      if(li>.4&&iv<.18)B.jam=(B.jam||0)+dt;else B.jam=Math.max(0,(B.jam||0)-dt*2);
+      if(B.jam>.35){
+        if(B.jam>2.4){// still stuck: back up a step to free it
+          let bx=ux/ul,by=uy/ul;inp.mx=bx*.8;inp.my=by*.8;if(B.jam>3.1){B.jam=0;B.trail=[{x:m.x,y:m.y},{x:L.x,y:L.y}]}return}
+        // push the same way you push (slides it along a door frame), while swinging in behind you to straighten it
+        const hx=L.in.mx/li,hy=L.in.my/li;const lx=L.x-hx*B.D,ly=L.y-hy*B.D;
+        let dx=L.in.mx*.8+(lx-m.x)*.9,dy=L.in.my*.8+(ly-m.y)*.9;const l=hyp(dx,dy);if(l>1){dx/=l;dy/=l}inp.mx=dx;inp.my=dy;return}
+      let dx=(tx-m.x)*3,dy=(ty-m.y)*3;const l=hyp(dx,dy);if(l>1){dx/=l;dy/=l}inp.mx=dx;inp.my=dy;return}
+    B.trail=[];B.D=null;
+    if(it.K.wt>=2){// they let go of the big thing: so do we (unless it would slide)
+      if(!it.slide&&!nearStairs(g,it)){inp.g++;inp.l=0}inp.mx=inp.my=0;return}
+    // a light thing of our own: take it to the van
+    if(L.hold&&L.hold.K.wt>=2&&L.hold.grabbers.length<2&&hyp(m.x-g.lv.van.x,m.y-g.lv.van.y)>7){inp.g++;inp.l=0;return}
+    const v=g.lv.van;inp.l=(m.st>.2||nearStairs(g,it))?1:0;botMove(g,m,v.x+v.w*.62,v.y+v.h/2,it,dt);return}
+  B.trail=[];B.D=null;
+  // hands free
+  if(L.hold&&L.hold.state==='floor'&&L.hold.K.wt>=2&&L.hold.grabbers.length<L.hold.K.wt){const tgt=L.hold;
+    const fg=farGrip(g,tgt,L);if(fg){const d=botMove(g,m,fg.x,fg.y,null,dt);
+      if(d<.2){const n=nearestItem(g,m.x,m.y,PH.reach);if(n&&n.it===tgt&&B.grabCD<=0){inp.g++;B.grabCD=.5;B.trail=[];B.D=null}}}
+    else{inp.mx=inp.my=0}
+    if(B.grabCD>0)B.grabCD-=dt;return}
+  if(B.grabCD>0)B.grabCD-=dt;
+  // fetch a light thing nobody is touching, not one the leader is standing at
+  if(!B.target||B.target.state!=='floor'||B.target.grabbers.length||B.retarget<=0){B.retarget=2;B.target=null;let bd=1e9;
+    for(const o of g.items){if(o.state!=='floor'||o.K.wt>1||o.grabbers.length||inVanZone(g.lv,o))continue;if(hyp(o.x-L.x,o.y-L.y)<1.4)continue;const d=hyp(o.x-m.x,o.y-m.y);if(d<bd){bd=d;B.target=o}}}
+  B.retarget-=dt;
+  if(B.target&&!(L.hold&&L.hold.K.wt>=2)){const o=B.target;const q=closestOnPose(o.K,o.x,o.y,o.a,m.x,m.y);const dx=m.x-q.x,dy=m.y-q.y,dl=hyp(dx,dy)||1;
+    botMove(g,m,q.x+dx/dl*.3,q.y+dy/dl*.3,null,dt);const n=nearestItem(g,m.x,m.y,PH.reach);if(n&&n.it===o&&B.grabCD<=0){inp.g++;B.grabCD=.5}inp.l=0;return}
+  // otherwise stay near the leader
+  const d=hyp(L.x-m.x,L.y-m.y);if(d>1.6)botMove(g,m,L.x,L.y,null,dt);else{inp.mx=inp.my=0}inp.l=0}
+
+// ═══════════════════════════════ CONTROLS ═══════════════════════════════
+const TOUCH=(()=>{try{return matchMedia('(pointer:coarse)').matches||'ontouchstart' in window}catch(e){return false}})();
+const KEYS=new Set();
+const KM_ONE={up:['KeyW','ArrowUp'],down:['KeyS','ArrowDown'],left:['KeyA','ArrowLeft'],right:['KeyD','ArrowRight'],grab:['KeyE','Space','Enter','KeyJ','NumpadEnter'],lift:['ShiftLeft','ShiftRight','KeyK'],calls:['Digit1','Digit2','Digit3','Digit4']};
+const KM2=[{up:['KeyW'],down:['KeyS'],left:['KeyA'],right:['KeyD'],grab:['KeyE','KeyQ'],lift:['ShiftLeft','KeyF'],calls:['Digit1','Digit2','Digit3','Digit4']},
+  {up:['ArrowUp'],down:['ArrowDown'],left:['ArrowLeft'],right:['ArrowRight'],grab:['Enter','NumpadEnter','Slash','Numpad0'],lift:['ShiftRight','Period','NumpadDecimal'],calls:['Digit7','Digit8','Digit9','Digit0']}];
+const NETIN={mx:0,my:0,g:0,l:0,c:0,cc:-1};
+let PAUSED=false;
+function keymapFor(m){return MODE==='local'?KM2[m.keys]||KM2[0]:KM_ONE}
+function myInputs(){// the input objects this screen drives
+  if(!G)return[];if(MODE==='guest')return [{inp:NETIN,km:KM_ONE,pad:0,touch:true}];
+  return G.movers.filter(m=>m.local&&!m.bot).map((m,i)=>({inp:m.in,km:keymapFor(m),pad:MODE==='local'?m.keys:0,touch:i===0}))}
+addEventListener('keydown',e=>{
+  if(e.target&&e.target.tagName==='INPUT')return;
+  if(G&&!PAUSED&&/^(Arrow|Space)/.test(e.code))e.preventDefault();
+  KEYS.add(e.code);
+  if(e.code==='Escape'){if(G&&!G.ended){if(PAUSED)resumeGame();else pauseGame()}return}
+  if(e.code==='KeyM'&&!(e.target&&e.target.tagName==='INPUT')){SET.sound=!SET.sound;saveSet();auVol();syncSoundBtns();return}
+  if(e.repeat||!G||PAUSED)return;
+  for(const s of myInputs()){if(s.km.grab.includes(e.code)){s.inp.g++;e.preventDefault()}const ci=s.km.calls.indexOf(e.code);if(ci>=0){s.inp.c++;s.inp.cc=ci}}});
+addEventListener('keyup',e=>KEYS.delete(e.code));
+addEventListener('blur',()=>{KEYS.clear();TJ.id=null;TL.on=false});
+const any=list=>list.some(k=>KEYS.has(k));
+// touch: left thumb anywhere on the left half walks, GRAB taps, LIFT holds
+const TJ={id:null,ox:0,oy:0,x:0,y:0},TL={on:false};
+(function touchSetup(){const joy=$('joy');
+  joy.addEventListener('pointerdown',e=>{TJ.id=e.pointerId;TJ.ox=TJ.x=e.clientX;TJ.oy=TJ.y=e.clientY;joy.setPointerCapture(e.pointerId);e.preventDefault()});
+  joy.addEventListener('pointermove',e=>{if(e.pointerId!==TJ.id)return;TJ.x=e.clientX;TJ.y=e.clientY;const dx=TJ.x-TJ.ox,dy=TJ.y-TJ.oy,l=hyp(dx,dy);if(l>70){TJ.ox=TJ.x-dx/l*70;TJ.oy=TJ.y-dy/l*70}});
+  const up=e=>{if(e.pointerId===TJ.id)TJ.id=null};joy.addEventListener('pointerup',up);joy.addEventListener('pointercancel',up);
+  const gb=$('tb-grab'),lb=$('tb-lift');
+  gb.addEventListener('pointerdown',e=>{e.preventDefault();gb.classList.add('on');for(const s of myInputs())if(s.touch){s.inp.g++;break}});
+  const gu=()=>gb.classList.remove('on');gb.addEventListener('pointerup',gu);gb.addEventListener('pointercancel',gu);gb.addEventListener('pointerleave',gu);
+  lb.addEventListener('pointerdown',e=>{e.preventDefault();TL.on=true;lb.classList.add('on');lb.setPointerCapture(e.pointerId)});
+  const lu=()=>{TL.on=false;lb.classList.remove('on')};lb.addEventListener('pointerup',lu);lb.addEventListener('pointercancel',lu);
+  document.querySelectorAll('#tcalls button').forEach(b=>b.addEventListener('pointerdown',e=>{e.preventDefault();for(const s of myInputs())if(s.touch){s.inp.c++;s.inp.cc=+b.dataset.c;break}}))})();
+const PADPREV=[];
+function pollInputs(){const pads=(navigator.getGamepads&&navigator.getGamepads())||[];
+  for(const s of myInputs()){const km=s.km;let mx=(any(km.right)?1:0)-(any(km.left)?1:0),my=(any(km.down)?1:0)-(any(km.up)?1:0);let l=any(km.lift);
+    if(s.touch&&TJ.id!=null){const dx=TJ.x-TJ.ox,dy=TJ.y-TJ.oy;const d=hyp(dx,dy);if(d>8){mx=dx/70;my=dy/70}}
+    if(s.touch&&TL.on)l=true;
+    const p=pads[s.pad];if(p&&p.connected){const ax=p.axes[0]||0,ay=p.axes[1]||0;if(hyp(ax,ay)>.2){mx=ax;my=ay}
+      const b=i=>p.buttons[i]&&p.buttons[i].pressed;const prev=PADPREV[s.pad]||{};
+      if(b(0)&&!prev.a)s.inp.g++;if(b(3)&&!prev.y){s.inp.c++;s.inp.cc=0}if(b(1)&&!prev.b){s.inp.c++;s.inp.cc=2}if(b(12)&&!prev.u){s.inp.c++;s.inp.cc=3}
+      if(b(7)||b(6)||b(5)||b(4)||b(2))l=true;PADPREV[s.pad]={a:b(0),y:b(3),b:b(1),u:b(12)}}
+    const ml=hyp(mx,my);if(ml>1){mx/=ml;my/=ml}
+    s.inp.mx=mx;s.inp.my=my;s.inp.l=l?1:0}}
+function drawJoy(){if(!TOUCH||TJ.id==null)return;cx.setTransform(DPR,0,0,DPR,0,0);cx.strokeStyle='rgba(247,240,225,.6)';cx.lineWidth=3;cx.beginPath();cx.arc(TJ.ox,TJ.oy,70,0,7);cx.stroke();
+  cx.fillStyle='rgba(247,240,225,.75)';cx.beginPath();cx.arc(TJ.x,TJ.y,26,0,7);cx.fill()}
+
+// ═══════════════════════════════ SCREENS + FLOW ═══════════════════════════════
+let MODE='menu';            // menu | solo | local | host | guest
+let PROG=Object.assign({stars:{},best:{}},LS.get('prog',{}));
+const UNLOCK_ALL=/allj/.test(HASH);
+function saveProg(){LS.set('prog',PROG)}
+function unlocked(i){return UNLOCK_ALL||i===0||(PROG.stars[JOBS[i-1].id]|0)>=1}
+const SCREENS=['s-title','s-jobs','s-brief','s-online','s-lobby','s-pause','s-result','s-help'];
+let SCR='s-title',helpBack='s-title';
+function show(id){SCR=id;for(const s of SCREENS)$(s).classList.toggle('hidden',s!==id);const inGame=!!G&&!id;
+  $('hud').classList.toggle('hidden',!G);$('touch').classList.toggle('hidden',!(G&&!id&&TOUCH));
+  if(!G&&!DEMO&&id)demoStart()}
+function starsTxt(n){return '★'.repeat(n)+'<i>'+'★'.repeat(3-n)+'</i>'}
+function jobCards(el,opts){el.innerHTML=JOBS.map((J,i)=>{const lock=!unlocked(i);const st=PROG.stars[J.id]|0;const sel=opts.sel===J.id;
+  return '<button class="job'+(lock?' lock':'')+(sel?' sel':'')+'" data-j="'+J.id+'"'+(lock?' disabled':'')+'><div class="no">JOB '+(i+1)+'</div><div class="nm">'+esc(J.name)+'</div><div class="ds">'+esc(J.desc)+'</div>'+
+    '<div class="ft"><span class="st">'+starsTxt(st)+'</span><span>'+(lock?'🔒 locked':PROG.best[J.id]?'best '+money(PROG.best[J.id]):Math.floor(J.time/60)+':'+String(J.time%60).padStart(2,'0'))+'</span></div></button>'}).join('');
+  el.querySelectorAll('.job').forEach(b=>b.onclick=()=>{if(!b.disabled)opts.pick(b.dataset.j)})}
+let PLAYMODE='solo',BRIEF=null;
+function openJobs(mode){PLAYMODE=mode;$('jobs-sub').textContent=mode==='local'?'Two movers on one keyboard: WASD + E + Left Shift, and arrows + Enter + Right Shift.':'You lead, your CPU buddy takes the other end. '+(TOUCH?'Tap PIVOT!':'Press 3')+' to make it hold still so you can swing round it.';
+  jobCards($('jobs-list'),{pick:openBrief});show('s-jobs')}
+function openBrief(id){const J=JOB(id);BRIEF=J.id;const i=JOBS.indexOf(J);$('br-no').textContent='JOB '+(i+1)+' · FOR '+J.client.toUpperCase();$('br-name').textContent=J.name;$('br-desc').textContent=J.desc;
+  const cnt={};for(const d of J.items)cnt[d[0]]=(cnt[d[0]]||0)+1;
+  $('br-man').innerHTML=Object.keys(cnt).map(k=>{const K=KIND[k];return '<div><span>'+(cnt[k]>1?cnt[k]+' × ':'')+esc(K.name)+(K.wt>1?' <b>(2 lifters)</b>':'')+(K.frag>=2.5?' <b style="color:#cc2f2b">FRAGILE</b>':'')+'</span><b>'+money(K.val*cnt[k])+'</b></div>'}).join('')+
+    '<div><span>Security deposit (keep the building clean)</span><b>'+money(J.deposit)+'</b></div>';
+  const t=Math.round(J.time*(PLAYMODE==='solo'?1.15:1));$('br-time').textContent='The van leaves in '+Math.floor(t/60)+':'+String(t%60).padStart(2,'0')+'. Anything not loaded by then stays behind.';show('s-brief')}
+function startLocal(id,mode){netClose();const J=JOB(id);MODE=mode;
+  const seats=mode==='local'?[{seat:0,name:'Mover 1',local:true,keys:0},{seat:1,name:'Mover 2',local:true,keys:1}]:[{seat:0,name:'You',local:true},{seat:1,name:'Buddy',bot:true}];
+  G=makeGame(J,{sim:true,seats,solo:mode==='solo',mode,timeMul:mode==='solo'?1.15:1});beginGame()}
+function beginGame(){DEMO=null;CAM.init=false;PART.length=0;PAUSED=false;$('tag-job').textContent=G.J.name;show(null);auInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume();checkRotate()}
+function pauseGame(){if(!G)return;PAUSED=MODE!=='host'&&MODE!=='guest';$('pa-note').textContent=PAUSED?'The clock is stopped.':'Online the clock keeps running!';
+  $('pa-restart').classList.toggle('hidden',MODE==='guest');$('pa-jobs').textContent=MODE==='guest'||MODE==='host'?'Leave the job':'Quit the job';show('s-pause')}
+function resumeGame(){PAUSED=false;show(null)}
+function quitGame(){const wasNet=MODE==='host'||MODE==='guest';const m=MODE;G=null;PAUSED=false;
+  if(m==='host'){net.send({t:'lob'});MODE='host';openLobby();return}
+  if(m==='guest'){netClose();MODE='menu';show('s-title');return}
+  MODE='menu';openJobs(PLAYMODE)}
+function onJobEnd(g){const inv=invoiceOf(g);
+  if(MODE==='host')net.send({t:'end',inv});
+  showResult(inv)}
+function recordResult(inv){const id=inv.job;if(inv.stars>(PROG.stars[id]|0))PROG.stars[id]=inv.stars;if(inv.total>(PROG.best[id]|0)&&inv.stars>0)PROG.best[id]=inv.total;saveProg();
+  try{const tot=Object.values(PROG.best).reduce((a,b)=>a+b,0);if(tot>0&&window.GLITCHBOX&&GLITCHBOX.score)GLITCHBOX.score(tot)}catch(e){}
+  try{window.GBSave&&GBSave.save&&GBSave.save()}catch(e){}}
+let LASTINV=null;
+function showResult(inv){LASTINV=inv;recordResult(inv);const J=JOB(inv.job),i=JOBS.indexOf(J);
+  $('rs-no').textContent='INVOICE · JOB '+(i+1)+' · '+J.client.toUpperCase();$('rs-name').textContent=J.name;
+  const st=$('rs-stamp');st.textContent=inv.stars?'PAID':'UNPAID';st.className='stamp'+(inv.stars?' ok':'');
+  $('rs-man').innerHTML=inv.lines.map(l=>'<div><span>'+esc(l.t)+'</span><b class="'+(l.bad?'neg':'')+'">'+(l.bad?'$0':money(l.v))+'</b></div>').join('')+
+    '<div><span>Deposit back'+(inv.depLost?' ('+inv.scuffs+' wall dents, '+inv.scratches+' m of scratched floor)':', not a scratch')+'</span><b class="'+(inv.depLost?'neg':'pos')+'">'+money(inv.dep)+'</b></div>'+
+    (inv.bonus?'<div><span>Early finish ('+inv.timeLeft+' s left)</span><b class="pos">+'+money(inv.bonus)+'</b></div>':'')+
+    '<div class="tot"><span>Total</span><b>'+money(inv.total)+'</b></div>';
+  $('rs-stars').innerHTML=starsTxt(inv.stars);
+  const next=i+1<JOBS.length&&unlocked(i+1);
+  $('rs-note').textContent=inv.why==='time'?'The van left without the rest.':inv.stars===3?'Perfect move. They will tell their friends.':inv.stars?'Not bad. Fewer bumps and a faster finish earn more stars.':'Load more of it, and keep it in one piece, to get paid.';
+  const guest=MODE==='guest';$('rs-retry').classList.toggle('hidden',guest);$('rs-next').classList.toggle('hidden',guest||!next);$('rs-jobs').textContent=guest?'Waiting for the host... (leave)':(MODE==='host'?'Back to the lobby':'All jobs');
+  show('s-result')}
+function resultRetry(){const id=LASTINV.job;if(MODE==='host')hostGo(id);else startLocal(id,MODE==='menu'?PLAYMODE:MODE)}
+function resultNext(){const i=JOBS.findIndex(j=>j.id===LASTINV.job);const id=JOBS[Math.min(JOBS.length-1,i+1)].id;if(MODE==='host'){LOBBY.job=id;hostGo(id)}else startLocal(id,MODE==='menu'?PLAYMODE:MODE)}
+function resultJobs(){const m=MODE;G=null;if(m==='host'){net.send({t:'lob'});openLobby()}else if(m==='guest'){netClose();MODE='menu';show('s-title')}else{MODE='menu';openJobs(PLAYMODE)}}
+function syncSoundBtns(){const t='Sound: '+(SET.sound?'on':'off')+' (M)';$('b-sound').textContent=t;$('pa-sound').textContent=t}
+function checkRotate(){const portrait=TOUCH&&innerHeight>innerWidth;$('rotate').classList.toggle('hidden',!(portrait&&G));if(portrait&&G&&MODE!=='host'&&MODE!=='guest'&&!PAUSED&&!SCR)PAUSED='rot';if(!portrait&&PAUSED==='rot')PAUSED=false}
+addEventListener('resize',checkRotate);addEventListener('orientationchange',checkRotate);
+
+// ═══════════════════════════════ ONLINE ═══════════════════════════════
+// Host-authoritative: the host runs the only physics and ships poses ~25 times a second.
+// Guests send their stick, grab/lift buttons and calls, and draw what they're told.
+const MAXP=4;
+const MY_CID=(()=>{try{let c=sessionStorage.getItem('ctc.cid');if(!c){c='c'+Math.random().toString(36).slice(2,10);sessionStorage.setItem('ctc.cid',c)}return c}catch(e){return 'c'+Math.random().toString(36).slice(2,10)}})();
+const LOBBY={players:[],job:'studio'};
+function wsURL(room,role){const b=window.GLITCHBOX_WS&&!/PLACEHOLDER/i.test(window.GLITCHBOX_WS)?window.GLITCHBOX_WS:(location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws';return b+'?room='+encodeURIComponent(room)+'&role='+role}
+const net={ws:null,role:'',code:'',online:false,
+  connect(room,role,onOpen){this.close();this.code=room;this.role=role;this.online=true;setStatus('Connecting...');let ws;
+    try{ws=new WebSocket(wsURL(room,role))}catch(e){setStatus("Couldn't reach the game server.",true);this.online=false;return}
+    this.ws=ws;ws.onopen=()=>onOpen&&onOpen();ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(_){return}handleNet(m)};
+    ws.onerror=()=>setStatus("Couldn't reach the game server. Check your connection.",true);
+    ws.onclose=()=>{if(!this.online)return;this.online=false;if(MODE==='guest'){G=null;MODE='menu';show('s-online');setStatus('Lost the connection to the host.',true)}else if(MODE==='host'){setStatus('Lost the connection to the game server.',true)}}},
+  send(o){if(this.online&&this.ws&&this.ws.readyState===1)this.ws.send(JSON.stringify(o))},
+  close(){this.online=false;if(this.ws){this.ws.onclose=null;try{this.ws.close()}catch(e){}this.ws=null}}};
+function netClose(){net.close();clearInterval(HB);HB=0}
+let HB=0;
+function setStatus(t,err){const el=$('on-status');el.textContent=t||'';el.classList.toggle('err',!!err)}
+function myName(){return ($('myname').value||'').trim().slice(0,12)||'Mover'}
+function rememberName(){LS.set('name',myName())}
+function code4(){const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<4;i++)s+=A[Math.random()*A.length|0];return s}
+function openOnline(){MODE='menu';netClose();if(!$('myname').value)$('myname').value=LS.get('name','');setStatus('');show('s-online');loadHubName()}
+async function loadHubName(){if($('myname').value)return;try{const st=await hubApi('/api/me');if(st&&st.profile&&st.profile.name&&!$('myname').value)$('myname').value=String(st.profile.name).slice(0,12)}catch(e){}}
+function hostRoom(room){rememberName();MODE='host';LOBBY.players=[{seat:0,name:myName(),cid:MY_CID,seen:now()}];if(!unlocked(JOBS.findIndex(j=>j.id===LOBBY.job)))LOBBY.job='studio';
+  room=room||code4();net.connect(room,'host',()=>net.send({t:'create',code:room,max:MAXP}))}
+function joinRoom(room){room=(room||$('joincode').value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);if(room.length!==4){setStatus('The code is four letters.',true);return}
+  rememberName();MODE='guest';LOBBY.players=[];net.connect(room,'guest',()=>net.send({t:'join',code:room}))}
+function startHB(){clearInterval(HB);HB=setInterval(()=>{if(MODE==='guest')net.send({t:'hi',cid:MY_CID,name:myName()});
+  if(MODE==='guest'&&!G&&LAST_ROS&&now()-LAST_ROS>7000)hostGone();
+  if(MODE==='host'){const t=now();if(!G)bcRoster();if(!G){const b=LOBBY.players.length;LOBBY.players=LOBBY.players.filter(p=>p.cid===MY_CID||t-p.seen<9000);if(b!==LOBBY.players.length){reseat();bcRoster();paintLobby()}}
+    else for(const m of G.movers.slice())if(!m.local&&t-m.seen>8000){toast(m.name+' dropped out');removeMover(G,m)}}},2000)}
+function reseat(){LOBBY.players.forEach((p,i)=>p.seat=i)}
+function bcRoster(){net.send({t:'ros',ps:LOBBY.players.map(p=>[p.seat,p.name,p.cid]),job:LOBBY.job,un:JOBS.map((j,i)=>unlocked(i)?1:0)})}
+function openLobby(){show('s-lobby');paintLobby();loadLobbyFriends()}
+function paintLobby(){$('lb-code').textContent=net.code||'····';const host=MODE==='host';
+  $('lb-list').innerHTML=LOBBY.players.map(p=>'<div class="prow"><span class="dot" style="background:'+COLORS[p.seat%4].c+'"></span>'+esc(p.name)+'<span class="tg">'+(p.seat===0?'host':'')+(p.cid===MY_CID?' you':'')+'</span></div>').join('')+
+    (LOBBY.players.length<2?'<div class="note">Share the code. Everybody types it into "join".</div>':'');
+  $('lb-jt').textContent=host?'Pick the job':'The job';$('lb-wait').classList.toggle('hidden',host);$('lb-start').classList.toggle('hidden',!host);
+  $('lb-start').textContent=LOBBY.players.length<2?'Start (waiting for a friend)':'Start the job ('+LOBBY.players.length+' movers)';$('lb-start').disabled=LOBBY.players.length<2&&!DEBUG;
+  const el=$('lb-jobs');if(host)jobCards(el,{sel:LOBBY.job,pick:id=>{LOBBY.job=id;bcRoster();paintLobby()}});
+  else{const J=JOB(LOBBY.job);el.innerHTML='<div class="job sel"><div class="no">JOB '+(JOBS.indexOf(J)+1)+'</div><div class="nm">'+esc(J.name)+'</div><div class="ds">'+esc(J.desc)+'</div></div>'}}
+function hostGo(id){if(MODE!=='host')return;const J=JOB(id||LOBBY.job);LOBBY.job=J.id;
+  const seats=LOBBY.players.map(p=>({seat:p.seat,name:p.name,cid:p.cid,local:p.cid===MY_CID}));
+  G=makeGame(J,{sim:true,seats,mode:'host'});for(const m of G.movers)m.seen=now();
+  net.send({t:'go',job:J.id,ps:LOBBY.players.map(p=>[p.seat,p.name,p.cid])});beginGame()}
+function guestGo(m){LAST_SNAP=now();const J=JOB(m.job);const seats=m.ps.map(r=>({seat:r[0],name:r[1],cid:r[2],local:r[2]===MY_CID}));
+  G=makeGame(J,{sim:false,seats,mode:'guest'});SNAPS.length=0;SOFF=null;beginGame()}
+// ── snapshots ──
+const r2=v=>Math.round(v*100)/100,r3=v=>Math.round(v*1000)/1000;
+function packSnap(g){
+  const m=g.movers.map(m=>[m.seat,r2(m.x),r2(m.y),r2(m.vx),r2(m.vy),m.hold?m.hold.id:-1,m.gripL?r2(m.gripL.x):0,m.gripL?r2(m.gripL.y):0,Math.round(m.st*100),(m.lifting?1:0)|(m.tired>0?2:0)|(m.liftWant?4:0)]);
+  const it=g.items.map(i=>i.state==='floor'?[i.id,r3(i.x),r3(i.y),r3(i.a),Math.round(i.cond*1000),(i.lifted?1:0)|(i.drag?2:0)|(i.slide?4:0),i.need|0,Math.round(i.inVan*100),i.grabbers.length,i.grabbers.filter(q=>q.lifting||q.liftWant).length]:[i.id,i.state==='loaded'?-1:-2,i.pay|0]);
+  return {t:'s',f:g.frame,tl:Math.round(g.timeLeft*10)/10,ph:g.phase==='count'?0:1,ct:Math.round(g.countT*10)/10,$:g.cash,d:g.dep,sc:g.scuffs,sr:g.scratches,m,i:it,e:g.ev.splice(0)}}
+const SNAPS=[];let SOFF=null;
+function guestSnap(s){SNAPS.push(s);if(SNAPS.length>30)SNAPS.shift();
+  const off=now()/1000-s.f/60;SOFF=SOFF==null?off:Math.min(off,SOFF+.002);   // track the fastest-arriving packet (least delay)
+  const g=G;if(!g)return;g.timeLeft=s.tl;g.phase=s.ph?'play':'count';g.countT=s.ct;g.cash=s.$;g.dep=s.d;g.scuffs=s.sc;g.scratches=s.sr;
+  for(const row of s.i){const it=g.items[row[0]];if(!it)continue;if(row[1]<0){if(it.state==='floor'){it.state=row[1]===-1?'loaded':'broken';it.pay=row[2]}continue}
+    it.cond=row[4]/1000;const f=row[5];it.lifted=!!(f&1);it.drag=!!(f&2);it.slide=!!(f&4);it.need=row[6];it.inVan=row[7]/100;it.held=row[8];it.lifters=row[9]}
+  for(const row of s.m){const m=g.movers.find(q=>q.seat===row[0]);if(!m)continue;m.holdId=row[5]>=0?row[5]:null;m.gripL=row[5]>=0?{x:row[6],y:row[7]}:null;m.st=row[8]/100;m.lifting=!!(row[9]&1);m.tired=row[9]&2?1:0;m.liftWant=!!(row[9]&4);m.seen=now()}
+  for(const gm of g.movers)if(!s.m.some(r=>r[0]===gm.seat))gm.gone=true;
+  for(const e of s.e)fxEvent(e,g)}
+function guestInterp(g){if(!SNAPS.length||SOFF==null)return;const T=(now()/1000-SOFF-.1)*60;
+  let a=SNAPS[0],b=SNAPS[SNAPS.length-1];for(let i=SNAPS.length-1;i>0;i--){if(SNAPS[i-1].f<=T){a=SNAPS[i-1];b=SNAPS[i];break}}
+  const f=b.f===a.f?1:clamp((T-a.f)/(b.f-a.f),0,1.2);
+  const ia=new Map(a.i.map(r=>[r[0],r])),ma=new Map(a.m.map(r=>[r[0],r]));
+  for(const rb of b.i){if(rb[1]<0)continue;const ra=ia.get(rb[0])||rb;if(ra[1]<0)continue;const it=g.items[rb[0]];if(!it||it.state!=='floor')continue;
+    it.x=lerp(ra[1],rb[1],f);it.y=lerp(ra[2],rb[2],f);it.a=ra[3]+angDiff(ra[3],rb[3])*f;const fd=Math.max(1,b.f-a.f)/60;it.vx=(rb[1]-ra[1])/fd;it.vy=(rb[2]-ra[2])/fd}
+  for(const rb of b.m){const ra=ma.get(rb[0])||rb;const m=g.movers.find(q=>q.seat===rb[0]);if(!m)continue;m.x=lerp(ra[1],rb[1],f);m.y=lerp(ra[2],rb[2],f);m.vx=rb[3];m.vy=rb[4];m.walkPh=(m.walkPh||0)+hyp(m.vx,m.vy)*.016*7}
+  g.movers=g.movers.filter(m=>!m.gone)}
+function handleNet(m){switch(m.t){
+  case 'created':setStatus('');openLobby();bcRoster();startHB();break;
+  case 'joined':setStatus('');net.send({t:'hi',cid:MY_CID,name:myName()});openLobby();startHB();break;
+  case 'error':setStatus(m.msg||"That didn't work.",true);netClose();MODE='menu';show('s-online');break;
+  case 'start':if(MODE==='guest')net.send({t:'hi',cid:MY_CID,name:myName()});break;
+  case 'hi':if(MODE!=='host')break;{let p=LOBBY.players.find(x=>x.cid===m.cid);
+    if(p){p.seen=now();const nm=String(m.name||'Mover').slice(0,12);if(p.name!==nm){p.name=nm;bcRoster();if(!G)paintLobby()}break}
+    if(G||LOBBY.players.length>=MAXP)break;
+    p={seat:LOBBY.players.length,name:String(m.name||'Mover').slice(0,12),cid:m.cid,seen:now()};LOBBY.players.push(p);bcRoster();paintLobby();toast(p.name+' joined')}break;
+  case 'ros':if(MODE!=='guest')break;LAST_ROS=now();LOBBY.players=m.ps.map(r=>({seat:r[0],name:r[1],cid:r[2]}));LOBBY.job=m.job;if(SCR==='s-lobby')paintLobby();break;
+  case 'go':if(MODE==='guest')guestGo(m);break;
+  case 's':if(MODE==='guest'&&G){LAST_SNAP=now();guestSnap(m)}break;
+  case 'i':if(MODE==='host'&&G){const mv=G.movers.find(q=>q.cid===m.cid);if(mv){mv.in.mx=clamp(+m.mx||0,-1,1);mv.in.my=clamp(+m.my||0,-1,1);mv.in.l=m.l?1:0;mv.in.g=m.g|0;mv.in.c=m.c|0;mv.in.cc=m.cc|0;mv.seen=now()}
+      const p=LOBBY.players.find(x=>x.cid===m.cid);if(p)p.seen=now()}break;
+  case 'end':if(MODE==='guest'&&G){G.ended='x';showResult(m.inv)}break;
+  case 'lob':if(MODE==='guest'){G=null;openLobby()}break;
+  case 'left':if(MODE==='host')toast('Somebody left');else if(MODE==='guest'){/* the host's heartbeat tells us if they're gone */}break;
+}}
+let GUEST_SEND=0,LAST_SNAP=0,LAST_ROS=0;
+function hostGone(){G=null;netClose();MODE='menu';LAST_SNAP=LAST_ROS=0;show('s-online');setStatus('The host left the game.',true)}
+function guestSend(){if(MODE!=='guest'||!G)return;const t=now();if(t-GUEST_SEND<45)return;GUEST_SEND=t;
+  net.send({t:'i',cid:MY_CID,mx:r2(NETIN.mx),my:r2(NETIN.my),l:NETIN.l,g:NETIN.g,c:NETIN.c,cc:NETIN.cc})}
+let HOST_SEND=0;
+function hostSend(){if(MODE!=='host'||!G)return;const t=now();if(t-HOST_SEND<40)return;HOST_SEND=t;net.send(packSnap(G))}
+// friend invites from the lobby, through the GLITCHBOX account
+async function hubApi(path,body){const base=window.GLITCHBOX_API;if(!base||!window.GLITCHBOX_BACKEND_READY)throw new Error('no backend');
+  let tok='';try{tok=localStorage.getItem('glitchbox_session')||''}catch(e){}if(!tok)throw new Error('signed out');
+  const res=await fetch(base+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:body?JSON.stringify(body):undefined});
+  if(!res.ok)throw new Error('http '+res.status);return res.json()}
+async function loadLobbyFriends(){const wrap=$('lb-invite'),box=$('lb-friends');if(MODE!=='host'){wrap.classList.add('hidden');return}let st;
+  try{st=await hubApi('/api/me')}catch(e){wrap.classList.add('hidden');return}wrap.classList.remove('hidden');const list=st.friends||[];
+  if(!list.length){box.innerHTML='<div class="note">No friends yet. Add some from the GLITCHBOX menu.</div>';return}
+  box.innerHTML=list.map(f=>'<div class="wi-row"><span class="wi-dot'+(f.online?' on':'')+'"></span><span>'+esc(f.name)+'</span><button class="wi-btn" data-sub="'+esc(f.sub)+'">Invite</button></div>').join('');
+  box.querySelectorAll('.wi-btn').forEach(b=>b.onclick=async()=>{b.disabled=true;b.textContent='Sending...';try{await hubApi('/api/invite',{sub:b.dataset.sub,game:'carry-the-couch.html',room:net.code});b.textContent='Invited'}catch(e){b.textContent='Failed';b.disabled=false}})}
+function autoRoom(){const h=new URLSearchParams(HASH.replace(/^#/,''));const room=(h.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');if(room.length!==4)return false;
+  $('myname').value=LS.get('name','');show('s-online');if(h.get('host')==='1')hostRoom(room);else joinRoom(room);return true}
+
+// ═══════════════════════════════ BUTTONS ═══════════════════════════════
+$('b-online').onclick=openOnline;$('b-solo').onclick=()=>openJobs('solo');$('b-local').onclick=()=>openJobs('local');
+$('b-help').onclick=()=>{helpBack='s-title';show('s-help')};$('help-back').onclick=()=>show(helpBack);
+$('b-sound').onclick=$('pa-sound').onclick=()=>{SET.sound=!SET.sound;saveSet();auInit();auVol();syncSoundBtns()};
+$('jobs-back').onclick=()=>show('s-title');$('br-back').onclick=()=>show('s-jobs');$('br-go').onclick=()=>startLocal(BRIEF,PLAYMODE);
+$('b-host').onclick=()=>hostRoom();$('b-join').onclick=()=>joinRoom();$('joincode').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom()});
+$('on-back').onclick=()=>{netClose();MODE='menu';show('s-title')};
+$('lb-start').onclick=()=>hostGo();$('lb-leave').onclick=()=>{netClose();MODE='menu';G=null;show('s-title')};
+$('pausebtn').onclick=()=>{if(PAUSED||SCR)resumeGame();else pauseGame()};
+$('pa-resume').onclick=resumeGame;$('pa-restart').onclick=()=>{const id=G.J.id;if(MODE==='host')hostGo(id);else startLocal(id,MODE)};
+$('pa-help').onclick=()=>{helpBack='s-pause';show('s-help')};$('pa-jobs').onclick=quitGame;
+$('rs-retry').onclick=resultRetry;$('rs-next').onclick=resultNext;$('rs-jobs').onclick=resultJobs;
+syncSoundBtns();
+if(window.GBSave)GBSave.register({save:()=>({v:1,prog:PROG}),load:d=>{if(d&&d.prog){PROG=Object.assign({stars:{},best:{}},d.prog);saveProg();if(SCR==='s-jobs')openJobs(PLAYMODE)}},autosave:0});
+
+// ═══════════════════════════════ MAIN LOOP ═══════════════════════════════
+let last=now(),acc=0;
+function loop(){requestAnimationFrame(loop);const t=now();let dt=Math.min(.1,(t-last)/1000);last=t;
+  if(G){pollInputs();
+    if(G.sim&&!PAUSED&&!G.ended){acc+=dt;let n=0;while(acc>=PH.dt&&n<6){simStep(G,PH.dt);acc-=PH.dt;n++;if(MODE!=='host')G.ev.length=0}if(n>=6)acc=0}
+    if(MODE==='host')hostSend();if(MODE==='guest'){guestInterp(G);guestSend();if(LAST_SNAP&&!G.ended&&now()-LAST_SNAP>4000){hostGone();return}}
+    hud(G,dt)}
+  else if(DEMO&&!SMOKE){demoTick(Math.min(dt,1/30))}
+  if(!SMOKE){render(dt);drawJoy()}
+  if(AU.buf){let lv=0;const g=G;if(g&&!PAUSED)for(const it of g.items)if(it.state==='floor'&&it.drag)lv=Math.max(lv,clamp(hyp(it.vx||0,it.vy||0)/1.2,0,1)*(g.sim?1:.8));scrapeTick(lv)}}
+
+// ═══════════════════════════════ SCRIPTED CREWS (tests) ═══════════════════════════════
+// A "good crew" follows a planned route: each mover walks its own hands to where they
+// would be at the next pose along the route. A "naive crew" just heads for the van.
+function teleport(g,m,x,y){m.body.setPosition(V(x,y));m.body.setLinearVelocity(V(0,0));m.x=x;m.y=y}
+function gripEnds(g,it,ms){const K=it.K;const c=Math.cos(it.a),s=Math.sin(it.a);
+  const ends=ms.length===1?[[0,K.h/2+.26]]:[[K.w/2+.2,0],[-K.w/2-.2,0],[0,K.h/2+.26],[0,-K.h/2-.26]];
+  ms.forEach((m,i)=>{const e=ends[i%ends.length];teleport(g,m,it.x+e[0]*c-e[1]*s,it.y+e[0]*s+e[1]*c);release(g,m);tryGrab(g,m)})}
+function crewDrive(g,it,path,ms,S){if(it.state!=='floor'){for(const m of ms){m.in.mx=m.in.my=0;m.in.l=0}return}
+  const sym=it.K.parts.length===1?Math.PI:Math.PI*2;
+  const wrapd=d=>{d=((d%sym)+sym)%sym;return Math.min(d,sym-d)};
+  let bi=S.i,bc=1e9;for(let j=S.i;j<Math.min(path.length,S.i+40);j++){const p=path[j];const c=hyp(p.x-it.x,p.y-it.y)+.6*wrapd(p.a-it.a);if(c<bc){bc=c;bi=j}}
+  S.i=bi;const T=path[Math.min(path.length-1,bi+(S.look||5))];
+  const c=Math.cos(T.a),s=Math.sin(T.a);const onSt=!!stairsAt(g.lv,it.x,it.y);
+  for(const m of ms){if(m.hold!==it){m.in.mx=m.in.my=0;continue}const h=m.handleL;
+    const tx=T.x+h.x*c-h.y*s,ty=T.y+h.x*s+h.y*c;let dx=(tx-m.x)/.35,dy=(ty-m.y)/.35;const l=hyp(dx,dy),cap=S.spd||.8;if(l>cap){dx*=cap/l;dy*=cap/l}
+    m.in.mx=dx;m.in.my=dy;
+    if(S.noLift)m.in.l=0;else{if(m.st<.12&&!onSt)S.rest=1.2;m.in.l=(S.rest>0&&!onSt)?0:1}}
+  // a smart crew gets its grip back BEFORE a staircase, never on it
+  if(S.smart&&!onSt){let soon=false;for(let j=bi;j<Math.min(path.length,bi+28);j++)if(stairsAt(g.lv,path[j].x,path[j].y)){soon=true;break}
+    if(soon&&!S.full&&ms.some(m=>m.st<.6))S.full=true;
+    if(S.full&&ms.every(m=>m.st>=.98))S.full=false;
+    if(!soon)S.full=false;
+    if(S.full)for(const m of ms){m.in.mx=m.in.my=0;m.in.l=0}}
+  if(S.rest>0)S.rest-=PH.dt;
+  for(const m of ms)S.minSt=Math.min(S.minSt==null?1:S.minSt,m.st)}
+// the item plus the movers holding it, as one shape for the planner
+function crewShape(K,ms){const parts=K.round?[[0,0,K.w*.9,K.w*.9]]:K.parts.slice();for(const m of ms)if(m.handleL)parts.push([m.handleL.x,m.handleL.y,.42,.42]);
+  let r=0;for(const p of parts)for(const sx of[-1,1])for(const sy of[-1,1])r=Math.max(r,hyp(p[0]+sx*p[2]/2,p[1]+sy*p[3]/2));
+  return {parts,r,round:0,w:K.w,h:K.h}}
+// a human-ish leader: walks where its own hands should go along the route, and keeps walking
+function leadHandPath(path,h){return path.map(p=>{const c=Math.cos(p.a),s=Math.sin(p.a);return {x:p.x+h.x*c-h.y*s,y:p.y+h.x*s+h.y*c}})}
+function leadDrive(g,it,L,hp,S){if(it.state!=='floor'){L.in.mx=L.in.my=0;L.in.l=0;return}
+  while(S.k<hp.length-1&&hyp(hp[S.k].x-L.x,hp[S.k].y-L.y)<.45)S.k++;
+  const T=hp[Math.min(hp.length-1,S.k+2)];let dx=T.x-L.x,dy=T.y-L.y;const l=hyp(dx,dy)||1;const sp=S.spd||.75;L.in.mx=dx/l*sp;L.in.my=dy/l*sp;
+  const onSt=!!stairsAt(g.lv,it.x,it.y);if(L.st<.12&&!onSt)S.rest=1.5;if(S.rest>0){S.rest-=PH.dt;L.in.l=0;L.in.mx=L.in.my=0}else L.in.l=1}
+function naiveDrive(g,it,ms){const v=g.lv.van;const tx=v.x+v.w/2,ty=v.y+v.h/2;
+  for(const m of ms){let dx=tx-m.x,dy=ty-m.y;const l=hyp(dx,dy)||1;m.in.mx=dx/l;m.in.my=dy/l;m.in.l=m.st>.1?1:0}}
+function testGame(jobId,n,opt){const J=JOB(jobId);const seats=[];for(let i=0;i<n;i++)seats.push({seat:i,name:'T'+i});
+  const g=makeGame(J,Object.assign({sim:true,seats,mode:'test'},opt||{}));g.phase='play';g.countT=0;return g}
+function runFor(g,sec,fn){const n=Math.round(sec/PH.dt);for(let i=0;i<n;i++){if(fn&&fn(i)===false)break;simStep(g,PH.dt);g.ev.length=0;if(g.ended)break}}
+function deliver(jobId,kindIdx,opt){opt=opt||{};const g=testGame(jobId,opt.n||2);const it=g.items[kindIdx];
+  // clear the other furniture out of the way so this test is only about this piece
+  for(const o of g.items)if(o!==it){dropItemBody(g,o);o.state='loaded'}
+  const ms=g.movers;gripEnds(g,it,ms);
+  const r=planRoute(g.lv,opt.bare?it.K:crewShape(it.K,ms),{x:it.x,y:it.y,a:it.a});if(!r.ok)return {ok:false,why:'no route'};
+  const S={i:0,look:opt.look||5,noLift:opt.noLift,smart:opt.smart,rest:0};let t=0;let stairD=0,hitD=0;const _ev=ev;
+  runFor(g,opt.sec||90,()=>{t+=PH.dt;if(opt.naive)naiveDrive(g,it,ms);else crewDrive(g,it,r.path,ms,S);return it.state==='floor'});
+  return {ok:it.state==='loaded',t:+t.toFixed(1),cond:+it.cond.toFixed(2),state:it.state,idx:S.i,len:r.path.length,dep:g.dep,minSt:+(S.minSt||0).toFixed(2)}}
+
+// ═══════════════════════════════ SELF-TESTS (#smoke) ═══════════════════════════════
+// Everything here runs the real simulation. No mocks.
+function simTests(ok,quick){
+  // every job builds, spawns stand on floor, every piece starts clear and has a route to the van
+  let routes=0,total=0,blocked=[];
+  for(const J of JOBS){const lv=buildLevel(J);
+    ok(J.id+': spawns are walkable',J.spawn.every(s=>lv.walk[Math.floor(s[1]/RES)*lv.gw+Math.floor(s[0]/RES)]));
+    for(const d of J.items){total++;const K=KIND[d[0]];const r=planRoute(lv,K,{x:d[1],y:d[2],a:d[3]||0});if(r.ok)routes++;else blocked.push(J.id+'/'+d[0]+(r.startFree?'':' (starts in a wall)'))}}
+  ok('every piece in every job has a route to the van ('+routes+'/'+total+')'+(blocked.length?' blocked: '+blocked.join(', '):''),routes===total);
+  {const lv=buildLevel(JOB('hall'));const d=JOB('hall').items[0];
+   ok('the hallway couch needs a pivot (no route without turning it)',!planRoute(lv,KIND.couch,{x:d[1],y:d[2],a:0},{fixAngle:true}).ok);
+   ok('...and has one with turning',planRoute(lv,KIND.couch,{x:d[1],y:d[2],a:0}).ok)}
+  const solo=(job,idx,n)=>{const g=testGame(job,n);const it=g.items[idx];for(const o of g.items)if(o!==it){dropItemBody(g,o);o.state='loaded'}gripEnds(g,it,g.movers);return {g,it}};
+  // too heavy for one
+  {const {g,it}=solo('studio',0,1);const x0=it.x,y0=it.y;const m=g.movers[0];
+   runFor(g,2,()=>{m.in.mx=0;m.in.my=1;m.in.l=1});
+   ok('one mover cannot lift a couch (needs 2)',!it.lifted&&it.need===2);
+   ok('one mover cannot drag a couch (moved '+hyp(it.x-x0,it.y-y0).toFixed(2)+' m)',hyp(it.x-x0,it.y-y0)<.25)}
+  // two can drag it, lifting is faster
+  const push=(lift)=>{const {g,it}=solo('studio',0,2);const x0=it.x;runFor(g,2,()=>{for(const m of g.movers){m.in.mx=1;m.in.my=0;m.in.l=lift}});return {d:it.x-x0,lifted:it.lifted,g,it}};
+  {const a=push(0),b=push(1);
+   ok('two movers can drag a couch ('+a.d.toFixed(2)+' m in 2 s)',a.d>.8);
+   ok('two lifting move it further than two dragging ('+b.d.toFixed(2)+' vs '+a.d.toFixed(2)+')',b.d>a.d*1.4&&b.lifted);
+   ok('dragging a couch over wood scratches the floor (deposit '+a.g.dep+' < '+a.g.J.deposit+') and lifting does not',a.g.scratches>=0&&b.g.dep===b.g.J.deposit)}
+  // one mover lifts a box
+  {const {g,it}=solo('studio',2,1);runFor(g,.5,()=>{g.movers[0].in.l=1});ok('one mover can lift a box',it.lifted)}
+  // stamina
+  {const {g,it}=solo('studio',0,2);let tired=false;runFor(g,14,()=>{for(const m of g.movers){m.in.l=1;m.in.mx=0;m.in.my=0}if(g.movers.some(m=>m.tired>0))tired=true});
+   ok('holding a couch up wears your grip out',tired);
+   for(const m of g.movers)m.in.l=0;runFor(g,4);ok('putting it down gets your grip back',g.movers.every(m=>m.st>.9))}
+  // stairs: anything left on the floor slides down, lifted things do not
+  {const g=testGame('walkup',1);const it=g.items.find(i=>i.K.id==='box');for(const o of g.items)if(o!==it){dropItemBody(g,o);o.state='loaded'}
+   it.body.setPosition(V(10.6,5.2));it.body.setAngle(0);runFor(g,2.5);
+   ok('a box left on the stairs slides down ('+(it.y-5.2).toFixed(2)+' m) and gets damaged ('+Math.round(it.cond*100)+'%)',it.y-5.2>1.2&&it.cond<1)}
+  {const g=testGame('walkup',1);const it=g.items.find(i=>i.K.id==='box');for(const o of g.items)if(o!==it){dropItemBody(g,o);o.state='loaded'}
+   it.body.setPosition(V(10.6,5.2));it.body.setAngle(0);it.x=10.6;it.y=5.2;gripEnds(g,it,g.movers);const y0=it.y;runFor(g,1.5,()=>{g.movers[0].in.l=1});
+   ok('a lifted box stays put on the stairs (moved '+Math.abs(it.y-y0).toFixed(2)+' m)',Math.abs(it.y-y0)<.35&&it.lifted)}
+  // the mover below takes the weight on stairs
+  {const g=testGame('walkup',2);const it=g.items[0];for(const o of g.items)if(o!==it){dropItemBody(g,o);o.state='loaded'}
+   it.body.setPosition(V(10.62,6.6));it.body.setAngle(Math.PI/2);it.x=10.62;it.y=6.6;it.a=Math.PI/2;gripEnds(g,it,g.movers);
+   runFor(g,1.6,()=>{for(const m of g.movers){m.in.l=1;m.in.mx=m.in.my=0}});
+   const lo=g.movers.reduce((a,b)=>a.y>b.y?a:b),hi=g.movers.find(m=>m!==lo);
+   ok('on stairs the mover underneath tires faster ('+Math.round((1-lo.st)*100)+'% vs '+Math.round((1-hi.st)*100)+'%)',it.lifted&&(1-lo.st)>(1-hi.st)*2)}
+  // bumps
+  {const ram=(kind)=>{const g=testGame('studio',0);const it=g.items.find(i=>i.K.id===kind);for(const o of g.items)if(o!==it){dropItemBody(g,o);o.state='loaded'}
+     const y=.5+it.K.h/2+.15;it.body.setPosition(V(4.4,y));it.body.setAngle(0);it.body.setLinearVelocity(V(0,-2.4));runFor(g,1);return it};
+   const c=ram('couch'),l=ram('lamp'),b=ram('box');
+   ok('ramming a couch into a wall dents it ('+Math.round(c.cond*100)+'%)',c.cond<.97);
+   ok('a lamp breaks up worse than a box at the same speed ('+Math.round(l.cond*100)+'% vs '+Math.round(b.cond*100)+'%)',l.cond<b.cond)}
+  {const g=testGame('studio',2);const it=g.items[0];const x0=it.x;let peak=0;runFor(g,1.2,()=>{for(const m of g.movers){m.in.mx=0;m.in.my=0}});ok('a couch sitting still takes no damage',it.cond===1)}
+  // loading
+  {const g=testGame('studio',0);const it=g.items[1];for(const o of g.items)if(o!==it){dropItemBody(g,o);o.state='loaded'}
+   it.body.setPosition(V(g.lv.van.x+2,g.lv.van.y+1.15));it.body.setAngle(0);runFor(g,1);
+   ok('a chair inside the van gets loaded and paid ($'+g.cash+')',it.state==='loaded'&&g.cash===it.K.val)}
+  // invoice
+  {const g=testGame('studio',0);for(const it of g.items){dropItemBody(g,it);it.state='loaded';it.pay=it.K.val;g.cash+=it.pay}g.timeLeft=g.time0*.4;
+   const inv=invoiceOf(g);ok('a perfect job is worth 3 stars ('+inv.total+' of '+inv.par+')',inv.stars===3);
+   const g2=testGame('studio',0);g2.timeLeft=0;const inv2=invoiceOf(g2);ok('an empty van is worth 0 stars',inv2.stars===0&&inv2.items===0)}
+  if(quick)return;
+  // crews: the strategy is real
+  {const good=deliver('hall',0,{}),naive=deliver('hall',0,{naive:1,sec:40});
+   ok('hallway couch: a crew that pivots gets it out ('+good.t+' s)',good.ok);ok('hallway couch: a crew that just heads for the van does not',!naive.ok)}
+  {const tiredCrew=deliver('walkup',0,{}),smart=deliver('walkup',0,{smart:1});
+   ok('walk-up couch: resting before the stairs delivers it intact ('+Math.round(smart.cond*100)+'%)',smart.ok&&smart.cond>.9);
+   ok('walk-up couch: pushing on until your arms give out wrecks it ('+Math.round(tiredCrew.cond*100)+'%)',tiredCrew.cond<smart.cond-.25)}
+  {const p2=deliver('piano',0,{smart:1}),p3=deliver('piano',0,{smart:1,n:3});
+   ok('the piano can be done by two ('+p2.t+' s) and goes faster with three ('+p3.t+' s)',p2.ok&&p3.ok&&p3.t<p2.t)}
+}
+
+function runSmoke(){const out=[];let pass=0,fail=0;const t0=now();
+  const ok=(n,c)=>{c?pass++:fail++;out.push((c?'ok   ':'FAIL ')+n)};
+  const box=document.createElement('pre');box.id='smokeout';box.style.cssText='position:fixed;inset:0;z-index:99;overflow:auto;background:#f7f0e1;color:#231a13;font:13px/1.35 monospace;padding:14px;margin:0;white-space:pre-wrap';
+  try{simTests(ok)}catch(e){ok('sim tests threw: '+e.message+' '+(e.stack||'').split('\n')[1],false)}
+  // the CPU buddy: you grab one end, it takes the other and follows you out
+  try{const g=makeGame(JOB('studio'),{sim:true,seats:[{seat:0,name:'L',local:true},{seat:1,name:'B',bot:true}],solo:true,mode:'test'});g.phase='play';g.countT=0;
+    const it=g.items[0];for(const o of g.items)if(o!==it){dropItemBody(g,o);o.state='loaded'}
+    const L=g.movers[0],B=g.movers[1];const c=Math.cos(it.a),s=Math.sin(it.a);teleport(g,L,it.x+(it.K.w/2+.2)*c,it.y+(it.K.w/2+.2)*s);tryGrab(g,L);
+    let t=0;runFor(g,10,()=>{t+=PH.dt;L.in.mx=L.in.my=0;return B.hold!==it});
+    ok('solo: the buddy walks round and takes the other end ('+t.toFixed(1)+' s)',B.hold===it);
+    const r=planRoute(g.lv,crewShape(it.K,g.movers),{x:it.x,y:it.y,a:it.a});const hp=leadHandPath(r.path,L.handleL);const S={k:0,rest:0};let t2=0;
+    runFor(g,60,()=>{t2+=PH.dt;leadDrive(g,it,L,hp,S);return it.state==='floor'});
+    ok('solo: you lead, the buddy follows, the couch gets loaded ('+t2.toFixed(1)+' s, '+Math.round(it.cond*100)+'%)',it.state==='loaded')}catch(e){ok('buddy test threw: '+e.message,false)}
+  // the buddy fetches light things by itself
+  try{const g=makeGame(JOB('studio'),{sim:true,seats:[{seat:0,name:'L',local:true},{seat:1,name:'B',bot:true}],solo:true,mode:'test'});g.phase='play';g.countT=0;
+    let loaded=0;runFor(g,50,()=>{g.movers[0].in.mx=g.movers[0].in.my=0;loaded=g.items.filter(i=>i.state==='loaded').length;return loaded<2});
+    ok('solo: while you do something else the buddy loads boxes on its own ('+loaded+' loaded)',loaded>=2)}catch(e){ok('buddy fetch threw: '+e.message,false)}
+  // the network packet: what the host sends is what the guest draws
+  try{const h=makeGame(JOB('hall'),{sim:true,seats:[{seat:0,name:'H',cid:'h',local:true},{seat:1,name:'G',cid:'g'}],mode:'test'});h.phase='play';h.countT=0;
+    gripEnds(h,h.items[0],h.movers);runFor(h,1.2,()=>{for(const m of h.movers){m.in.mx=.3;m.in.my=.6;m.in.l=1}});
+    const s1=JSON.parse(JSON.stringify(packSnap(h)));runFor(h,.1,()=>{for(const m of h.movers){m.in.mx=.3;m.in.my=.6;m.in.l=1}});const s2=JSON.parse(JSON.stringify(packSnap(h)));
+    const keepG=G,keepM=MODE;G=makeGame(JOB('hall'),{sim:false,seats:[{seat:0,name:'H',cid:'h'},{seat:1,name:'G',cid:'g',local:true}],mode:'guest'});MODE='guest';SNAPS.length=0;SOFF=null;
+    guestSnap(s1);guestSnap(s2);SOFF=now()/1000-s2.f/60-.1;guestInterp(G);
+    const gi=G.items[0],hi=h.items[0];let err=0;for(const m of h.movers){const gm=G.movers.find(q=>q.seat===m.seat);err=Math.max(err,hyp(gm.x-m.x,gm.y-m.y))}
+    err=Math.max(err,hyp(gi.x-hi.x,gi.y-hi.y),Math.abs(angDiff(gi.a,hi.a)));
+    ok('guest draws the host positions (worst error '+err.toFixed(3)+')',err<.02);
+    ok('guest knows who holds what and that it is lifted',G.movers.every(m=>m.holdId===0)&&gi.lifted===hi.lifted&&gi.lifted);
+    ok('a snapshot stays small ('+JSON.stringify(s2).length+' bytes)',JSON.stringify(s2).length<1800);
+    // guest input reaches the host's mover
+    G=h;MODE='host';handleNet({t:'i',cid:'g',mx:-1,my:0,l:1,g:5,c:2,cc:2});const gm=h.movers[1];
+    ok('a guest\'s stick, lift, grab and call reach the host',gm.in.mx===-1&&gm.in.l===1&&gm.in.g===5&&gm.in.cc===2);
+    runFor(h,PH.dt);ok('...and the grab press toggles their grip',!gm.hold);
+    G=keepG;MODE=keepM}catch(e){ok('net test threw: '+e.message+' '+(e.stack||'').split('\n')[1],false);G=null;MODE='menu'}
+  // the page itself
+  ok('all screens are on the page',SCREENS.every(s=>$(s)));
+  {const el=document.createElement('div');jobCards(el,{pick:()=>{}});ok('job board shows '+JOBS.length+' jobs, the first one open',el.querySelectorAll('.job').length===JOBS.length&&!el.querySelector('.job').disabled)}
+  ok('every sound the game asks for is in the sprite',['thud','bump','scrape','stair','grunt','set','crash','glass','crack','box','tape','horn','cash','load','whistle','tick'].every(k=>SMAP[k]&&SMAP[k].length));
+  ok('no em dashes in anything a player reads',!/\u2014/.test(document.body.innerText+JSON.stringify(JOBS)+JSON.stringify(KIND)+CALLS.join('')));
+  ok('the quit menu script is on the page',!!window.GLITCHBOX_OFFLINE||!!document.querySelector('script[src*="glitchbox-menu"]'));
+  const tt=Math.round(now()-t0);out.unshift('CARRY THE COUCH self-test: '+pass+'/'+(pass+fail)+' passed in '+tt+' ms\n');
+  box.textContent=out.join('\n');document.body.appendChild(box);document.title='SMOKE '+(fail?'FAIL':'PASS')+' '+pass+'/'+(pass+fail)}
+
+// ═══════════════════════════════ START ═══════════════════════════════
+if(SMOKE){setTimeout(runSmoke,50)}
+else if(!pl){show('s-title');$('b-online').disabled=$('b-solo').disabled=$('b-local').disabled=true;$('s-title').querySelector('.sub').textContent="Couldn't load the physics engine. Check your connection and reload."}
+else{
+  if(DEBUG)window.__CTC={SET,auVol,get G(){return G},set G(v){G=v},JOBS,KIND,PH,planRoute,crewShape,crewDrive,gripEnds,simStep,makeGame,startLocal,hostRoom,joinRoom,handleNet,packSnap,NETIN,MY_CID,LOBBY,net,get MODE(){return MODE},showResult,invoiceOf,CAM};
+  const jm=HASH.match(/job=(\w+)/);
+  if(jm){PLAYMODE=/local/.test(HASH)?'local':'solo';startLocal(jm[1],PLAYMODE);if(/nocount/.test(HASH)){G.phase='play';G.countT=0}}
+  else if(!autoRoom())show('s-title');
+  requestAnimationFrame(loop)}
+})();
+</script>
+<script src="glitchbox-menu.js" data-pos="top-left" defer></script>
+</body>
+</html>

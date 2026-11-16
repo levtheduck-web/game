@@ -3,6 +3,7 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
+  {name:'Carry the Couch',    file:'carry-the-couch.html',       emoji:'🛋️',color:['#c99c63','#ee6a22'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Grab an end, lift together, pivot it through the doorway and down the stairs, and get it in the van before it leaves. 2 to 4 friends online, or you and a CPU buddy'},
   {name:'Five Nights at Monkes',file:'five-nights-at-monkes.html',emoji:'🐒',color:['#0b120c','#2a1a08'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Night keeper at a jungle play place. Listen for the monkes, shut the doors, feed Clappy a banana and make it to 6 AM. Split the jobs with up to 4 friends, or let one friend BE the monkes'},
   {name:'Moving Mountains',   file:'moving-mountains.html',       emoji:'⛰️',color:['#3d7fd0','#9fd36a'],category:'simulation', tags:['new','hot','mp'],blurb:'A 2,700,000,000-rock mountain is ruining Mr. Grumbleton\'s sunset. Get rid of it. You start with a spoon, then work up to pickaxes, C4, dump trucks and diggers. Bring friends with a room code, or download it for Windows and Mac'},
   {name:'Soap Rocket',        file:'soap-rocket.html',            emoji:'🧼',color:['#bfe6ff','#ffd6ea'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Make your perfect soap in the Soap Lab: oils, mold, colour and mix-ins. Then strap a rocket on it and race it around a slippery bathroom. Up to 8 friends online'},
@@ -56,6 +57,33 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
+'carry-the-couch':(c)=>{
+  // top-down floor plan on kraft: two movers carry a mustard couch out through a doorway towards the van
+  c.fillStyle='#b98b54';c.fillRect(0,0,320,200);c.strokeStyle='rgba(36,27,20,.22)';c.lineWidth=1.2;for(let d=-200;d<320;d+=10){c.beginPath();c.moveTo(d,0);c.lineTo(d+200,200);c.stroke()}
+  // wood floor
+  const pal=['#d2a066','#c8955b','#dba96f','#c18c52'];for(let r=0;r<24;r++)for(let x=-((r*37)%60);x<190;x+=58){c.fillStyle=pal[(r*3+x)&3];c.fillRect(Math.max(14,x),14+r*7,Math.min(58,190-Math.max(14,x)),7)}
+  c.fillStyle='rgba(70,40,15,.3)';for(let r=0;r<25;r++)c.fillRect(14,14+r*7,176,1);
+  // street + van
+  c.fillStyle='#45474b';c.fillRect(214,0,106,200);c.fillStyle='#c6c1b5';c.fillRect(196,0,22,200);c.fillStyle='#e0b13a';for(let y=6;y<200;y+=26)c.fillRect(306,y,3,14);
+  c.fillStyle='#7c8189';c.fillRect(236,66,60,64);c.fillStyle='rgba(255,255,255,.14)';for(let y=70;y<130;y+=6)c.fillRect(236,y,60,2);
+  c.fillStyle='#f0eee8';c.fillRect(236,60,60,6);c.fillRect(236,130,60,6);c.fillRect(296,58,22,80);c.fillStyle='#ee6a22';c.fillRect(236,62,60,2);c.fillRect(236,132,60,2);c.fillStyle='#8fb3c9';c.fillRect(310,64,5,68);
+  c.strokeStyle='#e6e3db';c.lineWidth=3;c.beginPath();c.moveTo(236,60);c.lineTo(222,46);c.moveTo(236,136);c.lineTo(222,150);c.stroke();
+  // walls with a doorway
+  c.fillStyle='#231a13';c.fillRect(0,0,320,14);c.fillRect(0,0,14,200);c.fillRect(0,186,196,14);c.fillRect(190,0,6,74);c.fillRect(190,122,6,78);
+  c.strokeStyle='rgba(36,27,20,.5)';c.lineWidth=1;c.setLineDash([3,3]);c.beginPath();c.arc(190,74,48,Math.PI/2,Math.PI);c.stroke();c.setLineDash([]);c.fillStyle='#e8dcc3';c.fillRect(142,72,48,4);
+  // the couch, lifted (shadow offset), angled through the door
+  c.save();c.translate(160,104);c.rotate(-.12);c.fillStyle='rgba(20,10,4,.3)';c.fillRect(-52,-16,112,40);
+  c.fillStyle='#a3741f';c.fillRect(-58,-22,112,42);c.strokeStyle='#231a13';c.lineWidth=2;c.strokeRect(-58,-22,112,42);c.fillStyle='#b88426';c.fillRect(-56,-20,108,11);c.fillRect(-56,-20,10,38);c.fillRect(42,-20,10,38);
+  c.fillStyle='#c8922c';for(let i=0;i<3;i++){c.fillRect(-44+i*30,-7,28,24);c.strokeRect(-44+i*30,-7,28,24)}c.restore();
+  // movers: caps in tape blue and van orange, arms on the ends
+  const mover=(x,y,f,col)=>{c.save();c.translate(x,y);c.rotate(f);c.strokeStyle='#e8b896';c.lineWidth=5;c.lineCap='round';c.beginPath();c.moveTo(0,-8);c.lineTo(11,-5);c.moveTo(0,8);c.lineTo(11,5);c.stroke();
+    c.fillStyle=col;c.strokeStyle='#231a13';c.lineWidth=2;c.beginPath();c.ellipse(0,0,8,12,0,0,6.3);c.fill();c.stroke();c.fillStyle='#e8b896';c.beginPath();c.arc(0,0,6,0,6.3);c.fill();c.stroke();c.fillStyle=col;c.beginPath();c.arc(1,0,5,-1.6,1.6);c.fill();c.restore()};
+  mover(222,92,Math.PI-.12,'#ee6a22');mover(92,114,-.12,'#2f6fdb');
+  // the lift dots: both lifting
+  c.fillStyle='#2b9455';c.strokeStyle='#231a13';c.lineWidth=1.5;for(const x of [150,164]){c.beginPath();c.arc(x,70,4.5,0,6.3);c.fill();c.stroke()}
+  // marker title
+  c.save();c.translate(18,178);c.rotate(-.05);c.font="400 25px 'Permanent Marker',cursive";c.fillStyle='rgba(20,12,6,.55)';c.fillText('CARRY THE COUCH',2,2);c.fillStyle='#f7f0e1';c.fillText('CARRY THE COUCH',0,0);c.restore();
+},
 'moving-mountains':(c)=>{
   // a big grey mountain over a meadow, a tiny orange dump truck and the rock counter
   c.save();

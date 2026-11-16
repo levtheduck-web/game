@@ -1,0 +1,45 @@
+CARRY THE COUCH - SOUND CREDITS
+
+Every sound in carry-the-couch-sfx.m4a is a real recording released under Creative Commons Zero (public domain).
+Nothing was synthesized: the recordings were only trimmed, pitched, filtered, faded and (some clips) layered two at a time.
+No attribution is required, but here is where they came from. Thank you!
+
+Kenney - UI Audio (www.kenney.nl, CC0): click1, click3
+Kenney - Impact Sounds (www.kenney.nl, CC0): impactMetal_heavy_000, impactMetal_heavy_001, impactSoft_heavy_001, impactWood_heavy_000, impactWood_heavy_001, impactWood_heavy_002, impactWood_heavy_003, impactWood_heavy_004
+Kenney - RPG Audio (www.kenney.nl, CC0): creak1
+
+Freesound.org (all CC0):
+  Footsteps Wooden Stairs Squeaking 1.wav by RutgerMuller - https://freesound.org/people/RutgerMuller/sounds/51149/
+  Chair Thrown, Crash, bolt fell out after crash.wav by issalcake - https://freesound.org/people/issalcake/sounds/115918/
+  Opening a creaking door by Ryding - https://freesound.org/people/Ryding/sounds/125957/
+  Clock ticking by olver - https://freesound.org/people/olver/sounds/130388/
+  cloth_ripping.wav by reg7783 - https://freesound.org/people/reg7783/sounds/133440/
+  FallingDownSteps.wav by cinevid - https://freesound.org/people/cinevid/sounds/144160/
+  Picture frame dropped on wood floor, shatters.wav by SpliceSound - https://freesound.org/people/SpliceSound/sounds/156578/
+  Grunt by SoundDawg101 - https://freesound.org/people/SoundDawg101/sounds/171635/
+  Wood Crack 5 by utsuru - https://freesound.org/people/utsuru/sounds/183450/
+  Wood Crack 2 by utsuru - https://freesound.org/people/utsuru/sounds/183452/
+  TableHit.flac by qubodup - https://freesound.org/people/qubodup/sounds/188056/
+  Falling Down Stairs by elliott.klein - https://freesound.org/people/elliott.klein/sounds/194911/
+  CardboardBoxes_01.wav by TheWAVLab - https://freesound.org/people/TheWAVLab/sounds/215475/
+  Glass Smash.wav by chewiesmissus - https://freesound.org/people/chewiesmissus/sounds/244238/
+  Attention Whistle by OwlStorm - https://freesound.org/people/OwlStorm/sounds/320140/
+  thunk.wav by Reitanna - https://freesound.org/people/Reitanna/sounds/323725/
+  muted wall hit.wav by Freeman213SG - https://freesound.org/people/Freeman213SG/sounds/326048/
+  Random Grunting by jlaclare - https://freesound.org/people/jlaclare/sounds/329908/
+  Cheer 2.wav by jayfrosting - https://freesound.org/people/jayfrosting/sounds/333404/
+  Cha Ching.wav by deleted_user_96253 - https://freesound.org/people/deleted_user_96253/sounds/351304/
+  Things Falling on a Wooden Floor.mp3 by dominictreis - https://freesound.org/people/dominictreis/sounds/362304/
+  Dragging Furniture.wav by Mrthenoronha - https://freesound.org/people/Mrthenoronha/sounds/377016/
+  Loading Ute_Flat Bed Truck in a large shed.wav by Alex_hears_things - https://freesound.org/people/Alex_hears_things/sounds/379917/
+  Packing Tape Taping by deleted_user_7146007 - https://freesound.org/people/deleted_user_7146007/sounds/383869/
+  Small Thuds by Nightflame - https://freesound.org/people/Nightflame/sounds/397601/
+  Attention Whistle.wav by taure - https://freesound.org/people/taure/sounds/411638/
+  truck pickup horn honk aggressive annoyed various1.wav by kyles - https://freesound.org/people/kyles/sounds/450821/
+  cardboard box of jars pickup slide and put down on metal cart in warehouse thud clang.flac by kyles - https://freesound.org/people/kyles/sounds/451772/
+  door wood old heavy kick open good impact 1 with rattle 1 without.wav by kyles - https://freesound.org/people/kyles/sounds/452609/
+  Small applause by Breviceps - https://freesound.org/people/Breviceps/sounds/462362/
+  foley_Cardboard Box Drop.wav by ittou - https://freesound.org/people/ittou/sounds/465451/
+  Grunting effort pushing something.wav by DeqstersLab - https://freesound.org/people/DeqstersLab/sounds/680135/
+  Chair - Dragged on the ground by Vrymaa - https://freesound.org/people/Vrymaa/sounds/735345/
+  Soft Male Vocal, Short Pained/Exhertion Groans - Vocal Efforts by salemaudio - https://freesound.org/people/salemaudio/sounds/803168/
