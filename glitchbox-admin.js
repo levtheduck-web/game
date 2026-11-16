@@ -732,14 +732,30 @@
   function claimPanel() {
     if (typeof currentUser === 'undefined' || !currentUser)
       return '<div class="adm-empty">Sign in first - the console follows the account, not the browser.</div>';
+    // The hub never got your account back from the server (expired sign-in, server error,
+    // offline). Then we know nothing about ownership, so say that instead of guessing.
+    const st = (typeof lastState !== 'undefined' && lastState) || {};
+    if (!st.profile) {
+      const er = window.__meErr;
+      const expired = er && er.status === 401;
+      return '<div class="adm-h">// ACCOUNT NOT LOADED</div>' +
+        '<div class="adm-note">The server hasn\'t confirmed who you are, so this console can\'t tell yet whether you\'re the owner.</div>' +
+        '<div class="adm-note">' + (expired
+          ? 'Your sign-in has expired (they last 30 days). Sign out with ⏻ next to your name and sign back in with Google.'
+          : er ? 'The server answered: <b>' + esc(er.msg) + '</b>' + (er.status ? ' (HTTP ' + er.status + ')' : '') + '. Reload the page; if it keeps saying this, note the message.'
+               : 'Still loading. Give it a few seconds, or reload the page.') + '</div>';
+    }
     // OWNER_EMAIL is set on the Worker: one account owns this arcade and the claim
     // code is dead, so offering an input here would just be a box that always fails.
-    if (typeof lastState !== 'undefined' && lastState && lastState.ownerPinned)
+    if (st.ownerPinned) {
+      const oc = st.ownerCheck || {};
       return '<div class="adm-h">// OWNER ONLY</div>' +
         '<div class="adm-note">This arcade is pinned to a single owner account. You are signed in as ' +
-          '<b>' + esc(currentUser.email || currentUser.name) + '</b>, which is not it.</div>' +
+          '<b>' + esc(oc.email || currentUser.email || currentUser.name) + '</b>, which is not it.</div>' +
+        (oc.email && oc.emailMatches && !oc.emailVerified ? '<div class="adm-note">That is the owner address, but Google hasn\'t marked it verified on this account.</div>' : '') +
         '<div class="adm-note">Sign out and sign back in with the owner\'s Google account - the server ' +
           're-checks the address on every request, so there is nothing to unlock from this side.</div>';
+    }
     return '<div class="adm-h">// CLAIM OWNERSHIP</div>' +
       '<div class="adm-note">This account isn\'t the owner yet. Enter the claim code (a Worker secret) once and ' +
         'this account becomes the permanent owner - the claim can\'t be repeated afterwards.</div>' +

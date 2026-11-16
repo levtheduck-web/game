@@ -12,7 +12,7 @@
 <script src="glitchbox-games.js?v=20261116q"></script>
 <!-- Owner console (Ctrl+Shift+A). Deferred so it loads after the hub's own script. -->
 <script src="glitchbox-social.js?v=20261013b" defer></script>
-<script src="glitchbox-admin.js?v=20261116a" defer></script>
+<script src="glitchbox-admin.js?v=20261116b" defer></script>
 <script src="glitchbox-cmd.js?v=20261013a" defer></script>
 <script src="glitchbox-contests.js?v=20261116p" defer></script>
 <style>
@@ -2119,6 +2119,7 @@ async function refreshState(){
   if(!getSession()) return;
   try {
     lastState = await api('/api/me');
+    window.__meErr = null;
     clearBan();
     applyArcade(lastState.announce, lastState.maintenance);
     applySwitches(lastState); applyPending(lastState); checkTos();
@@ -2135,10 +2136,15 @@ async function refreshState(){
     }
     renderAll();
   } catch(e){
+    // remembered so the owner console can say what really went wrong
+    window.__meErr = { status: e.status || 0, msg: String(e.message || e) };
     if(banReason(e) !== null) return showBan(banReason(e));
     if(e.status === 401){
       localStorage.removeItem('glitchbox_session');
       if(window.google && google.accounts && google.accounts.id){ google.accounts.id.prompt(); }
+      // The name in the sidebar is only a saved copy; the server sign-in behind it is gone
+      // (expired after 30 days). Say so instead of failing quietly.
+      try { noticeToast('🔑 SIGN IN AGAIN', 'Your sign-in expired. Sign out with ⏻ next to your name, then sign back in with Google.', 12000); } catch(e2){}
     }
   }
 }
