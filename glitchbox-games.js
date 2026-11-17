@@ -3,8 +3,6 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
-  {name:'Hop',                file:'hop.html',                   emoji:'🦆',color:['#9fdcff','#2f9be8'],category:'multiplayer',tags:['new','mp'],blurb:'Hold to charge, let go to hop. Land the duck on the next platform, hit the middle for bonus points, miss and it is a splash. Race friends on the same course'},
-  {name:'Stacked',            file:'stacked.html',               emoji:'🧱',color:['#6ec3f0','#ffc6a2'],category:'multiplayer',tags:['new','mp'],blurb:'Drop swinging blocks, planks, ramps and balls on a tiny platform and build as high as you can. Wind kicks in at 20 m. Or take turns on one tower with friends and try not to be the one who knocks it over'},
   {name:'Carry the Couch',    file:'carry-the-couch.html',       emoji:'🛋️',color:['#c99c63','#ee6a22'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Grab an end, lift together, pivot it through the doorway and down the stairs, and get it in the van before it leaves. 2 to 4 friends online, or you and a CPU buddy'},
   {name:'Five Nights at Monkes',file:'five-nights-at-monkes.html',emoji:'🐒',color:['#0b120c','#2a1a08'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Night keeper at a jungle play place. Listen for the monkes, shut the doors, feed Clappy a banana and make it to 6 AM. Split the jobs with up to 4 friends, or let one friend BE the monkes'},
   {name:'Moving Mountains',   file:'moving-mountains.html',       emoji:'⛰️',color:['#3d7fd0','#9fd36a'],category:'simulation', tags:['new','hot','mp'],blurb:'A 2,700,000,000-rock mountain is ruining Mr. Grumbleton\'s sunset. Get rid of it. You start with a spoon, then work up to pickaxes, C4, dump trucks and diggers. Bring friends with a room code, or download it for Windows and Mac'},
@@ -600,54 +598,6 @@ const DRAW={
   for(let i=0;i<10;i++){c.fillStyle='rgba(220,240,255,.85)';c.beginPath();c.arc(198+i*4.5,62+((i*13)%14)-i*1.5,1.6,0,6.3);c.fill()}
   const vg=c.createRadialGradient(160,100,60,160,100,210);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.65)');c.fillStyle=vg;c.fillRect(0,0,320,200);
   _SC(c);
-},
-'hop':(c)=>{
-  // the duck mid-hop over the water toward a narrow platform, power bar and a Perfect! pop
-  _GV(c,0,0,320,152,'#9fdcff','#e8f7ff');_C(c,290,30,15,'#fff3b8');
-  const cloud=(x,y,s)=>{c.fillStyle='#fff';c.beginPath();c.arc(x,y,9*s,Math.PI,0);c.arc(x+10*s,y+1,6*s,Math.PI*1.2,.1);c.arc(x-10*s,y+2,5*s,Math.PI,1.9*Math.PI);c.closePath();c.fill();c.fillRect(x-15*s,y,31*s,3*s)};
-  cloud(40,30,1.1);cloud(262,64,.8);
-  const plat=(x,w)=>{_F(c,x,124,w,80,'#f39a4a');_F(c,x,124,w,7,'#ffb35c');_F(c,x,124,4,80,'rgba(255,255,255,.25)')};
-  plat(14,74);plat(178,40);plat(270,60);_F(c,191,124,14,3,'#ff6f61');
-  _F(c,0,150,320,50,'#2f9be8');c.fillStyle='rgba(87,180,242,.6)';c.beginPath();c.moveTo(0,200);for(let x=0;x<=320;x+=8)c.lineTo(x,160+Math.sin(x*.05)*3);c.lineTo(320,200);c.fill();
-  c.strokeStyle='rgba(255,255,255,.75)';c.lineWidth=2;c.beginPath();for(let x=0;x<=320;x+=8){const y=150+Math.sin(x*.06)*2;x?c.lineTo(x,y):c.moveTo(x,y)}c.stroke();
-  // dotted arc of the hop
-  c.setLineDash([3,5]);c.strokeStyle='rgba(31,53,80,.3)';c.lineWidth=2;c.beginPath();c.moveTo(50,120);c.quadraticCurveTo(120,8,196,118);c.stroke();c.setLineDash([]);
-  // duck, stretched in the air
-  c.save();c.translate(112,76);c.rotate(-.15);c.scale(1.45,1.7);
-  c.fillStyle='#ffd23f';c.beginPath();c.ellipse(-1,0,14,10,0,0,6.3);c.fill();c.beginPath();c.moveTo(-13,-3);c.lineTo(-20,-9);c.lineTo(-11,-7);c.fill();
-  c.beginPath();c.arc(8,-12,8,0,6.3);c.fill();c.fillStyle='#f2bb1d';c.beginPath();c.ellipse(-3,1,7,4,-.3,0,6.3);c.fill();
-  c.fillStyle='#ff8a3d';c.beginPath();c.moveTo(14,-13);c.lineTo(22,-11);c.lineTo(14,-8);c.fill();_F(c,-5,9,3,4,'#ff8a3d');_F(c,2,9,3,4,'#ff8a3d');
-  _C(c,10,-14,1.6,'#1f3550');c.restore();
-  c.font='900 22px ui-rounded,"Arial Rounded MT Bold",sans-serif';c.textAlign='center';c.lineJoin='round';c.lineWidth=5;c.strokeStyle='#fff';c.strokeText('Perfect!',236,96);c.fillStyle='#ff6f61';c.fillText('Perfect!',236,96);
-  c.font='900 40px ui-rounded,"Arial Rounded MT Bold",sans-serif';c.lineWidth=6;c.strokeStyle='rgba(31,53,80,.2)';c.strokeText('12',204,44);c.fillStyle='#fff';c.fillText('12',204,42);
-},
-'stacked':(c)=>{
-  // a wobbly pastel tower on a little pedestal, the next crate swinging in on its rope
-  _GV(c,0,0,320,200,'#6ec3f0','#bfe3f7','#ffe3c4');
-  _C(c,262,104,20,'#fff1bf');
-  const cloud=(x,y,s)=>{c.fillStyle='rgba(255,255,255,.9)';c.beginPath();c.arc(x,y,9*s,Math.PI,0);c.arc(x+11*s,y+1,7*s,Math.PI*1.2,.1);c.arc(x-11*s,y+2,6*s,Math.PI,1.9*Math.PI);c.closePath();c.fill();c.fillRect(x-17*s,y,35*s,3*s)};
-  cloud(40,96,1.1);cloud(226,138,.8);cloud(70,120,.7);
-  c.fillStyle='#a6dcb8';c.beginPath();c.moveTo(0,200);for(let x=0;x<=320;x+=16)c.lineTo(x,172-Math.sin(x*.03)*8-Math.sin(x*.08)*3);c.lineTo(320,200);c.fill();
-  c.fillStyle='#86cf9f';c.beginPath();c.moveTo(0,200);for(let x=0;x<=320;x+=16)c.lineTo(x,186-Math.sin(x*.025+2)*7);c.lineTo(320,200);c.fill();
-  const ink='#2b2840';c.lineJoin='round';
-  const blk=(x,y,w,h,col,a,deco)=>{c.save();c.translate(x,y);c.rotate(a||0);c.fillStyle='rgba(43,40,64,.18)';c.fillRect(-w/2+3,-h/2+3,w,h);c.fillStyle=col;c.fillRect(-w/2,-h/2,w,h);
-    if(deco==='x'){c.strokeStyle='rgba(43,40,64,.2)';c.lineWidth=1.5;c.strokeRect(-w/2+4,-h/2+4,w-8,h-8);c.beginPath();c.moveTo(-w/2+4,-h/2+4);c.lineTo(w/2-4,h/2-4);c.stroke()}
-    if(deco==='d'){c.fillStyle='rgba(43,40,64,.2)';[[-.3,-.2],[.1,.15],[.3,-.1]].forEach(([u,v])=>{c.beginPath();c.arc(u*w,v*h,1.6,0,6.3);c.fill()})}
-    c.strokeStyle=ink;c.lineWidth=2.4;c.strokeRect(-w/2,-h/2,w,h);c.restore()};
-  // pedestal
-  c.fillStyle='#e8c99d';c.beginPath();c.moveTo(130,176);c.lineTo(190,176);c.lineTo(182,200);c.lineTo(138,200);c.fill();c.strokeStyle=ink;c.lineWidth=2.4;c.stroke();
-  c.fillStyle='#f4d9b0';c.fillRect(104,162,112,16);c.fillStyle='#9fd98a';c.fillRect(104,162,112,5);c.strokeRect(104,162,112,16);
-  // the tower, leaning more the higher it gets
-  blk(160,152,46,19,'#cbb9f0',0,'d');blk(158,131,24,24,'#ffe49a',.01,'x');blk(161,115,68,8,'#cde7a3',.03);
-  blk(163,97,32,30,'#ffc6a2',.04,'x');blk(166,75,26,13,'#b2d8ff',.06);blk(168,58,44,19,'#cbb9f0',.07,'d');
-  c.save();c.translate(172,40);c.rotate(.09);c.fillStyle='#ffb1c6';c.beginPath();c.moveTo(-18,8);c.lineTo(18,8);c.lineTo(18,-14);c.closePath();c.fill();c.strokeStyle=ink;c.lineWidth=2.4;c.stroke();c.restore();
-  // rope + swinging crate
-  _L(c,96,0,84,30,ink,2.2);_C(c,84,30,2.6,ink);blk(84,42,24,24,'#ffe49a',-.12,'x');
-  c.setLineDash([3,5]);_L(c,84,58,84,100,'rgba(43,40,64,.35)',1.6);c.setLineDash([]);
-  // wind streaks + height tag
-  c.strokeStyle='rgba(255,255,255,.85)';c.lineWidth=2;c.lineCap='round';[[210,60,40],[230,74,30],[200,128,36],[250,150,26]].forEach(([x,y,l])=>{c.beginPath();c.moveTo(x,y);c.lineTo(x+l,y);c.stroke()});
-  c.fillStyle='#fffaf0';c.strokeStyle=ink;c.lineWidth=2.4;c.beginPath();c.roundRect?c.roundRect(236,10,74,34,8):c.rect(236,10,74,34);c.fill();c.stroke();
-  c.fillStyle=ink;c.font='900 20px ui-rounded,"Arial Rounded MT Bold",sans-serif';c.textAlign='left';c.fillText('24.6',243,35);c.font='800 12px sans-serif';c.fillText('m',289,35);
 },
 'five-nights-at-monkes':(c)=>{
   // the keeper's office at 2 AM: a lit west doorway with Bongo grinning in it, a shut east shutter, eyes in the vent
