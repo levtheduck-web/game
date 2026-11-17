@@ -9,7 +9,7 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="glitchbox-config.js"></script>
 <!-- Game roster + thumbnail art, shared with play.html -->
-<script src="glitchbox-games.js?v=20261117a"></script>
+<script src="glitchbox-games.js?v=20261117b"></script>
 <!-- Owner console (Ctrl+Shift+A). Deferred so it loads after the hub's own script. -->
 <script src="glitchbox-social.js?v=20261013b" defer></script>
 <script src="glitchbox-admin.js?v=20261116b" defer></script>
@@ -1744,6 +1744,7 @@ var lastState = { profile:null, friends:[], incoming:[], outgoing:[], blocked:[]
 // work from GitHub Pages with no server to run. Add a game here once it speaks the
 // relay protocol (see Room in glitchbox-api/src/index.js).
 const MP_GAMES = [
+  { file:'night-market.html', name:'Night Market', emoji:'🏮', desc:'2-8 players · run food stalls on one street, most money at sunrise wins' },
   { file:'low-tide.html', name:'Low Tide', emoji:'🏰', desc:'2-6 players · build a sandcastle together before the tide comes in' },
   { file:'carry-the-couch.html', name:'Carry the Couch', emoji:'🛋️', desc:'2-4 players · lift together, pivot, get the couch in the van' },
   { file:'five-nights-at-monkes.html', name:'Five Nights at Monkes', emoji:'🐒', desc:'1-5 players · split the doors and cameras, or one friend plays the monkes' },

@@ -3,6 +3,7 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
+  {name:'Night Market',       file:'night-market.html',          emoji:'🏮',color:['#17122b','#e2453c'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Run a food stall on a busy street from 6 PM to midnight while your friends run the stalls next door. Buy at the shared wholesaler, cook to the line, undercut a rival or sell the dish nobody else does. 2 to 8 friends online, or solo against CPU stalls'},
   {name:'Low Tide',           file:'low-tide.html',              emoji:'🏰',color:['#efd9a7','#1f8a8a'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Build a sandcastle with your friends before the tide comes in. Dig a moat, pat the walls, wet the sand, and keep the flag dry while every tide comes in higher. 2 to 6 friends online, or solo with CPU helpers'},
   {name:'Carry the Couch',    file:'carry-the-couch.html',       emoji:'🛋️',color:['#c99c63','#ee6a22'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Grab an end, lift together, pivot it through the doorway and down the stairs, and get it in the van before it leaves. 2 to 4 friends online, or you and a CPU buddy'},
   {name:'Five Nights at Monkes',file:'five-nights-at-monkes.html',emoji:'🐒',color:['#0b120c','#2a1a08'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Night keeper at a jungle play place. Listen for the monkes, shut the doors, feed Clappy a banana and make it to 6 AM. Split the jobs with up to 4 friends, or let one friend BE the monkes'},
@@ -58,6 +59,29 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
+'night-market':(c)=>{
+  // a night street: string lights, three glowing stalls with striped awnings, a little crowd, steam off a wok
+  _GV(c,0,0,320,200,'#0b0820','#1d1440','#2a1838');
+  for(let i=0;i<9;i++){const x=i*38-6,w=30+(i*17)%22,h=40+(i*29)%50;c.fillStyle='#120d28';c.fillRect(x,96-h,w,h);c.fillStyle='rgba(255,200,120,.5)';for(let k=0;k<6;k++)if((i+k)%3)c.fillRect(x+4+(k%2)*12,100-h+6+(k>>1)*10,5,4)}
+  c.strokeStyle='#120d22';c.lineWidth=1.2;c.beginPath();for(let x=0;x<=320;x+=8)c.lineTo(x,22+Math.sin(x/320*Math.PI)*16);c.stroke();
+  const bulb=['#ffb547','#e2453c','#ffe9c7','#ff7ab6'];for(let k=1;k<16;k++){const x=k*20,y=26+Math.sin(x/320*Math.PI)*16;c.save();c.shadowColor=bulb[k%4];c.shadowBlur=10;c.fillStyle=bulb[k%4];c.beginPath();c.arc(x,y,3.2,0,6.3);c.fill();c.restore()}
+  _GV(c,0,138,320,62,'#2b2140','#141024');
+  const stall=(x,col,em)=>{const w=92;const g=c.createRadialGradient(x+w/2,100,4,x+w/2,100,70);g.addColorStop(0,'rgba(255,180,100,.35)');g.addColorStop(1,'rgba(255,180,100,0)');c.fillStyle=g;c.fillRect(x-20,40,w+40,110);
+    c.fillStyle='#3a2a2a';c.fillRect(x+4,64,w-8,74);c.fillStyle='#5a3a24';c.fillRect(x,54,5,84);c.fillRect(x+w-5,54,5,84);
+    for(let k=0;k<6;k++){c.fillStyle=k%2?'#f6ead2':col;c.fillRect(x+k*w/6,52,w/6+.5,12);c.beginPath();c.arc(x+(k+.5)*w/6,64,w/12,0,Math.PI);c.fill()}
+    c.fillStyle='#22302a';c.fillRect(x+18,72,w-36,32);c.font='16px sans-serif';c.textAlign='center';c.fillStyle='#fff';c.fillText(em,x+w/2-12,94);c.font="700 11px Karla,sans-serif";c.fillStyle='#f2efe6';c.fillText('$6',x+w/2+14,92);
+    c.fillStyle='#7a4f2c';c.fillRect(x-2,118,w+4,20);c.fillStyle='#93613a';c.fillRect(x-2,118,w+4,4);
+    c.fillStyle='#2a2a30';c.beginPath();c.ellipse(x+w/2,124,13,5,0,0,6.3);c.fill();c.fillStyle='rgba(255,140,40,.5)';c.beginPath();c.ellipse(x+w/2,129,12,4,0,0,6.3);c.fill();
+    c.fillStyle='rgba(255,240,225,.16)';for(let k=0;k<3;k++){c.beginPath();c.arc(x+w/2+20+Math.sin(k*2)*5,112-k*8,4+k*2,0,6.3);c.fill()}};
+  stall(8,'#ffb547','🥟');stall(114,'#e2453c','🍜');stall(220,'#3ee0c5','🧋');
+  const P=['#e9b48a','#c98b5e','#8d5a3b','#f2c9a1'],SH=['#5aa9ff','#ff7ab6','#7fd36b','#ffb547','#b28cff','#f6ead2'];
+  for(let i=0;i<13;i++){const x=12+i*24+(i%3)*4,y=170+(i%2)*14;c.fillStyle=SH[i%6];c.fillRect(x-5,y-16,10,16);c.fillStyle=P[i%4];c.beginPath();c.arc(x,y-20,4.6,0,6.3);c.fill()}
+  // neon title
+  c.save();c.font="400 24px 'Bungee',Impact,sans-serif";c.textAlign='left';c.shadowColor='#e2453c';c.shadowBlur=14;c.fillStyle='#ffe9c7';c.fillText('NIGHT MARKET',10,30);c.restore();
+  if(!window.__nmFontOK&&document.fonts){(window.__nmRedraw=window.__nmRedraw||[]).push(()=>DRAW['night-market'](c));
+    if(!window.__nmFontReq){window.__nmFontReq=1;const l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family=Bungee&display=swap';
+      l.onload=()=>document.fonts.load("24px Bungee").then(f=>{if(f&&f.length){window.__nmFontOK=1;const q=window.__nmRedraw||[];window.__nmRedraw=[];q.forEach(fn=>{try{fn()}catch(e){}})}}).catch(()=>{});document.head.appendChild(l)}}
+},
 'low-tide':(c)=>{
   // top-down beach: sea along the bottom, a wave running up, a packed ring wall and moat round a bucket tower with a red flag
   c.fillStyle='#f1dcab';c.fillRect(0,0,320,200);

@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Night Market</title>
+<script src="glitchbox-config.js"></script>
+<script src="glitchbox-save.js" data-pos="top-left"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Karla:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+/* A night street: indigo dark, paper lanterns, hand-painted signs, neon trim, chalk menu boards. */
+:root{--night:#17122b;--deep:#0e0b1d;--ink:#0e0b1d;--paper:#f6ead2;--red:#e2453c;--amber:#ffb547;--teal:#3ee0c5;--violet:#b28cff;--chalk:#2b3a33;--mut:#a99fc4;--good:#7fd36b}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--deep);color:var(--paper);font-family:'Karla',system-ui,sans-serif;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+canvas#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
+.hidden{display:none!important}
+button{font-family:inherit;color:inherit}
+.scr{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:20;padding:18px 16px;background:rgba(8,6,18,.55)}
+.card{position:relative;width:min(560px,100%);max-height:100%;overflow:auto;padding:26px 26px 22px;border-radius:16px;background:linear-gradient(170deg,#241c40,#17122b);
+  border:2px solid rgba(255,181,71,.55);box-shadow:0 0 0 1px rgba(0,0,0,.6),0 0 40px rgba(226,69,60,.25),0 24px 60px rgba(0,0,0,.6);scrollbar-width:thin}
+.card.wide{width:min(880px,100%)}
+h1.neon{font-family:'Bungee',sans-serif;font-weight:400;font-size:clamp(40px,8.5vw,78px);line-height:.95;color:#ffe9c7;margin:4px 0 8px;
+  text-shadow:0 0 6px #ffb547,0 0 18px #e2453c,0 0 38px #e2453c,3px 3px 0 #5a1414}
+h2.neon{font-family:'Bungee';font-weight:400;font-size:clamp(24px,4.2vw,36px);color:#ffe9c7;text-shadow:0 0 8px #e2453c,2px 2px 0 #5a1414;margin-bottom:8px}
+.sub{font-size:17px;font-weight:700;color:#d8cfee;margin-bottom:12px;max-width:440px;line-height:1.35}
+.lantern{position:absolute;top:18px;right:22px;width:56px;height:70px;border-radius:40% 40% 44% 44%;background:radial-gradient(circle at 50% 45%,#ffb547,#e2453c 60%,#8a1f1a);box-shadow:0 0 30px rgba(255,140,60,.7);animation:sway 3s ease-in-out infinite;transform-origin:50% -20px}
+.lantern::before{content:'';position:absolute;left:18px;right:18px;top:-6px;height:6px;background:#3a2a10;border-radius:2px}.lantern::after{content:'';position:absolute;left:20px;right:20px;bottom:-5px;height:5px;background:#3a2a10;border-radius:2px}
+@keyframes sway{50%{transform:rotate(5deg)}}
+.btn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font-weight:800;font-size:20px;padding:11px 16px;margin-top:10px;
+  border:2px solid rgba(246,234,210,.25);border-radius:12px;background:rgba(255,255,255,.06);cursor:pointer;transition:transform .07s,background .1s}
+.btn small{display:block;font-size:14px;font-weight:700;color:var(--mut);margin-top:1px}
+.btn .ic{font-size:26px;width:34px;text-align:center;flex:none}
+.btn:hover{background:rgba(255,255,255,.12);transform:translateY(-1px)}.btn:active{transform:translateY(2px)}
+.btn.pri{background:linear-gradient(180deg,#f0574d,#c2342c);border-color:#ffb547;color:#fff;box-shadow:0 0 18px rgba(226,69,60,.45)}.btn.pri small{color:#ffd9c9}
+.btn.alt{background:linear-gradient(180deg,#2bb9a2,#1d8676);border-color:#3ee0c5;color:#fff}.btn.alt small{color:#cdf7ef}
+.btn:disabled{opacity:.45;cursor:default;transform:none}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>.btn{flex:1;min-width:150px}
+.mini{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:14.5px;padding:6px 12px;border:2px solid rgba(246,234,210,.3);border-radius:999px;background:rgba(255,255,255,.06);cursor:pointer;margin:10px 6px 0 0}
+.mini.on{background:var(--amber);color:var(--ink);border-color:var(--amber)}
+input.txt{width:100%;font:800 21px 'Karla';padding:9px 12px;border:2px solid rgba(255,181,71,.6);border-radius:10px;background:rgba(0,0,0,.35);color:var(--paper);margin-top:6px;outline:none}
+input.code{text-transform:uppercase;letter-spacing:8px;text-align:center;font-family:'Bungee';font-size:28px}
+label.lb{display:block;font-weight:800;font-size:12.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--amber);margin-top:14px}
+.status{min-height:22px;font-weight:800;margin-top:10px;color:var(--teal)}.status.err{color:#ff8a80}
+.prow{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;padding:7px 4px;border-bottom:1px dashed rgba(246,234,210,.18)}
+.prow .dot{width:16px;height:16px;border-radius:4px;box-shadow:0 0 8px currentColor}.prow .tg{margin-left:auto;font-size:13px;color:var(--mut)}
+.code-big{font-family:'Bungee';font-size:52px;letter-spacing:8px;color:#ffe9c7;text-shadow:0 0 10px #3ee0c5,0 0 24px #3ee0c5;line-height:1.05}
+.note{font-size:14.5px;font-weight:700;color:var(--mut);margin-top:8px;line-height:1.35}
+.help{font-size:16px;font-weight:700;line-height:1.45;color:#e8e0f6}.help p{margin:8px 0}.help b{color:var(--amber)}
+kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';border:1px solid rgba(246,234,210,.5);border-radius:6px;padding:0 5px;background:rgba(255,255,255,.08)}
+.board{width:100%;border-collapse:collapse;margin:10px 0;font-weight:800;font-size:15.5px}
+.board th{font-size:11.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--mut);text-align:right;padding:4px 6px}.board th:nth-child(2){text-align:left}
+.board td{padding:7px 6px;text-align:right;border-top:1px solid rgba(246,234,210,.12)}.board td:nth-child(2){text-align:left}
+.board tr.me td{background:rgba(255,181,71,.13)}.board .rk{font-family:'Bungee';font-size:18px;color:var(--amber);text-align:left;width:34px}
+.board .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:7px;vertical-align:-1px}
+.big-n{font-family:'Bungee';font-size:62px;line-height:1;color:#ffe9c7;text-shadow:0 0 12px #ffb547,0 0 26px #e2453c}
+.lines{font-weight:700;font-size:15px;line-height:1.5;color:#e2d9f3}
+/* HUD */
+#hud{position:fixed;left:0;right:0;top:0;z-index:5;pointer-events:none;display:flex;justify-content:center;padding:8px 70px 0}
+.clock{display:flex;align-items:center;gap:12px;background:rgba(14,11,29,.82);border:2px solid rgba(255,181,71,.6);border-radius:999px;padding:4px 16px 4px 6px;box-shadow:0 0 18px rgba(226,69,60,.25)}
+.clock .tm{font-family:'Bungee';font-size:20px;color:var(--ink);background:var(--amber);border-radius:999px;padding:1px 12px}
+.clock .ev{font-weight:800;font-size:15.5px;max-width:52vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pausebtn{position:fixed;top:8px;right:12px;z-index:6;width:44px;height:44px;border:2px solid rgba(255,181,71,.6);border-radius:12px;background:rgba(14,11,29,.85);font:800 17px 'Karla';cursor:pointer}
+/* your stall panel */
+#panel{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;gap:10px;padding:8px 10px 10px;background:linear-gradient(180deg,rgba(14,11,29,.0),rgba(14,11,29,.92) 14px);align-items:stretch}
+.pbox{background:rgba(32,25,58,.92);border:2px solid rgba(246,234,210,.16);border-radius:12px;padding:7px 9px}
+.cashbox{min-width:136px;display:flex;flex-direction:column;gap:4px}
+.cashbox .cash{font-family:'Bungee';font-size:28px;color:#ffe9c7;line-height:1}.cashbox .pf{font-weight:800;font-size:13.5px}.pf.up{color:var(--good)}.pf.dn{color:#ff8a80}
+.stars{color:var(--amber);font-size:15px;letter-spacing:1px}.stars i{font-style:normal;color:rgba(255,181,71,.25)}
+.bellb{margin-top:auto;font:800 14px 'Karla';border:2px solid var(--amber);background:rgba(255,181,71,.15);border-radius:10px;padding:6px 8px;cursor:pointer;position:relative;overflow:hidden}
+.bellb .cdbar{position:absolute;left:0;bottom:0;height:3px;background:var(--amber)}
+.bellb:disabled{opacity:.55}
+.slots{display:flex;gap:8px;flex:1.6;min-width:0}
+.slot{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;position:relative}
+.slot .top{display:flex;align-items:center;gap:6px}
+.slot .em{font-size:30px;line-height:1;cursor:pointer;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(0,0,0,.3);border:2px dashed rgba(246,234,210,.25);flex:none}
+.slot .nm{font-weight:800;font-size:14.5px;line-height:1.1;cursor:pointer}.slot .nm small{display:block;font-size:11.5px;color:var(--mut);font-weight:700}
+.slot .stk{margin-left:auto;text-align:right;font-family:'Bungee';font-size:20px;line-height:1}.slot .stk small{display:block;font-family:'Karla';font-weight:800;font-size:10.5px;color:var(--mut)}
+.slot .stk.cold{color:#9ad0ff}
+.prc{display:flex;align-items:center;gap:4px}
+.prc button{width:30px;height:28px;border-radius:8px;border:2px solid rgba(246,234,210,.3);background:rgba(255,255,255,.07);font:800 17px 'Karla';cursor:pointer;flex:none}
+.prc .pv{flex:1;text-align:center;font-family:'Bungee';font-size:18px;color:#ffe9c7}.prc .pv small{font-family:'Karla';font-size:11px;font-weight:800;color:var(--mut);margin-left:3px}
+.cookb{position:relative;overflow:hidden;font:800 14.5px 'Karla';border:2px solid var(--red);border-radius:10px;background:linear-gradient(180deg,#f0574d,#c2342c);color:#fff;padding:5px 6px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+.cookb .k{font-size:11px;opacity:.8}.cookb .ing{font-size:15px}.cookb .ing.miss{filter:grayscale(1);opacity:.5}
+.cookb:disabled{background:#4a3f66;border-color:#5d5180;color:#c8bde6}
+.cookb .bar{position:absolute;left:0;bottom:0;height:4px;background:var(--amber)}
+.slot.empty .em{border-color:var(--amber);color:var(--amber);font-size:24px}
+.whole{flex:1.25;min-width:0;display:flex;flex-direction:column}
+.whole .hd{display:flex;align-items:baseline;gap:8px;font-weight:800;font-size:12.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--amber);margin-bottom:4px}
+.whole .hd small{letter-spacing:0;text-transform:none;color:var(--mut);font-size:12px}
+.ings{display:grid;grid-template-columns:1fr 1fr;gap:3px 8px}
+.ingr{display:flex;align-items:center;gap:5px;font-weight:800;font-size:13.5px;padding:1px 0}
+.ingr .e{font-size:17px;width:22px;text-align:center}.ingr .n{min-width:20px;font-family:'Bungee';font-size:14px;color:#ffe9c7}
+.ingr .p{margin-left:auto;font-size:12.5px;color:#d8cfee}.ingr .p.hi{color:#ff8a80}.ingr .p.lo{color:var(--good)}
+.ingr button{font:800 12px 'Karla';border:1.5px solid rgba(62,224,197,.6);border-radius:7px;background:rgba(62,224,197,.12);padding:2px 6px;cursor:pointer}
+.ingr.need .e{filter:drop-shadow(0 0 4px #ffb547)}
+.burners{display:flex;gap:6px;margin-top:2px}
+.burner{flex:1;height:22px;border-radius:7px;background:rgba(0,0,0,.35);border:1.5px solid rgba(246,234,210,.18);position:relative;overflow:hidden;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.burner i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#e2453c,#ffb547);opacity:.55}
+.burner span{position:relative}
+#picker{position:fixed;z-index:30;background:#241c40;border:2px solid var(--amber);border-radius:12px;padding:8px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+#picker button{display:flex;flex-direction:column;align-items:center;gap:2px;font:800 12.5px 'Karla';border:2px solid rgba(246,234,210,.2);border-radius:10px;background:rgba(255,255,255,.06);padding:6px 4px;cursor:pointer;min-width:84px}
+#picker button span{font-size:26px}#picker button small{color:var(--mut);font-size:11px}#picker button.hot{border-color:var(--amber)}#picker button:disabled{opacity:.35}
+#toast{position:fixed;left:50%;bottom:240px;transform:translateX(-50%);z-index:8;background:rgba(14,11,29,.92);border:2px solid var(--amber);color:#ffe9c7;font-weight:800;font-size:16.5px;padding:7px 16px;border-radius:999px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
+#banner{position:fixed;left:0;right:0;top:20%;text-align:center;z-index:7;pointer-events:none;font-family:'Bungee';font-size:clamp(30px,6vw,64px);color:#ffe9c7;text-shadow:0 0 10px #ffb547,0 0 26px #e2453c,3px 3px 0 #5a1414;opacity:0;transform:scale(.92);transition:opacity .3s,transform .3s}
+#banner.on{opacity:1;transform:scale(1)}
+#banner small{display:block;font-family:'Karla';font-weight:800;font-size:clamp(15px,2.2vw,21px);text-shadow:0 2px 6px #000;margin-top:6px;color:#fff}
+#rotate{position:fixed;inset:0;z-index:60;background:var(--night);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:20px;text-align:center;padding:30px}
+#rotate .neon{font-family:'Bungee';font-size:34px;margin-bottom:10px;color:#ffe9c7;text-shadow:0 0 12px #e2453c}
+@media (max-height:560px){#panel{padding:4px 6px 6px;gap:6px}.pbox{padding:5px 6px}.slot .em{width:32px;height:32px;font-size:22px}.cashbox{min-width:104px}.cashbox .cash{font-size:21px}
+  .ingr{font-size:12px}.ingr .e{font-size:14px}.cookb{font-size:12.5px;padding:3px 4px}.prc button{height:24px;width:26px}.whole .hd{margin-bottom:1px}.slot{gap:3px}.burners{display:none}}
+@media (max-width:980px){.whole .hd small{display:none}.ingr button[data-n="5"]{display:none}.slot.empty{flex:.5}.slot.empty .nm,.slot.empty .note{display:none}.slot .nm small{display:none}.cashbox{min-width:96px}.bellb .k{display:none}}
+@media (max-width:760px){.ingr .p{font-size:11px}.slot .nm{font-size:12.5px}}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud" class="hidden"><div class="clock"><span class="tm" id="h-time">6:00 PM</span><span class="ev" id="h-ev">The market opens</span></div></div>
+<button id="pausebtn" class="hidden" title="Pause (Esc)">II</button>
+<div id="panel" class="hidden">
+  <div class="pbox cashbox"><div class="cash" id="p-cash">$60</div><div class="pf" id="p-pf">profit $0</div><div class="stars" id="p-stars"></div>
+    <button class="bellb" id="p-bell">🔔 Ring the bell <span class="k">(B)</span><span class="cdbar" id="p-bellbar"></span></button></div>
+  <div class="slots" id="p-slots"></div>
+  <div class="pbox whole"><div class="hd">Wholesaler <small>everyone buys here, prices climb when people stock up</small></div><div class="ings" id="p-ings"></div>
+    <div class="burners" id="p-burn"></div></div>
+</div>
+<div id="picker" class="hidden"></div>
+<div id="toast"></div>
+<div id="banner"></div>
+
+<div class="scr" id="s-title"><div class="card">
+  <div class="lantern"></div>
+  <h1 class="neon">Night<br>Market</h1>
+  <div class="sub">Run a food stall on a busy street from 6 PM to midnight. Your friends run the stalls next door. Most money at sunrise wins.</div>
+  <button class="btn pri" id="b-online"><span class="ic">🏮</span><span>Play with friends<small>2 to 8 stalls on one street, online</small></span></button>
+  <button class="btn alt" id="b-solo"><span class="ic">🥟</span><span>Solo<small>you against CPU stalls</small></span></button>
+  <button class="btn" id="b-help"><span class="ic">📖</span><span>How to play<small>cook, price, read the street</small></span></button>
+  <button class="mini" id="b-sound">🔊 Sound on</button>
+</div></div>
+
+<div class="scr hidden" id="s-solo"><div class="card">
+  <h2 class="neon">Solo night</h2>
+  <label class="lb">CPU stalls on your street</label><div id="solo-cpu"></div>
+  <label class="lb">Night length</label><div id="solo-len"></div>
+  <div class="row"><button class="btn" id="solo-back"><span class="ic">←</span><span>Back</span></button><button class="btn pri" id="solo-go"><span class="ic">🏮</span><span>Open the stall</span></button></div>
+</div></div>
+
+<div class="scr hidden" id="s-online"><div class="card">
+  <h2 class="neon">Play with friends</h2>
+  <label class="lb">Your stall's name</label><input class="txt" id="myname" maxlength="12" placeholder="Auntie Mo">
+  <button class="btn pri" id="b-host"><span class="ic">🏮</span><span>Open a street<small>you get a 4-letter code to share</small></span></button>
+  <label class="lb">Got a code?</label>
+  <div class="row"><input class="txt code" id="joincode" maxlength="4" placeholder="ABCD" style="flex:1;min-width:150px"><button class="btn alt" id="b-join" style="flex:0 0 auto;width:auto;margin-top:6px"><span>Join</span></button></div>
+  <div class="status" id="on-status"></div>
+  <button class="btn" id="on-back"><span class="ic">←</span><span>Back</span></button>
+</div></div>
+
+<div class="scr hidden" id="s-lobby"><div class="card wide">
+  <div style="display:flex;gap:22px;flex-wrap:wrap">
+    <div style="flex:1;min-width:240px">
+      <label class="lb" style="margin-top:0">Street code</label><div class="code-big" id="lb-code">····</div>
+      <div class="note">Friends press "Play with friends" and type this code.</div>
+      <label class="lb">Stalls</label><div id="lb-list"></div>
+      <div id="lb-invite" class="hidden"><label class="lb">Invite a friend</label><div id="lb-friends"></div></div>
+    </div>
+    <div style="flex:1;min-width:240px">
+      <label class="lb" style="margin-top:0">CPU stalls</label><div id="lb-cpu"></div>
+      <label class="lb">Night length</label><div id="lb-len"></div>
+      <div class="note" id="lb-note"></div>
+    </div>
+  </div>
+  <div class="status" id="lb-wait">Waiting for the host to open the market...</div>
+  <div class="row"><button class="btn" id="lb-leave"><span class="ic">←</span><span>Leave</span></button><button class="btn pri" id="lb-start"><span class="ic">🏮</span><span>Open the market</span></button></div>
+</div></div>
+
+<div class="scr hidden" id="s-help"><div class="card wide help">
+  <h2 class="neon">How to play</h2>
+  <p><b>Your stall</b> has three menu slots. Tap a slot's dish to change it. Each dish needs two ingredients from the <b>wholesaler</b>. Press <b>Cook</b> (or <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>) and a batch is ready a few seconds later on one of your two burners.</p>
+  <p><b>Customers</b> each want one dish most tonight, and the hourly craze is the most wanted. They pick a stall by that dish, your price, how long your line is, whether something is sizzling, and your stars. Ring the <b>bell</b> (<kbd>B</kbd>) to pull in walkers nearby.</p>
+  <p><b>Undercut a rival</b> and their line walks to you. But you earn less, and a long line sends people next door. Selling the dish nobody else sells means nobody can undercut you.</p>
+  <p><b>Food goes stale.</b> Fresh food earns stars, stale food loses them, and old food gets thrown out. Cook to the line, not to the burner. People who wait too long walk off and cost you a star.</p>
+  <p><b>The wholesaler is shared.</b> Every pack anyone buys pushes that price up for the whole street for a while. Stocking up early beats paying the rush price.</p>
+  <button class="btn" id="help-back"><span class="ic">←</span><span>Back</span></button>
+</div></div>
+
+<div class="scr hidden" id="s-pause"><div class="card">
+  <h2 class="neon">Paused</h2>
+  <div class="note" id="pa-note"></div>
+  <button class="btn pri" id="pa-resume"><span class="ic">▶</span><span>Back to the stall</span></button>
+  <button class="btn" id="pa-help"><span class="ic">📖</span><span>How to play</span></button>
+  <button class="btn" id="pa-sound"><span class="ic">🔊</span><span>Sound on</span></button>
+  <button class="btn" id="pa-quit"><span class="ic">🏠</span><span>Close up and leave</span></button>
+</div></div>
+
+<div class="scr hidden" id="s-result"><div class="card wide">
+  <div class="lantern"></div>
+  <h2 class="neon" id="rs-title">Sunrise</h2>
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap"><div class="big-n" id="rs-n">#1</div><div class="lines" id="rs-sub"></div></div>
+  <table class="board" id="rs-board"></table>
+  <div class="lines" id="rs-lines"></div>
+  <div class="row"><button class="btn" id="rs-menu"><span class="ic">←</span><span id="rs-menu-t">Menu</span></button><button class="btn pri" id="rs-again"><span class="ic">🏮</span><span id="rs-again-t">Another night</span></button></div>
+</div></div>
+
+<div id="rotate" class="hidden"><div class="neon">Turn your phone</div>The market needs a sideways screen. Solo nights pause until then.</div>
+<script>
+"use strict";
+// ═══════════════════════════════ SIM ═══════════════════════════════
+// One street, 6 PM to midnight. Every stall buys ingredients from the same wholesaler (buying
+// pushes the price up for everybody), cooks batches on two burners, and sells from the counter.
+// CPU customers walk the street with cravings and a budget, pick the stall that suits them best
+// (craving, price, queue, the smell of something cooking, the stall's rating) and queue for it.
+// Food goes stale and gets thrown out, and people who wait too long walk off grumbling.
+const BELL_CD=18,BELL_T=6,BELL_R=330,STREET=1000,HOURS=6,START_CASH=60,BURNERS=2,MENU_SLOTS=3,FRESH=40,STALE=90,SERVE_T=1.7;
+const DISH=[
+  {id:'dump', name:'Dumplings',  em:'🥟',ing:['flour','pork'],   fair:6,cook:7,yield:5},
+  {id:'skew', name:'Skewers',    em:'🍢',ing:['chicken','sauce'],fair:5,cook:5,yield:4},
+  {id:'nood', name:'Noodles',    em:'🍜',ing:['flour','egg'],    fair:7,cook:8,yield:4},
+  {id:'squid',name:'Fried squid',em:'🦑',ing:['squid','sauce'],  fair:8,cook:7,yield:4},
+  {id:'tea',  name:'Bubble tea', em:'🧋',ing:['tea','milk'],     fair:5,cook:4,yield:5},
+  {id:'tart', name:'Egg tarts',  em:'🥧',ing:['egg','milk'],     fair:6,cook:9,yield:6},
+];
+const ING=[
+  {id:'flour',  name:'Flour',  em:'🌾',base:2},
+  {id:'pork',   name:'Pork',   em:'🥩',base:3},
+  {id:'chicken',name:'Chicken',em:'🍗',base:3},
+  {id:'sauce',  name:'Sauce',  em:'🫙',base:1.5},
+  {id:'egg',    name:'Eggs',   em:'🥚',base:2},
+  {id:'squid',  name:'Squid',  em:'🦑',base:4},
+  {id:'tea',    name:'Tea',    em:'🍵',base:1.5},
+  {id:'milk',   name:'Milk',   em:'🥛',base:2},
+];
+const INGI=Object.fromEntries(ING.map((g,i)=>[g.id,i]));
+const DISHI=Object.fromEntries(DISH.map((d,i)=>[d.id,i]));
+const HOUR_CROWD=[.65,1,1.35,1.25,.9,.55];
+const STALL_COLS=['#e2453c','#ffb547','#3ee0c5','#b28cff','#ff7ab6','#7fd36b','#5aa9ff','#ff9a4d'];
+const MAXP=8;
+function rng32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const r2=v=>Math.round(v*100)/100;
+
+function makeSim(o){const R=rng32(o.seed>>>0||1);const N=o.stalls.length;
+  const S={seed:o.seed,R,t:0,frame:0,hourLen:o.hourLen||45,hour:0,over:false,ending:false,ev:[],cust:[],cid:0,spawnAcc:0,
+    stalls:[],price:ING.map(g=>g.base),mod:ING.map(()=>1),trend:DISH.map(()=>1),event:null,events:[],critic:null,stats:{spawned:0,walked:0}};
+  // tonight's plan: a craze every hour, a rush at 7, and one surprise later on
+  for(let h=0;h<HOURS;h++){const e={hour:h,craze:R()*DISH.length|0,kind:null,arg:0};S.events.push(e)}
+  S.events[1].kind='rush';
+  const late=[2,3,4][R()*3|0],kinds=['rain','shortage','critic'];S.events[late].kind=kinds[R()*3|0];
+  const other=[2,3,4].filter(h=>h!==late)[R()*2|0];if(R()<.7)S.events[other].kind=kinds.filter(k=>k!==S.events[late].kind)[R()*2|0];
+  for(const e of S.events)if(e.kind==='shortage')e.arg=R()*ING.length|0;
+  o.stalls.forEach((p,i)=>S.stalls.push({i,seat:p.seat,name:p.name,cid:p.cid,cpu:p.cpu||0,local:!!p.local,col:STALL_COLS[p.seat%8],
+    x:(i+.5)*STREET/N,cash:START_CASH,menu:[-1,-1,-1],price:DISH.map(d=>d.fair),stock:DISH.map(()=>[]),burn:[],pantry:ING.map(()=>0),
+    rating:3,smell:0,bell:-99,queue:[],serveT:0,served:0,lost:0,wasted:0,revenue:0,spent:0,sold:DISH.map(()=>0),idle:0,gone:false}));
+  startHour(S,0);return S}
+function emit(S,e){S.ev.push(e);if(S.ev.length>120)S.ev.shift()}
+function hourOf(S){return Math.min(HOURS-1,Math.floor(S.t/S.hourLen))}
+function nightLen(S){return S.hourLen*HOURS}
+function startHour(S,h){S.hour=h;const e=S.events[h];S.event=e;
+  S.trend=DISH.map((d,i)=>i===e.craze?1.9:1);S.mod=ING.map(()=>1);
+  if(e.kind==='rain'){S.trend[DISHI.nood]*=1.7;S.trend[DISHI.tea]*=.6;S.trend[DISHI.tart]*=1.2}
+  if(e.kind==='shortage')S.mod[e.arg]=1.9;
+  if(e.kind==='critic')S.critic={due:S.t+S.hourLen*(.25+S.R()*.4),done:false};
+  emit(S,['hour',h,e.craze,e.kind||'',e.arg])}
+// ── what a portion is, what is on the counter ──
+const stockN=(st,d)=>st.stock[d].reduce((a,b)=>a+b.n,0);
+const cookingN=(st,d)=>st.burn.filter(b=>b.d===d).length*DISH[d].yield;
+function onMenu(st,d){return st.menu.includes(d)}
+// ── things a stall owner can do (players, guests through the host, CPU owners) ──
+function doAction(S,st,a){if(!st||st.gone||S.over)return '';
+  if(a.k==='menu'){const sl=a.slot|0,d=a.d|0;if(sl<0||sl>=MENU_SLOTS||d<-1||d>=DISH.length)return '';if(d>=0&&st.menu.includes(d))return 'dup';
+    const old=st.menu[sl];if(old>=0&&(stockN(st,old)>0||cookingN(st,old)>0))return 'busy';st.menu[sl]=d;return 'menu'}
+  if(a.k==='price'){const d=a.d|0;if(!DISH[d])return '';st.price[d]=clamp(Math.round((+a.v||0)*2)/2,1,DISH[d].fair*3);return 'price'}
+  if(a.k==='buy'){const g=a.g|0,n=clamp(a.n|0,1,10);if(!ING[g])return '';let bought=0;
+    for(let k=0;k<n;k++){const p=S.price[g];if(st.cash<p)break;st.cash-=p;st.spent+=p;st.pantry[g]++;bought++;S.price[g]+=ING[g].base*.07}
+    if(!bought)return 'broke';emit(S,['buy',st.i,g,bought]);return 'buy'}
+  if(a.k==='bell'){if(S.t-st.bell<BELL_CD)return 'bellcd';st.bell=S.t;emit(S,['bell',st.i]);return 'bell'}
+  if(a.k==='cook'){const d=st.menu[a.slot|0];if(d==null||d<0)return 'nomenu';if(st.burn.length>=BURNERS)return 'burners';
+    const need=DISH[d].ing.map(id=>INGI[id]);if(need.some(g=>st.pantry[g]<1))return 'noing';
+    for(const g of need)st.pantry[g]--;st.burn.push({d,left:DISH[d].cook});st.smell=1;emit(S,['cook',st.i,d]);return 'cook'}
+  return ''}
+// ── customers ──
+function spawnCustomer(S,critic){const R=S.R,left=R()<.5;
+  const c={id:++S.cid,x:left?-30:STREET+30,y:58+R()*36,dir:left?1:-1,spd:20+R()*12,budget:.75+R()*.8,pat:13+R()*12,
+    crave:null,st:'walk',to:-1,d:-1,decideAt:left?60+R()*380:STREET-60-R()*380,mood:0,critic:!!critic,t0:S.t,eat:0};
+  // everyone has one dish they really want tonight (the craze is the most common pick) and a mild taste for the rest
+  let tw=S.trend.reduce((a,b)=>a+b,0),r=R()*tw,fav=0;for(;fav<DISH.length-1;fav++){r-=S.trend[fav];if(r<=0)break}
+  c.fav=fav;c.crave=DISH.map((d,i)=>(i===fav?1.65:0)+.3+R()*.55);
+  if(critic){c.budget=1.6;c.pat=30}
+  S.cust.push(c);S.stats.spawned++;return c}
+function utility(S,c,st,d){const D=DISH[d];const have=stockN(st,d)+cookingN(st,d);
+  const pr=st.price[d]/(D.fair*c.budget);if(pr>1.75)return -9;
+  const bell=S.t-st.bell<BELL_T&&Math.abs(c.x-st.x)<BELL_R?.75:0;
+  let u=2.4*c.crave[d]-2.2*(pr-1)+.8*st.smell+bell+.5*(st.rating-3)-.38*st.queue.length-(have<=0?1.6:0)-.0012*Math.abs(c.x-st.x);
+  return u}
+function decide(S,c){let best=-9,bs=null,bd=-1;
+  for(const st of S.stalls){if(st.gone)continue;for(const d of st.menu){if(d<0)continue;const u=utility(S,c,st,d)+(S.R()-.5)*1.3;if(u>best){best=u;bs=st;bd=d}}}
+  if(!bs||best<.25){c.st='leave';S.stats.walked++;return}
+  c.st='go';c.to=bs.i;c.d=bd}
+function custStep(S,c,dt){
+  if(c.st==='walk'){c.x+=c.dir*c.spd*dt;if((c.dir>0&&c.x>=c.decideAt)||(c.dir<0&&c.x<=c.decideAt))decide(S,c);return}
+  if(c.st==='go'){const st=S.stalls[c.to];if(!st||st.gone){c.st='leave';return}const tx=st.x+(c.dir>0?-6:6),dx=tx-c.x;
+    if(Math.abs(dx)<4){c.st='queue';st.queue.push(c.id);return}c.x+=Math.sign(dx)*Math.min(Math.abs(dx),c.spd*1.2*dt);c.y=lerp(c.y,40,dt*1.5);return}
+  if(c.st==='queue'){const st=S.stalls[c.to];const k=st.queue.indexOf(c.id);c.x=lerp(c.x,st.x+(k%2?3:-3),dt*6);c.y=lerp(c.y,14+k*7.5,dt*5);
+    if(k>0||stockN(st,c.d)<=0){c.pat-=dt;if(c.pat<=0){st.queue.splice(k,1);st.lost++;st.rating=clamp(st.rating-.1,1,5);c.st='leave';c.mood=-1;
+      if(c.critic){st.rating=clamp(st.rating-.6,1,5);emit(S,['critic',st.i,0])}emit(S,['hmph',st.i,r2(c.x)])}}
+    return}
+  if(c.st==='leave'||c.st==='eat'){c.y=lerp(c.y,75,dt*1.2);c.x+=c.dir*c.spd*dt;if(c.eat>0)c.eat-=dt}}
+// serve the front of each queue from the oldest batch on the counter
+function serveStep(S,st,dt){if(!st.queue.length){st.serveT=0;return}const c=S.cust.find(q=>q.id===st.queue[0]);if(!c){st.queue.shift();return}
+  if(stockN(st,c.d)<=0){st.serveT=0;return}st.serveT+=dt;if(st.serveT<SERVE_T)return;st.serveT=0;
+  const b=st.stock[c.d][0];b.n--;const age=S.t-b.born;if(b.n<=0)st.stock[c.d].shift();
+  const pay=st.price[c.d];st.cash+=pay;st.revenue+=pay;st.served++;st.sold[c.d]++;st.queue.shift();
+  const fresh=age<FRESH;st.rating=clamp(st.rating+(fresh?.03:-.06),1,5);
+  if(c.critic){st.rating=clamp(st.rating+(fresh?.6:-.6),1,5);emit(S,['critic',st.i,fresh?1:0])}
+  c.st='eat';c.eat=6;c.mood=fresh?1:0;emit(S,['sale',st.i,c.d,pay,fresh?1:0])}
+// ── one tick ──
+function simStep(S,dt){if(S.over)return;S.t+=dt;S.frame++;const L=nightLen(S);
+  const h=hourOf(S);if(h!==S.hour&&S.t<L)startHour(S,h);
+  // wholesale prices drift back toward normal (or toward a shortage price)
+  for(let g=0;g<ING.length;g++){const tgt=ING[g].base*S.mod[g];S.price[g]+=(tgt-S.price[g])*Math.min(1,dt*.05)}
+  // the crowd
+  if(S.t<L-S.hourLen*.2){const n=S.stalls.filter(s=>!s.gone).length;const rate=.19*Math.max(3,n)*HOUR_CROWD[S.hour]*(S.event.kind==='rush'?1.5:S.event.kind==='rain'?.65:1);
+    S.spawnAcc+=rate*dt;while(S.spawnAcc>=1){S.spawnAcc--;spawnCustomer(S)}
+    if(S.critic&&!S.critic.done&&S.t>=S.critic.due){S.critic.done=true;spawnCustomer(S,true);emit(S,['criticin'])}}
+  for(const c of S.cust)custStep(S,c,dt);
+  S.cust=S.cust.filter(c=>c.x>-60&&c.x<STREET+60);
+  for(const st of S.stalls){if(st.gone)continue;
+    for(let k=st.burn.length-1;k>=0;k--){const b=st.burn[k];b.left-=dt;if(b.left<=0){st.burn.splice(k,1);st.stock[b.d].push({n:DISH[b.d].yield,born:S.t});emit(S,['done',st.i,b.d])}}
+    st.smell=st.burn.length?1:Math.max(0,st.smell-dt*.1);
+    for(let d=0;d<DISH.length;d++){const s=st.stock[d];while(s.length&&S.t-s[0].born>STALE){st.wasted+=s[0].n;s.shift();emit(S,['waste',st.i,d])}}
+    serveStep(S,st,dt);st.idle=st.queue.length?0:st.idle+dt}
+  if(S.t>=L&&!S.ending){S.ending=true;emit(S,['close'])}
+  if(S.ending){for(const st of S.stalls){for(const id of st.queue){const c=S.cust.find(q=>q.id===id);if(c)c.st='leave'}st.queue.length=0}
+    if(S.t>=L+3){S.over=true;emit(S,['sunrise'])}}}
+function profit(st){return Math.round((st.cash-START_CASH)*100)/100}
+function standings(S){return S.stalls.slice().sort((a,b)=>b.cash-a.cash)}
+
+// ═══════════════════════════════ CPU STALL OWNERS ═══════════════════════════════
+// Bots use doAction() exactly like a player. Kinds:
+//  reader  - the CPU stall: reads the craze and the other menus, prices to the queue, cooks to demand,
+//            buys when the wholesaler is cheap.
+//  cheap   - the same, but always undercuts (70% of fair).
+//  premium - the same, but always charges 135% of fair.
+//  masher  - picks three popular dishes once, sells at 60%, cooks whenever a burner is free and
+//            buys whatever it runs out of at any price (the smoke test's button masher).
+function botInit(S,st,kind){st.bot={kind,t:0,hour:-1}}
+function botStep(S,st,dt){const b=st.bot;if(!b||st.gone||S.over)return;b.t-=dt;if(b.t>0)return;b.t=.5+S.R()*.3;
+  const kind=b.kind;
+  if(kind==='masher'){if(b.hour<0){[DISHI.dump,DISHI.nood,DISHI.tea].forEach((d,k)=>doAction(S,st,{k:'menu',slot:k,d}));for(const d of st.menu)doAction(S,st,{k:'price',d,v:DISH[d].fair*.6});b.hour=0}
+    for(const d of st.menu)for(const id of DISH[d].ing){const g=INGI[id];if(st.pantry[g]<2)doAction(S,st,{k:'buy',g,n:5})}
+    for(let k=0;k<MENU_SLOTS;k++)doAction(S,st,{k:'cook',slot:k});return}
+  // menu: once an hour, swap empty slots toward what's wanted and not crowded
+  if(b.hour!==S.hour){b.hour=S.hour;
+    const score=d=>{const others=S.stalls.filter(o=>o!==st&&!o.gone&&o.menu.includes(d)).reduce((n,o)=>n+(o.price[d]<DISH[d].fair*.85?1.6:1),0);const cost=DISH[d].ing.reduce((a,id)=>a+S.price[INGI[id]],0);
+      return S.trend[d]*(DISH[d].fair*DISH[d].yield-cost)/(1+others*.7)};
+    const want=DISH.map((d,i)=>i).sort((a,c)=>score(c)-score(a)).slice(0,MENU_SLOTS);
+    for(let k=0;k<MENU_SLOTS;k++){const cur=st.menu[k];if(cur>=0&&want.includes(cur))continue;const nd=want.find(d=>!st.menu.includes(d));if(nd==null)continue;
+      if(cur<0||(stockN(st,cur)===0&&cookingN(st,cur)===0))doAction(S,st,{k:'menu',slot:k,d:nd})}}
+  for(const d of st.menu){if(d<0)continue;const f=DISH[d].fair;let tgt;
+    if(kind==='cheap')tgt=f*.7;else if(kind==='premium')tgt=f*1.35;
+    else{const q=st.queue.length;tgt=f*(1+.07*Math.min(5,q)-(st.idle>12?.12:0)+(st.rating-3)*.05);
+      // a rival undercutting the same dish: meet them partway, but never sell at a loss
+      const rv=S.stalls.filter(o=>o!==st&&!o.gone&&o.menu.includes(d)).map(o=>o.price[d]);
+      if(rv.length){const lo=Math.min(...rv);if(lo<tgt-.5)tgt=Math.max(lo+.5,f*.75)}}
+    const cur=st.price[d];if(Math.abs(cur-tgt)>=.5)doAction(S,st,{k:'price',d,v:cur+Math.sign(tgt-cur)*.5})}
+  // cook to demand: who's waiting for it, plus a little for the next few walkers
+  const late=S.t>nightLen(S)-S.hourLen*.35;
+  for(let k=0;k<MENU_SLOTS;k++){const d=st.menu[k];if(d<0)continue;
+    const waiting=st.queue.map(id=>S.cust.find(c=>c.id===id)).filter(c=>c&&c.d===d).length+S.cust.filter(c=>c.st==='go'&&c.to===st.i&&c.d===d).length;
+    const want=waiting+(late?0:1+(S.trend[d]>1.2?2:0));
+    if(stockN(st,d)+cookingN(st,d)<want){for(const id of DISH[d].ing){const g=INGI[id];if(st.pantry[g]<1)doAction(S,st,{k:'buy',g,n:S.price[g]<ING[g].base*1.35?4:1})}
+      doAction(S,st,{k:'cook',slot:k})}}
+  // ring the bell when the line is empty and food is ready
+  if(kind!=='masher'&&!st.queue.length&&st.menu.some(d=>d>=0&&stockN(st,d)>0))doAction(S,st,{k:'bell'});
+  // top up the pantry while it is cheap
+  if(!late)for(const d of st.menu){if(d<0)continue;for(const id of DISH[d].ing){const g=INGI[id];if(st.pantry[g]<2&&S.price[g]<ING[g].base*1.15)doAction(S,st,{k:'buy',g,n:3})}}}
+
+// ═══════════════════════════════ BASICS ═══════════════════════════════
+const $=id=>document.getElementById(id);
+const HASH=location.hash;
+const SMOKE=/smoke/.test(HASH),DEBUG=/debug/.test(HASH),NORENDER=/norender/.test(HASH);
+const TOUCH=(window.matchMedia&&matchMedia('(pointer:coarse)').matches)||('ontouchstart' in window&&navigator.maxTouchPoints>0);
+const now=()=>performance.now();
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=v=>(v<0?'-$':'$')+Math.abs(v).toFixed(Math.abs(v)%1?2:0);
+const LS={get(k,d){try{const v=localStorage.getItem('nightmkt.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('nightmkt.'+k,JSON.stringify(v))}catch(e){}}};
+const SET=Object.assign({sound:true,vol:.85,cpu:3,len:45},LS.get('set',{}));
+function saveSet(){LS.set('set',SET)}
+let PROG=Object.assign({best:0,nights:0,wins:0},LS.get('prog',{}));
+function saveProg(){LS.set('prog',PROG)}
+
+// ═══════════════════════════════ SOUND ═══════════════════════════════
+// Real recordings only (sfx/night-market-sfx.m4a, credits in sfx/CREDITS-night-market.txt).
+// Event-only: a sizzle when a batch goes on, a coin when food sells. No crowd bed, no music.
+const SMAP=/*SMAP*/{"ui":[[0.1,0.1],[0.45,0.11]],"sizzle":[[0.81,1.24],[2.3,1.24],[3.79,1.24]],"chop":[[5.28,0.62],[6.15,0.62]],"ding":[[7.02,0.64],[7.91,0.64]],"coin":[[8.8,0.39],[9.44,0.39],[10.08,0.34]],"till":[[10.67,0.94]],"crate":[[11.86,0.54],[12.65,0.54]],"hmph":[[13.44,0.52],[14.21,0.64]],"yum":[[15.1,0.7],[16.05,0.66]],"trash":[[16.96,0.64]],"gong":[[17.85,2.04]],"firecracker":[[20.14,1.54]],"rain":[[21.93,2.54]],"rooster":[[24.72,1.84]],"pour":[[26.81,0.84]],"cheer":[[27.9,1.54]]}/*END*/;
+const NOAUDIO=/smoke|mute|norender/.test(HASH);
+const AU={ctx:null,sfx:null,buf:null,off:0,raw:null,st:0};
+function auInit(){if(AU.ctx||NOAUDIO)return;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+  try{AU.ctx=new AC()}catch(e){return}AU.sfx=AU.ctx.createGain();AU.sfx.connect(AU.ctx.destination);auVol();sprLoad();sprDecode()}
+function auVol(){if(!AU.ctx)return;AU.sfx.gain.setTargetAtTime(SET.sound?SET.vol:0,AU.ctx.currentTime,.02)}
+function sprLoad(){if(AU.st||NOAUDIO)return;AU.st=1;fetch('sfx/night-market-sfx.m4a').then(r=>r.ok?r.arrayBuffer():Promise.reject(r.status)).then(ab=>{AU.raw=ab;sprDecode()}).catch(()=>{AU.st=-1})}
+function sprDecode(){if(!AU.ctx||!AU.raw||AU.buf)return;const ab=AU.raw;AU.raw=null;
+  const ok=b=>{const d=b.getChannelData(0),sr=b.sampleRate;let mi=0,mv=0;for(let i=0,n=Math.min(d.length,sr*.4|0);i<n;i++){const v=Math.abs(d[i]);if(v>mv){mv=v;mi=i}}
+    AU.off=clamp(mi/sr-.1,-.05,.15);AU.buf=b};
+  try{const pr=AU.ctx.decodeAudioData(ab,ok,()=>{AU.st=-1});if(pr&&pr.catch)pr.catch(()=>{AU.st=-1})}catch(e){AU.st=-1}}
+function auWake(){auInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume()}
+document.addEventListener('pointerdown',auWake,true);document.addEventListener('keydown',auWake,true);
+function snd(name,o){o=o||{};const L=SMAP[name];if(!AU.buf||!L||!SET.sound)return null;const c=AU.ctx,seg=o.i!=null?L[o.i%L.length]:L[Math.random()*L.length|0];
+  const t=c.currentTime+(o.at||0),r=o.r||1,s=c.createBufferSource();s.buffer=AU.buf;s.playbackRate.value=r;
+  const g=c.createGain();let out=g;if(o.pan&&c.createStereoPanner){const p=c.createStereoPanner();p.pan.value=clamp(o.pan,-1,1);g.connect(p);out=p}out.connect(AU.sfx);
+  g.gain.value=o.v==null?1:o.v;s.connect(g);s.start(t,Math.max(0,seg[0]+AU.off),seg[1]/r+.02);return s}
+const rnd=(a,b)=>a+Math.random()*(b-a);
+// a stall's sounds pan to where it is, and other stalls are quieter than your own
+function sndSt(name,i,o){o=Object.assign({},o||{});const v=V();if(!v)return;const st=v.stalls[i];if(!st)return;o.pan=clamp((st.x/STREET-.5)*1.4,-.8,.8);
+  if(st.seat!==MY_SEAT||v===DEMO)o.v=(o.v==null?1:o.v)*.42;return snd(name,o)}
+
+// ═══════════════════════════════ STATE ═══════════════════════════════
+let MODE='menu';   // menu | solo | host | guest
+let S=null,GV=null,DEMO=null,PAUSED=false,SCR='s-title',MY_SEAT=0,ENDED=false;
+function V(){return MODE==='guest'?GV:(S||DEMO)}
+function myStall(){const v=V();if(!v||v===DEMO)return null;return v.stalls.find(s=>s.seat===MY_SEAT)||null}
+// the guest's stalls carry counts instead of batches; these read either
+const sN=(st,d)=>st.sn?st.sn[d]:stockN(st,d);
+const sAge=(st,d,t)=>st.sa?st.sa[d]:(st.stock[d].length?t-st.stock[d][0].born:0);
+const cN=(st,d)=>st.burn.filter(b=>b.d===d).length;
+
+// ═══════════════════════════════ ACTIONS ═══════════════════════════════
+const WHY={dup:'That dish is already on your menu.',busy:'Sell what is on the counter first, then swap the dish.',broke:'Not enough cash for that.',
+  nomenu:'Pick a dish for that slot first.',burners:'Both burners are busy.',noing:'Missing ingredients. Buy them from the wholesaler.',bellcd:'The bell needs a moment.'};
+function act(a){const st=myStall();if(!st||ENDED)return;
+  // check it here first so a guest hears "why not" straight away; the host checks again for real
+  const pre=precheck(st,a);if(pre){toast(WHY[pre]||pre);snd('ui',{v:.3});return}
+  if(MODE==='guest'){net.send({t:'a',cid:MY_CID,a});if(a.k==='price'||a.k==='menu')st.localEdit=now();if(a.k==='price'){st.price[a.d]=clamp(Math.round(a.v*2)/2,1,DISH[a.d].fair*3);paintPanel(true)}
+    if(a.k==='menu'){st.menu[a.slot]=a.d;paintPanel(true)}return}
+  const r=doAction(S,st,a);if(WHY[r]){toast(WHY[r]);snd('ui',{v:.3})}paintPanel(true)}
+function precheck(st,a){const v=V();
+  if(a.k==='cook'){const d=st.menu[a.slot];if(d==null||d<0)return 'nomenu';if(st.burn.length>=BURNERS)return 'burners';if(DISH[d].ing.some(id=>st.pantry[INGI[id]]<1))return 'noing'}
+  if(a.k==='buy'&&st.cash<v.price[a.g])return 'broke';
+  if(a.k==='menu'){if(a.d>=0&&st.menu.includes(a.d))return 'dup';const old=st.menu[a.slot];if(old>=0&&(sN(st,old)>0||cN(st,old)>0))return 'busy'}
+  if(a.k==='bell'&&v.t-st.bell<BELL_CD)return 'bellcd';return ''}
+
+// ═══════════════════════════════ INPUT ═══════════════════════════════
+addEventListener('keydown',e=>{if(e.repeat)return;
+  if(e.code==='Escape'){if(!$('picker').classList.contains('hidden')){closePicker();return}if(MODE!=='menu'&&(!SCR||SCR==='s-pause'))togglePause();return}
+  if(SCR||MODE==='menu')return;if(e.target&&e.target.tagName==='INPUT')return;
+  const n={Digit1:0,Digit2:1,Digit3:2,Numpad1:0,Numpad2:1,Numpad3:2}[e.code];if(n!=null){act({k:'cook',slot:n});e.preventDefault()}
+  if(e.code==='KeyB'){act({k:'bell'});e.preventDefault()}
+  if(e.code==='KeyM'){SET.sound=!SET.sound;saveSet();auVol();syncSoundBtns();toast(SET.sound?'Sound on':'Sound off')}});
+
+// ═══════════════════════════════ LAYOUT ═══════════════════════════════
+const cv=$('cv'),ctx=cv.getContext('2d');let VW=innerWidth,VH=innerHeight,DPR=1;
+const LY={top:54,bh:170,yb:224,bot:500};
+function resize(){VW=innerWidth;VH=innerHeight;DPR=Math.min(2,devicePixelRatio||1);cv.width=VW*DPR|0;cv.height=VH*DPR|0}
+addEventListener('resize',resize);resize();
+function layout(){const ph=$('panel').classList.contains('hidden')?0:$('panel').offsetHeight;const area=VH-ph;
+  LY.top=Math.max(50,area*.13);LY.bh=clamp(area*.42,110,220);LY.yb=LY.top+LY.bh;LY.bot=area-6}
+const WX=x=>x/STREET*VW;
+const WY=y=>LY.yb+8+y/100*(LY.bot-LY.yb-14);
+
+// ═══════════════════════════════ RENDER ═══════════════════════════════
+const PART=[],FLOAT=[];
+const BLD=[];{let x=-20,s=11;const r=()=>{s=(s*16807)%2147483647;return s/2147483647};while(x<2600){const w=60+r()*110,h=.35+r()*.55;BLD.push({x,w,h,win:[...Array(24)].map(()=>r()<.38),sign:r()<.25?['#3ee0c5','#ff7ab6','#ffb547','#b28cff'][r()*4|0]:null});x+=w+4+r()*10}}
+const PEOPLE=['#e9b48a','#c98b5e','#8d5a3b','#f2c9a1','#a8704a'],HAIR=['#1b1210','#3a2418','#6b4a2a','#c9a35b','#1b1210','#7a2a1a'],SHIRT=['#5aa9ff','#ff7ab6','#7fd36b','#ffb547','#b28cff','#e2453c','#3ee0c5','#f6ead2','#8f8fa8'];
+function render(dt,t){const v=V();ctx.setTransform(DPR,0,0,DPR,0,0);layout();
+  drawSky(t);if(!v){return}
+  drawGround(v,t);
+  const stalls=v.stalls.filter(s=>!s.gone);
+  for(const st of stalls)drawStall(v,st,t);
+  // people: the ones in line in front of the counter first, then the street
+  const cs=(v.cust||[]).slice().sort((a,b)=>a.y-b.y);for(const c of cs)drawPerson(v,c,t);
+  drawParticles(dt);drawFloats(dt);
+  if(v.event&&v.event.kind==='rain'&&v.t<nightLen(v))drawRain(t);
+  const me=myStall();if(me&&!ENDED){const X=WX(me.x),y=LY.top-14+Math.sin(t*4)*3;ctx.fillStyle='#ffe9c7';ctx.font="400 13px Bungee";ctx.textAlign='center';ctx.shadowColor='#ffb547';ctx.shadowBlur=10;ctx.fillText('YOU',X,y-6);
+    ctx.beginPath();ctx.moveTo(X-7,y-2);ctx.lineTo(X+7,y-2);ctx.lineTo(X,y+6);ctx.fill();ctx.shadowBlur=0}}
+function drawSky(t){const g=ctx.createLinearGradient(0,0,0,VH);g.addColorStop(0,'#0b0820');g.addColorStop(.5,'#1d1440');g.addColorStop(1,'#2a1838');ctx.fillStyle=g;ctx.fillRect(0,0,VW,VH);
+  // moon + city
+  ctx.fillStyle='rgba(255,240,210,.9)';ctx.beginPath();ctx.arc(VW*.86,LY.top*.9,18,0,7);ctx.fill();ctx.fillStyle='#1d1440';ctx.beginPath();ctx.arc(VW*.86+7,LY.top*.9-4,16,0,7);ctx.fill();
+  const base=LY.top+LY.bh*.62,sc=VW/1600;
+  for(const b of BLD){const x=b.x*sc*1.05,w=b.w*sc*1.05,h=b.h*LY.bh*1.1;if(x>VW)break;ctx.fillStyle='#120d28';ctx.fillRect(x,base-h,w,h);
+    for(let k=0;k<b.win.length;k++){if(!b.win[k])continue;const cx=x+6+(k%4)*(w-12)/4,cy=base-h+8+(k/4|0)*14;if(cy>base-6)continue;ctx.fillStyle=k%5?'rgba(255,200,120,.55)':'rgba(140,200,255,.4)';ctx.fillRect(cx,cy,Math.max(3,w/10),6)}
+    if(b.sign){ctx.save();ctx.shadowColor=b.sign;ctx.shadowBlur=12;ctx.strokeStyle=b.sign;ctx.lineWidth=2;ctx.strokeRect(x+w*.2,base-h+4,w*.6,10);ctx.restore()}}
+  // string lights across the street
+  const N=4;for(let k=0;k<N;k++){const x0=VW*k/N-20,x1=VW*(k+1)/N+20,y0=LY.top*.55+(k%2)*6,sag=26;ctx.strokeStyle='rgba(20,15,30,.9)';ctx.lineWidth=1.5;ctx.beginPath();
+    for(let s=0;s<=20;s++){const u=s/20,x=lerp(x0,x1,u),y=y0+Math.sin(u*Math.PI)*sag;s?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.stroke();
+    for(let s=1;s<10;s++){const u=s/10,x=lerp(x0,x1,u),y=y0+Math.sin(u*Math.PI)*sag+6;const col=['#ffb547','#e2453c','#ffe9c7','#ff7ab6'][(s+k)%4];
+      const tw=.75+.25*Math.sin(t*2+s*1.7+k);ctx.save();ctx.globalAlpha=tw;ctx.shadowColor=col;ctx.shadowBlur=14;ctx.fillStyle=col;ctx.beginPath();ctx.ellipse(x,y,4.5,6,0,0,7);ctx.fill();ctx.restore()}}}
+function drawGround(v,t){const g=ctx.createLinearGradient(0,LY.yb,0,VH);g.addColorStop(0,'#2b2140');g.addColorStop(1,'#141024');ctx.fillStyle=g;ctx.fillRect(0,LY.yb-4,VW,VH-LY.yb);
+  // wet street: each stall's glow reflected
+  for(const st of v.stalls){if(st.gone)continue;const X=WX(st.x);const rg=ctx.createRadialGradient(X,LY.yb+30,4,X,LY.yb+30,120);rg.addColorStop(0,'rgba(255,170,80,.22)');rg.addColorStop(1,'rgba(255,170,80,0)');ctx.fillStyle=rg;ctx.fillRect(X-130,LY.yb,260,160)}
+  ctx.strokeStyle='rgba(255,233,199,.07)';ctx.lineWidth=2;ctx.setLineDash([26,22]);ctx.beginPath();ctx.moveTo(0,WY(78));ctx.lineTo(VW,WY(78));ctx.stroke();ctx.setLineDash([])}
+function stars(r){let s='';for(let k=1;k<=5;k++)s+=r>=k-.25?'★':'☆';return s}
+function drawStall(v,st,t){const N=v.stalls.length,X=WX(st.x),w=Math.min(VW/N*.9,200),x0=X-w/2,top=LY.top,yb=LY.yb,mine=st.seat===MY_SEAT&&v!==DEMO;
+  ctx.save();
+  // glow + back wall
+  const rg=ctx.createRadialGradient(X,top+LY.bh*.55,6,X,top+LY.bh*.55,w*.8);rg.addColorStop(0,'rgba(255,190,110,.35)');rg.addColorStop(1,'rgba(255,190,110,0)');ctx.fillStyle=rg;ctx.fillRect(x0-w*.3,top-10,w*1.6,LY.bh+30);
+  ctx.fillStyle='#3a2a2a';ctx.fillRect(x0+6,top+34,w-12,LY.bh-34);ctx.fillStyle='rgba(255,200,130,.18)';ctx.fillRect(x0+6,top+34,w-12,LY.bh-34);
+  // posts
+  ctx.fillStyle='#5a3a24';ctx.fillRect(x0+2,top+20,7,LY.bh-20);ctx.fillRect(x0+w-9,top+20,7,LY.bh-20);
+  // awning: stripes in the stall's colour, scalloped edge
+  const aw=top+18,ah=Math.min(24,LY.bh*.15),stripes=8;for(let k=0;k<stripes;k++){ctx.fillStyle=k%2?'#f6ead2':st.col;ctx.fillRect(x0+k*w/stripes,aw,w/stripes+.5,ah)}
+  for(let k=0;k<stripes;k++){ctx.fillStyle=k%2?'#f6ead2':st.col;ctx.beginPath();ctx.arc(x0+(k+.5)*w/stripes,aw+ah,w/stripes/2,0,Math.PI);ctx.fill()}
+  // sign
+  ctx.fillStyle='#1a1230';ctx.strokeStyle=st.col;ctx.lineWidth=2;const sw=w*.86;ctx.beginPath();ctx.roundRect?ctx.roundRect(X-sw/2,top-8,sw,24,6):ctx.rect(X-sw/2,top-8,sw,24);ctx.fill();ctx.stroke();
+  ctx.font="400 "+Math.max(10,Math.min(15,sw/8|0))+"px Bungee";ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowColor=st.col;ctx.shadowBlur=mine?16:9;ctx.fillStyle='#ffe9c7';
+  ctx.fillText(st.name.toUpperCase(),X,top+4.5,sw-10);ctx.shadowBlur=0;
+  // chalk menu board
+  const mb=top+aw-top+ah+10,mh=Math.max(36,LY.bh-ah-86),mw=w*.62;ctx.fillStyle='#22302a';ctx.strokeStyle='#6b4a2a';ctx.lineWidth=3;ctx.fillRect(X-mw/2,mb,mw,mh);ctx.strokeRect(X-mw/2,mb,mw,mh);
+  const rows=st.menu.filter(d=>d>=0);const rh=mh/Math.max(3,rows.length);ctx.textBaseline='middle';
+  rows.forEach((d,k)=>{const y=mb+rh*(k+.5);ctx.font=Math.min(18,rh*.75)+'px sans-serif';ctx.textAlign='left';ctx.fillText(DISH[d].em,X-mw/2+5,y);
+    const cheap=st.price[d]<DISH[d].fair-.01,dear=st.price[d]>DISH[d].fair+.01;ctx.font='800 '+Math.min(15,rh*.62)+'px Karla';ctx.textAlign='right';ctx.fillStyle=cheap?'#9ff0a8':dear?'#ffb0a8':'#f2efe6';ctx.fillText('$'+st.price[d].toFixed(st.price[d]%1?1:0),X+mw/2-5,y)});
+  if(!rows.length){ctx.font='700 12px Karla';ctx.textAlign='center';ctx.fillStyle='rgba(242,239,230,.6)';ctx.fillText('closed',X,mb+mh/2)}
+  // counter, food on it, the two woks
+  const ch=Math.max(30,LY.bh*.2),cy=yb-ch;ctx.fillStyle='#7a4f2c';ctx.fillRect(x0-2,cy,w+4,ch);ctx.fillStyle='#93613a';ctx.fillRect(x0-2,cy,w+4,6);
+  ctx.fillStyle='rgba(0,0,0,.25)';for(let k=1;k<5;k++)ctx.fillRect(x0+k*w/5,cy+8,2,ch-10);
+  let fx=x0+8;ctx.font='15px sans-serif';ctx.textAlign='left';ctx.textBaseline='alphabetic';
+  for(const d of st.menu){if(d<0)continue;const n=sN(st,d);const stale=n&&sAge(st,d,v.t)>FRESH;ctx.globalAlpha=stale?.55:1;for(let k=0;k<Math.min(n,4);k++)ctx.fillText(DISH[d].em,fx+k*6,cy+2-k%2*3);ctx.globalAlpha=1;
+    if(n>4){ctx.font='800 10px Karla';ctx.fillStyle='#ffe9c7';ctx.fillText('x'+n,fx+26,cy-6);ctx.font='15px sans-serif'}fx+=(w-16)/3}
+  for(let k=0;k<BURNERS;k++){const b=st.burn[k];const wx=x0+w*(k?.75:.25),wy=cy+ch*.55;
+    if(b){const fl=.6+.4*Math.sin(t*20+k*3);ctx.fillStyle='rgba(255,140,40,'+(.55*fl)+')';ctx.beginPath();ctx.ellipse(wx,wy+6,14,5,0,0,7);ctx.fill()}
+    ctx.fillStyle='#2a2a30';ctx.beginPath();ctx.ellipse(wx,wy,15,6,0,0,7);ctx.fill();ctx.strokeStyle='#55555e';ctx.lineWidth=1.5;ctx.stroke();
+    if(b){const tot=DISH[b.d].cook,f=1-b.left/tot;ctx.strokeStyle='#ffb547';ctx.lineWidth=3;ctx.beginPath();ctx.arc(wx,wy-16,9,-Math.PI/2,-Math.PI/2+f*Math.PI*2);ctx.stroke();
+      ctx.font='12px sans-serif';ctx.textAlign='center';ctx.fillText(DISH[b.d].em,wx,wy-12);if(Math.random()<.35)steam(st,wx,wy-4)}}
+  // stars + line length
+  ctx.font='700 '+Math.max(10,Math.min(13,w/13|0))+'px Karla';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#ffb547';ctx.fillText(stars(st.rating),X,yb+9);
+  if(mine){ctx.strokeStyle='#ffe9c7';ctx.lineWidth=2;ctx.shadowColor='#ffb547';ctx.shadowBlur=14;ctx.strokeRect(x0-4,top-12,w+8,LY.bh+26);ctx.shadowBlur=0}
+  // the bell: rings visibly for a few seconds
+  if(v.t-st.bell<BELL_T){const a=Math.sin(t*30)*.4;ctx.save();ctx.translate(x0+w-12,top+40);ctx.rotate(a);ctx.font='20px sans-serif';ctx.fillText('🔔',0,0);ctx.restore();
+    ctx.strokeStyle='rgba(255,181,71,'+(.5-(v.t-st.bell)/BELL_T*.5)+')';ctx.lineWidth=2;ctx.beginPath();ctx.arc(X,yb,(v.t-st.bell)*60%120+20,Math.PI,0);ctx.stroke()}
+  ctx.restore()}
+function steam(st,x,y){PART.push({x,y,vx:rnd(-6,6),vy:rnd(-28,-18),life:1.6,max:1.6,r:rnd(5,9),col:'smell',hue:st.col})}
+function drawParticles(dt){for(let k=PART.length-1;k>=0;k--){const p=PART[k];p.life-=dt;if(p.life<=0){PART.splice(k,1);continue}p.x+=p.vx*dt;p.y+=p.vy*dt;
+    if(p.col==='smell'){p.vx+=Math.sin(p.life*3+p.x)*8*dt;p.r+=dt*7;const a=p.life/p.max*.28;ctx.fillStyle='rgba(255,240,225,'+a+')';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill()}
+    else{p.vy+=160*dt;ctx.globalAlpha=Math.min(1,p.life*2);ctx.fillStyle=p.col;ctx.fillRect(p.x-2,p.y-2,4,4);ctx.globalAlpha=1}}
+  if(PART.length>400)PART.splice(0,PART.length-400)}
+function floatText(x,y,txt,col){FLOAT.push({x,y,txt,col,t:0})}
+function drawFloats(dt){ctx.textAlign='center';ctx.textBaseline='middle';for(let k=FLOAT.length-1;k>=0;k--){const f=FLOAT[k];f.t+=dt;if(f.t>1.3){FLOAT.splice(k,1);continue}
+  ctx.globalAlpha=1-Math.max(0,f.t-.8)/.5;ctx.font="400 15px Bungee";ctx.lineWidth=4;ctx.strokeStyle='rgba(14,11,29,.9)';const y=f.y-f.t*34;ctx.strokeText(f.txt,f.x,y);ctx.fillStyle=f.col;ctx.fillText(f.txt,f.x,y)}ctx.globalAlpha=1}
+function drawPerson(v,c,t){const X=WX(c.x),Y=WY(c.y),s=clamp(VH/90,6,11)*(.85+c.y/250);const k=c.id;
+  const moving=c.st!=='queue',bob=moving?Math.abs(Math.sin(t*9+k))*s*.25:0;
+  ctx.save();ctx.translate(X,Y-bob);
+  ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(0,bob+s*.2,s*.9,s*.3,0,0,7);ctx.fill();
+  ctx.fillStyle=c.critic?'#1a1a1a':SHIRT[k%SHIRT.length];ctx.beginPath();ctx.roundRect?ctx.roundRect(-s*.7,-s*2.3,s*1.4,s*2.3,s*.5):ctx.rect(-s*.7,-s*2.3,s*1.4,s*2.3);ctx.fill();
+  ctx.fillStyle=PEOPLE[k%PEOPLE.length];ctx.beginPath();ctx.arc(0,-s*2.95,s*.68,0,7);ctx.fill();
+  ctx.fillStyle=HAIR[(k*7)%HAIR.length];ctx.beginPath();ctx.arc(0,-s*3.15,s*.62,Math.PI,0);ctx.fill();
+  if(c.critic){ctx.fillStyle='#1a1a1a';ctx.fillRect(-s*.8,-s*3.6,s*1.6,s*.2);ctx.fillRect(-s*.45,-s*4.2,s*.9,s*.62)}
+  // what they want / what they got
+  if((c.st==='go'||c.st==='queue')&&c.d>=0){ctx.fillStyle='rgba(246,234,210,.92)';ctx.beginPath();ctx.ellipse(s*1.2,-s*4.6,s*1.05,s*.85,0,0,7);ctx.fill();ctx.beginPath();ctx.arc(s*.5,-s*3.6,s*.18,0,7);ctx.fill();
+    ctx.font=(s*1.25|0)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(DISH[c.d].em,s*1.2,-s*4.55);
+    if(c.st==='queue'&&c.pat<5){ctx.fillStyle='#ff6b5e';ctx.font='800 '+(s*1.1|0)+'px Karla';ctx.fillText('!',-s*.9,-s*4.2)}}
+  if(c.st==='eat'&&c.d>=0&&c.mood>=0){ctx.font=(s*1.1|0)+'px sans-serif';ctx.textAlign='center';ctx.fillText(DISH[c.d].em,s*.9,-s*1.4)}
+  if(c.mood<0&&c.st==='leave'){ctx.font=(s*1.2|0)+'px sans-serif';ctx.textAlign='center';ctx.fillText('💢',s*.9,-s*3.8)}
+  ctx.restore()}
+function drawRain(t){ctx.strokeStyle='rgba(170,190,255,.35)';ctx.lineWidth=1;ctx.beginPath();for(let k=0;k<90;k++){const x=((k*97.3+t*240)%(VW+60))-30,y=((k*53.1+t*620)%(VH+40))-20;ctx.moveTo(x,y);ctx.lineTo(x-4,y+14)}ctx.stroke()}
+
+// ═══════════════════════════════ PANEL (your stall) ═══════════════════════════════
+let PSIG='';
+function paintPanel(force){const st=myStall(),v=V();if(!st||!v)return;
+  const sig=[st.cash.toFixed(2),st.rating.toFixed(1),st.menu.join(),st.menu.map(d=>d>=0?st.price[d]+':'+sN(st,d)+':'+(sAge(st,d,v.t)>FRESH?1:0):'').join(),st.pantry.join(),v.price.map(p=>p.toFixed(1)).join(),
+    st.burn.map(b=>b.d+':'+Math.round(b.left*4)).join(),Math.ceil(Math.max(0,BELL_CD-(v.t-st.bell)))].join('|');
+  if(sig===PSIG&&!force)return;PSIG=sig;
+  $('p-cash').textContent=money(Math.floor(st.cash));const pf=st.cash-START_CASH;$('p-pf').textContent='profit '+money(Math.round(pf));$('p-pf').className='pf '+(pf>=0?'up':'dn');
+  $('p-stars').innerHTML=stars(st.rating).replace(/☆/g,'<i>★</i>');
+  const bl=BELL_CD-(v.t-st.bell);$('p-bell').disabled=bl>0;$('p-bellbar').style.width=(bl>0?100-bl/BELL_CD*100:100)+'%';
+  const need=new Set();st.menu.forEach(d=>{if(d>=0)DISH[d].ing.forEach(id=>need.add(INGI[id]))});
+  $('p-slots').innerHTML=st.menu.map((d,k)=>{if(d<0)return '<div class="pbox slot empty"><div class="top"><div class="em" data-pick="'+k+'">+</div><div class="nm" data-pick="'+k+'">Pick a dish<small>slot '+(k+1)+'</small></div></div><div class="note" style="margin:0">Tap + to put a dish on your menu.</div></div>';
+    const D=DISH[d],n=sN(st,d),stale=n&&sAge(st,d,v.t)>FRESH,b=st.burn.find(x=>x.d===d);const craze=v.event&&v.event.craze===d;
+    const ing=D.ing.map(id=>'<span class="ing'+(st.pantry[INGI[id]]<1?' miss':'')+'">'+ING[INGI[id]].em+'</span>').join('');
+    return '<div class="pbox slot"><div class="top"><div class="em" data-pick="'+k+'" title="Change dish">'+D.em+'</div><div class="nm" data-pick="'+k+'">'+esc(D.name)+(craze?' 🔥':'')+'<small>fair price $'+D.fair+'</small></div>'+
+      '<div class="stk'+(stale?' cold':'')+'">'+n+'<small>'+(stale?'going stale':'ready')+'</small></div></div>'+
+      '<div class="prc"><button data-pr="'+d+'" data-dv="-0.5">−</button><span class="pv">$'+st.price[d].toFixed(st.price[d]%1?1:0)+'<small>'+(st.price[d]<D.fair?'cheap':st.price[d]>D.fair?'pricey':'fair')+'</small></span><button data-pr="'+d+'" data-dv="0.5">+</button></div>'+
+      '<button class="cookb" data-cook="'+k+'"><span class="k">'+(k+1)+'</span>Cook '+D.yield+' '+ing+(b?'<span class="bar" style="width:'+((1-b.left/D.cook)*100)+'%"></span>':'')+'</button></div>'}).join('');
+  $('p-ings').innerHTML=ING.map((g,i)=>{const p=v.price[i],r=p/g.base;return '<div class="ingr'+(need.has(i)?' need':'')+'"><span class="e">'+g.em+'</span><span class="n">'+st.pantry[i]+'</span><span class="p'+(r>1.25?' hi':r<1.05?' lo':'')+'">$'+p.toFixed(2)+'</span><button data-buy="'+i+'" data-n="1">+1</button><button data-buy="'+i+'" data-n="5">+5</button></div>'}).join('');
+  $('p-burn').innerHTML=[0,1].map(k=>{const b=st.burn[k];return '<div class="burner">'+(b?'<i style="width:'+((1-b.left/DISH[b.d].cook)*100)+'%"></i><span>'+DISH[b.d].em+' '+Math.ceil(b.left)+'s</span>':'<span style="color:var(--mut)">burner free</span>')+'</div>'}).join('')}
+$('panel').addEventListener('pointerdown',e=>{const el=e.target.closest('[data-cook],[data-pr],[data-buy],[data-pick],#p-bell');if(!el)return;e.preventDefault();
+  if(el.id==='p-bell')return act({k:'bell'});
+  if(el.dataset.cook!=null)return act({k:'cook',slot:+el.dataset.cook});
+  if(el.dataset.pr!=null){const st=myStall(),d=+el.dataset.pr;snd('ui',{v:.25,i:1});return act({k:'price',d,v:st.price[d]+(+el.dataset.dv)})}
+  if(el.dataset.buy!=null)return act({k:'buy',g:+el.dataset.buy,n:+el.dataset.n});
+  if(el.dataset.pick!=null)return openPicker(+el.dataset.pick,el)});
+function openPicker(slot,el){const st=myStall(),v=V();const p=$('picker');const old=st.menu[slot];
+  p.innerHTML=DISH.map((D,d)=>'<button data-d="'+d+'"'+(st.menu.includes(d)&&d!==old?' disabled':'')+(v.event&&v.event.craze===d?' class="hot"':'')+'><span>'+D.em+'</span>'+esc(D.name)+'<small>'+D.ing.map(id=>ING[INGI[id]].em).join('')+' · $'+D.fair+(v.event&&v.event.craze===d?' · craze':'')+'</small></button>').join('')+
+    (old>=0?'<button data-d="-1"><span>✖</span>Take it off<small>empty slot</small></button>':'');
+  p.classList.remove('hidden');const r=el.getBoundingClientRect(),pw=p.offsetWidth,ph=p.offsetHeight;p.style.left=clamp(r.left,6,VW-pw-6)+'px';p.style.top=Math.max(6,r.top-ph-8)+'px';
+  p.querySelectorAll('button').forEach(b=>b.onpointerdown=e=>{e.preventDefault();e.stopPropagation();const d=+b.dataset.d;closePicker();if(d!==old)act({k:'menu',slot,d});snd('ui',{v:.4})})}
+function closePicker(){$('picker').classList.add('hidden')}
+document.addEventListener('pointerdown',e=>{if(!$('picker').classList.contains('hidden')&&!e.target.closest('#picker')&&!e.target.closest('[data-pick]'))closePicker()},true);
+
+// ═══════════════════════════════ HUD ═══════════════════════════════
+function clockText(v){const m=Math.min(HOURS*60,Math.floor(v.t/v.hourLen*60));const h=18+Math.floor(m/60),mm=m%60;const hh=h>=24?12:h>12?h-12:h;return hh+':'+String(Math.floor(mm/10)*10).padStart(2,'0')+(h>=24?' AM':' PM')}
+function eventText(v){const e=v.event;if(!e)return '';if(v.ending)return 'The market is closing';const cz=DISH[e.craze];
+  const k={rush:'Rush hour! ',rain:'Rain: everyone wants noodles. ',shortage:ING[e.arg].name+' shortage: prices up. ',critic:'A food critic is out tonight. '}[e.kind]||'';return k+'Craze: '+cz.em+' '+cz.name}
+let HUDSIG='';function paintHud(v){const s=clockText(v)+'|'+eventText(v);if(s===HUDSIG)return;HUDSIG=s;$('h-time').textContent=clockText(v);$('h-ev').textContent=eventText(v)}
+let toastT=0;function toast(t,sec){const el=$('toast');const pn=$('panel');el.style.bottom=((pn.classList.contains('hidden')?0:pn.offsetHeight)+10)+'px';el.textContent=t;el.style.opacity=1;toastT=sec||2.2}
+let bannerT=0;function banner(big,small,sec){const el=$('banner');el.innerHTML=esc(big)+(small?'<small>'+esc(small)+'</small>':'');el.classList.add('on');bannerT=sec||2.4}
+const TIPS={};function tip(k,t){if(TIPS[k])return;TIPS[k]=1;toast(t,3.4)}
+
+// ═══════════════════════════════ EVENTS ═══════════════════════════════
+function fxEvent(e,v){const k=e[0],quiet=v===DEMO;const st=e[1]!=null&&typeof e[1]==='number'?v.stalls[e[1]]:null;const mine=st&&st.seat===MY_SEAT&&!quiet;
+  switch(k){
+    case 'cook':if(!quiet){if(e[2]===DISHI.tea)sndSt('pour',e[1],{v:.9});else sndSt('sizzle',e[1],{v:.85,r:rnd(.95,1.05)});if(mine&&Math.random()<.5)sndSt('chop',e[1],{v:.5,at:.05})}break;
+    case 'done':if(mine)snd('ding',{v:.55});break;
+    case 'sale':if(st){floatText(WX(st.x),LY.top+LY.bh*.5,'+$'+(+e[3]).toFixed(e[3]%1?1:0),e[4]?'#ffe9c7':'#9ad0ff');if(!quiet){sndSt('coin',e[1],{v:mine?.8:.7,r:rnd(.95,1.08)});if(mine&&Math.random()<.18)snd('yum',{v:.5,at:.2})}
+      if(mine&&!e[4])tip('stale','That one was stale. Stale food costs stars: cook closer to the line.')}break;
+    case 'hmph':if(!quiet){sndSt('hmph',e[1],{v:.8});if(mine)tip('lost','Someone gave up waiting. Cook before the line builds, or lower the price.')}break;
+    case 'waste':if(mine){snd('trash',{v:.6});tip('waste','Food sat too long and went in the bin. Cook less, more often.')}break;
+    case 'buy':if(mine)snd('crate',{v:.7,r:rnd(.95,1.05)});break;
+    case 'bell':if(!quiet)sndSt('ding',e[1],{v:.9,r:.9});break;
+    case 'hour':if(!quiet){const D=DISH[e[2]];const t=clockText({t:e[1]*v.hourLen+.01,hourLen:v.hourLen});
+      if(e[1]>0)snd('gong',{v:.6});
+      if(e[3]==='rush'){banner('Rush hour','craze: '+D.em+' '+D.name);snd('firecracker',{v:.8,at:.4})}
+      else if(e[3]==='rain'){banner('Rain!','hot noodles sell, cold tea does not');snd('rain',{v:.7})}
+      else if(e[3]==='shortage'){banner(ING[e[4]].name+' shortage','the wholesaler doubles the price this hour')}
+      else banner(t,'craze: '+D.em+' '+D.name)}break;
+    case 'criticin':if(!quiet){banner('A food critic!','serve them fresh food for a big rating boost',2.6)}break;
+    case 'critic':if(!quiet&&st){toast(st.name+(e[2]?' impressed the critic! ★':' let the critic down'),3);if(e[2])snd('cheer',{v:.6})}break;
+    case 'close':if(!quiet){banner('Midnight','the market is closing',2);snd('gong',{v:.8})}break;
+    case 'sunrise':if(!quiet)snd('rooster',{v:.8});break;
+  }}
+
+// ═══════════════════════════════ FLOW ═══════════════════════════════
+function newSeed(){return (Math.random()*2**31)>>>0}
+const CPU_NAMES=['Auntie Wu','Big Sam','Lucky Lin','Night Owl','Mama Rosa','Uncle Ko','Dot','Mr. Bun'];
+function startSolo(cpu,len){netClose();MODE='solo';MY_SEAT=0;ENDED=false;const stalls=[{seat:0,name:myNameOr('Your stall'),cid:MY_CID,local:true}];
+  for(let k=0;k<cpu;k++)stalls.push({seat:k+1,name:CPU_NAMES[k],cid:'cpu'+k,cpu:1});
+  // put you somewhere in the middle of the street
+  const me=stalls.shift();stalls.splice(Math.floor(stalls.length/2),0,me);
+  S=makeSim({seed:newSeed(),hourLen:len,stalls});for(const st of S.stalls)if(st.cpu)botInit(S,st,'reader');beginGame()}
+function myNameOr(d){return ($('myname').value||'').trim().slice(0,12)||LS.get('name','')||d}
+function beginGame(){PART.length=0;FLOAT.length=0;PAUSED=false;PSIG='';HUDSIG='';show(null);auWake();checkRotate();paintPanel(true);
+  setTimeout(()=>{if(!SCR&&myStall()&&myStall().menu.every(d=>d<0))toast('Tap + to pick your dishes, buy their ingredients, then Cook.',4)},700)}
+function summarize(v){const rows=v.stalls.filter(s=>!s.gone).map(s=>({seat:s.seat,name:s.name,col:s.col,cpu:s.cpu,profit:Math.round((s.cash-START_CASH)*100)/100,served:s.served,lost:s.lost,wasted:s.wasted,rating:Math.round(s.rating*10)/10,
+  shared:s.menu.filter(d=>d>=0&&v.stalls.some(o=>o!==s&&!o.gone&&o.menu.includes(d))).length,sold:s.sold?s.sold.slice():null}));rows.sort((a,b)=>b.profit-a.profit);return rows}
+function gameOver(rows){if(ENDED)return;ENDED=true;closePicker();const me=rows.find(r=>r.seat===MY_SEAT);const rank=rows.indexOf(me)+1;
+  if(me){PROG.nights++;if(rank===1&&rows.length>1)PROG.wins++;const nb=me.profit>PROG.best;if(nb)PROG.best=me.profit;saveProg();try{if(me.profit>0&&window.GLITCHBOX&&GLITCHBOX.score)GLITCHBOX.score(Math.round(me.profit))}catch(e){}}
+  if(rank===1&&rows.length>1)setTimeout(()=>snd('till',{v:.8}),1700);
+  setTimeout(()=>showResult(rows,me,rank),SMOKE?0:1600)}
+function showResult(rows,me,rank){$('rs-title').textContent=rank===1?'You ran the best stall':'Sunrise';$('rs-n').textContent='#'+(rank||'-');
+  $('rs-sub').innerHTML=me?('profit <b style="color:#ffe9c7">'+money(me.profit)+'</b> out of '+rows.length+' stalls<br>Best night: '+money(PROG.best)):'';
+  $('rs-board').innerHTML='<tr><th></th><th>Stall</th><th>Profit</th><th>Served</th><th>Walked off</th><th>Binned</th><th>Stars</th></tr>'+rows.map((r,i)=>'<tr'+(r.seat===MY_SEAT?' class="me"':'')+'><td class="rk">'+(i+1)+'</td><td><span class="sw" style="background:'+r.col+'"></span>'+esc(r.name)+(r.cpu?' <small style="color:var(--mut)">CPU</small>':'')+'</td><td>'+money(r.profit)+'</td><td>'+r.served+'</td><td>'+r.lost+'</td><td>'+r.wasted+'</td><td>'+r.rating.toFixed(1)+'</td></tr>').join('');
+  const L=[];if(me){if(me.wasted>=12)L.push('You binned '+me.wasted+' portions. Cook a batch when the line needs it, not whenever a burner is free.');
+    if(me.lost>=4)L.push(me.lost+' people walked off your line. Keep a batch ready for your busiest dish.');
+    if(me.shared>=2)L.push('Two of your dishes were sold by other stalls too. A dish nobody else sells cannot be undercut.');
+    if(me.served<12)L.push('Not many sales. Watch the craze each hour and price near fair.');
+    if(!L.length)L.push('Tidy night: little waste, short lines.');
+    const best=rows[0];if(best.seat!==MY_SEAT)L.push(esc(best.name)+' won with '+money(best.profit)+'.')}
+  $('rs-lines').innerHTML=L.map(l=>'<div>'+l+'</div>').join('');
+  const guest=MODE==='guest';$('rs-again').classList.toggle('hidden',guest);$('rs-again-t').textContent=MODE==='host'?'Another night':'Another night';$('rs-menu-t').textContent=MODE==='host'?'Back to the lobby':guest?'Leave':'Menu';
+  if(guest)$('rs-lines').insertAdjacentHTML('beforeend','<div class="note">Waiting for the host to open another night...</div>');show('s-result')}
+$('rs-again').onclick=()=>{if(MODE==='host')hostGo();else startSolo(SET.cpu,SET.len)};
+$('rs-menu').onclick=()=>{if(MODE==='host'){S=null;net.send({t:'lob'});openLobby()}else if(MODE==='guest'){netClose();MODE='menu';GV=null;show('s-title')}else{S=null;MODE='menu';show('s-title')}};
+
+// ═══════════════════════════════ SCREENS ═══════════════════════════════
+const SCREENS=['s-title','s-solo','s-online','s-lobby','s-help','s-pause','s-result'];
+function show(id){SCR=id;if(id){$('toast').style.opacity=0;toastT=0;closePicker()}for(const s of SCREENS)$(s).classList.toggle('hidden',s!==id);const inGame=MODE!=='menu'&&(S||GV);
+  $('hud').classList.toggle('hidden',!inGame||id==='s-result'||id==='s-lobby');$('panel').classList.toggle('hidden',!inGame||(!!id&&id!=='s-pause'));$('pausebtn').classList.toggle('hidden',!inGame||!!id);
+  if(id==='s-title'&&!DEMO)demoStart()}
+let helpBack='s-title';
+function togglePause(){if(SCR==='s-pause'){resumeGame();return}if(SCR)return;PAUSED=MODE==='solo';$('pa-note').textContent=MODE==='solo'?'':'The street keeps going while you are here.';show('s-pause')}
+function resumeGame(){PAUSED=false;show(null)}
+function quitGame(){if(MODE==='host'||MODE==='guest')netClose();MODE='menu';S=null;GV=null;show('s-title')}
+function syncSoundBtns(){$('b-sound').textContent=SET.sound?'🔊 Sound on':'🔈 Sound off';$('pa-sound').querySelector('span:last-child').textContent=SET.sound?'Sound on':'Sound off';$('b-sound').classList.toggle('on',SET.sound)}
+function chips(el,opts,cur,pick){el.innerHTML=opts.map(o=>'<button class="mini'+(o[0]===cur?' on':'')+'" data-v="'+o[0]+'">'+o[1]+'</button>').join('');el.querySelectorAll('.mini').forEach(b=>b.onclick=()=>{snd('ui',{v:.4});pick(+b.dataset.v)})}
+const LENS=[[30,'Quick (3 min)'],[45,'Full night (4.5 min)'],[60,'Long (6 min)']];
+function openSolo(){show('s-solo');chips($('solo-cpu'),[[2,'2'],[3,'3'],[4,'4'],[5,'5'],[7,'7']],SET.cpu,v=>{SET.cpu=v;saveSet();openSolo()});chips($('solo-len'),LENS,SET.len,v=>{SET.len=v;saveSet();openSolo()})}
+function demoStart(){if(SMOKE||NORENDER)return;const st=[0,1,2,3,4].map(k=>({seat:k,name:CPU_NAMES[k],cid:'d'+k,cpu:1}));DEMO=makeSim({seed:newSeed(),hourLen:30,stalls:st});DEMO.stalls.forEach(s=>botInit(DEMO,s,'reader'))}
+
+// ═══════════════════════════════ ONLINE ═══════════════════════════════
+// Host-authoritative: the host runs the street and the CPU stalls and sends the whole street eight
+// times a second. Guests send what they press (cook, price, menu, buy, bell); the host checks it.
+const MY_CID=(()=>{try{let c=sessionStorage.getItem('nm.cid');if(!c){c='c'+Math.random().toString(36).slice(2,10);sessionStorage.setItem('nm.cid',c)}return c}catch(e){return 'c'+Math.random().toString(36).slice(2,10)}})();
+const LOBBY={players:[],cpu:2,len:45};
+function wsURL(room,role){const b=window.GLITCHBOX_WS&&!/PLACEHOLDER/i.test(window.GLITCHBOX_WS)?window.GLITCHBOX_WS:(location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws';return b+'?room='+encodeURIComponent(room)+'&role='+role}
+const net={ws:null,role:'',code:'',online:false,bytes:0,
+  connect(room,role,onOpen){this.close();this.code=room;this.role=role;this.online=true;setStatus('Connecting...');let ws;
+    try{ws=new WebSocket(wsURL(room,role))}catch(e){setStatus("Couldn't reach the game server.",true);this.online=false;return}
+    this.ws=ws;ws.onopen=()=>onOpen&&onOpen();ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(_){return}handleNet(m)};
+    ws.onerror=()=>setStatus("Couldn't reach the game server. Check your connection.",true);
+    ws.onclose=()=>{if(!this.online)return;this.online=false;if(MODE==='guest'){GV=null;MODE='menu';show('s-online');setStatus('Lost the connection to the host.',true)}else if(MODE==='host')toast('Lost the connection to the game server.',4)}},
+  send(o){if(this.online&&this.ws&&this.ws.readyState===1){const s=JSON.stringify(o);this.bytes+=s.length;this.ws.send(s)}},
+  close(){this.online=false;if(this.ws){this.ws.onclose=null;try{this.ws.close()}catch(e){}this.ws=null}}};
+let HB=0,LAST_ROS=0,LAST_SNAP=0;
+function netClose(){net.close();clearInterval(HB);HB=0}
+function setStatus(t,err){const el=$('on-status');el.textContent=t||'';el.classList.toggle('err',!!err)}
+function myName(){return ($('myname').value||'').trim().slice(0,12)||'Night Owl'}
+function code4(){const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<4;i++)s+=A[Math.random()*A.length|0];return s}
+function openOnline(){MODE='menu';netClose();if(!$('myname').value)$('myname').value=LS.get('name','');setStatus('');show('s-online');loadHubName()}
+async function loadHubName(){if($('myname').value)return;try{const st=await hubApi('/api/me');if(st&&st.profile&&st.profile.name&&!$('myname').value)$('myname').value=String(st.profile.name).slice(0,12)}catch(e){}}
+function hostRoom(room){LS.set('name',myName());MODE='host';MY_SEAT=0;S=null;LOBBY.players=[{seat:0,name:myName(),cid:MY_CID,seen:now()}];LOBBY.cpu=SET.cpuOnline!=null?SET.cpuOnline:2;LOBBY.len=SET.len;
+  room=room||code4();net.connect(room,'host',()=>net.send({t:'create',code:room,max:MAXP}))}
+function joinRoom(room){room=(room||$('joincode').value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);if(room.length!==4){setStatus('The code is four letters.',true);return}
+  LS.set('name',myName());MODE='guest';GV=null;LOBBY.players=[];net.connect(room,'guest',()=>net.send({t:'join',code:room}))}
+function startHB(){clearInterval(HB);HB=setInterval(()=>{if(MODE==='guest')net.send({t:'hi',cid:MY_CID,name:myName()});
+  if(MODE==='guest'&&LAST_ROS&&now()-LAST_ROS>7000&&(!GV||now()-LAST_SNAP>7000))hostGone();
+  if(MODE==='host'){const t=now();bcRoster();if(!S){const b=LOBBY.players.length;LOBBY.players=LOBBY.players.filter(p=>p.cid===MY_CID||t-p.seen<9000);if(b!==LOBBY.players.length){LOBBY.players.forEach((p,i)=>p.seat=i);bcRoster();paintLobby()}}
+    else for(const st of S.stalls)if(!st.local&&!st.cpu&&!st.bot&&t-(st.seen||t)>9000){botInit(S,st,'reader');toast(st.name+' left. A CPU runs their stall now.',3)}}},2000)}
+function bcRoster(){net.send({t:'ros',ps:LOBBY.players.map(p=>[p.seat,p.name,p.cid]),cpu:LOBBY.cpu,len:LOBBY.len,ing:S?1:0})}
+function openLobby(){show('s-lobby');paintLobby();loadLobbyFriends()}
+function paintLobby(){$('lb-code').textContent=net.code||'····';const host=MODE==='host';
+  $('lb-list').innerHTML=LOBBY.players.map(p=>'<div class="prow"><span class="dot" style="background:'+STALL_COLS[p.seat%8]+';color:'+STALL_COLS[p.seat%8]+'"></span>'+esc(p.name)+'<span class="tg">'+(p.seat===0?'host':'')+(p.cid===MY_CID?' · you':'')+'</span></div>').join('')+
+    (LOBBY.players.length<2?'<div class="note">Waiting for friends. Share the code.</div>':'');
+  const cpuMax=Math.max(0,MAXP-LOBBY.players.length);const cpu=Math.min(LOBBY.cpu,cpuMax);
+  if(host){chips($('lb-cpu'),[0,1,2,3,4].filter(n=>n<=cpuMax).map(n=>[n,n?String(n):'none']),cpu,v=>{LOBBY.cpu=v;SET.cpuOnline=v;saveSet();bcRoster();paintLobby()});chips($('lb-len'),LENS,LOBBY.len,v=>{LOBBY.len=v;SET.len=v;saveSet();bcRoster();paintLobby()})}
+  else{$('lb-cpu').innerHTML='<div class="note">'+(cpu?cpu+' CPU stalls':'No CPU stalls')+'</div>';$('lb-len').innerHTML='<div class="note">'+(LENS.find(l=>l[0]===LOBBY.len)||LENS[1])[1]+'</div>'}
+  $('lb-note').textContent=(LOBBY.players.length+cpu)+' stalls on the street.';
+  $('lb-wait').classList.toggle('hidden',host);$('lb-start').classList.toggle('hidden',!host);
+  $('lb-start').querySelector('span:last-child').textContent=LOBBY.players.length<2?'Open the market (waiting for a friend)':'Open the market';$('lb-start').disabled=LOBBY.players.length<2&&!DEBUG}
+function hostGo(){if(MODE!=='host')return;ENDED=false;const cpu=Math.min(LOBBY.cpu,MAXP-LOBBY.players.length);
+  const stalls=LOBBY.players.map(p=>({seat:p.seat,name:p.name,cid:p.cid,local:p.cid===MY_CID}));for(let k=0;k<cpu;k++)stalls.push({seat:LOBBY.players.length+k,name:CPU_NAMES[k],cid:'cpu'+k,cpu:1});
+  // shuffle who stands where
+  for(let i=stalls.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[stalls[i],stalls[j]]=[stalls[j],stalls[i]]}
+  const seed=newSeed();S=makeSim({seed,hourLen:LOBBY.len,stalls});for(const st of S.stalls){st.seen=now();if(st.cpu)botInit(S,st,'reader')}OUTBOX.length=0;
+  net.send({t:'go',seed,len:LOBBY.len,st:S.stalls.map(s=>[s.seat,s.name,s.cid,s.cpu])});beginGame()}
+function guestGo(m){ENDED=false;const me=m.st.find(r=>r[2]===MY_CID);MY_SEAT=me?me[0]:-1;
+  GV=makeSim({seed:m.seed,hourLen:m.len,stalls:m.st.map(r=>({seat:r[0],name:r[1],cid:r[2],cpu:r[3]}))});GV.cust=[];
+  for(const st of GV.stalls){st.sn=DISH.map(()=>0);st.sa=DISH.map(()=>0)}LAST_SNAP=now();beginGame()}
+const OUTBOX=[];
+const CST={walk:0,go:1,queue:2,eat:3,leave:4},CSTN=Object.keys(CST);
+function packSnap(S){return {t:'s',tt:Math.round(S.t*10)/10,hr:S.hour,end:S.ending?1:0,pr:S.price.map(p=>Math.round(p*100)),
+  st:S.stalls.map(st=>[Math.round(st.cash*100),Math.round(st.rating*100),st.menu,st.price.map(p=>p*2),DISH.map((d,i)=>stockN(st,i)),DISH.map((d,i)=>st.stock[i].length?Math.round((S.t-st.stock[i][0].born)):0),
+    st.burn.map(b=>[b.d,Math.round(b.left*10)]),st.pantry,Math.round(st.smell*100),Math.round((S.t-st.bell)*10),st.served,st.lost,st.wasted,st.queue.length,st.gone?1:0]),
+  c:S.cust.map(c=>[c.id,Math.round(c.x),Math.round(c.y),CST[c.st],c.to,c.d,c.mood,c.critic?1:0,Math.round(c.pat)]),e:OUTBOX.splice(0)}}
+function guestSnap(m){const v=GV;if(!v)return;LAST_SNAP=now();v.t=m.tt;v.ending=!!m.end;if(m.hr!==v.hour){v.hour=m.hr;v.event=v.events[m.hr]}v.price=m.pr.map(p=>p/100);
+  m.st.forEach((r,i)=>{const st=v.stalls[i];if(!st)return;st.cash=r[0]/100;st.rating=r[1]/100;
+    if(st.seat!==MY_SEAT||!st.localEdit||now()-st.localEdit>800){st.menu=r[2];st.price=r[3].map(p=>p/2)}
+    st.sn=r[4];st.sa=r[5];st.burn=r[6].map(b=>({d:b[0],left:b[1]/10}));st.pantry=r[7];st.smell=r[8]/100;st.bell=v.t-r[9]/10;st.served=r[10];st.lost=r[11];st.wasted=r[12];st.qn=r[13];st.gone=!!r[14]});
+  const seen=new Map(v.cust.map(c=>[c.id,c]));v.cust=m.c.map(r=>{let c=seen.get(r[0]);if(!c){c={id:r[0],x:r[1],y:r[2]}}c.nx=r[1];c.ny=r[2];c.st=CSTN[r[3]];c.to=r[4];c.d=r[5];c.mood=r[6];c.critic=!!r[7];c.pat=r[8];return c});
+  for(const e of m.e)fxEvent(e,v)}
+function guestTick(dt){const v=GV;if(!v)return;if(!v.ending)v.t+=dt;const k=Math.min(1,dt*9);for(const c of v.cust){c.x+=(c.nx-c.x)*k;c.y+=(c.ny-c.y)*k}
+  for(const st of v.stalls)for(const b of st.burn)b.left=Math.max(0,b.left-dt)}
+let HSEND=0;function hostSend(){if(MODE!=='host'||!S)return;const t=now();if(t-HSEND<125)return;HSEND=t;net.send(packSnap(S))}
+function handleNet(m){switch(m.t){
+  case 'created':setStatus('');openLobby();bcRoster();startHB();break;
+  case 'joined':setStatus('');net.send({t:'hi',cid:MY_CID,name:myName()});openLobby();startHB();break;
+  case 'error':setStatus(m.msg||"That didn't work.",true);netClose();MODE='menu';show('s-online');break;
+  case 'start':if(MODE==='guest')net.send({t:'hi',cid:MY_CID,name:myName()});break;
+  case 'hi':if(MODE!=='host')break;{let p=LOBBY.players.find(x=>x.cid===m.cid);const nm=String(m.name||'Night Owl').slice(0,12);
+    if(p){p.seen=now();if(S){const st=S.stalls.find(q=>q.cid===m.cid);if(st)st.seen=now()}if(p.name!==nm&&!S){p.name=nm;bcRoster();paintLobby()}break}
+    if(S||LOBBY.players.length>=MAXP)break;p={seat:LOBBY.players.length,name:nm,cid:m.cid,seen:now()};LOBBY.players.push(p);bcRoster();paintLobby();toast(p.name+' joined');snd('ui',{v:.5})}break;
+  case 'ros':if(MODE!=='guest')break;LAST_ROS=now();LOBBY.players=m.ps.map(r=>({seat:r[0],name:r[1],cid:r[2]}));LOBBY.cpu=m.cpu;LOBBY.len=m.len;if(SCR==='s-lobby')paintLobby();break;
+  case 'go':if(MODE==='guest')guestGo(m);break;
+  case 's':if(MODE==='guest'&&GV)guestSnap(m);break;
+  case 'a':if(MODE==='host'&&S&&m.a&&typeof m.a==='object'){const st=S.stalls.find(q=>q.cid===m.cid);if(st&&!st.bot){st.seen=now();doAction(S,st,m.a)}}break;
+  case 'end':if(MODE==='guest'&&GV)gameOver(m.rows);break;
+  case 'lob':if(MODE==='guest'){GV=null;openLobby()}break;
+}}
+function hostGone(){GV=null;netClose();MODE='menu';LAST_ROS=0;show('s-online');setStatus('The host left the market.',true)}
+async function hubApi(path,body){const base=window.GLITCHBOX_API;if(!base||!window.GLITCHBOX_BACKEND_READY)throw new Error('no backend');
+  let tok='';try{tok=localStorage.getItem('glitchbox_session')||''}catch(e){}if(!tok)throw new Error('signed out');
+  const res=await fetch(base+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:body?JSON.stringify(body):undefined});
+  if(!res.ok)throw new Error('http '+res.status);return res.json()}
+async function loadLobbyFriends(){const wrap=$('lb-invite'),box=$('lb-friends');if(MODE!=='host'){wrap.classList.add('hidden');return}let st;
+  try{st=await hubApi('/api/me')}catch(e){wrap.classList.add('hidden');return}wrap.classList.remove('hidden');const list=st.friends||[];
+  if(!list.length){box.innerHTML='<div class="note">No friends yet. Add some from the GLITCHBOX menu.</div>';return}
+  box.innerHTML=list.map(f=>'<div class="prow" style="font-size:15px"><span class="dot" style="background:'+(f.online?'#7fd36b':'#666')+'"></span>'+esc(f.name)+'<button class="mini" style="margin:0 0 0 auto" data-sub="'+esc(f.sub)+'">Invite</button></div>').join('');
+  box.querySelectorAll('button').forEach(b=>b.onclick=async()=>{b.disabled=true;b.textContent='Sending...';try{await hubApi('/api/invite',{sub:b.dataset.sub,game:'night-market.html',room:net.code});b.textContent='Invited'}catch(e){b.textContent='Failed';b.disabled=false}})}
+function autoRoom(){const h=new URLSearchParams(HASH.replace(/^#/,''));const room=(h.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');if(room.length!==4)return false;
+  $('myname').value=LS.get('name','');show('s-online');if(h.get('host')==='1')hostRoom(room);else joinRoom(room);return true}
+
+// ═══════════════════════════════ BUTTONS ═══════════════════════════════
+$('b-online').onclick=openOnline;$('b-solo').onclick=openSolo;
+$('b-help').onclick=()=>{helpBack='s-title';show('s-help')};$('help-back').onclick=()=>show(helpBack);
+$('b-sound').onclick=$('pa-sound').onclick=()=>{SET.sound=!SET.sound;saveSet();auWake();auVol();syncSoundBtns()};
+$('solo-back').onclick=()=>show('s-title');$('solo-go').onclick=()=>startSolo(SET.cpu,SET.len);
+$('b-host').onclick=()=>hostRoom();$('b-join').onclick=()=>joinRoom();$('joincode').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom()});
+$('on-back').onclick=()=>{netClose();MODE='menu';show('s-title')};
+$('lb-start').onclick=()=>hostGo();$('lb-leave').onclick=()=>{netClose();MODE='menu';S=null;GV=null;show('s-title')};
+$('pausebtn').onclick=togglePause;$('pa-resume').onclick=resumeGame;$('pa-help').onclick=()=>{helpBack='s-pause';show('s-help')};$('pa-quit').onclick=quitGame;
+syncSoundBtns();
+if(window.GBSave)GBSave.register({save:()=>({v:1,prog:PROG}),load:d=>{if(d&&d.prog){PROG=Object.assign({best:0,nights:0,wins:0},d.prog);saveProg()}},autosave:0});
+function checkRotate(){const portrait=TOUCH&&innerHeight>innerWidth;const inGame=MODE!=='menu'&&(S||GV);$('rotate').classList.toggle('hidden',!(portrait&&inGame));
+  if(portrait&&inGame&&MODE==='solo'&&!PAUSED)PAUSED='rot';if(!portrait&&PAUSED==='rot')PAUSED=false}
+addEventListener('resize',checkRotate);addEventListener('orientationchange',checkRotate);
+
+// ═══════════════════════════════ MAIN LOOP ═══════════════════════════════
+let last=now(),acc=0,T=0;
+function frame(){const t=now();let dt=Math.min(.1,(t-last)/1000);last=t;T+=dt;
+  if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0}
+  if(bannerT>0){bannerT-=dt;if(bannerT<=0)$('banner').classList.remove('on')}
+  if((MODE==='solo'||MODE==='host')&&S&&!PAUSED){acc+=dt;let n=0;while(acc>=1/30&&n<6){for(const st of S.stalls)if(st.bot)botStep(S,st,1/30);simStep(S,1/30);acc-=1/30;n++}if(acc>.3)acc=0;
+    const evs=S.ev.splice(0);for(const e of evs)fxEvent(e,S);if(MODE==='host'){OUTBOX.push(...evs);if(OUTBOX.length>150)OUTBOX.splice(0,OUTBOX.length-150);hostSend()}
+    if(S.over&&!ENDED){const rows=summarize(S);if(MODE==='host'){hostSend();net.send({t:'end',rows})}gameOver(rows)}}
+  else if(MODE==='guest'&&GV)guestTick(dt);
+  else if(DEMO&&SCR==='s-title'){acc+=dt;let n=0;while(acc>=1/30&&n<3){for(const st of DEMO.stalls)botStep(DEMO,st,1/30);simStep(DEMO,1/30);acc-=1/30;n++}if(acc>.3)acc=0;for(const e of DEMO.ev.splice(0))fxEvent(e,DEMO);if(DEMO.over)demoStart()}
+  const v=V();if(v&&v!==DEMO){paintHud(v);if(!SCR||SCR==='s-pause')paintPanel()}
+  if(!NORENDER&&!SMOKE)render(dt,T);
+  requestAnimationFrame(frame)}
+
+// ═══════════════════════════════ SELF-TEST (#smoke) ═══════════════════════════════
+function runSmoke(){const out=[];let pass=0,fail=0;const ok=(n,c,x)=>{if(c)pass++;else fail++;out.push((c?'PASS ':'FAIL ')+n+(x!=null?'  ['+x+']':''))};
+  const run=(S,sec,bots)=>{for(let k=0;k<sec*30&&!S.over;k++){if(bots)for(const st of S.stalls)if(st.bot)botStep(S,st,1/30);simStep(S,1/30);S.ev.length=0}};
+  const mk=(n,o)=>makeSim(Object.assign({seed:7,hourLen:45,stalls:[...Array(n)].map((_,i)=>({seat:i,name:'s'+i,cid:'c'+i}))},o||{}));
+  ok('every recipe uses real ingredients',DISH.every(d=>d.ing.every(id=>INGI[id]!=null)));
+  ok('every ingredient is in some recipe',ING.every(g=>DISH.some(d=>d.ing.includes(g.id))));
+  // ── the stall ──
+  {const S=mk(2),st=S.stalls[0];const c0=st.cash,p0=S.price[INGI.flour];
+    ok('buying costs cash',doAction(S,st,{k:'buy',g:INGI.flour,n:5})==='buy'&&st.pantry[INGI.flour]===5&&st.cash<c0);
+    ok('buying pushes the wholesale price up for everyone',S.price[INGI.flour]>p0*1.25,(S.price[INGI.flour]/p0).toFixed(2)+'x');
+    run(S,40);ok('the price drifts back afterwards',S.price[INGI.flour]<p0*1.15,(S.price[INGI.flour]/p0).toFixed(2)+'x');
+    ok('cannot cook without a menu',doAction(S,st,{k:'cook',slot:0})==='nomenu');
+    doAction(S,st,{k:'menu',slot:0,d:DISHI.dump});ok('the same dish cannot go in two slots',doAction(S,st,{k:'menu',slot:1,d:DISHI.dump})==='dup');
+    ok('cannot cook without the ingredients',doAction(S,st,{k:'cook',slot:0})==='noing');
+    doAction(S,st,{k:'buy',g:INGI.pork,n:5});ok('cooking uses one of each ingredient',doAction(S,st,{k:'cook',slot:0})==='cook'&&st.pantry[INGI.pork]===4&&st.pantry[INGI.flour]===4);
+    doAction(S,st,{k:'cook',slot:0});ok('only two burners',doAction(S,st,{k:'cook',slot:0})==='burners');
+    ok('a dish with food on it cannot be swapped out',doAction(S,st,{k:'menu',slot:0,d:DISHI.tea})==='busy');
+    run(S,DISH[DISHI.dump].cook+.2);ok('a batch lands on the counter',stockN(st,DISHI.dump)===2*DISH[DISHI.dump].yield,stockN(st,DISHI.dump));
+    doAction(S,st,{k:'price',d:DISHI.dump,v:999});ok('prices are capped at 3x fair',st.price[DISHI.dump]===DISH[DISHI.dump].fair*3);
+    ok('the bell has a cooldown',doAction(S,st,{k:'bell'})==='bell'&&doAction(S,st,{k:'bell'})==='bellcd')}
+  {const S=mk(1),st=S.stalls[0];S.t=1;st.menu[0]=DISHI.tea;st.stock[DISHI.tea].push({n:5,born:S.t});S.cust.length=0;S.spawnAcc=-1e9;
+    run(S,STALE+2);ok('food left too long gets binned',stockN(st,DISHI.tea)===0&&st.wasted===5,st.wasted)}
+  // ── customers ──
+  {const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.menu=[DISHI.dump,-1,-1];b.menu=[DISHI.tea,-1,-1];for(const st of [a,b])for(const d of st.menu)if(d>=0)st.stock[d].push({n:50,born:0});
+    let toA=0,n=0;for(let k=0;k<200;k++){const c=spawnCustomer(S);c.x=STREET/2;c.crave=DISH.map((d,i)=>i===DISHI.dump?2:.5);decide(S,c);if(c.to===0)toA++;n++}
+    ok('people go where their favourite dish is',toA>n*.85,toA+'/'+n)}
+  const share=(fa,fb,tweak)=>{const S=mk(2);const a=S.stalls[0],b=S.stalls[1];for(const st of [a,b]){st.menu=[DISHI.dump,-1,-1];st.stock[DISHI.dump].push({n:99,born:0})}a.price[DISHI.dump]=fa;b.price[DISHI.dump]=fb;if(tweak)tweak(S,a,b);
+    let toA=0;for(let k=0;k<400;k++){const c=spawnCustomer(S);c.x=STREET/2;c.crave=DISH.map((d,i)=>i===DISHI.dump?2:.5);decide(S,c);if(c.to===0)toA++}return toA/400};
+  {const even=share(6,6),cheap=share(4.5,6);ok('undercutting the same dish takes the line',cheap>even+.25,Math.round(even*100)+'% -> '+Math.round(cheap*100)+'%');
+    const q=share(6,6,(S,a)=>{for(let k=0;k<6;k++)a.queue.push(-1-k)});ok('a long line sends people next door',q<.3,Math.round(q*100)+'%');
+    const sm=share(6,6,(S,a)=>{a.smell=1});ok('the smell of cooking pulls people in',sm>.6,Math.round(sm*100)+'%');
+    const bl=share(6,6,(S,a)=>{a.bell=S.t});ok('ringing the bell pulls people in',bl>.7,Math.round(bl*100)+'%');
+    const rt=share(6,6,(S,a)=>{a.rating=4.5});ok('stars matter',rt>.6,Math.round(rt*100)+'%')}
+  {const S=mk(1),st=S.stalls[0];st.menu=[DISHI.dump,-1,-1];S.spawnAcc=-1e9;const c=spawnCustomer(S);c.st='queue';c.to=0;c.d=DISHI.dump;st.queue.push(c.id);c.pat=3;
+    run(S,4);ok('nothing to sell: people give up and the stall loses a star point',st.lost===1&&st.rating<3,st.rating.toFixed(2));
+    const c2=spawnCustomer(S);c2.st='queue';c2.to=0;c2.d=DISHI.dump;st.queue.push(c2.id);st.stock[DISHI.dump].push({n:3,born:S.t});const cash=st.cash;run(S,SERVE_T+.1);
+    ok('the front of the line gets served and pays',st.served===1&&Math.abs(st.cash-cash-st.price[DISHI.dump])<1e-6)}
+  // ── strategy: scripted owners ──
+  const night=(kinds,seed)=>{const S=makeSim({seed,hourLen:45,stalls:kinds.map((k,i)=>({seat:i,name:k,cid:'c'+i,cpu:1}))});S.stalls.forEach((st,i)=>botInit(S,st,kinds[i]));run(S,9999,true);return S.stalls.map(st=>st.cash-START_CASH)};
+  {const ps=[11,22,33].map(sd=>night(['reader','reader','masher','cheap'],sd));const avg=k=>ps.reduce((a,p)=>a+p[k],0)/ps.length;
+    ok('the button masher (cheap, cooks nonstop, never reads) loses money',avg(2)<0,avg(2).toFixed(0));
+    ok('a reader beats the masher by a mile',Math.max(avg(0),avg(1))>avg(2)+100,Math.max(avg(0),avg(1)).toFixed(0)+' vs '+avg(2).toFixed(0));
+    const rw=ps.filter(p=>Math.max(p[0],p[1])>p[3]).length;ok('always undercutting does not win every night',rw>=1,rw+'/3 nights a reader beat the undercutter')}
+  // ── online ──
+  {const S=mk(4);S.stalls.forEach(st=>botInit(S,st,'reader'));run(S,60,true);const snap=JSON.parse(JSON.stringify(packSnap(S)));
+    const G=makeSim({seed:7,hourLen:45,stalls:S.stalls.map(s=>({seat:s.seat,name:s.name,cid:s.cid}))});G.cust=[];G.stalls.forEach(st=>{st.sn=DISH.map(()=>0);st.sa=DISH.map(()=>0)});
+    const gv=GV;GV=G;try{guestSnap(snap)}finally{GV=gv}
+    ok('a guest sees every stall right',S.stalls.every((st,i)=>Math.abs(G.stalls[i].cash-st.cash)<.011&&G.stalls[i].menu.join()===st.menu.join()&&DISH.every((d,k)=>G.stalls[i].sn[k]===stockN(st,k))));
+    ok('a guest sees every customer',G.cust.length===S.cust.length&&G.cust.every((c,i)=>Math.abs(c.nx-S.cust[i].x)<1));
+    let bytes=0,n=0;for(let k=0;k<60;k++){run(S,.125,true);OUTBOX.length=0;bytes+=JSON.stringify(packSnap(S)).length;n++}
+    const kbs=bytes/(n/8)/1024;ok('a busy street costs under 30 KB/s to watch',kbs<30,kbs.toFixed(1)+' KB/s')}
+  // ── page ──
+  ok('every sound the street asks for is in the sprite',['ui','sizzle','chop','ding','coin','crate','hmph','yum','trash','gong','firecracker','rain','rooster','cheer','till','pour'].every(k=>SMAP[k]&&SMAP[k].length));
+  ok('the quit menu script is on the page',!!window.GLITCHBOX_OFFLINE||!!document.querySelector('script[src*="glitchbox-menu"]'));
+  ok('play with friends is the first button',document.querySelector('#s-title .btn').id==='b-online');
+  ok('no em dashes in anything a player reads',!/—/.test(document.body.innerText+DISH.map(d=>d.name).join()+ING.map(g=>g.name).join()));
+  try{const S0=S,M0=MODE;S=makeSim({seed:3,hourLen:45,stalls:[{seat:0,name:'me',cid:'a',local:true},{seat:1,name:'b',cid:'b',cpu:1}]});MODE='solo';botInit(S,S.stalls[1],'reader');run(S,40,true);
+    $('panel').classList.remove('hidden');paintPanel(true);render(1/30,1);const ok1=$('p-slots').children.length===3&&$('p-ings').children.length===ING.length;S=S0;MODE=M0;$('panel').classList.add('hidden');ok('the street and your stall panel draw',ok1)}catch(e){ok('the street and your stall panel draw',false,e.message)}
+  const box=document.createElement('pre');box.id='smokeout';box.style.cssText='position:fixed;inset:0;z-index:99;background:#fff;color:#000;overflow:auto;font:12px monospace;padding:10px';
+  box.textContent=out.join('\n');document.body.appendChild(box);document.title='SMOKE '+(fail?'FAIL':'PASS')+' '+pass+'/'+(pass+fail)}
+
+// ═══════════════════════════════ START ═══════════════════════════════
+if(DEBUG)window.__NM={get S(){return S},get GV(){return GV},get MODE(){return MODE},net,startSolo,hostRoom,joinRoom,hostGo,act,myStall,packSnap};
+if(SMOKE){show(null);setTimeout(runSmoke,50)}
+else if(!autoRoom()){const h=new URLSearchParams(HASH.replace(/^#/,''));if(h.get('solo'))startSolo(+h.get('solo')||3,+(h.get('len')||45));else show('s-title')}
+requestAnimationFrame(frame);
+
+</script>
+<script src="glitchbox-menu.js" data-pos="top-left" defer></script>
+</body>
+</html>
