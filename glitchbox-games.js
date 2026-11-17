@@ -3,6 +3,7 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
+  {name:'Stacked',            file:'stacked.html',               emoji:'🧱',color:['#6ec3f0','#ffc6a2'],category:'multiplayer',tags:['new','mp'],blurb:'Drop swinging blocks, planks, ramps and balls on a tiny platform and build as high as you can. Wind kicks in at 20 m. Or take turns on one tower with friends and try not to be the one who knocks it over'},
   {name:'Carry the Couch',    file:'carry-the-couch.html',       emoji:'🛋️',color:['#c99c63','#ee6a22'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Grab an end, lift together, pivot it through the doorway and down the stairs, and get it in the van before it leaves. 2 to 4 friends online, or you and a CPU buddy'},
   {name:'Five Nights at Monkes',file:'five-nights-at-monkes.html',emoji:'🐒',color:['#0b120c','#2a1a08'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Night keeper at a jungle play place. Listen for the monkes, shut the doors, feed Clappy a banana and make it to 6 AM. Split the jobs with up to 4 friends, or let one friend BE the monkes'},
   {name:'Moving Mountains',   file:'moving-mountains.html',       emoji:'⛰️',color:['#3d7fd0','#9fd36a'],category:'simulation', tags:['new','hot','mp'],blurb:'A 2,700,000,000-rock mountain is ruining Mr. Grumbleton\'s sunset. Get rid of it. You start with a spoon, then work up to pickaxes, C4, dump trucks and diggers. Bring friends with a room code, or download it for Windows and Mac'},
@@ -598,6 +599,34 @@ const DRAW={
   for(let i=0;i<10;i++){c.fillStyle='rgba(220,240,255,.85)';c.beginPath();c.arc(198+i*4.5,62+((i*13)%14)-i*1.5,1.6,0,6.3);c.fill()}
   const vg=c.createRadialGradient(160,100,60,160,100,210);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.65)');c.fillStyle=vg;c.fillRect(0,0,320,200);
   _SC(c);
+},
+'stacked':(c)=>{
+  // a wobbly pastel tower on a little pedestal, the next crate swinging in on its rope
+  _GV(c,0,0,320,200,'#6ec3f0','#bfe3f7','#ffe3c4');
+  _C(c,262,104,20,'#fff1bf');
+  const cloud=(x,y,s)=>{c.fillStyle='rgba(255,255,255,.9)';c.beginPath();c.arc(x,y,9*s,Math.PI,0);c.arc(x+11*s,y+1,7*s,Math.PI*1.2,.1);c.arc(x-11*s,y+2,6*s,Math.PI,1.9*Math.PI);c.closePath();c.fill();c.fillRect(x-17*s,y,35*s,3*s)};
+  cloud(40,96,1.1);cloud(226,138,.8);cloud(70,120,.7);
+  c.fillStyle='#a6dcb8';c.beginPath();c.moveTo(0,200);for(let x=0;x<=320;x+=16)c.lineTo(x,172-Math.sin(x*.03)*8-Math.sin(x*.08)*3);c.lineTo(320,200);c.fill();
+  c.fillStyle='#86cf9f';c.beginPath();c.moveTo(0,200);for(let x=0;x<=320;x+=16)c.lineTo(x,186-Math.sin(x*.025+2)*7);c.lineTo(320,200);c.fill();
+  const ink='#2b2840';c.lineJoin='round';
+  const blk=(x,y,w,h,col,a,deco)=>{c.save();c.translate(x,y);c.rotate(a||0);c.fillStyle='rgba(43,40,64,.18)';c.fillRect(-w/2+3,-h/2+3,w,h);c.fillStyle=col;c.fillRect(-w/2,-h/2,w,h);
+    if(deco==='x'){c.strokeStyle='rgba(43,40,64,.2)';c.lineWidth=1.5;c.strokeRect(-w/2+4,-h/2+4,w-8,h-8);c.beginPath();c.moveTo(-w/2+4,-h/2+4);c.lineTo(w/2-4,h/2-4);c.stroke()}
+    if(deco==='d'){c.fillStyle='rgba(43,40,64,.2)';[[-.3,-.2],[.1,.15],[.3,-.1]].forEach(([u,v])=>{c.beginPath();c.arc(u*w,v*h,1.6,0,6.3);c.fill()})}
+    c.strokeStyle=ink;c.lineWidth=2.4;c.strokeRect(-w/2,-h/2,w,h);c.restore()};
+  // pedestal
+  c.fillStyle='#e8c99d';c.beginPath();c.moveTo(130,176);c.lineTo(190,176);c.lineTo(182,200);c.lineTo(138,200);c.fill();c.strokeStyle=ink;c.lineWidth=2.4;c.stroke();
+  c.fillStyle='#f4d9b0';c.fillRect(104,162,112,16);c.fillStyle='#9fd98a';c.fillRect(104,162,112,5);c.strokeRect(104,162,112,16);
+  // the tower, leaning more the higher it gets
+  blk(160,152,46,19,'#cbb9f0',0,'d');blk(158,131,24,24,'#ffe49a',.01,'x');blk(161,115,68,8,'#cde7a3',.03);
+  blk(163,97,32,30,'#ffc6a2',.04,'x');blk(166,75,26,13,'#b2d8ff',.06);blk(168,58,44,19,'#cbb9f0',.07,'d');
+  c.save();c.translate(172,40);c.rotate(.09);c.fillStyle='#ffb1c6';c.beginPath();c.moveTo(-18,8);c.lineTo(18,8);c.lineTo(18,-14);c.closePath();c.fill();c.strokeStyle=ink;c.lineWidth=2.4;c.stroke();c.restore();
+  // rope + swinging crate
+  _L(c,96,0,84,30,ink,2.2);_C(c,84,30,2.6,ink);blk(84,42,24,24,'#ffe49a',-.12,'x');
+  c.setLineDash([3,5]);_L(c,84,58,84,100,'rgba(43,40,64,.35)',1.6);c.setLineDash([]);
+  // wind streaks + height tag
+  c.strokeStyle='rgba(255,255,255,.85)';c.lineWidth=2;c.lineCap='round';[[210,60,40],[230,74,30],[200,128,36],[250,150,26]].forEach(([x,y,l])=>{c.beginPath();c.moveTo(x,y);c.lineTo(x+l,y);c.stroke()});
+  c.fillStyle='#fffaf0';c.strokeStyle=ink;c.lineWidth=2.4;c.beginPath();c.roundRect?c.roundRect(236,10,74,34,8):c.rect(236,10,74,34);c.fill();c.stroke();
+  c.fillStyle=ink;c.font='900 20px ui-rounded,"Arial Rounded MT Bold",sans-serif';c.textAlign='left';c.fillText('24.6',243,35);c.font='800 12px sans-serif';c.fillText('m',289,35);
 },
 'five-nights-at-monkes':(c)=>{
   // the keeper's office at 2 AM: a lit west doorway with Bongo grinning in it, a shut east shutter, eyes in the vent
