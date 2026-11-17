@@ -5,12 +5,19 @@ Nothing was synthesized: the recordings were only trimmed, filtered, faded and (
 No attribution is required, but here is where they came from. Thank you!
 
 Kenney - UI Audio (www.kenney.nl, CC0): click1, click3
+Kenney - Impact Sounds (www.kenney.nl, CC0): impactSoft_medium_000
 
 Freesound.org (all CC0):
+  groans.wav by iggy1345 - https://freesound.org/people/iggy1345/sounds/103072/
+  cat meow II by tuberatanka - https://freesound.org/people/tuberatanka/sounds/110010/
+  DSLR Camera Click by akonze - https://freesound.org/people/akonze/sounds/157812/
   humpf tsk tsk.mp3 by juror2 - https://freesound.org/people/juror2/sounds/196402/
+  Hammering.wav by Dvideoguy - https://freesound.org/people/Dvideoguy/sounds/207782/
   service bell ring by AlaskaRobotics - https://freesound.org/people/AlaskaRobotics/sounds/221515/
   Rain (Field Recording) by Opticreep - https://freesound.org/people/Opticreep/sounds/320520/
   Cha Ching.wav by deleted_user_96253 - https://freesound.org/people/deleted_user_96253/sounds/351304/
+  Stamp by kermite607 - https://freesound.org/people/kermite607/sounds/362623/
+  Stamp by kermite607 - https://freesound.org/people/kermite607/sounds/362624/
   Dumping Trash in a Trash Can by deleted_user_7146007 - https://freesound.org/people/deleted_user_7146007/sounds/383461/
   Sizzling in a wok by freemaster2 - https://freesound.org/people/freemaster2/sounds/402380/
   Rooster Crow 1 by BenjaminNelan - https://freesound.org/people/BenjaminNelan/sounds/435508/
@@ -18,15 +25,26 @@ Freesound.org (all CC0):
   PouringTea.mp3 by shelbyshark - https://freesound.org/people/shelbyshark/sounds/457276/
   Coins Drop - 13 by SpaceJoe - https://freesound.org/people/SpaceJoe/sounds/485749/
   Coins Drop - 14 by SpaceJoe - https://freesound.org/people/SpaceJoe/sounds/485750/
+  Splat/Squish 1 by mrickey13 - https://freesound.org/people/mrickey13/sounds/515618/
+  Splat/Squish 2 by mrickey13 - https://freesound.org/people/mrickey13/sounds/515619/
+  Referee whistle sound.wav by Rosa-Orenes256 - https://freesound.org/people/Rosa-Orenes256/sounds/538422/
+  power drill by AlaskaRobotics - https://freesound.org/people/AlaskaRobotics/sounds/551504/
+  Saw wood 3.wav by Pagey1969 - https://freesound.org/people/Pagey1969/sounds/566040/
   CDOG_small_box_thud.wav by CANADIAN_DOG - https://freesound.org/people/CANADIAN_DOG/sounds/575290/
   Sizzling Pan by AntoineRomo - https://freesound.org/people/AntoineRomo/sounds/587050/
+  meow-1.wav by nathan-osman - https://freesound.org/people/nathan-osman/sounds/686775/
   Satisfied Moan (Food).wav by akapastels - https://freesound.org/people/akapastels/sounds/697901/
+  skitter-clicks.wav by InsanityZeta - https://freesound.org/people/InsanityZeta/sounds/702986/
   Young man saying "Yum!" by magicjoshua - https://freesound.org/people/magicjoshua/sounds/704178/
+  Hammer on Wood by L.i.Z.e.L.l.E_+ - https://freesound.org/people/L.i.Z.e.L.l.E_+/sounds/707864/
   Egg frying in pan by Squidems - https://freesound.org/people/Squidems/sounds/709951/
   Chopping onion by AudioPapkin - https://freesound.org/people/AudioPapkin/sounds/716548/
   Paper Bag Crinkle by vhschool2019 - https://freesound.org/people/vhschool2019/sounds/716928/
   Voice_Crowd_Small_Expression_Applause_Cheer_Stereo by Nox_Sound - https://freesound.org/people/Nox_Sound/sounds/752709/
+  laugh_giggle_man_witch_cartoon by 3LMN_audio - https://freesound.org/people/3LMN_audio/sounds/754399/
   A male sigh by randbsoundbites - https://freesound.org/people/randbsoundbites/sounds/799579/
+  Noises - Short laugh by Sadiquecat - https://freesound.org/people/Sadiquecat/sounds/800973/
+  Displeasure - Urrr by Sadiquecat - https://freesound.org/people/Sadiquecat/sounds/801098/
   handful-of-coins-005 by ilyaShevelev - https://freesound.org/people/ilyaShevelev/sounds/847348/
   gong_brown_80cm_felt_mallet by glenm8 - https://freesound.org/people/glenm8/sounds/853153/
   ambient rain - rain begins falling on metal roof by Shipi1 - https://freesound.org/people/Shipi1/sounds/864263/
