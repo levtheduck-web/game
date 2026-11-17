@@ -13,6 +13,7 @@ Freesound.org (all CC0):
   sand pour on sand FF662.aif by martinimeniscus - https://freesound.org/people/martinimeniscus/sounds/199332/
   Referee whistle blow, gymnasium.wav by SpliceSound - https://freesound.org/people/SpliceSound/sounds/218318/
   Sand picking shovel by voho - https://freesound.org/people/voho/sounds/320485/
+  CoinToJar.mp3 by jact878787 - https://freesound.org/people/jact878787/sounds/323809/
   Wading in Shallow Water.wav by ryansitz - https://freesound.org/people/ryansitz/sounds/342932/
   cloth flap by ssierra1202 - https://freesound.org/people/ssierra1202/sounds/391945/
   Water splash, emptying a bucket 7 by wormer2 - https://freesound.org/people/wormer2/sounds/417786/
@@ -26,9 +27,15 @@ Freesound.org (all CC0):
   walla, int, children, group, cheering, positive.wav by golovlev.sound - https://freesound.org/people/golovlev.sound/sounds/627212/
   walla, int, children, disappointment, reaction, ooh.wav by golovlev.sound - https://freesound.org/people/golovlev.sound/sounds/627213/
   Digging in wet course sand (raw file) by f3bbbo - https://freesound.org/people/f3bbbo/sounds/651294/
+  wooden log drop by ventousawins - https://freesound.org/people/ventousawins/sounds/681416/
   seagull1.mp3 by Joker313 - https://freesound.org/people/Joker313/sounds/683400/
   Hard Impact on Sand by Elements-Library - https://freesound.org/people/Elements-Library/sounds/683788/
   The sound of waves hitting the shore at sunset in Krabi Thailand. by River_flowers - https://freesound.org/people/River_flowers/sounds/720789/
+  Many Driftwood Drop by bassronin - https://freesound.org/people/bassronin/sounds/771148/
+  Shell Drop Shaker by bassronin - https://freesound.org/people/bassronin/sounds/771150/
+  Small Stick Fall Soft by bassronin - https://freesound.org/people/bassronin/sounds/771151/
+  Shell Drop by bassronin - https://freesound.org/people/bassronin/sounds/771154/
+  Small Shell Hit by bassronin - https://freesound.org/people/bassronin/sounds/771155/
   Steps_Fine_Snow_Or_Sand_Gentle_04 by BlondPanda - https://freesound.org/people/BlondPanda/sounds/778523/
   Steps_Fine_Snow_Or_Sand_Gentle_09 by BlondPanda - https://freesound.org/people/BlondPanda/sounds/778528/
   Steps_Fine_Snow_Or_Sand_Gentle_13 by BlondPanda - https://freesound.org/people/BlondPanda/sounds/778532/
@@ -36,3 +43,4 @@ Freesound.org (all CC0):
   Fs_Wet_Soil_01 by renandosanjos - https://freesound.org/people/renandosanjos/sounds/854619/
   Fs_Wet_Soil_02 by renandosanjos - https://freesound.org/people/renandosanjos/sounds/854620/
   Fs_Wet_Soil_03 by renandosanjos - https://freesound.org/people/renandosanjos/sounds/854621/
+  Stone_Drop_Metal_Can_PERC01 by SignatureSoundsOrg - https://freesound.org/people/SignatureSoundsOrg/sounds/868788/

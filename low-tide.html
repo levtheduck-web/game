@@ -81,6 +81,17 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:900 13px 'Nunito'
 .tool .pips{position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);display:flex;gap:2px}
 .tool .pips i{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--ink);background:#fff}
 .tool .pips i.f{background:#d8b878}.tool .pips.w i.f{background:#4cb5c4}
+.tool .cnt{position:absolute;top:2px;right:5px;font-weight:900;font-size:13px;background:var(--red);color:#fff;border-radius:999px;padding:0 6px;border:2px solid var(--ink)}
+.tool.shopb{background:#fff3e2;margin-left:8px}.tool.shopb .shn{font-family:'Shrikhand';font-size:24px;line-height:1;color:var(--red)}.tool.shopb .shn::before{content:'🐚';font-family:'Nunito';font-size:18px;margin-right:2px}
+.tool.shopb.glow{animation:glow 1.2s ease-in-out infinite}@keyframes glow{50%{background:var(--sun)}}
+.shop{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px;margin-top:10px}
+.sitem{display:flex;align-items:center;gap:12px;border:3px solid var(--ink);border-radius:12px;background:#fff;padding:8px 10px;box-shadow:0 3px 0 var(--ink)}
+.sitem.done{opacity:.6}.sitem .si{width:48px;height:48px;flex:none;display:flex;align-items:center;justify-content:center;font-size:34px;background:var(--paper2);border-radius:10px;border:2px solid var(--ink)}.sitem .si svg{width:38px;height:38px}
+.sitem .sd{flex:1;font-size:14px;font-weight:700;color:var(--mut);line-height:1.25}.sitem .sd b{display:block;font-size:18px;color:var(--ink)}
+.sitem .lv{display:flex;gap:3px;margin-top:4px;font-size:12.5px;font-weight:900;color:var(--sea2)}.sitem .lv i{width:12px;height:12px;border-radius:50%;border:2px solid var(--ink);background:#fff}.sitem .lv i.f{background:var(--sea)}
+.sbuy{flex:none;min-width:84px;font:900 18px 'Nunito';padding:8px 10px;border:3px solid var(--ink);border-radius:10px;background:var(--sun);color:var(--ink);cursor:pointer;box-shadow:0 3px 0 var(--ink)}
+.sbuy.no{background:#eee;color:#888}.sbuy:disabled{background:#ddd;color:#666;box-shadow:none;cursor:default;font-size:14px}
+.shave{font-family:'Shrikhand';font-size:30px;color:var(--red)}
 #toast{position:fixed;left:50%;bottom:118px;transform:translateX(-50%);z-index:8;background:var(--ink);color:#fff;font-weight:900;font-size:18px;padding:8px 18px;border-radius:999px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
 #banner{position:fixed;left:0;right:0;top:30%;text-align:center;z-index:7;pointer-events:none;font-family:'Shrikhand';font-size:clamp(40px,8vw,84px);color:#fff;text-shadow:4px 4px 0 var(--ink);opacity:0;transform:scale(.9) rotate(-3deg);transition:opacity .3s,transform .3s}
 #banner.on{opacity:1;transform:scale(1) rotate(-3deg)}
@@ -162,9 +173,20 @@ body.touch .tool{width:62px;height:62px}body.touch .tool svg{width:30px;height:3
     <div><b><kbd>3</kbd> Pat</b>Pack the sand down. Packed sand stands steep and stands up to waves. Dry sand won't pack.</div>
     <div><b><kbd>4</kbd> Bucket</b>Fill it in the sea, then pour it on dry sand. Damp sand holds a slope; dry sand slides.</div>
   </div>
+  <p><b>Shell shop:</b> shells wash up after every tide, and holding a tide pays everyone 2. Press <kbd>B</kbd> to buy a bigger pail, a faster spade, a flat paddle, a bigger bucket, wellies, or driftwood logs (<kbd>5</kbd> lays one across where you face; the sea can't move it).</p>
   <p><b>What works:</b> a ring wall, wet and patted, with a moat on the sea side. A loose dry heap washes off in two waves.</p>
   <p><b>Controls:</b> move with <kbd>WASD</kbd> or arrows, aim with the mouse, hold the mouse button or <kbd>Space</kbd> to use your tool. Switch tools with <kbd>1</kbd>-<kbd>4</kbd>, <kbd>Q</kbd>/<kbd>E</kbd> or the wheel. On a phone: stick on the left, USE on the right, and you aim where you face.</p>
   <button class="btn" id="help-back"><span class="ic">←</span><span>Back</span></button>
+</div></div>
+
+<div class="scr hidden" id="s-shop"><div class="card wide">
+  <div class="stamp">🐚<small>SHOP</small></div>
+  <h2 class="disp">The Shell Shop</h2>
+  <div class="sub" style="margin-bottom:4px">You have <span class="shave">🐚 <span id="sh-have">0</span></span></div>
+  <div class="note" id="sh-note"></div>
+  <div class="shop" id="sh-list"></div>
+  <div class="note">Shells wash up on the wet sand after every tide. Grab them before the next tide takes them back. Gold ones are worth 3.</div>
+  <button class="btn pri" id="sh-close"><span class="ic">🏖️</span><span>Back to the beach <small>B or Esc</small></span></button>
 </div></div>
 
 <div class="scr hidden" id="s-pause"><div class="card">
@@ -197,7 +219,26 @@ body.touch .tool{width:62px;height:62px}body.touch .tool svg{width:30px;height:3
 const GW=72,GH=44,GN=GW*GH,SEA_ROWS=3;
 const KEEP_R=1.6,YARD_R=2.75,TOWER_H=2.1,MAXSAND=6,MAXWATER=3,SCOOP=1.15,REACH=3.4;
 const CD={dig:.26,pile:.2,pat:.15,pour:.38,fill:.55};
-const TOOLS=['dig','pile','pat','water'];
+const TOOLS=['dig','pile','pat','water','log'];
+// ── the shell shop: per-player upgrades bought with shells found on the beach ──
+const SHOP=[
+  {id:'pail',  name:'Big pail',   desc:'Carry 2 more scoops of sand.',            costs:[4,8]},
+  {id:'spade', name:'Steel spade',desc:'Dig faster.',                             costs:[5,10]},
+  {id:'paddle',name:'Flat paddle',desc:'Pat a wider patch, and harder.',          costs:[5,10]},
+  {id:'bucket',name:'Big bucket', desc:'2 more pours from every fill.',           costs:[3,7]},
+  {id:'boots', name:'Wellies',    desc:'Run faster. Water no longer slows you.',  costs:[4]},
+  {id:'log',   name:'Driftwood',  desc:'A log the sea cannot move. Lay it down as a breakwater.',costs:[6],item:1},
+];
+const SHOPID=id=>SHOP.find(x=>x.id===id);
+const LOGLEN=5,MAXLOGS=3,HELD_BONUS=2;
+const maxSand=p=>MAXSAND+2*(p.up.pail|0);
+const maxWater=p=>MAXWATER+2*(p.up.bucket|0);
+const digCD=p=>CD.dig*[1,.75,.55][p.up.spade|0];
+const patR=p=>[1.05,1.35,1.6][p.up.paddle|0];
+const patK=p=>[1.6,2.1,2.6][p.up.paddle|0];
+function shopCost(p,id){const it=SHOPID(id);if(!it)return null;if(it.item)return p.logs>=MAXLOGS?null:it.costs[0];const lv=p.up[id]|0;return lv>=it.costs.length?null:it.costs[lv]}
+function buy(S,p,id){const c=shopCost(p,id);if(c==null)return 'maxed';if(p.shells<c)return 'poor';p.shells-=c;
+  if(SHOPID(id).item)p.logs++;else p.up[id]=(p.up[id]|0)+1;S.stats.bought++;emit(S,['buy',id,0,p.seat]);return 'ok'}
 const BEACHES=[
   {id:'bay',name:'Calm Bay',desc:'Gentle waves on a long flat beach. Learn the tide here.',
    top:3.5,slope:.072,low:.45,rise0:.62,riseK:.2,amp0:.66,ampK:.07,bigK:1.5,skew:.25,rocks:0,build1:48,build2:26,wave0:4,keepY:20},
@@ -218,7 +259,7 @@ function makeSim(o){
     h:new Float32Array(GN),floor:new Float32Array(GN),d:new Float32Array(GN),wet:new Float32Array(GN),pack:new Float32Array(GN),
     sed:new Float32Array(GN),fl:new Float32Array(GN),fr:new Float32Array(GN),ft:new Float32Array(GN),fb:new Float32Array(GN),
     u:new Float32Array(GN),v:new Float32Array(GN),base:new Float32Array(GN),tmp:new Float32Array(GN),
-    players:[],ev:[],over:false,lost:false,flagWet:0,flagDown:0,stats:{dug:0,piled:0,pats:0,pours:0,slumped:0,waves:0},
+    players:[],ev:[],over:false,lost:false,flagWet:0,flagDown:0,stats:{dug:0,piled:0,pats:0,pours:0,slumped:0,waves:0,shells:0,bought:0},shells:[],shellId:0,shellVer:0,logs:[],
     kx:GW/2,ky:B.keepY,bigWarned:false,slumpAcc:0,slumpT:0,slumpX:0,slumpY:0,slumpMax:0,R};
   // beach profile: a long gentle slope, then a drop into the sea
   const prof=y=>{const shore=31;if(y<=shore)return B.top-B.slope*y;const hs=B.top-B.slope*shore;return hs-(y-shore)*.21-(y>GH-6?(y-(GH-6))*.18:0)};
@@ -251,8 +292,16 @@ function makeSim(o){
   const COL=['#e4572e','#2e86ab','#f2b134','#7a4fa0','#3aa36a','#e86fa6'];
   for(const p of o.players)S.players.push({seat:p.seat,name:p.name,cid:p.cid,cpu:p.cpu||0,local:!!p.local,col:COL[p.seat%6],
     x:S.kx-3+((p.seat%3)*3),y:S.ky+4.5+(p.seat/3|0)*2,fx:0,fy:1,tool:0,sand:0,sandWet:0,water:0,cd:0,use:0,mx:0,my:0,tx:S.kx,ty:S.ky+3,
-    act:0,actK:'',stepT:0,inWater:0,seen:0,done:{dug:0,piled:0,pats:0,pours:0}});
+    act:0,actK:'',stepT:0,inWater:0,seen:0,done:{dug:0,piled:0,pats:0,pours:0,shells:0},shells:0,logs:0,up:{}});
+  spawnShells(S,4+2*o.players.length,true);
   return S}
+// shells wash up on the wet sand the sea just left; the next tide takes back any nobody picked up
+function spawnShells(S,n,start){const R=S.R,hi=highTide(S,S.round)+.35;let tries=0;
+  while(n>0&&tries++<600){const x=1.5+R()*(GW-3),y=4+R()*(GH-SEA_ROWS-5),i=Math.round(y)*GW+Math.round(x);
+    if(S.tower[i]||S.d[i]>.01||S.floor[i]>-5)continue;if(Math.hypot(x-S.kx,y-S.ky)<YARD_R+1)continue;
+    const hh=S.h[i];if(start?(hh>hi+.6):(hh>hi||hh<S.B.low+.08))continue;
+    S.shells.push({id:++S.shellId,x,y,v:R()<.12?3:1});n--}
+  S.shellVer++}
 function waterTable(S,i){return clamp((S.tide+.55-S.h[i])/.9,0,.72)}
 function seaLevel(S,x){let s=S.tide;const t=S.t;
   for(const w of S.waves){const tt=t-w.t0-w.skew*(x/GW);if(tt<0||tt>4.4)continue;
@@ -284,7 +333,7 @@ function tideStep(S,dt){S.pt+=dt;const L=phaseLen(S);
     for(const w of S.waves){if(!w.hit&&S.t>=w.t0+.7+Math.max(0,w.skew)*.3){w.hit=true;S.waveI++;S.stats.waves++;emit(S,[w.big?'big':'wave',Math.round(w.amp*100)/100])}
       if(w.big&&!S.bigWarned&&S.t>=w.t0-3){S.bigWarned=true;emit(S,['bigwarn'])}}
     const last=S.waves[S.waves.length-1];if(last&&S.t>last.t0+Math.abs(last.skew)+5.2){S.phase='ebb';S.pt=0;S.tideFrom=S.tide;S.waves=[]}}
-  else if(S.phase==='ebb'){S.tide=lerp(S.tideFrom,S.B.low,sstep(0,L,S.pt));if(S.pt>=L){emit(S,['held',S.round]);S.round++;S.phase='build';S.pt=0;if(S.round%2===0)emit(S,['gull'])}}}
+  else if(S.phase==='ebb'){S.tide=lerp(S.tideFrom,S.B.low,sstep(0,L,S.pt));if(S.pt>=L){emit(S,['held',S.round]);for(const p of S.players)if(!p.gone)p.shells+=HELD_BONUS;spawnShells(S,3+S.round+S.players.filter(p=>!p.gone).length);S.round++;S.phase='build';S.pt=0;if(S.round%2===0)emit(S,['gull'])}}}
 
 // ── water: virtual pipes ──
 const G_=14,FDAMP=.996;
@@ -346,35 +395,44 @@ function noBuild(S,i){return S.tower[i]!==0}
 function act(S,p,tool,tx,ty){
   const k=TOOLS[tool];
   const inYard=Math.hypot(tx-S.kx,ty-S.ky)<YARD_R+.25;
-  if(k==='dig'){if(p.sand>=MAXSAND)return 'full';if(inYard)return 'yard';let got=0,wsum=0;
+  if(k==='dig'){if(p.sand>=maxSand(p))return 'full';if(inYard)return 'yard';let got=0,wsum=0;
     brush(tx,ty,1.25,(i,w,x,y)=>{if(noBuild(S,i))return;let a=SCOOP*w;const av=Math.max(0,S.h[i]-S.floor[i]);if(a>av)a=av;S.h[i]-=a;got+=a;wsum+=a*S.wet[i];S.pack[i]*=.55});
-    if(got<.05)return 'rock';const add=Math.min(MAXSAND-p.sand,got/SCOOP);p.sandWet=(p.sandWet*p.sand+(wsum/got)*add)/(p.sand+add);p.sand+=add;
-    if(p.sand>MAXSAND-.05)p.sand=MAXSAND;S.stats.dug++;p.done.dug++;return 'dig'}
+    if(got<.05)return 'rock';const add=Math.min(maxSand(p)-p.sand,got/SCOOP);p.sandWet=(p.sandWet*p.sand+(wsum/got)*add)/(p.sand+add);p.sand+=add;
+    if(p.sand>maxSand(p)-.05)p.sand=maxSand(p);S.stats.dug++;p.done.dug++;return 'dig'}
   if(k==='pile'){if(p.sand<.05)return 'empty';if(inYard)return 'yard';const amt=Math.min(1,p.sand);const vol=amt*SCOOP;
     let put=0;brush(tx,ty,1.1,(i,w)=>{if(noBuild(S,i))return;put+=w});if(put<.05)return 'yard';
     brush(tx,ty,1.1,(i,w)=>{if(noBuild(S,i))return;const a=vol*w/put;S.h[i]+=a;const f=a/(a+.12);S.wet[i]=lerp(S.wet[i],p.sandWet,f);S.pack[i]*=1-f*.85});
     p.sand-=amt;if(p.sand<.05){p.sand=0;p.sandWet=0}S.stats.piled++;p.done.piled++;return 'pile'}
-  if(k==='pat'){let ww=0;brush(tx,ty,1.05,(i,w)=>{if(S.tower[i]===1)return;const wf=Math.min(1,S.wet[i]*2.6+.1);ww+=w*S.wet[i];S.pack[i]=Math.min(1,S.pack[i]+w*1.6*wf*(1-S.pack[i]*.5))});
+  if(k==='pat'){let ww=0;const pr=patR(p),pk=patK(p)*(pr/1.05)**2;brush(tx,ty,pr,(i,w)=>{if(S.tower[i]===1)return;const wf=Math.min(1,S.wet[i]*2.6+.1);ww+=w*S.wet[i];S.pack[i]=Math.min(1,S.pack[i]+w*pk*wf*(1-S.pack[i]*.5))});
     S.stats.pats++;p.done.pats++;return ww<.2?'drypat':'pat'}
   if(k==='water'){
     if(p.water<=0){const ci=Math.round(clamp(p.y,0,GH-1))*GW+Math.round(clamp(p.x,0,GW-1)),ti=Math.round(clamp(ty,0,GH-1))*GW+Math.round(clamp(tx,0,GW-1));
-      if(S.d[ci]>.05||S.d[ti]>.08){p.water=MAXWATER;return 'fill'}return 'nowater'}
+      if(S.d[ci]>.05||S.d[ti]>.08){p.water=maxWater(p);return 'fill'}return 'nowater'}
     brush(tx,ty,1.5,(i,w)=>{S.wet[i]=Math.min(1,S.wet[i]+w*5*(1.05-S.wet[i]))});
     p.water--;S.stats.pours++;p.done.pours++;return 'pour'}
+  if(k==='log'){if(p.logs<=0)return 'nolog';
+    // lay it across where you face: a 5-cell beam of wood sitting on the sand
+    const ax=-p.fy,ay=p.fx,cells=[];
+    for(let t=-LOGLEN/2;t<=LOGLEN/2+1e-6;t+=.45){const x=Math.round(tx+ax*t),y=Math.round(ty+ay*t);if(x<0||y<0||x>=GW||y>=GH-SEA_ROWS)continue;const i=y*GW+x;
+      if(S.tower[i])return 'yard';if(!cells.includes(i))cells.push(i)}
+    if(cells.length<3)return 'rock';let top=-9;for(const i of cells)top=Math.max(top,S.h[i]);
+    for(const i of cells){const tp=Math.max(S.h[i]+.55,top-.25);S.floor[i]=Math.max(S.floor[i],tp);S.h[i]=Math.max(S.h[i],tp);S.pack[i]=1}
+    S.logs.push({x:tx,y:ty,a:Math.atan2(ay,ax),len:LOGLEN});p.logs--;S.shellVer++;return 'log'}
   return ''}
 
 // ── players ──
 function playerStep(S,p,dt){
   if(p.gone)return;
   const ci=Math.round(clamp(p.y,0,GH-1))*GW+Math.round(clamp(p.x,0,GW-1));const wd=S.d[ci];p.inWater=wd;
-  if(!p.remote){const spd=(wd>.25?3.2:wd>.06?4.3:6.2);let mx=p.mx,my=p.my;const m=Math.hypot(mx,my);if(m>1){mx/=m;my/=m}
+  if(!p.remote){const boots=p.up.boots|0;const spd=boots?7:(wd>.25?3.2:wd>.06?4.3:6.2);let mx=p.mx,my=p.my;const m=Math.hypot(mx,my);if(m>1){mx/=m;my/=m}
     p.x=clamp(p.x+mx*spd*dt,.5,GW-1.5);p.y=clamp(p.y+my*spd*dt,.5,GH-SEA_ROWS-.5);
     if(m>.1){p.fx=mx/m;p.fy=my/m;p.stepT+=dt*spd;if(p.stepT>1.55){p.stepT=0;emit(S,[wd>.06?'wade':'step',r1(p.x),r1(p.y),p.seat])}}}
+  for(let k=S.shells.length-1;k>=0;k--){const sh=S.shells[k];if(Math.hypot(sh.x-p.x,sh.y-p.y)<.95){S.shells.splice(k,1);S.shellVer++;p.shells+=sh.v;p.done.shells+=sh.v;S.stats.shells+=sh.v;emit(S,['shell',r1(sh.x),r1(sh.y),p.seat,sh.v])}}
   // aim stays within reach
   let dx=p.tx-p.x,dy=p.ty-p.y;const dl=Math.hypot(dx,dy);if(dl>REACH){p.tx=p.x+dx/dl*REACH;p.ty=p.y+dy/dl*REACH}
   p.cd=Math.max(0,p.cd-dt);p.act=Math.max(0,p.act-dt);
   if(p.use&&p.cd<=0){const r=act(S,p,p.tool,p.tx,p.ty);
-    const k=TOOLS[p.tool];const cd=k==='water'?(r==='fill'?CD.fill:CD.pour):CD[k];const fail=r==='full'||r==='empty'||r==='nowater'||r==='rock'||r==='yard';p.cd=fail?.35:cd;
+    const k=TOOLS[p.tool];const cd=k==='water'?(r==='fill'?CD.fill:CD.pour):k==='dig'?digCD(p):k==='log'?.6:CD[k];const fail=r==='full'||r==='empty'||r==='nowater'||r==='rock'||r==='yard'||r==='nolog';p.cd=fail?.35:cd;
     if(r){emit(S,[r,r1(p.tx),r1(p.ty),p.seat]);if(r==='drypat'){p.act=.18;p.actK='pat'}if(!fail){p.act=.18;p.actK=r}}}}
 const r1=v=>Math.round(v*10)/10;
 
@@ -385,6 +443,7 @@ function simStep(S,dt){if(S.over)return;S.t+=dt;S.frame++;
   waterStep(S,dt);soakStep(S,dt);slumpStep(S,dt);erodeStep(S,dt);
   S.slumpT-=dt;if(S.slumpAcc>.5&&S.slumpMax>.05&&S.slumpT<=0){emit(S,['slump',S.slumpX,S.slumpY]);S.slumpT=.45}
   S.stats.slumped+=S.slumpAcc;S.slumpAcc=0;S.slumpMax=0;
+  if(S.frame%10===0)for(let k=S.shells.length-1;k>=0;k--){const sh=S.shells[k];const i=Math.round(sh.y)*GW+Math.round(sh.x);if(S.d[i]>.1){S.shells.splice(k,1);S.shellVer++}}
   // the flag falls when water touches the keep (its footprint, radius KEEP_R)
   let wetFoot=0;for(const j of S.foot)if(S.d[j]>wetFoot){wetFoot=S.d[j];S.flagHitX=j%GW;S.flagHitY=j/GW|0}
   if(wetFoot>.035)S.flagWet+=dt;else S.flagWet=Math.max(0,S.flagWet-dt*.5);
@@ -396,7 +455,7 @@ function simStep(S,dt){if(S.over)return;S.t+=dt;S.frame++;
 // "builder" is the CPU buddy: a damp, packed ring wall with a moat outside it, repaired seaward first.
 // "dumper" piles loose dry sand round the keep and never wets or pats it (the smoke test's masher).
 // "nomoat" builds the same wall from sand dug right beside it (proves the moat earns its keep).
-function botInit(S,p,kind){p.bot={kind,job:null,jt:0,wallR:kind==='dumper'?3.6:5.2,moatR:7.4,rr:S.R()}}
+function botInit(S,p,kind){const ns=kind==='noshop';if(ns)kind='builder';p.bot={kind,noShop:ns,job:null,jt:0,wallR:kind==='dumper'?3.6:5.2,moatR:7.4,rr:S.R()}}
 function wallPts(S,R,n){const a=[];for(let k=0;k<n;k++){const an=k/n*Math.PI*2;a.push([S.kx+Math.cos(an)*R,S.ky+Math.sin(an)*R*.92])}return a}
 function hAt(S,x,y){x=clamp(Math.round(x),0,GW-1);y=clamp(Math.round(y),0,GH-1);return S.h[y*GW+x]}
 function cellAt(S,x,y){x=clamp(Math.round(x),0,GW-1);y=clamp(Math.round(y),0,GH-1);return y*GW+x}
@@ -405,17 +464,24 @@ function botStep(S,p,dt){const b=p.bot;if(!b||p.gone)return;b.jt-=dt;
   if(!j){p.mx=p.my=0;p.use=0;return}
   // walk until the target is in comfortable reach, then work it
   const dx=j.x-p.x,dy=j.y-p.y,dl=Math.hypot(dx,dy);const want=j.stand!=null?j.stand:REACH*.6;
-  if(dl>want){p.mx=dx/dl;p.my=dy/dl;p.use=0}else{p.mx=p.my=0;p.use=1}
+  if(dl>want){p.mx=dx/dl;p.my=dy/dl;p.use=0}else{p.mx=p.my=0;p.use=j.shell?0:1}
   p.tx=j.x;p.ty=j.y;p.tool=j.tool}
 function botDone(S,p,j){
-  if(j.tool===0)return p.sand>=MAXSAND-.05||hAt(S,j.x,j.y)<=j.goal;
+  if(j.shell)return !S.shells.some(sh=>sh.id===j.shell);
+  if(j.tool===0)return p.sand>=maxSand(p)-.05||hAt(S,j.x,j.y)<=j.goal;
   if(j.tool===1)return p.sand<.05||hAt(S,j.x,j.y)>=j.goal;
   if(j.tool===2)return S.pack[cellAt(S,j.x,j.y)]>.8;
   if(j.tool===3)return j.fill?p.water>0:(p.water<=0||S.wet[cellAt(S,j.x,j.y)]>.75);return true}
+const BOT_BUYS=['paddle','pail','spade','paddle','pail','bucket','spade','boots','bucket'];
 function botPick(S,p){const b=p.bot;b.jt=3;
+  // shop: buy the next thing on the list the moment it is affordable (builders only)
+  if(b.kind==='builder'&&!b.noShop){for(const id of BOT_BUYS){const c=shopCost(p,id);if(c==null)continue;if(p.shells>=c)buy(S,p,id);break}
+    // grab a shell if one is close and the sea is out
+    if(S.phase==='build'){let best=null,bd=9;for(const sh of S.shells){const d=Math.hypot(sh.x-p.x,sh.y-p.y)-sh.v;if(d<bd){bd=d;best=sh}}
+      if(best&&S.R()<.6)return {tool:p.tool,shell:best.id,x:best.x,y:best.y,stand:.3}}}
   const keepTop=S.keepBase+1.15;const R=S.R;
   if(b.kind==='dumper'){
-    if(p.sand<MAXSAND-.05){const an=R()*Math.PI*2,r=3.8+R()*3.5;return {tool:0,x:S.kx+Math.cos(an)*r,y:S.ky+Math.sin(an)*r,goal:-9}}
+    if(p.sand<maxSand(p)-.05){const an=R()*Math.PI*2,r=3.8+R()*3.5;return {tool:0,x:S.kx+Math.cos(an)*r,y:S.ky+Math.sin(an)*r,goal:-9}}
     const an=R()*Math.PI*2,r=3.3+R()*1.4;return {tool:1,x:S.kx+Math.cos(an)*r,y:S.ky+Math.sin(an)*r,goal:99}}
   const pts=wallPts(S,b.wallR,26);
   // seaward points (bigger y) matter most
@@ -429,7 +495,7 @@ function botPick(S,p){const b=p.bot;b.jt=3;
   const np=b.kind==='nopat';
   if(!np&&soft&&ss>.25&&(R()<.55||crisis))return {tool:2,x:soft[0],y:soft[1]};
   if(!np&&dry&&ds>.18&&p.water>0)return {tool:3,x:dry[0],y:dry[1]};
-  if(p.sand>=MAXSAND-.05||(p.sand>0&&worst&&ws>.3&&R()<.5))return worst?{tool:1,x:worst[0],y:worst[1],goal:goalH+.15}:{tool:1,x:S.kx,y:S.ky+b.wallR,goal:99};
+  if(p.sand>=maxSand(p)-.05||(p.sand>0&&worst&&ws>.3&&R()<.5))return worst?{tool:1,x:worst[0],y:worst[1],goal:goalH+.15}:{tool:1,x:S.kx,y:S.ky+b.wallR,goal:99};
   if(!np&&dry&&ds>.18&&p.water<=0&&!crisis){const sp=nearestWater(S,p);if(sp)return {tool:3,fill:1,x:sp[0],y:sp[1],stand:.6}}
   if(worst&&ws>.12){
     if(b.kind==='nomoat'){const an=-Math.PI/2+(R()-.5)*1.6,r=b.wallR+3+R()*3;return {tool:0,x:S.kx+Math.cos(an)*r,y:S.ky+Math.sin(an)*r,goal:-9}}
@@ -439,7 +505,7 @@ function botPick(S,p){const b=p.bot;b.jt=3;
     const an=R()*Math.PI*2,r=b.moatR+2.5;return {tool:0,x:S.kx+Math.cos(an)*r,y:S.ky+Math.sin(an)*r,goal:-9}}
   if(!np&&soft)return {tool:2,x:soft[0],y:soft[1]};
   if(!np&&dry&&p.water>0)return {tool:3,x:dry[0],y:dry[1]};
-  if(np){const an=R()*Math.PI*2,r=b.moatR+2.5;return {tool:p.sand>=MAXSAND-.05?1:0,x:S.kx+Math.cos(an)*r,y:S.ky+Math.sin(an)*r,goal:p.sand>=MAXSAND-.05?99:-9}}
+  if(np){const an=R()*Math.PI*2,r=b.moatR+2.5;return {tool:p.sand>=maxSand(p)-.05?1:0,x:S.kx+Math.cos(an)*r,y:S.ky+Math.sin(an)*r,goal:p.sand>=maxSand(p)-.05?99:-9}}
   return {tool:2,x:S.kx+(R()-.5)*8,y:S.ky+b.wallR}}
 function nearestWater(S,p){let best=null,bd=1e9;for(let y=0;y<GH-SEA_ROWS;y++)for(let x=0;x<GW;x+=2){const i=y*GW+x;if(S.d[i]>.12){const dd=Math.hypot(x-p.x,y-p.y);if(dd<bd){bd=dd;best=[x,y]}}}return best}
 
@@ -462,7 +528,7 @@ if(TOUCH)document.body.classList.add('touch');
 // ═══════════════════════════════ SOUND ═══════════════════════════════
 // Real recordings only (sfx/low-tide-sfx.m4a, credits in sfx/CREDITS-low-tide.txt).
 // Event-only: a sound plays when something happens on the beach, never a bed of sea noise.
-const SMAP=/*SMAP*/{"ui":[[0.1,0.1],[0.45,0.11]],"dig":[[0.81,0.34],[1.4,0.37],[2.02,0.4]],"pour":[[2.67,0.54],[3.46,0.54],[4.25,0.54]],"pat":[[5.04,0.24],[5.53,0.24],[6.02,0.25]],"fill":[[6.52,0.66],[7.43,0.6]],"splash":[[8.28,0.76],[9.29,0.76]],"step":[[10.3,0.22],[10.77,0.22],[11.24,0.22]],"wade":[[11.71,0.29],[12.25,0.3],[12.8,0.34]],"wave":[[13.39,2.34],[15.98,1.74],[17.97,2.34]],"big":[[20.56,3.24],[24.05,3.24]],"slump":[[27.54,0.64],[28.43,0.64]],"whistle":[[29.32,0.84]],"gull":[[30.41,0.84],[31.5,0.9]],"flag":[[32.65,0.66]],"cheer":[[33.56,1.54]],"aww":[[35.35,1.24]]}/*END*/;
+const SMAP=/*SMAP*/{"ui":[[0.1,0.1],[0.45,0.11]],"dig":[[0.81,0.34],[1.4,0.37],[2.02,0.4]],"pour":[[2.67,0.54],[3.46,0.54],[4.25,0.54]],"pat":[[5.04,0.24],[5.53,0.24],[6.02,0.25]],"fill":[[6.52,0.66],[7.43,0.6]],"splash":[[8.28,0.76],[9.29,0.76]],"step":[[10.3,0.22],[10.77,0.22],[11.24,0.22]],"wade":[[11.71,0.29],[12.25,0.3],[12.8,0.34]],"wave":[[13.39,2.34],[15.98,1.74],[17.97,2.34]],"big":[[20.56,3.24],[24.05,3.24]],"slump":[[27.54,0.64],[28.43,0.64]],"whistle":[[29.32,0.84]],"gull":[[30.41,0.84],[31.5,0.9]],"flag":[[32.65,0.66]],"cheer":[[33.56,1.54]],"aww":[[35.35,1.24]],"shell":[[36.84,0.24],[37.33,0.25]],"buy":[[37.83,0.64],[38.72,0.59]],"log":[[39.56,0.5],[40.31,0.5]]}/*END*/;
 const NOAUDIO=/smoke|mute|norender/.test(HASH);
 const AU={ctx:null,sfx:null,buf:null,off:0,raw:null,st:0};
 function auInit(){if(AU.ctx||NOAUDIO)return;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
@@ -499,12 +565,14 @@ function myPlayer(){const v=V();if(!v||v===DEMO)return null;return v.players.fin
 // ═══════════════════════════════ INPUT ═══════════════════════════════
 const KEYS={};const IN={use:0,mouseUse:0,spaceUse:0,touchUse:0,mx:0,my:0,mouseX:-1,mouseY:-1,mouseT:-9e9,jx:0,jy:0};
 addEventListener('keydown',e=>{if(e.repeat&&!/^(Arrow|Key[WASD])/.test(e.code))return;KEYS[e.code]=1;
-  if(SCR&&SCR!=='s-pause')return;
+  if(SCR&&SCR!=='s-pause'&&SCR!=='s-shop')return;
+  if(SCR==='s-shop'&&(e.code==='KeyB'||e.code==='Escape')){closeShop();e.preventDefault();return}
   if(e.code==='Escape'||e.code==='KeyP'){if(MODE!=='menu')togglePause();e.preventDefault();return}
+  if(e.code==='KeyB'&&!SCR&&MODE!=='menu'){openShop();e.preventDefault();return}
   if(SCR)return;
   if(e.code==='Space'){IN.spaceUse=1;e.preventDefault()}
-  const n={Digit1:0,Digit2:1,Digit3:2,Digit4:3,Numpad1:0,Numpad2:1,Numpad3:2,Numpad4:3}[e.code];if(n!=null)pickTool(n);
-  if(e.code==='KeyQ')pickTool((curTool()+3)%4);if(e.code==='KeyE')pickTool((curTool()+1)%4);
+  const n={Digit1:0,Digit2:1,Digit3:2,Digit4:3,Digit5:4,Numpad1:0,Numpad2:1,Numpad3:2,Numpad4:3,Numpad5:4}[e.code];if(n!=null)pickTool(n);
+  if(e.code==='KeyQ')cycleTool(-1);if(e.code==='KeyE')cycleTool(1);
   if(e.code==='KeyM'){SET.sound=!SET.sound;saveSet();auVol();syncSoundBtns();toast(SET.sound?'Sound on':'Sound off')}
   if(/^Arrow/.test(e.code))e.preventDefault()});
 addEventListener('keyup',e=>{KEYS[e.code]=0;if(e.code==='Space')IN.spaceUse=0});
@@ -514,7 +582,7 @@ cv.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;IN.mouse
 cv.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')return;IN.mouseX=e.clientX;IN.mouseY=e.clientY;IN.mouseT=now();if(e.button===0)IN.mouseUse=1});
 addEventListener('pointerup',e=>{if(e.pointerType!=='touch'&&e.button===0)IN.mouseUse=0});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
-cv.addEventListener('wheel',e=>{if(SCR||MODE==='menu')return;pickTool((curTool()+(e.deltaY>0?1:3))%4);e.preventDefault()},{passive:false});
+cv.addEventListener('wheel',e=>{if(SCR||MODE==='menu')return;cycleTool(e.deltaY>0?1:-1);e.preventDefault()},{passive:false});
 // touch: stick on the left, USE on the right
 (function(){const joy=$('joy'),knob=joy.querySelector('i');let id=null,cx=0,cy=0;
   joy.addEventListener('pointerdown',e=>{id=e.pointerId;const r=joy.getBoundingClientRect();cx=r.left+r.width/2;cy=r.top+r.height/2;joy.setPointerCapture(id);mv(e)});
@@ -525,7 +593,9 @@ cv.addEventListener('wheel',e=>{if(SCR||MODE==='menu')return;pickTool((curTool()
   const uu=()=>{IN.touchUse=0;ub.classList.remove('on')};ub.addEventListener('pointerup',uu);ub.addEventListener('pointercancel',uu)})();
 let LOCAL_TOOL=0;
 function curTool(){return LOCAL_TOOL}
-function pickTool(n){if(LOCAL_TOOL===n)return;LOCAL_TOOL=n;const p=myPlayer();if(p)p.tool=n;paintTools();snd('ui',{v:.35,i:1})}
+function nTools(){const p=myPlayer();return p&&p.logs>0?5:4}
+function cycleTool(d){const n=nTools();pickTool((curTool()+d+n)%n)}
+function pickTool(n){if(n===4&&nTools()<5){toast('No driftwood. Buy a log in the shell shop (B).');return}if(LOCAL_TOOL===n)return;LOCAL_TOOL=n;const p=myPlayer();if(p)p.tool=n;paintTools();snd('ui',{v:.35,i:1})}
 // what the local player's hands and feet are doing this frame
 function readInput(p){let mx=(KEYS.KeyD||KEYS.ArrowRight?1:0)-(KEYS.KeyA||KEYS.ArrowLeft?1:0),my=(KEYS.KeyS||KEYS.ArrowDown?1:0)-(KEYS.KeyW||KEYS.ArrowUp?1:0);
   if(IN.jx||IN.jy){mx=IN.jx;my=IN.jy;if(hyp(mx,my)<.18)mx=my=0}
@@ -612,14 +682,14 @@ function render(dt,t){const v=V();ctx.setTransform(DPR,0,0,DPR,0,0);
     ctx.save();ctx.translate(L.ox+gw*2,0);ctx.scale(-1,1);ctx.drawImage(tex,0,L.oy,gw,gh);ctx.restore();
     ctx.fillStyle='rgba(28,49,68,.18)';ctx.fillRect(0,0,L.ox,VH);ctx.fillRect(L.ox+gw,0,VW-L.ox-gw,VH)}
   if(L.oy+gh<VH){ctx.save();ctx.translate(0,(L.oy+gh)*2);ctx.scale(1,-1);ctx.drawImage(tex,L.ox,L.oy,gw,gh);ctx.restore()}
-  drawTideLine(v);drawRocks(v);drawYard(v,t);
+  drawTideLine(v);drawRocks(v);drawLogs(v);drawYard(v,t);drawShells(v,t);
   drawParticles(dt,0);
   const ps=v.players.filter(p=>!p.gone).slice().sort((a,b)=>a.y-b.y);
   const me=myPlayer();if(me&&!SCR&&!PAUSED)drawAim(me,t);
   let towerDrawn=false;
   for(const p of ps){if(!towerDrawn&&p.y>v.ky){drawTower(v,t);towerDrawn=true}drawKid(p,t,p===me)}
   if(!towerDrawn)drawTower(v,t);
-  drawParticles(dt,1);
+  drawParticles(dt,1);drawFloats(dt);
   ctx.restore()}
 function drawTideLine(v){if(!(v.phase==='build'||v.phase==='rise'))return;const ht=highTide(v,v.round);
   ctx.save();ctx.strokeStyle='rgba(28,49,68,.5)';ctx.lineWidth=2;ctx.setLineDash([3,7]);ctx.lineCap='round';ctx.beginPath();let started=false,ly=0;
@@ -633,6 +703,23 @@ function drawRocks(v){for(const r of v.rocks||[]){const cx=SX(r.x),cy=SY(r.y),R=
     ctx.fillStyle=g;ctx.strokeStyle='#1c3144';ctx.lineWidth=2;ctx.lineJoin='round';ctx.beginPath();pts.forEach((p,k)=>k?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill();ctx.stroke();
     ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(cx-R*.5,cy-R*.15);ctx.quadraticCurveTo(cx-R*.2,cy-R*.5,cx+R*.25,cy-R*.45);ctx.stroke();
     ctx.fillStyle='rgba(60,110,70,.45)';for(let k=0;k<3;k++){ctx.beginPath();ctx.arc(cx+Math.cos(k*2.1+r.y)*R*.5,cy+R*.35+Math.sin(k*1.7)*R*.15,R*.12,0,7);ctx.fill()}ctx.restore()}}
+function drawShells(v,t){for(const sh of v.shells||[]){const x=SX(sh.x),y=SY(sh.y),s=L.s*(sh.v>1?.85:.68);const tw=Math.sin(t*3+sh.id)*.5+.5;
+    ctx.save();ctx.translate(x,y);ctx.rotate(sh.id*1.7);ctx.fillStyle='rgba(40,30,15,.25)';ctx.beginPath();ctx.ellipse(s*.2,s*.3,s*1.05,s*.8,0,0,7);ctx.fill();
+    ctx.fillStyle=sh.v>1?'#f6c445':(sh.id%2?'#f9c3b4':'#fff6ea');ctx.strokeStyle=sh.v>1?'#8a5a00':'#9a6a4a';ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(0,s);ctx.quadraticCurveTo(-s*1.35,-s*.15,0,-s);ctx.quadraticCurveTo(s*1.35,-s*.15,0,s);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,s);ctx.lineTo(-s*.45,-s*.6);ctx.moveTo(0,s);ctx.lineTo(s*.45,-s*.6);ctx.moveTo(0,s);ctx.lineTo(0,-s*.85);ctx.stroke();
+    if(sh.v>1||tw>.85){ctx.fillStyle='rgba(255,255,255,'+(sh.v>1?.6+tw*.4:(tw-.85)*6)+')';ctx.beginPath();ctx.arc(-s*.4,-s*.5,s*.22,0,7);ctx.fill()}ctx.restore()}}
+function drawLogs(v){for(const lg of v.logs||[]){const x=SX(lg.x),y=SY(lg.y),len=lg.len*L.s,w=L.s*1.05;
+    ctx.save();ctx.translate(x,y);ctx.rotate(lg.a);ctx.fillStyle='rgba(40,30,15,.3)';ctx.beginPath();ctx.roundRect?ctx.roundRect(-len/2+4,-w/2+5,len,w,w/2):ctx.rect(-len/2+4,-w/2+5,len,w);ctx.fill();
+    const g=ctx.createLinearGradient(0,-w/2,0,w/2);g.addColorStop(0,'#c49660');g.addColorStop(.5,'#9c6d3c');g.addColorStop(1,'#6e4724');
+    ctx.fillStyle=g;ctx.strokeStyle='#1c3144';ctx.lineWidth=2;ctx.beginPath();ctx.roundRect?ctx.roundRect(-len/2,-w/2,len,w,w/2):ctx.rect(-len/2,-w/2,len,w);ctx.fill();ctx.stroke();
+    ctx.strokeStyle='rgba(60,35,15,.55)';ctx.lineWidth=1.4;for(let k=0;k<5;k++){const a=-len/2+len*(.15+k*.17);ctx.beginPath();ctx.moveTo(a,-w*.25+(k%2)*w*.2);ctx.lineTo(a+len*.12,-w*.25+(k%2)*w*.2);ctx.stroke()}
+    ctx.fillStyle='#d9b07a';ctx.beginPath();ctx.ellipse(len/2-w*.15,0,w*.28,w*.45,0,0,7);ctx.fill();ctx.stroke();ctx.strokeStyle='rgba(110,70,35,.6)';ctx.beginPath();ctx.ellipse(len/2-w*.15,0,w*.13,w*.22,0,0,7);ctx.stroke();ctx.restore()}}
+const FLOATS=[];
+function floatText(x,y,txt,col){FLOATS.push({x,y,txt,col:col||'#1c3144',t:0})}
+function drawFloats(dt){ctx.save();ctx.textAlign='center';ctx.font='900 '+Math.max(14,L.s*1.05|0)+'px Nunito';
+  for(let k=FLOATS.length-1;k>=0;k--){const f=FLOATS[k];f.t+=dt;if(f.t>1.1){FLOATS.splice(k,1);continue}ctx.globalAlpha=1-Math.max(0,f.t-.6)/.5;const yy=SY(f.y)-L.s*1.4-f.t*L.s*1.8;
+    ctx.lineWidth=4;ctx.strokeStyle='#fbf4e2';ctx.strokeText(f.txt,SX(f.x),yy);ctx.fillStyle=f.col;ctx.fillText(f.txt,SX(f.x),yy)}ctx.restore()}
 function drawYard(v,t){// shells mark the ring that must stay dry
   const n=16;for(let k=0;k<n;k++){const a=k/n*Math.PI*2+.2;const x=v.kx+Math.cos(a)*(YARD_R+.15),y=v.ky+Math.sin(a)*(YARD_R+.15);
     const i=clamp(Math.round(y),0,GH-1)*GW+clamp(Math.round(x),0,GW-1);const wet=v.d[i]>.03;
@@ -658,7 +745,7 @@ function drawTower(v,t){const cx=SX(v.kx),cy=SY(v.ky),R=KEEP_R*L.s*.98;
   ctx.quadraticCurveTo(fl*.5,-H+wav*3-2,fl,-H+L.s*.45+wav*2);ctx.quadraticCurveTo(fl*.5,-H+L.s*.75-wav*3,0,-H+L.s*.95);ctx.closePath();ctx.fill();ctx.stroke();
   ctx.restore()}
 const TOOLCOL=['#e4572e','#a87a3d','#1c3144','#2a8fb8'];
-function drawAim(p,t){const k=TOOLS[p.tool];const r=(k==='dig'?1.25:k==='pile'?1.1:k==='pat'?1.05:1.5)*L.s*1.25;
+function drawAim(p,t){const k=TOOLS[p.tool];if(k==='log'){const ax=-p.fy,ay=p.fx;ctx.save();ctx.strokeStyle='#8a5a32';ctx.lineWidth=L.s*.9;ctx.lineCap='round';ctx.globalAlpha=.45;ctx.setLineDash([L.s*.6,L.s*.35]);ctx.beginPath();ctx.moveTo(SX(p.tx-ax*LOGLEN/2),SY(p.ty-ay*LOGLEN/2));ctx.lineTo(SX(p.tx+ax*LOGLEN/2),SY(p.ty+ay*LOGLEN/2));ctx.stroke();ctx.restore();return}const r=(k==='dig'?1.25:k==='pile'?1.1:k==='pat'?1.05:1.5)*L.s*1.25;
   const x=SX(p.tx),y=SY(p.ty);ctx.save();ctx.strokeStyle=TOOLCOL[p.tool];ctx.lineWidth=2.5;ctx.setLineDash([5,5]);ctx.lineDashOffset=-t*18;
   ctx.globalAlpha=.9;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=.75;ctx.beginPath();ctx.arc(x,y,2.5,0,7);ctx.fillStyle=TOOLCOL[p.tool];ctx.fill();ctx.restore()}
 function shade(hex,f){const c=hexRGB(hex);return 'rgb('+c.map(v=>clamp(v*f,0,255)|0).join(',')+')'}
@@ -688,6 +775,7 @@ function drawHeld(p,s,act){const k=TOOLS[p.tool];ctx.save();ctx.translate(s*.42,
   if(k==='dig'||k==='pile'){ctx.fillStyle='#8a5a32';ctx.fillRect(-s*.05,-s*.3,s*.1,s*.5);ctx.fillStyle=k==='dig'?'#e4572e':'#f2b134';ctx.strokeStyle='#1c3144';ctx.lineWidth=1.2;
     ctx.beginPath();ctx.moveTo(-s*.18,s*.2);ctx.lineTo(s*.18,s*.2);ctx.lineTo(s*.1,s*.55);ctx.lineTo(-s*.1,s*.55);ctx.closePath();ctx.fill();ctx.stroke();
     if(p.sand>0){ctx.fillStyle=p.sandWet>.45?'#b8935f':'#e3c88d';ctx.beginPath();ctx.arc(0,s*.33,s*.12*Math.min(1,.4+p.sand/MAXSAND),0,7);ctx.fill()}}
+  else if(k==='log'){ctx.fillStyle='#9c6d3c';ctx.strokeStyle='#1c3144';ctx.lineWidth=1.2;ctx.fillRect(-s*.75,-s*.1,s*1.1,s*.3);ctx.strokeRect(-s*.75,-s*.1,s*1.1,s*.3)}
   else if(k==='water'){ctx.fillStyle='#2a8fb8';ctx.strokeStyle='#1c3144';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(0,s*.18,s*.22,0,7);ctx.fill();ctx.stroke();
     ctx.fillStyle=p.water>0?'#9fe0ef':'#e8dcc0';ctx.beginPath();ctx.arc(0,s*.18,s*.13,0,7);ctx.fill()}
   ctx.restore();
@@ -706,15 +794,23 @@ const ICONS=[
   '<svg viewBox="0 0 40 40" fill="none" stroke="#1c3144" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 34c4-10 9-14 16-14s12 4 16 14z" fill="#e3c88d"/><path d="M20 3v11"/><path d="M15 10l5 5 5-5"/></svg>',
   '<svg viewBox="0 0 40 40" fill="none" stroke="#1c3144" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V10a2.5 2.5 0 015 0v9m0-11a2.5 2.5 0 015 0v11m0-9a2.5 2.5 0 015 0v11m0-6a2.5 2.5 0 015 0v7c0 7-5 12-12 12-5 0-8-2-11-6l-5-7a2.5 2.5 0 014-3l4 4" fill="#f2c7a0"/></svg>',
   '<svg viewBox="0 0 40 40" fill="none" stroke="#1c3144" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14h22l-3 20H12z" fill="#2a8fb8"/><path d="M9 14c0-7 22-7 22 0"/><path d="M11 18h18" stroke="#9fe0ef"/></svg>'];
-const TOOLNAME=['Spade','Pile','Pat','Bucket'];
-function buildToolbar(){const tb=$('toolbar');tb.innerHTML=TOOLNAME.map((n,i)=>'<button class="tool" data-t="'+i+'"><span class="k">'+(i+1)+'</span>'+ICONS[i]+'<span class="nm">'+n+'</span>'+
-    (i===0?'<span class="pips" id="pip-s">'+'<i></i>'.repeat(MAXSAND)+'</span>':i===3?'<span class="pips w" id="pip-w">'+'<i></i>'.repeat(MAXWATER)+'</span>':'')+'</button>').join('');
+ICONS.push('<svg viewBox="0 0 40 40" fill="none" stroke="#1c3144" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="15" width="30" height="11" rx="5.5" fill="#a0723f"/><ellipse cx="33" cy="20.5" rx="4" ry="5.5" fill="#d9b07a"/><path d="M8 19h9M14 23h11" stroke="#6b4423" stroke-width="2"/></svg>');
+const TOOLNAME=['Spade','Pile','Pat','Bucket','Log'];
+function buildToolbar(){const tb=$('toolbar');tb.innerHTML=TOOLNAME.map((n,i)=>'<button class="tool'+(i===4?' hidden':'')+'" data-t="'+i+'"><span class="k">'+(i+1)+'</span>'+ICONS[i]+'<span class="nm">'+n+'</span>'+
+    (i===0?'<span class="pips" id="pip-s"></span>':i===3?'<span class="pips w" id="pip-w"></span>':i===4?'<span class="cnt" id="log-n">1</span>':'')+'</button>').join('')+
+    '<button class="tool shopb" id="shopbtn"><span class="k">B</span><span class="shn" id="shell-n">0</span><span class="nm">Shop</span></button>';
+  $('shopbtn').addEventListener('pointerdown',e=>{e.stopPropagation();openShop()});
   tb.querySelectorAll('.tool').forEach(b=>{b.addEventListener('pointerdown',e=>{e.stopPropagation();pickTool(+b.dataset.t)})})}
 buildToolbar();
 let PIPS='';
 function paintTools(){document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('sel',+b.dataset.t===LOCAL_TOOL))}
-function paintPips(p){const k=(p?Math.round(p.sand):0)+'/'+(p?p.water:0);if(k===PIPS)return;PIPS=k;
-  const s=$('pip-s'),w=$('pip-w');if(s)[...s.children].forEach((e,i)=>e.classList.toggle('f',p&&i<Math.round(p.sand)));if(w)[...w.children].forEach((e,i)=>e.classList.toggle('f',p&&i<p.water))}
+function paintPips(p){if(!p)return;const k=Math.round(p.sand)+'/'+p.water+'/'+maxSand(p)+'/'+maxWater(p)+'/'+p.shells+'/'+p.logs;if(k===PIPS)return;PIPS=k;
+  const fill=(el,n,f)=>{if(el.children.length!==n)el.innerHTML='<i></i>'.repeat(n);[...el.children].forEach((e,i)=>e.classList.toggle('f',i<f))};
+  fill($('pip-s'),maxSand(p),Math.round(p.sand));fill($('pip-w'),maxWater(p),p.water);
+  $('shell-n').textContent=p.shells;$('log-n').textContent=p.logs;const lb=document.querySelector('.tool[data-t="4"]');lb.classList.toggle('hidden',p.logs<=0);
+  if(p.logs<=0&&LOCAL_TOOL===4)pickTool(0);
+  const shopAff=SHOP.some(it=>{const c=shopCost(p,it.id);return c!=null&&p.shells>=c});$('shopbtn').classList.toggle('glow',shopAff);
+  if(SCR==='s-shop')paintShop()}
 function paintHud(v){if(!v)return;const tb=$('tidebox');$('h-tide').textContent='TIDE '+v.round;
   let ph='',frac=0,warn=false;const L_=phaseLen(v);
   if(v.phase==='build'){const left=Math.max(0,L_-v.pt);ph='Low tide · build! '+Math.ceil(left)+'s';frac=left/L_;warn=left<6}
@@ -747,8 +843,13 @@ function fxEvent(e,v){const k=e[0];const mine=e[3]===MY_SEAT&&v!==DEMO;const qui
       {const me=myPlayer();if(me&&hyp(e[1]-me.x,e[2]-me.y)<7)tip('slump','Dry sand slides. Wet it (4), then pat it (3) and it will stand.')}break;
     case 'whistle':if(!quiet){snd('whistle',{v:.8});banner('Here it comes','the tide is coming in',1.8)}break;
     case 'gull':if(!quiet)snd('gull',{v:.6});break;
-    case 'held':if(!quiet){snd('cheer',{v:.8});const cl=v.closestR;banner('Tide '+e[1]+' held!',cl!=null&&cl<20?'closest wave: '+Math.max(0,Math.round(cl*10))+' cm from the shells':'next one comes in higher',2.6)}break;
+    case 'held':if(!quiet){snd('cheer',{v:.8});if(v!==DEMO)setTimeout(()=>toast('+'+HELD_BONUS+' shells each for holding the tide. New shells washed up!',3),1400);const cl=v.closestR;banner('Tide '+e[1]+' held!',cl!=null&&cl<20?'closest wave: '+Math.max(0,Math.round(cl*10))+' cm from the shells':'next one comes in higher',2.6)}break;
     case 'flag':if(!quiet){snd('flag',{v:1});snd('aww',{v:.8,at:.5})}SHAKE=.3;break;
+    case 'shell':puff(e[1],e[2],6,e[4]>1?'#f6c445':'#fff3e2',1.6,4);floatText(e[1],e[2],'+'+e[4],e[4]>1?'#c28a00':'#1c3144');if(!quiet){sndAt('shell',e[1],e[2],{v:.85,r:e[4]>1?.85:rnd(.95,1.1)})}
+      if(mine)tip('shell','Shells! Spend them in the shell shop (B).');break;
+    case 'buy':if(mine&&!quiet){snd('buy',{v:.85});const it=SHOPID(e[1]);toast(it?it.name+(it.item?' bought. Press 5 to lay it.':' bought!'):'Bought!')}break;
+    case 'log':puff(e[1],e[2],10,'#d9b97e',2.4,3);SHAKE=Math.max(SHAKE,.15);if(!quiet)sndAt('log',e[1],e[2],{v:1});break;
+    case 'nolog':if(mine)toast('No driftwood. Buy a log in the shell shop (B).');break;
     case 'full':if(mine){tip('full','Hands full. Press 2 and pile it somewhere.');snd('ui',{v:.3})}break;
     case 'empty':if(mine){tip('empty','Nothing to pile. Dig some sand first (1).');snd('ui',{v:.3})}break;
     case 'nowater':if(mine){toast('The bucket is empty. Fill it in the sea.');snd('ui',{v:.3})}break;
@@ -783,14 +884,14 @@ function summarize(S){const st=S.stats;const per=S.players.filter(p=>!p.gone).ma
 function showResult(sm,nb,prev){const B=BEACH(sm.beach);$('rs-beach').textContent=B.name.toUpperCase();
   $('rs-n').textContent=sm.held;$('rs-title').textContent=sm.held>=8?'What a castle':sm.held>=4?'The tide got the flag':'Washed away';
   $('rs-sub').innerHTML=(sm.held===1?'tide held':'tides held')+' on '+esc(B.name)+'<br>'+(nb&&sm.held>0?'<b style="color:var(--red)">New best!</b> (was '+prev+')':'Best: '+(PROG.best[B.id]||0));
-  const st=sm.stats;$('rs-stats').innerHTML=[['Scoops dug',st.dug],['Piles',st.piled],['Pats',st.pats],['Buckets',st.pours]].map(a=>'<div><b>'+a[1]+'</b>'+a[0]+'</div>').join('');
+  const st=sm.stats;$('rs-stats').innerHTML=[['Scoops dug',st.dug],['Pats',st.pats],['Buckets',st.pours],['Shells found',st.shells|0]].map(a=>'<div><b>'+a[1]+'</b>'+a[0]+'</div>').join('');
   const L_=[];if(sm.side)L_.push('The last wave came in from the '+(sm.side==='front'?'sea side, straight at the tower':sm.side==='behind'?'back, round behind the tower':sm.side+' side')+'.');
   if(sm.wallN<20)L_.push('Tip: a ring wall around the shells gives the waves something to hit first.');
   else if(sm.wallPack<.35)L_.push('Tip: your walls were mostly loose. Wet them and pat them and they stand up to waves.');
   else if(sm.moat<12)L_.push('Tip: dig your sand from a moat on the sea side. It soaks up a wave before it reaches the wall.');
   else L_.push('Solid work: a packed wall and a moat. Keep the sea side highest.');
   if(sm.per.length>1){const top=(k,label)=>{const b=sm.per.slice().sort((a,b)=>b.d[k]-a.d[k])[0];if(b&&b.d[k]>0)L_.push(label+': '+esc(b.name)+' ('+b.d[k]+')')};
-    top('dug','Most scoops');top('pats','Most pats');top('pours','Most buckets')}
+    top('shells','Most shells');top('dug','Most scoops');top('pats','Most pats');top('pours','Most buckets')}
   $('rs-lines').innerHTML=L_.map(l=>'<div>'+l+'</div>').join('');
   const host=MODE==='host',guest=MODE==='guest';
   $('rs-again').classList.toggle('hidden',guest);$('rs-again-t').textContent=host?'Same beach again':'Build again';$('rs-menu-t').textContent=host?'Back to the lobby':guest?'Leave':'Beaches';
@@ -800,7 +901,25 @@ $('rs-again').onclick=()=>{if(MODE==='host')hostGo();else if(S)startSolo(S.B.id,
 $('rs-menu').onclick=()=>{if(MODE==='host'){S=null;net.send({t:'lob'});openLobby()}else if(MODE==='guest'){netClose();MODE='menu';GV=null;show('s-title')}else{S=null;MODE='menu';openBeaches()}};
 
 // ═══════════════════════════════ SCREENS ═══════════════════════════════
-const SCREENS=['s-title','s-beach','s-online','s-lobby','s-help','s-pause','s-result'];
+const SCREENS=['s-title','s-beach','s-online','s-lobby','s-help','s-pause','s-result','s-shop'];
+// ── the shell shop ──
+const SHOPICON={pail:'🪣',spade:ICONS[0],paddle:ICONS[2],bucket:ICONS[3],boots:'🥾',log:ICONS[4]};
+SHOPICON.pail='<svg viewBox="0 0 40 40" fill="none" stroke="#1c3144" stroke-width="2.6" stroke-linejoin="round"><path d="M8 13h24l-3 21H11z" fill="#e4572e"/><path d="M8 13c0-7 24-7 24 0"/><path d="M10 13c3-4 17-4 20 0" fill="#e3c88d"/></svg>';
+SHOPICON.boots='<svg viewBox="0 0 40 40" fill="none" stroke="#1c3144" stroke-width="2.6" stroke-linejoin="round"><path d="M12 4h11v20l9 4c2 1 3 3 3 5v2H8V8c0-2 2-4 4-4z" fill="#f6c445"/><path d="M8 30h27"/></svg>';
+function openShop(){const p=myPlayer();if(!p||MODE==='menu')return;SHOPPAUSE=MODE==='solo';if(SHOPPAUSE)PAUSED='shop';show('s-shop');paintShop();snd('ui',{v:.4})}
+function closeShop(){if(PAUSED==='shop')PAUSED=false;show(null)}
+let SHOPPAUSE=false;
+function paintShop(){const p=myPlayer();if(!p)return;$('sh-have').textContent=p.shells;
+  $('sh-note').textContent=MODE==='solo'?'The beach waits while you shop.':'The tide keeps coming while you shop!';
+  $('sh-list').innerHTML=SHOP.map(it=>{const c=shopCost(p,it.id);const lv=it.item?p.logs:(p.up[it.id]|0);const max=it.item?MAXLOGS:it.costs.length;
+    const pips=it.item?'<span class="lv">'+p.logs+' / '+MAXLOGS+' in hand</span>':'<span class="lv">'+'<i class="f"></i>'.repeat(lv)+'<i></i>'.repeat(max-lv)+'</span>';
+    const can=c!=null&&p.shells>=c;return '<div class="sitem'+(c==null?' done':'')+'"><div class="si">'+SHOPICON[it.id]+'</div><div class="sd"><b>'+esc(it.name)+'</b>'+esc(it.desc)+pips+'</div>'+
+      '<button class="sbuy'+(can?'':' no')+'" data-id="'+it.id+'"'+(c==null?' disabled':'')+'>'+(c==null?(it.item?'Hands full':'Maxed'):'🐚 '+c)+'</button></div>'}).join('');
+  $('sh-list').querySelectorAll('.sbuy').forEach(b=>b.onclick=()=>shopBuy(b.dataset.id))}
+function shopBuy(id){const p=myPlayer();if(!p)return;const c=shopCost(p,id);if(c==null)return;if(p.shells<c){toast('Not enough shells. More wash up after every tide.');snd('ui',{v:.3});return}
+  if(MODE==='guest'){net.send({t:'buy',cid:MY_CID,id});return}
+  buy(S,p,id);paintShop();PIPS=''}
+$('sh-close').onclick=closeShop;
 function show(id){SCR=id;if(id){$('toast').style.opacity=0;toastT=0}for(const s of SCREENS)$(s).classList.toggle('hidden',s!==id);const inGame=MODE!=='menu'&&(S||GV);
   $('hud').classList.toggle('hidden',!inGame||id==='s-result'||id==='s-lobby');$('toolbar').classList.toggle('hidden',!inGame||!!id);$('pausebtn').classList.toggle('hidden',!inGame||!!id);
   $('touch').classList.toggle('hidden',!(TOUCH&&inGame&&!id));if(id==='s-title'&&!DEMO)demoStart()}
@@ -868,7 +987,7 @@ function paintLobby(){$('lb-code').textContent=net.code||'····';const host=M
   else{const key=LOBBY.beach;if(el.dataset.b!==key){el.dataset.b=key;beachCards(el,key,null)}}}
 function hostGo(beach){if(MODE!=='host')return;LOBBY.beach=beach||LOBBY.beach;ENDED=false;LOCAL_TOOL=0;
   const seed=newSeed();S=makeSim({beach:LOBBY.beach,seed,players:LOBBY.players.map(p=>({seat:p.seat,name:p.name,cid:p.cid,local:p.cid===MY_CID}))});
-  for(const p of S.players){p.remote=!p.local;p.seen=now()}SENT=null;OUTBOX.length=0;
+  for(const p of S.players){p.remote=!p.local;p.seen=now()}SENT=null;SENT_SV=-1;OUTBOX.length=0;
   net.send({t:'go',beach:LOBBY.beach,seed,ps:LOBBY.players.map(p=>[p.seat,p.name,p.cid])});beginGame()}
 // the guest's beach: same shape as a sim (so the renderer doesn't care) but filled by the host
 function guestGo(m){ENDED=false;LOCAL_TOOL=0;const me=m.ps.find(r=>r[2]===MY_CID);MY_SEAT=me?me[0]:-1;
@@ -908,15 +1027,18 @@ function applyChunk(V,c,data,kind){const u=unb64(data);const cx=c%CXN,cy=c/CXN|0
   if(V.dT&&kind!==3)V.dT[c]=t}
 const r10=v=>Math.round(v*10),ACTK=['','dig','pile','pat','drypat','fill','pour'];
 function packSnap(S){
-  const ps=S.players.filter(p=>!p.gone).map(p=>[p.seat,r10(p.x),r10(p.y),Math.round(p.fx*100),Math.round(p.fy*100),p.tool,Math.round(p.sand*10),p.water,p.act>0?ACTK.indexOf(p.actK):0,Math.round(p.sandWet*100),r10(p.tx),r10(p.ty)]);
+  const ps=S.players.filter(p=>!p.gone).map(p=>[p.seat,r10(p.x),r10(p.y),Math.round(p.fx*100),Math.round(p.fy*100),p.tool,Math.round(p.sand*10),p.water,p.act>0?ACTK.indexOf(p.actK):0,Math.round(p.sandWet*100),r10(p.tx),r10(p.ty),p.shells,p.logs,SHOP.filter(it=>!it.item).map(it=>p.up[it.id]|0).join('')]);
   return {t:'s',f:S.frame,ph:S.phase,pt:Math.round(S.pt*10)/10,rd:S.round,td:Math.round(S.tide*1000)/1000,wn:S.waveN,wi:S.waveI,cl:S.closestR==null?null:Math.round(S.closestR*10)/10,
-    lost:S.lost?1:0,fd:S.lost?Math.round((S.t-S.flagDown)*10)/10:0,ps,ch:packChunks(S,false),e:OUTBOX.splice(0)}}
+    lost:S.lost?1:0,fd:S.lost?Math.round((S.t-S.flagDown)*10)/10:0,ps,ch:packChunks(S,false),e:OUTBOX.splice(0),...shellPart(S)}}
+let SENT_SV=-1;
+function shellPart(S){if(S.shellVer===SENT_SV)return {};SENT_SV=S.shellVer;return {sh:S.shells.map(x=>[x.id,r10(x.x),r10(x.y),x.v]),lg:S.logs.map(l=>[r10(l.x),r10(l.y),Math.round(l.a*100)])}}
 const OUTBOX=[];
 function guestSnap(m){const v=GV;if(!v)return;LAST_SNAP=now();
   v.phase=m.ph;v.pt=m.pt;if(m.rd!==v.round){v.closestR=null}v.round=m.rd;v.tide=m.td;v.waveN=m.wn;v.waveI=m.wi;v.closestR=m.cl;
   if(m.lost&&!v.lost){v.lost=true;v.flagDown=v.t-m.fd}
   for(const c of m.ch)applyChunk(v,c[0],c[1],c[2]);
-  for(const r of m.ps){const p=v.players.find(q=>q.seat===r[0]);if(!p)continue;p.seen=now();p.tool=p.seat===MY_SEAT?p.tool:r[5];p.sand=r[6]/10;p.water=r[7];p.sandWet=r[9]/100;
+  if(m.sh)v.shells=m.sh.map(r=>({id:r[0],x:r[1]/10,y:r[2]/10,v:r[3]}));if(m.lg)v.logs=m.lg.map(r=>({x:r[0]/10,y:r[1]/10,a:r[2]/100,len:LOGLEN}));
+  for(const r of m.ps){const p=v.players.find(q=>q.seat===r[0]);if(!p)continue;p.seen=now();if(r[12]!=null){p.shells=r[12];p.logs=r[13];SHOP.filter(it=>!it.item).forEach((it,k)=>p.up[it.id]=+String(r[14])[k]||0)}p.tool=p.seat===MY_SEAT?p.tool:r[5];p.sand=r[6]/10;p.water=r[7];p.sandWet=r[9]/100;
     if(p.seat!==MY_SEAT){p.nx=r[1]/10;p.ny=r[2]/10;p.fx=r[3]/100;p.fy=r[4]/100;p.tx=r[10]/10;p.ty=r[11]/10;if(r[8]){p.act=.18;p.actK=ACTK[r[8]]}}}
   for(const p of v.players)if(!m.ps.some(r=>r[0]===p.seat))p.gone=true;
   for(const e of m.e)fxEvent(e,v)}
@@ -948,9 +1070,10 @@ function handleNet(m){switch(m.t){
   case 'go':if(MODE==='guest')guestGo(m);break;
   case 's':if(MODE==='guest'&&GV)guestSnap(m);break;
   case 'i':if(MODE==='host'&&S){const p=S.players.find(q=>q.cid===m.cid);if(p&&!p.gone){p.nx=clamp(+m.x||0,.5,GW-1.5);p.ny=clamp(+m.y||0,.5,GH-SEA_ROWS-.5);p.fx=+m.fx||0;p.fy=+m.fy||1;
-      p.tx=+m.tx||p.x;p.ty=+m.ty||p.y;p.tool=clamp(m.k|0,0,3);p.use=m.u?1:0;p.seen=now()}
+      p.tx=+m.tx||p.x;p.ty=+m.ty||p.y;p.tool=clamp(m.k|0,0,4);p.use=m.u?1:0;p.seen=now()}
       const lp=LOBBY.players.find(x=>x.cid===m.cid);if(lp)lp.seen=now()}break;
   case 'end':if(MODE==='guest'&&GV)gameOver(GV,m.sm);break;
+  case 'buy':if(MODE==='host'&&S){const p=S.players.find(q=>q.cid===m.cid);if(p&&!p.gone&&SHOPID(m.id))buy(S,p,m.id)}break;
   case 'lob':if(MODE==='guest'){GV=null;openLobby()}break;
 }}
 function hostGone(){GV=null;netClose();MODE='menu';LAST_ROS=0;show('s-online');setStatus('The host left the beach.',true)}
@@ -1027,6 +1150,38 @@ function runSmoke(){const out=[];let pass=0,fail=0;const ok=(name,c,extra)=>{if(
     p.x=S.kx;p.y=S.ky+6;ok('no water to fill up on the dry beach',act(S,p,3,p.x,p.y)==='nowater');
     p.y=GH-SEA_ROWS-1;ok('the bucket fills in the sea',act(S,p,3,p.x,p.y)==='fill'&&p.water===MAXWATER);
     const w0=S.wet[S.ky*GW+S.kx+8];act(S,p,3,S.kx+8,S.ky);ok('pouring wets the sand',S.wet[S.ky*GW+S.kx+8]>w0+.3)}
+  // ── the shell shop ──
+  {const S=makeSim({beach:'bay',seed:4,players:[{seat:0,name:'a',cid:'a'},{seat:1,name:'b',cid:'b'}]});const p=S.players[0];
+    ok('shells are on the beach at the start',S.shells.length>=6,S.shells.length);
+    const sh=S.shells[0],n0=S.shells.length;p.x=sh.x;p.y=sh.y;p.mx=p.my=0;simStep(S,1/60);
+    ok('walking over a shell picks it up',p.shells===sh.v&&S.shells.length===n0-1&&S.ev.some(e=>e[0]==='shell'),p.shells);
+    ok('no shells, no shopping',(p.shells=0,buy(S,p,'pail'))==='poor'&&!(p.up.pail|0));
+    p.shells=50;const c=shopCost(p,'pail');ok('buying spends shells',buy(S,p,'pail')==='ok'&&p.shells===50-c&&p.up.pail===1);
+    buy(S,p,'pail');ok('upgrades stop at the top level',buy(S,p,'pail')==='maxed'&&maxSand(p)===MAXSAND+4,maxSand(p));
+    p.sand=0;const x=S.kx+9,y=S.ky+2;for(let k=0;k<14;k++)act(S,p,0,x+(k%3),y);ok('a big pail carries more sand',p.sand>MAXSAND+3,p.sand.toFixed(1));
+    ok('a steel spade digs faster',(buy(S,p,'spade'),digCD(p)<CD.dig*.8),digCD(p).toFixed(3));
+    buy(S,p,'bucket');p.water=0;p.y=GH-SEA_ROWS-1;p.x=10;act(S,p,3,p.x,p.y);ok('a big bucket holds more pours',p.water===MAXWATER+2,p.water);
+    const q=S.players[1];const a=S.ky*GW+S.kx+12,b=S.ky*GW+S.kx-12;for(const i of [a,b]){for(const j of [i,i-1,i+1,i-GW,i+GW,i-2,i+2]){S.wet[j]=.6;S.pack[j]=0}}
+    act(S,q,2,S.kx+12,S.ky);buy(S,p,'paddle');act(S,p,2,S.kx-12,S.ky);
+    ok('a flat paddle packs a wider patch',S.pack[b+2]>S.pack[a+2]+.05,S.pack[a+2].toFixed(2)+' vs '+S.pack[b+2].toFixed(2));
+    buy(S,p,'boots');p.x=10;p.y=GH-SEA_ROWS-1.2;const x0=p.x;p.mx=1;p.my=0;for(let k=0;k<30;k++)playerStep(S,p,1/60);p.mx=0;
+    ok('wellies run through water',(p.x-x0)/.5>6.5,((p.x-x0)/.5).toFixed(1)+' cells/s');
+    p.shells=0;S.phase='ebb';S.pt=99;const before=p.shells,qb=q.shells,ns=S.shells.length;S.ev.length=0;simStep(S,1/60);
+    ok('holding a tide pays everyone '+HELD_BONUS+' shells',p.shells===before+HELD_BONUS&&q.shells===qb+HELD_BONUS);
+    ok('new shells wash up after a tide',S.shells.length>ns,ns+' -> '+S.shells.length);
+    const s2=S.shells[S.shells.length-1];S.d[Math.round(s2.y)*GW+Math.round(s2.x)]=.4;S.frame=9;simStep(S,1/60);ok('the sea takes back shells it covers',!S.shells.includes(s2))}
+  {const S=makeSim({beach:'bay',seed:3,players:[{seat:0,name:'a',cid:'a'}]});const p=S.players[0];p.fx=0;p.fy=1;
+    ok('no log, no laying',act(S,p,4,S.kx,S.ky+7)==='nolog');p.shells=99;buy(S,p,'log');buy(S,p,'log');buy(S,p,'log');
+    ok('hands hold three logs',p.logs===MAXLOGS&&buy(S,p,'log')==='maxed');
+    ok('logs cannot go on the shell ring',act(S,p,4,S.kx,S.ky+YARD_R-.6)==='yard');
+    ok('a log lies across where you face',act(S,p,4,S.kx,S.ky+7)==='log'&&S.logs.length===1&&Math.abs(Math.cos(S.logs[0].a))>.9);
+    const cells=[];for(let x=S.kx-2;x<=S.kx+2;x++)cells.push((S.ky+7)*GW+x);const h0=cells.map(i=>S.h[i]);S.round=6;S.phase='rise';S.pt=0;S.tideFrom=S.tide;
+    for(let k=0;k<60*45&&!S.over;k++){simStep(S,1/60);S.ev.length=0}
+    ok('the sea cannot wear a log down',cells.every((i,k)=>S.h[i]>=h0[k]-.01),cells.map((i,k)=>(S.h[i]-h0[k]).toFixed(2)).join(','))}
+  {const S=makeSim({beach:'bay',seed:3,players:[{seat:0,name:'a',cid:'a'}]});const p=S.players[0];p.shells=3;
+    const snap=packSnap(S);const G=makeSim({beach:'bay',seed:3,players:[{seat:0,name:'a',cid:'a'}]});G.shells=[];const gv=GV;GV=G;GV.d0=null;
+    try{guestSnap(Object.assign({},snap,{ch:[]}))}finally{GV=gv}
+    ok('shells, logs and the wallet reach a guest',G.shells.length===S.shells.length&&G.players[0].shells===3)}
   // ── sand physics ──
   {const S=makeSim({beach:'bay',seed:3,players:[]});const x=S.kx+12,y=S.ky,i=y*GW+x;
     S.h[i]+=3;S.wet[i]=.02;S.pack[i]=0;run(S,2);const dryH=S.h[i]-S.base[i];
@@ -1069,7 +1224,7 @@ function runSmoke(){const out=[];let pass=0,fail=0;const ok=(name,c,extra)=>{if(
     let bytes=0,snaps=0;const was=OUTBOX.length;while(S.round<2&&!S.over){for(let k=0;k<6;k++){for(const p of S.players)botStep(S,p,1/60);simStep(S,1/60)}OUTBOX.push(...S.ev.splice(0));bytes+=JSON.stringify(packSnap(S)).length;snaps++}
     const kbs=bytes/(snaps/10)/1024;ok('one tide costs under 40 KB/s to watch',kbs<40,kbs.toFixed(1)+' KB/s')}
   // ── page bits ──
-  ok('every sound the beach asks for is in the sprite',['ui','dig','pour','pat','fill','splash','step','wade','wave','big','slump','whistle','gull','flag','cheer','aww'].every(k=>SMAP[k]&&SMAP[k].length));
+  ok('every sound the beach asks for is in the sprite',['ui','dig','pour','pat','fill','splash','step','wade','wave','big','slump','whistle','gull','flag','cheer','aww','shell','buy','log'].every(k=>SMAP[k]&&SMAP[k].length));
   ok('the quit menu script is on the page',!!window.GLITCHBOX_OFFLINE||!!document.querySelector('script[src*="glitchbox-menu"]'));
   ok('play with friends is the first button',document.querySelector('#s-title .btn').id==='b-online');
   ok('no em dashes in anything a player reads',!/—/.test(document.body.innerText));
