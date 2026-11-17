@@ -1,0 +1,1089 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Low Tide</title>
+<script src="glitchbox-config.js"></script>
+<script src="glitchbox-save.js" data-pos="top-left"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Shrikhand&display=swap" rel="stylesheet">
+<style>
+/* A seaside postcard: sun-bleached paper, navy ink, beach-towel stripes, bucket red, sea teal. */
+:root{--paper:#fbf4e2;--paper2:#f3e6c4;--ink:#1c3144;--mut:#5b6b78;--sand:#efd9a7;--wet:#b99566;--sea:#1f8a8a;--sea2:#145f73;--foam:#fbf6ea;--red:#e4572e;--sun:#f6c445;--pink:#f08a7e;--good:#2f9c6b}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#d9bf86;color:var(--ink);font-family:'Nunito',system-ui,sans-serif;-webkit-user-select:none;user-select:none;touch-action:none}
+canvas#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
+.hidden{display:none!important}
+button{font-family:inherit}
+.scr{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:20;padding:18px 16px;background:rgba(20,40,52,.32)}
+.card{position:relative;width:min(560px,100%);max-height:100%;overflow:auto;padding:30px 28px 24px;border-radius:14px;background:var(--paper);
+  border:3px solid var(--ink);box-shadow:0 8px 0 var(--ink),0 26px 60px rgba(10,30,40,.45);scrollbar-width:thin}
+.card::before{content:'';position:absolute;left:0;right:0;top:0;height:12px;border-radius:10px 10px 0 0;
+  background:repeating-linear-gradient(90deg,var(--red) 0 26px,var(--paper) 26px 34px,var(--sun) 34px 60px,var(--paper) 60px 68px,var(--sea) 68px 94px,var(--paper) 94px 102px)}
+.card.wide{width:min(800px,100%)}
+.stamp{position:absolute;top:22px;right:20px;width:64px;height:76px;background:var(--paper2);border:2px dashed var(--ink);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(6deg);font-size:30px;line-height:1}
+.stamp small{font-size:10px;font-weight:900;letter-spacing:1px;margin-top:4px}
+h1.disp{font-family:'Shrikhand',cursive;font-weight:400;font-size:clamp(46px,9vw,82px);line-height:.95;color:var(--red);text-shadow:3px 3px 0 var(--ink);transform:rotate(-3deg);margin:6px 0 6px;letter-spacing:.5px}
+h2.disp{font-family:'Shrikhand',cursive;font-weight:400;font-size:clamp(28px,4.6vw,40px);line-height:1.05;color:var(--sea2);margin-bottom:6px}
+.sub{font-size:18px;font-weight:700;color:#34495a;margin-bottom:14px;max-width:420px}
+.btn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font-weight:900;font-size:21px;padding:11px 16px;margin-top:10px;
+  border:3px solid var(--ink);border-radius:12px;background:#fff;color:var(--ink);cursor:pointer;box-shadow:0 4px 0 var(--ink);transition:transform .07s,box-shadow .07s}
+.btn small{display:block;font-size:14.5px;font-weight:700;color:var(--mut);margin-top:1px}
+.btn .ic{font-size:26px;width:34px;text-align:center;flex:none}
+.btn:hover{transform:translateY(-2px);box-shadow:0 6px 0 var(--ink)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.btn.pri{background:var(--red);color:#fff}.btn.pri small{color:#ffe1d6}
+.btn.sea{background:var(--sea);color:#fff}.btn.sea small{color:#d4f3ee}
+.btn:disabled{opacity:.5;cursor:default;transform:none}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>.btn{flex:1;min-width:150px}
+.mini{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:15px;padding:6px 12px;border:2px solid var(--ink);border-radius:999px;background:#fff;color:var(--ink);cursor:pointer;margin-top:12px}
+.mini.on{background:var(--sun)}
+input.txt{width:100%;font:800 22px 'Nunito';padding:9px 12px;border:3px solid var(--ink);border-radius:10px;background:#fff;color:var(--ink);margin-top:6px;outline:none}
+input.code{text-transform:uppercase;letter-spacing:8px;text-align:center;font-size:30px}
+label.lb{display:block;font-weight:900;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mut);margin-top:14px}
+.status{min-height:22px;font-weight:800;margin-top:10px;color:var(--sea2)}.status.err{color:var(--red)}
+.beaches{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:10px}
+.beach{position:relative;border:3px solid var(--ink);border-radius:12px;background:#fff;cursor:pointer;overflow:hidden;box-shadow:0 4px 0 var(--ink);text-align:left;padding:0;color:var(--ink)}
+.beach canvas{display:block;width:100%;height:92px;border-bottom:3px solid var(--ink)}
+.beach .bd{padding:8px 12px 10px}.beach .nm{font-family:'Shrikhand';font-size:22px;color:var(--sea2)}.beach .ds{font-size:14px;font-weight:700;color:var(--mut);line-height:1.25}
+.beach .best{position:absolute;top:8px;right:8px;background:var(--sun);border:2px solid var(--ink);border-radius:999px;font-weight:900;font-size:12.5px;padding:2px 9px}
+.beach.sel{outline:4px solid var(--red);outline-offset:2px}
+.prow{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;padding:7px 4px;border-bottom:2px dashed #d9cba6}
+.prow .dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--ink)}.prow .tg{margin-left:auto;font-size:13px;color:var(--mut);font-weight:800}
+.code-big{font-family:'Shrikhand';font-size:56px;letter-spacing:10px;color:var(--red);text-shadow:3px 3px 0 var(--ink);line-height:1}
+.note{font-size:15px;font-weight:700;color:var(--mut);margin-top:8px}
+.help{font-size:16.5px;font-weight:700;line-height:1.4}
+.help p{margin:8px 0}.help b{color:var(--sea2)}
+.tools4{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.tools4 div{border:2px solid var(--ink);border-radius:10px;background:#fff;padding:8px 10px;font-size:14.5px;line-height:1.3}
+.tools4 div b{display:block;font-size:17px;color:var(--ink)}
+kbd{display:inline-block;min-width:22px;text-align:center;font:900 13px 'Nunito';border:2px solid var(--ink);border-radius:6px;background:var(--paper2);padding:0 5px;box-shadow:0 2px 0 var(--ink)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.stats div{border:2px solid var(--ink);border-radius:10px;background:#fff;text-align:center;padding:6px 4px;font-weight:800;font-size:13px;color:var(--mut)}
+.stats div b{display:block;font-size:24px;color:var(--ink)}
+.big-n{font-family:'Shrikhand';font-size:72px;line-height:1;color:var(--red);text-shadow:3px 3px 0 var(--ink)}
+.lines{font-weight:800;font-size:15.5px;line-height:1.5;color:#34495a}
+/* HUD */
+#hud{position:fixed;left:0;right:0;top:0;pointer-events:none;z-index:5;display:flex;justify-content:center;padding:10px 70px 0}
+.tidebox{display:flex;align-items:center;gap:12px;background:var(--paper);border:3px solid var(--ink);border-radius:999px;padding:4px 16px 4px 6px;box-shadow:0 4px 0 var(--ink)}
+.tidebox .tn{font-family:'Shrikhand';font-size:22px;color:#fff;background:var(--sea);border:2px solid var(--ink);border-radius:999px;padding:0 12px;line-height:1.4}
+.tidebox .ph{font-weight:900;font-size:17px;min-width:150px}
+.tidebox .bar{width:110px;height:10px;border:2px solid var(--ink);border-radius:999px;background:#fff;overflow:hidden}
+.tidebox .bar i{display:block;height:100%;background:var(--sun);width:50%}
+.tidebox.warn .ph{color:var(--red)}
+#toolbar{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:8px;z-index:6;align-items:flex-end}
+.tool{position:relative;width:74px;height:74px;border:3px solid var(--ink);border-radius:14px;background:var(--paper);box-shadow:0 4px 0 var(--ink);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;color:var(--ink)}
+.tool svg{width:38px;height:38px}
+.tool .k{position:absolute;top:3px;left:6px;font-weight:900;font-size:12px;color:var(--mut)}
+.tool .nm{font-weight:900;font-size:12.5px;margin-top:1px}
+.tool.sel{background:var(--sun);transform:translateY(-6px);box-shadow:0 10px 0 var(--ink)}
+.tool .pips{position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);display:flex;gap:2px}
+.tool .pips i{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--ink);background:#fff}
+.tool .pips i.f{background:#d8b878}.tool .pips.w i.f{background:#4cb5c4}
+#toast{position:fixed;left:50%;bottom:118px;transform:translateX(-50%);z-index:8;background:var(--ink);color:#fff;font-weight:900;font-size:18px;padding:8px 18px;border-radius:999px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
+#banner{position:fixed;left:0;right:0;top:30%;text-align:center;z-index:7;pointer-events:none;font-family:'Shrikhand';font-size:clamp(40px,8vw,84px);color:#fff;text-shadow:4px 4px 0 var(--ink);opacity:0;transform:scale(.9) rotate(-3deg);transition:opacity .3s,transform .3s}
+#banner.on{opacity:1;transform:scale(1) rotate(-3deg)}
+#banner small{display:block;font-family:'Nunito';font-weight:900;font-size:clamp(16px,2.4vw,22px);text-shadow:2px 2px 0 var(--ink);margin-top:6px}
+#pausebtn{position:fixed;top:10px;right:12px;z-index:6;width:46px;height:46px;border:3px solid var(--ink);border-radius:12px;background:var(--paper);box-shadow:0 4px 0 var(--ink);font:900 18px 'Nunito';cursor:pointer;color:var(--ink)}
+#rotate{position:fixed;inset:0;z-index:60;background:var(--sea2);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:22px;text-align:center;padding:30px}
+#rotate .disp{font-family:'Shrikhand';font-size:40px;margin-bottom:10px}
+/* touch */
+#touch{position:fixed;inset:0;z-index:4;pointer-events:none}
+#joy{position:absolute;left:24px;bottom:24px;width:132px;height:132px;border-radius:50%;border:3px solid rgba(28,49,68,.55);background:rgba(251,244,226,.35);pointer-events:auto}
+#joy i{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:var(--paper);border:3px solid var(--ink)}
+#usebtn{position:absolute;right:26px;bottom:30px;width:112px;height:112px;border-radius:50%;border:3px solid var(--ink);background:var(--red);color:#fff;font:900 22px 'Nunito';box-shadow:0 5px 0 var(--ink);pointer-events:auto}
+#usebtn.on{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+body.touch #toolbar{left:auto;right:150px;transform:none}
+body.touch .tool{width:62px;height:62px}body.touch .tool svg{width:30px;height:30px}body.touch .tool .k{display:none}
+@media (max-height:520px){.card{padding:22px 18px 16px}h1.disp{font-size:44px}.btn{font-size:18px;padding:8px 12px;margin-top:7px}.tool{width:58px;height:58px}.tool svg{width:28px;height:28px}#toast{bottom:90px}}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud" class="hidden"><div class="tidebox" id="tidebox"><span class="tn" id="h-tide">TIDE 1</span><span class="ph" id="h-ph">Low tide</span><span class="bar"><i id="h-bar"></i></span></div></div>
+<button id="pausebtn" class="hidden" title="Pause (Esc)">II</button>
+<div id="toolbar" class="hidden"></div>
+<div id="toast"></div>
+<div id="banner"></div>
+<div id="touch" class="hidden"><div id="joy"><i></i></div><button id="usebtn">USE</button></div>
+
+<div class="scr" id="s-title"><div class="card">
+  <div class="stamp">🏰<small>LOW TIDE</small></div>
+  <h1 class="disp">Low Tide</h1>
+  <div class="sub">Build a sandcastle with your friends before the tide comes in. Every tide comes in a little higher. Keep the flag dry.</div>
+  <button class="btn pri" id="b-online"><span class="ic">🌊</span><span>Play with friends<small>2 to 6 players online, one beach</small></span></button>
+  <button class="btn sea" id="b-solo"><span class="ic">🪣</span><span>Solo<small>you, with or without CPU helpers</small></span></button>
+  <button class="btn" id="b-help"><span class="ic">📖</span><span>How to play<small>four tools and one rule</small></span></button>
+  <button class="mini" id="b-sound">🔊 Sound on</button>
+</div></div>
+
+<div class="scr hidden" id="s-beach"><div class="card wide">
+  <h2 class="disp">Pick a beach</h2>
+  <div class="beaches" id="beaches"></div>
+  <label class="lb">CPU helpers</label>
+  <div class="row" id="helpers"></div>
+  <div class="row"><button class="btn" id="beach-back"><span class="ic">←</span><span>Back</span></button><button class="btn pri" id="beach-go"><span class="ic">🏖️</span><span>Start</span></button></div>
+</div></div>
+
+<div class="scr hidden" id="s-online"><div class="card">
+  <h2 class="disp">Play with friends</h2>
+  <label class="lb">Your name</label><input class="txt" id="myname" maxlength="12" placeholder="Sandy">
+  <button class="btn pri" id="b-host"><span class="ic">🏰</span><span>Make a beach<small>you get a 4-letter code to share</small></span></button>
+  <label class="lb">Got a code?</label>
+  <div class="row"><input class="txt code" id="joincode" maxlength="4" placeholder="ABCD" style="flex:1;min-width:150px"><button class="btn sea" id="b-join" style="flex:0 0 auto;width:auto;margin-top:6px"><span>Join</span></button></div>
+  <div class="status" id="on-status"></div>
+  <button class="btn" id="on-back"><span class="ic">←</span><span>Back</span></button>
+</div></div>
+
+<div class="scr hidden" id="s-lobby"><div class="card wide">
+  <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+    <div style="flex:1;min-width:240px">
+      <label class="lb" style="margin-top:0">Beach code</label><div class="code-big" id="lb-code">····</div>
+      <div class="note">Friends press "Play with friends", then type this code.</div>
+      <label class="lb">On the beach</label><div id="lb-list"></div>
+      <div id="lb-invite" class="hidden"><label class="lb">Invite a friend</label><div id="lb-friends"></div></div>
+    </div>
+    <div style="flex:1.3;min-width:260px">
+      <label class="lb" style="margin-top:0" id="lb-bt">Pick the beach</label>
+      <div class="beaches" id="lb-beaches" style="grid-template-columns:1fr"></div>
+    </div>
+  </div>
+  <div class="status" id="lb-wait">Waiting for the host to start...</div>
+  <div class="row"><button class="btn" id="lb-leave"><span class="ic">←</span><span>Leave</span></button><button class="btn pri" id="lb-start"><span class="ic">🏖️</span><span>Start</span></button></div>
+</div></div>
+
+<div class="scr hidden" id="s-help"><div class="card wide help">
+  <h2 class="disp">How to play</h2>
+  <p><b>One rule:</b> if the sea touches the shell ring around your tower, the flag falls and the game is over. Each tide comes in a little higher than the last, and the last wave of every tide is a big one.</p>
+  <div class="tools4">
+    <div><b><kbd>1</kbd> Spade</b>Dig up sand, up to six scoops. The hole you leave is a moat, and moats catch water.</div>
+    <div><b><kbd>2</kbd> Pile</b>Drop a scoop. Walls are made of piles. Sand dug near the sea comes up wet.</div>
+    <div><b><kbd>3</kbd> Pat</b>Pack the sand down. Packed sand stands steep and stands up to waves. Dry sand won't pack.</div>
+    <div><b><kbd>4</kbd> Bucket</b>Fill it in the sea, then pour it on dry sand. Damp sand holds a slope; dry sand slides.</div>
+  </div>
+  <p><b>What works:</b> a ring wall, wet and patted, with a moat on the sea side. A loose dry heap washes off in two waves.</p>
+  <p><b>Controls:</b> move with <kbd>WASD</kbd> or arrows, aim with the mouse, hold the mouse button or <kbd>Space</kbd> to use your tool. Switch tools with <kbd>1</kbd>-<kbd>4</kbd>, <kbd>Q</kbd>/<kbd>E</kbd> or the wheel. On a phone: stick on the left, USE on the right, and you aim where you face.</p>
+  <button class="btn" id="help-back"><span class="ic">←</span><span>Back</span></button>
+</div></div>
+
+<div class="scr hidden" id="s-pause"><div class="card">
+  <h2 class="disp">Paused</h2>
+  <div class="note" id="pa-note"></div>
+  <button class="btn pri" id="pa-resume"><span class="ic">▶</span><span>Back to the beach</span></button>
+  <button class="btn" id="pa-help"><span class="ic">📖</span><span>How to play</span></button>
+  <button class="btn" id="pa-sound"><span class="ic">🔊</span><span>Sound on</span></button>
+  <button class="btn" id="pa-quit"><span class="ic">🏠</span><span>Leave this beach</span></button>
+</div></div>
+
+<div class="scr hidden" id="s-result"><div class="card wide">
+  <div class="stamp">🚩<small id="rs-beach">BAY</small></div>
+  <h2 class="disp" id="rs-title">The tide got the flag</h2>
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap"><div class="big-n" id="rs-n">0</div><div class="lines" id="rs-sub"></div></div>
+  <div class="stats" id="rs-stats"></div>
+  <div class="lines" id="rs-lines"></div>
+  <div class="row"><button class="btn" id="rs-menu"><span class="ic">←</span><span id="rs-menu-t">Beaches</span></button><button class="btn pri" id="rs-again"><span class="ic">🏖️</span><span id="rs-again-t">Build again</span></button></div>
+</div></div>
+
+<div id="rotate" class="hidden"><div class="disp">Turn your phone</div>The beach needs a sideways screen. The game is paused until then.</div>
+<script>
+"use strict";
+// ═══════════════════════════════ SIM ═══════════════════════════════
+// The beach is a height grid. Every cell has sand height h, a rock floor nothing can dig below,
+// water depth d, wetness, packing and suspended sand. Water moves with a shallow-water "pipe" model,
+// sand slumps when a slope is steeper than it can hold (dry sand holds little, damp sand a lot,
+// packed sand more, anything under water much less), and fast water picks sand up and drops it
+// where it slows down. The bottom rows are the open sea: their level is the tide plus the waves.
+const GW=72,GH=44,GN=GW*GH,SEA_ROWS=3;
+const KEEP_R=1.6,YARD_R=2.75,TOWER_H=2.1,MAXSAND=6,MAXWATER=3,SCOOP=1.15,REACH=3.4;
+const CD={dig:.26,pile:.2,pat:.15,pour:.38,fill:.55};
+const TOOLS=['dig','pile','pat','water'];
+const BEACHES=[
+  {id:'bay',name:'Calm Bay',desc:'Gentle waves on a long flat beach. Learn the tide here.',
+   top:3.5,slope:.072,low:.45,rise0:.62,riseK:.2,amp0:.66,ampK:.07,bigK:1.5,skew:.25,rocks:0,build1:48,build2:26,wave0:4,keepY:20},
+  {id:'rocky',name:'Rocky Point',desc:'Rocks you can build against. The waves come in at an angle.',
+   top:3.5,slope:.07,low:.45,rise0:.66,riseK:.21,amp0:.72,ampK:.075,bigK:1.55,skew:1.1,rocks:6,build1:45,build2:25,wave0:4,keepY:20},
+  {id:'storm',name:'Storm Coast',desc:'Big surf and a fast tide. Short builds, so plan the moat first.',
+   top:3.4,slope:.068,low:.45,rise0:.74,riseK:.24,amp0:.82,ampK:.085,bigK:1.6,skew:.5,rocks:2,build1:40,build2:22,wave0:5,keepY:19},
+];
+const BEACH=id=>BEACHES.find(b=>b.id===id)||BEACHES[0];
+function rng32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const sstep=(a,b,x)=>{x=Math.max(0,Math.min(1,(x-a)/(b-a)));return x*x*(3-2*x)};
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+function makeSim(o){
+  const B=BEACH(o.beach),R=rng32(o.seed>>>0||1);
+  const S={B,seed:o.seed,t:0,frame:0,phase:'build',pt:0,round:1,tide:B.low,tideFrom:B.low,waves:[],waveN:0,waveI:0,
+    h:new Float32Array(GN),floor:new Float32Array(GN),d:new Float32Array(GN),wet:new Float32Array(GN),pack:new Float32Array(GN),
+    sed:new Float32Array(GN),fl:new Float32Array(GN),fr:new Float32Array(GN),ft:new Float32Array(GN),fb:new Float32Array(GN),
+    u:new Float32Array(GN),v:new Float32Array(GN),base:new Float32Array(GN),tmp:new Float32Array(GN),
+    players:[],ev:[],over:false,lost:false,flagWet:0,flagDown:0,stats:{dug:0,piled:0,pats:0,pours:0,slumped:0,waves:0},
+    kx:GW/2,ky:B.keepY,bigWarned:false,slumpAcc:0,slumpT:0,slumpX:0,slumpY:0,slumpMax:0,R};
+  // beach profile: a long gentle slope, then a drop into the sea
+  const prof=y=>{const shore=31;if(y<=shore)return B.top-B.slope*y;const hs=B.top-B.slope*shore;return hs-(y-shore)*.21-(y>GH-6?(y-(GH-6))*.18:0)};
+  // a little lumpy (value noise) so it reads as sand, not a ramp
+  const nz=[];for(let i=0;i<64;i++)nz.push(R());
+  const vn=(x,y)=>{const xi=Math.floor(x),yi=Math.floor(y),fx=x-xi,fy=y-yi,g=(a,b)=>nz[((a*7+b*13)&63+64)&63];
+    const sx=fx*fx*(3-2*fx),sy=fy*fy*(3-2*fy);return lerp(lerp(g(xi,yi),g(xi+1,yi),sx),lerp(g(xi,yi+1),g(xi+1,yi+1),sx),sy)};
+  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const i=y*GW+x;
+    let h=prof(y)+(vn(x/7,y/7)-.5)*.16+(vn(x/3+9,y/3+4)-.5)*.05+Math.sin(x*.55+y*.18)*.015;
+    S.h[i]=h;S.floor[i]=-9;S.base[i]=h}
+  // rocks: fixed lumps nothing can move, handy to build a wall against
+  const rocks=[];
+  for(let k=0;k<B.rocks;k++){let rx,ry,ok=false;for(let tries=0;tries<40&&!ok;tries++){rx=4+R()*(GW-8);ry=8+R()*22;
+      ok=Math.hypot(rx-S.kx,ry-S.ky)>9.5&&rocks.every(r=>Math.hypot(r.x-rx,r.y-ry)>5)}
+    if(!ok)continue;const rr=1.3+R()*1.4,rh=.9+R()*.8;rocks.push({x:rx,y:ry,r:rr});
+    for(let y=Math.floor(ry-rr-1);y<=ry+rr+1;y++)for(let x=Math.floor(rx-rr-1);x<=rx+rr+1;x++){if(x<0||y<0||x>=GW||y>=GH)continue;
+      const e=Math.hypot((x-rx)/rr,(y-ry)/(rr*.8));if(e>1)continue;const i=y*GW+x;const top=prof(y)+rh*Math.sqrt(1-e*e)+(R()-.5)*.08;
+      if(top>S.h[i]){S.floor[i]=top;S.h[i]=top;S.base[i]=top}}}
+  S.rocks=rocks;
+  // the keep: a bucket-mould tower nothing can dig, pile on or wash away. Water on the
+  // courtyard ring around it (radius KEEP_R..YARD_R, also off-limits to spades) knocks the flag down.
+  S.tower=new Uint8Array(GN);S.foot=[];
+  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const i=y*GW+x,r=Math.hypot(x-S.kx,y-S.ky);
+    if(r<=KEEP_R){S.tower[i]=1;S.h[i]=S.base[S.ky*GW+S.kx]+TOWER_H;S.floor[i]=S.h[i];S.wet[i]=.6;S.pack[i]=1}
+    else if(r<=YARD_R){S.foot.push(i);S.tower[i]=2}}
+  S.keepBase=S.base[S.ky*GW+S.kx];
+  for(let i=0;i<GN;i++){if(S.wet[i]===0)S.wet[i]=waterTable(S,i)}
+  for(let y=GH-SEA_ROWS;y<GH;y++)for(let x=0;x<GW;x++){const i=y*GW+x;S.d[i]=Math.max(0,S.tide-S.h[i])}
+  for(let i=0;i<GN;i++)if(S.h[i]<S.tide-.02)S.d[i]=S.tide-S.h[i];
+  const COL=['#e4572e','#2e86ab','#f2b134','#7a4fa0','#3aa36a','#e86fa6'];
+  for(const p of o.players)S.players.push({seat:p.seat,name:p.name,cid:p.cid,cpu:p.cpu||0,local:!!p.local,col:COL[p.seat%6],
+    x:S.kx-3+((p.seat%3)*3),y:S.ky+4.5+(p.seat/3|0)*2,fx:0,fy:1,tool:0,sand:0,sandWet:0,water:0,cd:0,use:0,mx:0,my:0,tx:S.kx,ty:S.ky+3,
+    act:0,actK:'',stepT:0,inWater:0,seen:0,done:{dug:0,piled:0,pats:0,pours:0}});
+  return S}
+function waterTable(S,i){return clamp((S.tide+.55-S.h[i])/.9,0,.72)}
+function seaLevel(S,x){let s=S.tide;const t=S.t;
+  for(const w of S.waves){const tt=t-w.t0-w.skew*(x/GW);if(tt<0||tt>4.4)continue;
+    const p=tt<.9?sstep(0,.9,tt):tt<1.3?1:1-sstep(1.3,4.4,tt);s+=w.amp*p*(1+.13*Math.sin(x*.27+w.ph))}
+  return s}
+function repose(S,i){const w=S.wet[i],pk=S.pack[i];
+  const bell=w<.3?w/.3:w<.85?1:1-(w-.85)/.15*.55;
+  let r=.5+2.1*bell+1.7*pk*Math.min(1,w*3+.15);
+  if(S.d[i]>.07)r*=.42+.45*pk;
+  return r<.3?.3:r>3.6?3.6:r}
+function emit(S,e){S.ev.push(e);if(S.ev.length>80)S.ev.shift()}
+
+// ── tide clock ──
+function phaseLen(S){const B=S.B,n=S.round,np=Math.max(1,S.players.filter(p=>!p.gone).length);
+  if(S.phase==='build')return (n===1?B.build1:B.build2)*(np===1?1.25:1);
+  if(S.phase==='rise')return 5;if(S.phase==='ebb')return 6;return 1e9}
+function highTide(S,n){return S.B.low+S.B.rise0+S.B.riseK*((n||S.round)-1)}
+function planWaves(S){const B=S.B,n=S.round,R=S.R;const cnt=B.wave0+Math.min(4,Math.floor((n-1)/2));
+  const amp=B.amp0+B.ampK*(n-1);let t=S.t+.6;S.waves=[];
+  for(let k=0;k<cnt;k++){const big=k===cnt-1;S.waves.push({t0:t,amp:amp*(big?B.bigK:(.78+R()*.3)),big,ph:R()*6.28,skew:B.skew*(R()<.5?1:-1)*(.6+R()*.4)+(B.skew<0?0:0),hit:false});
+    t+=big?6:4.3+R()*1.6}
+  // a negative skew means the right side gets hit first
+  for(const w of S.waves)if(w.skew<0){w.t0-=w.skew;}
+  S.waveN=cnt;S.waveI=0;S.bigWarned=false}
+function tideStep(S,dt){S.pt+=dt;const L=phaseLen(S);
+  if(S.phase==='build'){S.tide=lerp(S.tide,S.B.low,dt*.5);if(S.pt>=L){S.phase='rise';S.pt=0;S.tideFrom=S.tide;emit(S,['whistle'])}}
+  else if(S.phase==='rise'){S.tide=lerp(S.tideFrom,highTide(S),sstep(0,L,S.pt));if(S.pt>=L){S.phase='waves';S.pt=0;planWaves(S)}}
+  else if(S.phase==='waves'){S.tide=highTide(S);
+    for(const w of S.waves){if(!w.hit&&S.t>=w.t0+.7+Math.max(0,w.skew)*.3){w.hit=true;S.waveI++;S.stats.waves++;emit(S,[w.big?'big':'wave',Math.round(w.amp*100)/100])}
+      if(w.big&&!S.bigWarned&&S.t>=w.t0-3){S.bigWarned=true;emit(S,['bigwarn'])}}
+    const last=S.waves[S.waves.length-1];if(last&&S.t>last.t0+Math.abs(last.skew)+5.2){S.phase='ebb';S.pt=0;S.tideFrom=S.tide;S.waves=[]}}
+  else if(S.phase==='ebb'){S.tide=lerp(S.tideFrom,S.B.low,sstep(0,L,S.pt));if(S.pt>=L){emit(S,['held',S.round]);S.round++;S.phase='build';S.pt=0;if(S.round%2===0)emit(S,['gull'])}}}
+
+// ── water: virtual pipes ──
+const G_=14,FDAMP=.996;
+function waterStep(S,dt){const {h,d,fl,fr,ft,fb,u,v}=S;
+  for(let y=GH-SEA_ROWS;y<GH;y++){for(let x=0;x<GW;x++){const i=y*GW+x;const lv=seaLevel(S,x);d[i]=lv>h[i]?lv-h[i]:0}}
+  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const i=y*GW+x,Hi=h[i]+d[i];
+    if(d[i]<=0){fl[i]=fr[i]=ft[i]=fb[i]=0;continue}
+    const fric=Math.max(0,1-dt*.55/(d[i]+.06))*FDAMP;
+    let a=x>0?Math.max(0,fl[i]*fric+dt*G_*(Hi-h[i-1]-d[i-1])):0,
+        b=x<GW-1?Math.max(0,fr[i]*fric+dt*G_*(Hi-h[i+1]-d[i+1])):0,
+        c=y>0?Math.max(0,ft[i]*fric+dt*G_*(Hi-h[i-GW]-d[i-GW])):0,
+        e=y<GH-1?Math.max(0,fb[i]*fric+dt*G_*(Hi-h[i+GW]-d[i+GW])):0;
+    const sum=(a+b+c+e)*dt;if(sum>d[i]&&sum>0){const k=d[i]/sum;a*=k;b*=k;c*=k;e*=k}
+    fl[i]=a;fr[i]=b;ft[i]=c;fb[i]=e}
+  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const i=y*GW+x;
+    const inR=x>0?fr[i-1]:0,inL=x<GW-1?fl[i+1]:0,inB=y>0?fb[i-GW]:0,inT=y<GH-1?ft[i+GW]:0;
+    const nd=d[i]+dt*(inR+inL+inB+inT-fl[i]-fr[i]-ft[i]-fb[i]);
+    const dm=Math.max(.1,(d[i]+nd)/2);d[i]=nd<1e-4?0:nd;
+    u[i]=(inR-fl[i]+fr[i]-inL)/2/dm;v[i]=(inB-ft[i]+fb[i]-inT)/2/dm;
+    const sp=Math.hypot(u[i],v[i]);if(sp>4){u[i]*=4/sp;v[i]*=4/sp}}}
+
+// ── wet, dry, soak ──
+function soakStep(S,dt){const {d,wet,h}=S;
+  for(let i=0;i<GN;i++){if(d[i]>0){if(d[i]<.012){d[i]=Math.max(0,d[i]-dt*.03)}else d[i]=Math.max(0,d[i]-dt*SEEP)}
+    if(d[i]>.008){wet[i]+=dt*1.6*(1-wet[i])}
+    else{const wt=waterTable(S,i);if(wet[i]<wt)wet[i]+=dt*.05;else wet[i]=Math.max(wt,wet[i]-dt*.0075)}}}
+
+// ── sand slumps to its angle of repose ──
+function slumpStep(S,dt){const {h,floor}=S;const k=Math.min(1,dt*14);let flip=S.frame&1;
+  const pair=(a,b)=>{let hi=a,lo=b,df=h[a]-h[b];if(df<0){hi=b;lo=a;df=-df}
+    if(S.tower[lo]===1)return;const lim=repose(S,hi);if(df<=lim)return;let mv=(df-lim)*.5*k;const av=h[hi]-floor[hi];if(av<=0)return;if(mv>av)mv=av;if(mv<1e-5)return;
+    h[hi]-=mv;h[lo]+=mv;const f=mv/(mv+.25);S.wet[lo]=lerp(S.wet[lo],S.wet[hi],f);S.pack[lo]*=1-f*.9;S.pack[hi]*=1-Math.min(.5,mv*1.2);
+    S.slumpAcc+=mv;if(mv>S.slumpMax){S.slumpMax=mv;S.slumpX=hi%GW;S.slumpY=hi/GW|0}};
+  if(flip){for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const i=y*GW+x;if(x<GW-1)pair(i,i+1);if(y<GH-1)pair(i,i+GW)}}
+  else{for(let y=GH-1;y>=0;y--)for(let x=GW-1;x>=0;x--){const i=y*GW+x;if(x>0)pair(i,i-1);if(y>0)pair(i,i-GW)}}}
+
+// ── fast water carries sand off; slow water drops it ──
+const KC=.25,KS=3,KD=1.1,SEEP=.022;
+function erodeStep(S,dt){const {h,floor,d,sed,u,v,pack,tmp}=S;
+  for(let i=0;i<GN;i++){if(d[i]<=.012){if(sed[i]>0){h[i]+=sed[i];sed[i]=0}continue}
+    if(d[i]>1.1&&sed[i]<=0)continue;   // deep, calm water leaves the sea floor alone
+    const sp=Math.hypot(u[i],v[i]);const C=KC*sp*Math.min(1,(d[i]-.012)*5)*(1+Math.min(1.5,sp*.3));
+    if(sed[i]<C){const q=1-pack[i],e=.03+.97*q*q*q;let a=KS*(C-sed[i])*dt*e;const av=h[i]-floor[i];if(a>av)a=av;if(a>0){h[i]-=a;sed[i]+=a;pack[i]*=1-Math.min(.25,a*.5)}}
+    else{const a=KD*(sed[i]-C)*dt;h[i]+=a;sed[i]-=a;pack[i]*=1-Math.min(.5,a*2)}}
+  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const i=y*GW+x;if(d[i]<=.012){tmp[i]=0;continue}
+    let sx=x-u[i]*dt,sy=y-v[i]*dt;sx=clamp(sx,0,GW-1.001);sy=clamp(sy,0,GH-1.001);const x0=sx|0,y0=sy|0,fx=sx-x0,fy=sy-y0,j=y0*GW+x0;
+    tmp[i]=(sed[j]*(1-fx)+sed[j+1]*fx)*(1-fy)+(sed[j+GW]*(1-fx)+sed[j+GW+1]*fx)*fy}
+  for(let i=0;i<GN;i++)sed[i]=tmp[i];
+  for(let y=GH-SEA_ROWS;y<GH;y++)for(let x=0;x<GW;x++)sed[y*GW+x]=0}
+
+// ── brushes ──
+function brush(tx,ty,rad,f){const r=Math.ceil(rad*2);const cx=Math.round(tx),cy=Math.round(ty);let tot=0;const cells=[];
+  for(let y=cy-r;y<=cy+r;y++)for(let x=cx-r;x<=cx+r;x++){if(x<0||y<0||x>=GW||y>=GH-SEA_ROWS)continue;const dd=(x-tx)**2+(y-ty)**2;if(dd>rad*rad*4)continue;
+    const w=Math.exp(-dd/(2*rad*rad));tot+=w;cells.push([y*GW+x,w,x,y])}
+  for(const c of cells)f(c[0],c[1]/tot,c[2],c[3])}
+function nearKeep(S,x,y,r){return Math.hypot(x-S.kx,y-S.ky)<r}
+function noBuild(S,i){return S.tower[i]!==0}
+// a player uses their tool at (tx,ty). Returns the event kind or ''.
+function act(S,p,tool,tx,ty){
+  const k=TOOLS[tool];
+  const inYard=Math.hypot(tx-S.kx,ty-S.ky)<YARD_R+.25;
+  if(k==='dig'){if(p.sand>=MAXSAND)return 'full';if(inYard)return 'yard';let got=0,wsum=0;
+    brush(tx,ty,1.25,(i,w,x,y)=>{if(noBuild(S,i))return;let a=SCOOP*w;const av=Math.max(0,S.h[i]-S.floor[i]);if(a>av)a=av;S.h[i]-=a;got+=a;wsum+=a*S.wet[i];S.pack[i]*=.55});
+    if(got<.05)return 'rock';const add=Math.min(MAXSAND-p.sand,got/SCOOP);p.sandWet=(p.sandWet*p.sand+(wsum/got)*add)/(p.sand+add);p.sand+=add;
+    if(p.sand>MAXSAND-.05)p.sand=MAXSAND;S.stats.dug++;p.done.dug++;return 'dig'}
+  if(k==='pile'){if(p.sand<.05)return 'empty';if(inYard)return 'yard';const amt=Math.min(1,p.sand);const vol=amt*SCOOP;
+    let put=0;brush(tx,ty,1.1,(i,w)=>{if(noBuild(S,i))return;put+=w});if(put<.05)return 'yard';
+    brush(tx,ty,1.1,(i,w)=>{if(noBuild(S,i))return;const a=vol*w/put;S.h[i]+=a;const f=a/(a+.12);S.wet[i]=lerp(S.wet[i],p.sandWet,f);S.pack[i]*=1-f*.85});
+    p.sand-=amt;if(p.sand<.05){p.sand=0;p.sandWet=0}S.stats.piled++;p.done.piled++;return 'pile'}
+  if(k==='pat'){let ww=0;brush(tx,ty,1.05,(i,w)=>{if(S.tower[i]===1)return;const wf=Math.min(1,S.wet[i]*2.6+.1);ww+=w*S.wet[i];S.pack[i]=Math.min(1,S.pack[i]+w*1.6*wf*(1-S.pack[i]*.5))});
+    S.stats.pats++;p.done.pats++;return ww<.2?'drypat':'pat'}
+  if(k==='water'){
+    if(p.water<=0){const ci=Math.round(clamp(p.y,0,GH-1))*GW+Math.round(clamp(p.x,0,GW-1)),ti=Math.round(clamp(ty,0,GH-1))*GW+Math.round(clamp(tx,0,GW-1));
+      if(S.d[ci]>.05||S.d[ti]>.08){p.water=MAXWATER;return 'fill'}return 'nowater'}
+    brush(tx,ty,1.5,(i,w)=>{S.wet[i]=Math.min(1,S.wet[i]+w*5*(1.05-S.wet[i]))});
+    p.water--;S.stats.pours++;p.done.pours++;return 'pour'}
+  return ''}
+
+// ── players ──
+function playerStep(S,p,dt){
+  if(p.gone)return;
+  const ci=Math.round(clamp(p.y,0,GH-1))*GW+Math.round(clamp(p.x,0,GW-1));const wd=S.d[ci];p.inWater=wd;
+  if(!p.remote){const spd=(wd>.25?3.2:wd>.06?4.3:6.2);let mx=p.mx,my=p.my;const m=Math.hypot(mx,my);if(m>1){mx/=m;my/=m}
+    p.x=clamp(p.x+mx*spd*dt,.5,GW-1.5);p.y=clamp(p.y+my*spd*dt,.5,GH-SEA_ROWS-.5);
+    if(m>.1){p.fx=mx/m;p.fy=my/m;p.stepT+=dt*spd;if(p.stepT>1.55){p.stepT=0;emit(S,[wd>.06?'wade':'step',r1(p.x),r1(p.y),p.seat])}}}
+  // aim stays within reach
+  let dx=p.tx-p.x,dy=p.ty-p.y;const dl=Math.hypot(dx,dy);if(dl>REACH){p.tx=p.x+dx/dl*REACH;p.ty=p.y+dy/dl*REACH}
+  p.cd=Math.max(0,p.cd-dt);p.act=Math.max(0,p.act-dt);
+  if(p.use&&p.cd<=0){const r=act(S,p,p.tool,p.tx,p.ty);
+    const k=TOOLS[p.tool];const cd=k==='water'?(r==='fill'?CD.fill:CD.pour):CD[k];const fail=r==='full'||r==='empty'||r==='nowater'||r==='rock'||r==='yard';p.cd=fail?.35:cd;
+    if(r){emit(S,[r,r1(p.tx),r1(p.ty),p.seat]);if(r==='drypat'){p.act=.18;p.actK='pat'}if(!fail){p.act=.18;p.actK=r}}}}
+const r1=v=>Math.round(v*10)/10;
+
+// ── one 60 Hz tick ──
+function simStep(S,dt){if(S.over)return;S.t+=dt;S.frame++;
+  tideStep(S,dt);
+  for(const p of S.players)playerStep(S,p,dt);
+  waterStep(S,dt);soakStep(S,dt);slumpStep(S,dt);erodeStep(S,dt);
+  S.slumpT-=dt;if(S.slumpAcc>.5&&S.slumpMax>.05&&S.slumpT<=0){emit(S,['slump',S.slumpX,S.slumpY]);S.slumpT=.45}
+  S.stats.slumped+=S.slumpAcc;S.slumpAcc=0;S.slumpMax=0;
+  // the flag falls when water touches the keep (its footprint, radius KEEP_R)
+  let wetFoot=0;for(const j of S.foot)if(S.d[j]>wetFoot){wetFoot=S.d[j];S.flagHitX=j%GW;S.flagHitY=j/GW|0}
+  if(wetFoot>.035)S.flagWet+=dt;else S.flagWet=Math.max(0,S.flagWet-dt*.5);
+  if(S.flagWet>.3&&!S.lost){S.lost=true;S.flagDown=S.t;S.phase='lost';emit(S,['flag'])}
+  if(S.lost&&S.t-S.flagDown>2.6)S.over=true}
+
+// ═══════════════════════════════ CPU HELPERS ═══════════════════════════════
+// Bots press the same buttons a player does: walk (mx,my), aim (tx,ty), pick a tool, hold use.
+// "builder" is the CPU buddy: a damp, packed ring wall with a moat outside it, repaired seaward first.
+// "dumper" piles loose dry sand round the keep and never wets or pats it (the smoke test's masher).
+// "nomoat" builds the same wall from sand dug right beside it (proves the moat earns its keep).
+function botInit(S,p,kind){p.bot={kind,job:null,jt:0,wallR:kind==='dumper'?3.6:5.2,moatR:7.4,rr:S.R()}}
+function wallPts(S,R,n){const a=[];for(let k=0;k<n;k++){const an=k/n*Math.PI*2;a.push([S.kx+Math.cos(an)*R,S.ky+Math.sin(an)*R*.92])}return a}
+function hAt(S,x,y){x=clamp(Math.round(x),0,GW-1);y=clamp(Math.round(y),0,GH-1);return S.h[y*GW+x]}
+function cellAt(S,x,y){x=clamp(Math.round(x),0,GW-1);y=clamp(Math.round(y),0,GH-1);return y*GW+x}
+function botStep(S,p,dt){const b=p.bot;if(!b||p.gone)return;b.jt-=dt;
+  if(!b.job||b.jt<=0||botDone(S,p,b.job))b.job=botPick(S,p);const j=b.job;
+  if(!j){p.mx=p.my=0;p.use=0;return}
+  // walk until the target is in comfortable reach, then work it
+  const dx=j.x-p.x,dy=j.y-p.y,dl=Math.hypot(dx,dy);const want=j.stand!=null?j.stand:REACH*.6;
+  if(dl>want){p.mx=dx/dl;p.my=dy/dl;p.use=0}else{p.mx=p.my=0;p.use=1}
+  p.tx=j.x;p.ty=j.y;p.tool=j.tool}
+function botDone(S,p,j){
+  if(j.tool===0)return p.sand>=MAXSAND-.05||hAt(S,j.x,j.y)<=j.goal;
+  if(j.tool===1)return p.sand<.05||hAt(S,j.x,j.y)>=j.goal;
+  if(j.tool===2)return S.pack[cellAt(S,j.x,j.y)]>.8;
+  if(j.tool===3)return j.fill?p.water>0:(p.water<=0||S.wet[cellAt(S,j.x,j.y)]>.75);return true}
+function botPick(S,p){const b=p.bot;b.jt=3;
+  const keepTop=S.keepBase+1.15;const R=S.R;
+  if(b.kind==='dumper'){
+    if(p.sand<MAXSAND-.05){const an=R()*Math.PI*2,r=3.8+R()*3.5;return {tool:0,x:S.kx+Math.cos(an)*r,y:S.ky+Math.sin(an)*r,goal:-9}}
+    const an=R()*Math.PI*2,r=3.3+R()*1.4;return {tool:1,x:S.kx+Math.cos(an)*r,y:S.ky+Math.sin(an)*r,goal:99}}
+  const pts=wallPts(S,b.wallR,26);
+  // seaward points (bigger y) matter most
+  const prio=pt=>1+Math.max(0,(pt[1]-S.ky)/b.wallR)*1.2;
+  const goalH=keepTop+.2;
+  let worst=null,ws=0;for(const pt of pts){const def=goalH-hAt(S,pt[0],pt[1]);const s=def*prio(pt);if(s>ws){ws=s;worst=pt}}
+  let dry=null,ds=0;for(const pt of pts){const i=cellAt(S,pt[0],pt[1]);if(goalH-S.h[i]>.7)continue;const s=(.62-S.wet[i])*prio(pt);if(s>ds){ds=s;dry=pt}}
+  let soft=null,ss=0;for(const pt of pts){const i=cellAt(S,pt[0],pt[1]);if(goalH-S.h[i]>.7||S.wet[i]<.3)continue;const s=(.8-S.pack[i])*prio(pt);if(s>ss){ss=s;soft=pt}}
+  const crisis=S.phase==='waves'||S.phase==='rise';
+  // packing and wetting the tall bits first keeps them from crumbling
+  const np=b.kind==='nopat';
+  if(!np&&soft&&ss>.25&&(R()<.55||crisis))return {tool:2,x:soft[0],y:soft[1]};
+  if(!np&&dry&&ds>.18&&p.water>0)return {tool:3,x:dry[0],y:dry[1]};
+  if(p.sand>=MAXSAND-.05||(p.sand>0&&worst&&ws>.3&&R()<.5))return worst?{tool:1,x:worst[0],y:worst[1],goal:goalH+.15}:{tool:1,x:S.kx,y:S.ky+b.wallR,goal:99};
+  if(!np&&dry&&ds>.18&&p.water<=0&&!crisis){const sp=nearestWater(S,p);if(sp)return {tool:3,fill:1,x:sp[0],y:sp[1],stand:.6}}
+  if(worst&&ws>.12){
+    if(b.kind==='nomoat'){const an=-Math.PI/2+(R()-.5)*1.6,r=b.wallR+3+R()*3;return {tool:0,x:S.kx+Math.cos(an)*r,y:S.ky+Math.sin(an)*r,goal:-9}}
+    const mp=wallPts(S,b.moatR,34).filter(pt=>pt[1]>S.ky-b.moatR*.25);let best=null,bs=-1e9;
+    for(const pt of mp){const i=cellAt(S,pt[0],pt[1]);const room=S.h[i]-(S.base[i]-1.3);if(room<.15)continue;const dist=Math.hypot(pt[0]-p.x,pt[1]-p.y);const s=room*prio(pt)*1.5-dist*.12+R()*.4;if(s>bs){bs=s;best=pt}}
+    if(best)return {tool:0,x:best[0],y:best[1],goal:S.base[cellAt(S,best[0],best[1])]-1.3};
+    const an=R()*Math.PI*2,r=b.moatR+2.5;return {tool:0,x:S.kx+Math.cos(an)*r,y:S.ky+Math.sin(an)*r,goal:-9}}
+  if(!np&&soft)return {tool:2,x:soft[0],y:soft[1]};
+  if(!np&&dry&&p.water>0)return {tool:3,x:dry[0],y:dry[1]};
+  if(np){const an=R()*Math.PI*2,r=b.moatR+2.5;return {tool:p.sand>=MAXSAND-.05?1:0,x:S.kx+Math.cos(an)*r,y:S.ky+Math.sin(an)*r,goal:p.sand>=MAXSAND-.05?99:-9}}
+  return {tool:2,x:S.kx+(R()-.5)*8,y:S.ky+b.wallR}}
+function nearestWater(S,p){let best=null,bd=1e9;for(let y=0;y<GH-SEA_ROWS;y++)for(let x=0;x<GW;x+=2){const i=y*GW+x;if(S.d[i]>.12){const dd=Math.hypot(x-p.x,y-p.y);if(dd<bd){bd=dd;best=[x,y]}}}return best}
+
+// ═══════════════════════════════ BASICS ═══════════════════════════════
+const $=id=>document.getElementById(id);
+const HASH=location.hash;
+const SMOKE=/smoke/.test(HASH),DEBUG=/debug/.test(HASH),NORENDER=/norender/.test(HASH);
+const TOUCH=(window.matchMedia&&matchMedia('(pointer:coarse)').matches)||('ontouchstart' in window&&navigator.maxTouchPoints>0);
+const now=()=>performance.now();
+const hyp=Math.hypot;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS={get(k,d){try{const v=localStorage.getItem('lowtide.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('lowtide.'+k,JSON.stringify(v))}catch(e){}}};
+const SET=Object.assign({sound:true,vol:.85,helpers:1,beach:'bay'},LS.get('set',{}));
+function saveSet(){LS.set('set',SET)}
+let PROG=Object.assign({best:{},games:0},LS.get('prog',{}));
+function saveProg(){LS.set('prog',PROG)}
+if(TOUCH)document.body.classList.add('touch');
+
+// ═══════════════════════════════ SOUND ═══════════════════════════════
+// Real recordings only (sfx/low-tide-sfx.m4a, credits in sfx/CREDITS-low-tide.txt).
+// Event-only: a sound plays when something happens on the beach, never a bed of sea noise.
+const SMAP=/*SMAP*/{"ui":[[0.1,0.1],[0.45,0.11]],"dig":[[0.81,0.34],[1.4,0.37],[2.02,0.4]],"pour":[[2.67,0.54],[3.46,0.54],[4.25,0.54]],"pat":[[5.04,0.24],[5.53,0.24],[6.02,0.25]],"fill":[[6.52,0.66],[7.43,0.6]],"splash":[[8.28,0.76],[9.29,0.76]],"step":[[10.3,0.22],[10.77,0.22],[11.24,0.22]],"wade":[[11.71,0.29],[12.25,0.3],[12.8,0.34]],"wave":[[13.39,2.34],[15.98,1.74],[17.97,2.34]],"big":[[20.56,3.24],[24.05,3.24]],"slump":[[27.54,0.64],[28.43,0.64]],"whistle":[[29.32,0.84]],"gull":[[30.41,0.84],[31.5,0.9]],"flag":[[32.65,0.66]],"cheer":[[33.56,1.54]],"aww":[[35.35,1.24]]}/*END*/;
+const NOAUDIO=/smoke|mute|norender/.test(HASH);
+const AU={ctx:null,sfx:null,buf:null,off:0,raw:null,st:0};
+function auInit(){if(AU.ctx||NOAUDIO)return;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+  try{AU.ctx=new AC()}catch(e){return}AU.sfx=AU.ctx.createGain();AU.sfx.connect(AU.ctx.destination);auVol();sprLoad();sprDecode()}
+function auVol(){if(!AU.ctx)return;AU.sfx.gain.setTargetAtTime(SET.sound?SET.vol:0,AU.ctx.currentTime,.02)}
+function sprLoad(){if(AU.st||NOAUDIO)return;AU.st=1;fetch('sfx/low-tide-sfx.m4a').then(r=>r.ok?r.arrayBuffer():Promise.reject(r.status)).then(ab=>{AU.raw=ab;sprDecode()}).catch(()=>{AU.st=-1})}
+function sprDecode(){if(!AU.ctx||!AU.raw||AU.buf)return;const ab=AU.raw;AU.raw=null;
+  const ok=b=>{const d=b.getChannelData(0),sr=b.sampleRate;let mi=0,mv=0;for(let i=0,n=Math.min(d.length,sr*.4|0);i<n;i++){const v=Math.abs(d[i]);if(v>mv){mv=v;mi=i}}
+    // the first clip's attack sits at 0.10 s in the file; whatever the decoder added in front shows up here
+    AU.off=clamp(mi/sr-.1,-.05,.15);AU.buf=b};
+  try{const pr=AU.ctx.decodeAudioData(ab,ok,()=>{AU.st=-1});if(pr&&pr.catch)pr.catch(()=>{AU.st=-1})}catch(e){AU.st=-1}}
+function auWake(){auInit();if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume()}
+document.addEventListener('pointerdown',auWake,true);document.addEventListener('keydown',auWake,true);
+function snd(name,o){o=o||{};const L=SMAP[name];if(!AU.buf||!L||!SET.sound)return null;const c=AU.ctx,seg=o.i!=null?L[o.i%L.length]:L[Math.random()*L.length|0];
+  const t=c.currentTime+(o.at||0),r=o.r||1,s=c.createBufferSource();s.buffer=AU.buf;s.playbackRate.value=r;
+  const g=c.createGain();let out=g;if(o.pan&&c.createStereoPanner){const p=c.createStereoPanner();p.pan.value=clamp(o.pan,-1,1);g.connect(p);out=p}out.connect(AU.sfx);
+  g.gain.value=o.v==null?1:o.v;s.connect(g);s.start(t,Math.max(0,seg[0]+AU.off),seg[1]/r+.02);return s}
+const rnd=(a,b)=>a+Math.random()*(b-a);
+// pans with where it happened on the beach, a little quieter far from you
+function sndAt(name,x,y,o){o=Object.assign({},o||{});o.pan=clamp((x/GW-.5)*1.3,-.7,.7);const me=myPlayer();
+  if(me){const d=hyp(x-me.x,y-me.y);o.v=(o.v==null?1:o.v)*clamp(1.15-d/40,.45,1)}return snd(name,o)}
+
+// ═══════════════════════════════ STATE ═══════════════════════════════
+let MODE='menu';      // menu | solo | host | guest
+let S=null;           // the authoritative sim (solo + host)
+let GV=null;          // a guest's view of the host's beach
+let DEMO=null;        // the beach that plays behind the title card
+let PAUSED=false,SCR='s-title',MY_SEAT=0,ENDED=false;
+const PART=[];
+const TIPS={};
+function V(){return MODE==='guest'?GV:(S||DEMO)}
+function myPlayer(){const v=V();if(!v||v===DEMO)return null;return v.players.find(p=>p.seat===MY_SEAT)||null}
+
+// ═══════════════════════════════ INPUT ═══════════════════════════════
+const KEYS={};const IN={use:0,mouseUse:0,spaceUse:0,touchUse:0,mx:0,my:0,mouseX:-1,mouseY:-1,mouseT:-9e9,jx:0,jy:0};
+addEventListener('keydown',e=>{if(e.repeat&&!/^(Arrow|Key[WASD])/.test(e.code))return;KEYS[e.code]=1;
+  if(SCR&&SCR!=='s-pause')return;
+  if(e.code==='Escape'||e.code==='KeyP'){if(MODE!=='menu')togglePause();e.preventDefault();return}
+  if(SCR)return;
+  if(e.code==='Space'){IN.spaceUse=1;e.preventDefault()}
+  const n={Digit1:0,Digit2:1,Digit3:2,Digit4:3,Numpad1:0,Numpad2:1,Numpad3:2,Numpad4:3}[e.code];if(n!=null)pickTool(n);
+  if(e.code==='KeyQ')pickTool((curTool()+3)%4);if(e.code==='KeyE')pickTool((curTool()+1)%4);
+  if(e.code==='KeyM'){SET.sound=!SET.sound;saveSet();auVol();syncSoundBtns();toast(SET.sound?'Sound on':'Sound off')}
+  if(/^Arrow/.test(e.code))e.preventDefault()});
+addEventListener('keyup',e=>{KEYS[e.code]=0;if(e.code==='Space')IN.spaceUse=0});
+addEventListener('blur',()=>{for(const k in KEYS)KEYS[k]=0;IN.spaceUse=IN.mouseUse=IN.touchUse=0});
+const cv=$('cv');
+cv.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;IN.mouseX=e.clientX;IN.mouseY=e.clientY;IN.mouseT=now()});
+cv.addEventListener('pointerdown',e=>{if(e.pointerType==='touch')return;IN.mouseX=e.clientX;IN.mouseY=e.clientY;IN.mouseT=now();if(e.button===0)IN.mouseUse=1});
+addEventListener('pointerup',e=>{if(e.pointerType!=='touch'&&e.button===0)IN.mouseUse=0});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('wheel',e=>{if(SCR||MODE==='menu')return;pickTool((curTool()+(e.deltaY>0?1:3))%4);e.preventDefault()},{passive:false});
+// touch: stick on the left, USE on the right
+(function(){const joy=$('joy'),knob=joy.querySelector('i');let id=null,cx=0,cy=0;
+  joy.addEventListener('pointerdown',e=>{id=e.pointerId;const r=joy.getBoundingClientRect();cx=r.left+r.width/2;cy=r.top+r.height/2;joy.setPointerCapture(id);mv(e)});
+  const mv=e=>{if(e.pointerId!==id)return;let dx=e.clientX-cx,dy=e.clientY-cy;const d=hyp(dx,dy),R=50;if(d>R){dx*=R/d;dy*=R/d}IN.jx=dx/R;IN.jy=dy/R;knob.style.transform=`translate(${dx}px,${dy}px)`};
+  joy.addEventListener('pointermove',mv);
+  const up=e=>{if(e.pointerId!==id)return;id=null;IN.jx=IN.jy=0;knob.style.transform=''};joy.addEventListener('pointerup',up);joy.addEventListener('pointercancel',up);
+  const ub=$('usebtn');ub.addEventListener('pointerdown',e=>{IN.touchUse=1;ub.classList.add('on');ub.setPointerCapture(e.pointerId)});
+  const uu=()=>{IN.touchUse=0;ub.classList.remove('on')};ub.addEventListener('pointerup',uu);ub.addEventListener('pointercancel',uu)})();
+let LOCAL_TOOL=0;
+function curTool(){return LOCAL_TOOL}
+function pickTool(n){if(LOCAL_TOOL===n)return;LOCAL_TOOL=n;const p=myPlayer();if(p)p.tool=n;paintTools();snd('ui',{v:.35,i:1})}
+// what the local player's hands and feet are doing this frame
+function readInput(p){let mx=(KEYS.KeyD||KEYS.ArrowRight?1:0)-(KEYS.KeyA||KEYS.ArrowLeft?1:0),my=(KEYS.KeyS||KEYS.ArrowDown?1:0)-(KEYS.KeyW||KEYS.ArrowUp?1:0);
+  if(IN.jx||IN.jy){mx=IN.jx;my=IN.jy;if(hyp(mx,my)<.18)mx=my=0}
+  p.mx=mx;p.my=my;p.tool=LOCAL_TOOL;p.use=(IN.mouseUse||IN.spaceUse||IN.touchUse)?1:0;
+  const mouseAim=!TOUCH&&now()-IN.mouseT<4000&&IN.mouseX>=0;
+  if(mouseAim){const g=toGrid(IN.mouseX,IN.mouseY);p.tx=g[0];p.ty=g[1]}
+  else{if(hyp(mx,my)>.1){const m=hyp(mx,my);p.fx=mx/m;p.fy=my/m}p.tx=p.x+p.fx*2.1;p.ty=p.y+p.fy*2.1}
+  let dx=p.tx-p.x,dy=p.ty-p.y;const dl=hyp(dx,dy);if(dl>REACH){p.tx=p.x+dx/dl*REACH;p.ty=p.y+dy/dl*REACH}
+  if(mouseAim&&dl>.3&&hyp(mx,my)<.1){p.fx=dx/dl;p.fy=dy/dl}}
+
+// ═══════════════════════════════ LAYOUT ═══════════════════════════════
+let VW=innerWidth,VH=innerHeight,DPR=1;const ctx=cv.getContext('2d');
+const L={s:16,ox:0,oy:0};    // cell size in css px, top-left of the grid on screen
+const TOP_ROW=3;              // the dune rows above this are allowed to slide under the HUD
+function resize(){VW=innerWidth;VH=innerHeight;DPR=Math.min(2,devicePixelRatio||1);cv.width=VW*DPR|0;cv.height=VH*DPR|0;
+  const rows=GH-TOP_ROW;L.s=Math.min(VW/GW,VH/rows);L.ox=(VW-GW*L.s)/2;L.oy=(VH-rows*L.s)/2-TOP_ROW*L.s}
+addEventListener('resize',resize);resize();
+const toGrid=(sx,sy)=>[(sx-L.ox)/L.s-.5,(sy-L.oy)/L.s-.5];
+const SX=x=>L.ox+(x+.5)*L.s,SY=y=>L.oy+(y+.5)*L.s;
+
+// ═══════════════════════════════ RENDER ═══════════════════════════════
+const RS=TOUCH?3:4;const TW=GW*RS,TH=GH*RS;
+const tex=document.createElement('canvas');tex.width=TW;tex.height=TH;const tctx=tex.getContext('2d');let timg=null;
+const GRAIN=new Float32Array(TW*TH);{let s=7;for(let i=0;i<GRAIN.length;i++){s=(s*16807)%2147483647;GRAIN[i]=(s/2147483647-.5)}}
+// a soft noise for foam (the sand grain blurred a few times), so foam reads as lace, not salt
+const SOFT=new Float32Array(TW*TH);{let a=GRAIN.slice(),b=new Float32Array(a.length);for(let pass=0;pass<3;pass++){for(let y=0;y<TH;y++)for(let x=0;x<TW;x++){let t=0,c=0;
+  for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=TW||yy>=TH)continue;t+=a[yy*TW+xx];c++}b[y*TW+x]=t/c}[a,b]=[b,a]}
+  let m=0;for(const v of a)m=Math.max(m,Math.abs(v));for(let i=0;i<a.length;i++)SOFT[i]=a[i]/m*.5}
+const C_R=new Float32Array(GN),C_G=new Float32Array(GN),C_B=new Float32Array(GN),W_A=new Float32Array(GN),W_R=new Float32Array(GN),W_G=new Float32Array(GN),W_B=new Float32Array(GN),FOAM=new Float32Array(GN),PREVD=new Float32Array(GN),SMOOTH=new Float32Array(GN);
+const hexRGB=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+const DRY=hexRGB('#f1dcab'),DAMP=hexRGB('#c9a777'),SOAK=hexRGB('#a98656'),PACKC=hexRGB('#b8996b'),ROCK=hexRGB('#8d8478'),SHAL=hexRGB('#58cbbf'),DEEP=hexRGB('#0e5675');
+function cellColors(v,dt){const {h,d,wet,pack,floor,base}=v;
+  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const i=y*GW+x;
+    const hl=h[x>0?i-1:i],hr=h[x<GW-1?i+1:i],hu=h[y>0?i-GW:i],hd=h[y<GH-1?i+GW:i];
+    const gx=(hr-hl)*.5,gy=(hd-hu)*.5;
+    // sun from the top left: slopes facing it light up, the far side of a wall goes into shadow
+    let sh=1+(-gx*.8-gy*1.05)*.5;sh=clamp(sh,.5,1.4);
+    // walls cast a short shadow down and to the right
+    let cast=0;for(let k=1;k<=3;k++){const xx=x-k,yy=y-k;if(xx<0||yy<0)break;const j=yy*GW+xx;const o=h[j]-h[i]-k*.5;if(o>cast)cast=o}
+    sh*=1-clamp(cast*.22,0,.3);
+    // built-up sand reads lighter, dug-out sand darker
+    const e=h[i]-base[i];sh*=1+clamp(e*.09,-.15,.16);
+    const w=wet[i],pk=pack[i];let r,g,b;
+    if(w<.5){const f=w/.5;r=lerp(DRY[0],DAMP[0],f);g=lerp(DRY[1],DAMP[1],f);b=lerp(DRY[2],DAMP[2],f)}
+    else{const f=(w-.5)/.5;r=lerp(DAMP[0],SOAK[0],f);g=lerp(DAMP[1],SOAK[1],f);b=lerp(DAMP[2],SOAK[2],f)}
+    const pf=pk*.35;r=lerp(r,PACKC[0],pf);g=lerp(g,PACKC[1],pf);b=lerp(b,PACKC[2],pf);
+    if(floor[i]>-5&&h[i]-floor[i]<.05){r=SOAK[0]*.92;g=SOAK[1]*.92;b=SOAK[2]*.92;sh=1}
+    C_R[i]=r*sh;C_G[i]=g*sh;C_B[i]=b*sh;C_P[i]=pk;
+    const dd=d[i];SMOOTH[i]=dd;
+    const rise=dd-PREVD[i];PREVD[i]=dd;
+    let fo=FOAM[i]*Math.exp(-dt*1.6);if(rise>0)fo=Math.max(fo,Math.min(1,rise/Math.max(dt,.001)*.5));FOAM[i]=dd>.003?fo:fo*.85}}
+const C_P=new Float32Array(GN);
+function paintTex(v,t){if(!timg)timg=tctx.createImageData(TW,TH);const D=timg.data;const inv=1/RS;
+  for(let py=0;py<TH;py++){const gy=(py+.5)*inv-.5;const y0=clamp(Math.floor(gy),0,GH-2),fy=clamp(gy-y0,0,1);
+    for(let px=0;px<TW;px++){const gx=(px+.5)*inv-.5;const x0=clamp(Math.floor(gx),0,GW-2),fx=clamp(gx-x0,0,1);
+      const i=y0*GW+x0,j=i+1,k=i+GW,l=k+1;const w00=(1-fx)*(1-fy),w10=fx*(1-fy),w01=(1-fx)*fy,w11=fx*fy;
+      const n=GRAIN[py*TW+px];
+      let r=C_R[i]*w00+C_R[j]*w10+C_R[k]*w01+C_R[l]*w11,g=C_G[i]*w00+C_G[j]*w10+C_G[k]*w01+C_G[l]*w11,b=C_B[i]*w00+C_B[j]*w10+C_B[k]*w01+C_B[l]*w11;
+      const pk=C_P[i]*w00+C_P[j]*w10+C_P[k]*w01+C_P[l]*w11;
+      // loose sand is grainy with wind ripples; patted sand is smooth
+      const gr=1-pk*.75,rp=Math.sin(gx*2.3+Math.sin(gy*.45+gx*.08)*2.2)*3.2*gr;r+=n*17*gr+rp;g+=n*15*gr+rp;b+=n*11*gr+rp*.8;
+      const dd=SMOOTH[i]*w00+SMOOTH[j]*w10+SMOOTH[k]*w01+SMOOTH[l]*w11;
+      if(dd>.004){const fo=FOAM[i]*w00+FOAM[j]*w10+FOAM[k]*w01+FOAM[l]*w11;
+        const kk=1-Math.exp(-dd*1.15);let wr=lerp(SHAL[0],DEEP[0],kk),wg=lerp(SHAL[1],DEEP[1],kk),wb=lerp(SHAL[2],DEEP[2],kk);
+        const rip=Math.sin(gx*1.7+t*1.9+Math.sin(gy*1.3-t*.7)*1.6)*Math.sin(gy*2.3-t*1.3)*8;wr+=rip;wg+=rip;wb+=rip;
+        const a=sstep(.004,.045,dd)*(.32+.62*(1-Math.exp(-dd*2.4)));
+        // foam: lace where a wave front is running, a thin white rim at the water's edge
+        const sn=SOFT[py*TW+px],lace=Math.sin(gx*3.1+t*2.2+sn*6)*Math.sin(gy*2.7-t*1.5)*.15;
+        let f=sstep(.45,.8,fo*(dd<.7?1:.35)+sn*.9+lace);const rim=1-sstep(.004,.03,dd);f=Math.max(f,sstep(.3,.6,rim+sn*.8)*.95);
+        wr=lerp(wr,252,f);wg=lerp(wg,250,f);wb=lerp(wb,242,f);const aa=Math.max(a,f*.95);r=lerp(r,wr,aa);g=lerp(g,wg,aa);b=lerp(b,wb,aa)}
+      const o=(py*TW+px)*4;D[o]=r;D[o+1]=g;D[o+2]=b;D[o+3]=255}}
+  tctx.putImageData(timg,0,0)}
+let SHAKE=0;
+function render(dt,t){const v=V();ctx.setTransform(DPR,0,0,DPR,0,0);
+  if(!v){ctx.fillStyle='#d9bf86';ctx.fillRect(0,0,VW,VH);return}
+  cellColors(v,dt);paintTex(v,t);
+  let sx=0,sy=0;if(SHAKE>0){SHAKE=Math.max(0,SHAKE-dt);sx=(Math.random()-.5)*SHAKE*10;sy=(Math.random()-.5)*SHAKE*10}
+  ctx.save();ctx.translate(sx,sy);
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  const gw=GW*L.s,gh=GH*L.s;
+  // mirror the beach into the margins so a wide screen doesn't end in a hard edge
+  ctx.drawImage(tex,L.ox,L.oy,gw,gh);
+  if(L.ox>1){ctx.save();ctx.translate(L.ox,0);ctx.scale(-1,1);ctx.drawImage(tex,0,L.oy,gw,gh);ctx.restore();
+    ctx.save();ctx.translate(L.ox+gw*2,0);ctx.scale(-1,1);ctx.drawImage(tex,0,L.oy,gw,gh);ctx.restore();
+    ctx.fillStyle='rgba(28,49,68,.18)';ctx.fillRect(0,0,L.ox,VH);ctx.fillRect(L.ox+gw,0,VW-L.ox-gw,VH)}
+  if(L.oy+gh<VH){ctx.save();ctx.translate(0,(L.oy+gh)*2);ctx.scale(1,-1);ctx.drawImage(tex,L.ox,L.oy,gw,gh);ctx.restore()}
+  drawTideLine(v);drawRocks(v);drawYard(v,t);
+  drawParticles(dt,0);
+  const ps=v.players.filter(p=>!p.gone).slice().sort((a,b)=>a.y-b.y);
+  const me=myPlayer();if(me&&!SCR&&!PAUSED)drawAim(me,t);
+  let towerDrawn=false;
+  for(const p of ps){if(!towerDrawn&&p.y>v.ky){drawTower(v,t);towerDrawn=true}drawKid(p,t,p===me)}
+  if(!towerDrawn)drawTower(v,t);
+  drawParticles(dt,1);
+  ctx.restore()}
+function drawTideLine(v){if(!(v.phase==='build'||v.phase==='rise'))return;const ht=highTide(v,v.round);
+  ctx.save();ctx.strokeStyle='rgba(28,49,68,.5)';ctx.lineWidth=2;ctx.setLineDash([3,7]);ctx.lineCap='round';ctx.beginPath();let started=false,ly=0;
+  for(let x=0;x<GW;x++){let yy=-1;for(let y=GH-1;y>=0;y--){if(v.h[y*GW+x]>ht){yy=y+.5;break}}if(yy<0)continue;ly=yy;if(!started){ctx.moveTo(SX(x),SY(yy));started=true}else ctx.lineTo(SX(x),SY(yy))}
+  ctx.stroke();ctx.setLineDash([]);ctx.font='800 '+Math.max(11,L.s*.75|0)+'px Nunito';ctx.fillStyle='rgba(28,49,68,.7)';ctx.textAlign='left';
+  ctx.fillText('tonight\'s tide line',TOUCH?SX(GW/2)+L.s*6:SX(1),SY(ly)-6);ctx.restore()}
+function drawRocks(v){for(const r of v.rocks||[]){const cx=SX(r.x),cy=SY(r.y),R=r.r*L.s;const n=11,pts=[];
+    for(let k=0;k<n;k++){const a=k/n*Math.PI*2;const j=.82+.18*Math.sin(k*2.7+r.x)*Math.cos(k*1.3+r.y);pts.push([cx+Math.cos(a)*R*j,cy+Math.sin(a)*R*.8*j])}
+    ctx.save();ctx.fillStyle='rgba(40,30,15,.3)';ctx.beginPath();pts.forEach((p,k)=>k?ctx.lineTo(p[0]+R*.18,p[1]+R*.22):ctx.moveTo(p[0]+R*.18,p[1]+R*.22));ctx.fill();
+    const g=ctx.createRadialGradient(cx-R*.35,cy-R*.35,R*.1,cx,cy,R*1.1);g.addColorStop(0,'#b9b1a3');g.addColorStop(.6,'#8b8273');g.addColorStop(1,'#5f5749');
+    ctx.fillStyle=g;ctx.strokeStyle='#1c3144';ctx.lineWidth=2;ctx.lineJoin='round';ctx.beginPath();pts.forEach((p,k)=>k?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(cx-R*.5,cy-R*.15);ctx.quadraticCurveTo(cx-R*.2,cy-R*.5,cx+R*.25,cy-R*.45);ctx.stroke();
+    ctx.fillStyle='rgba(60,110,70,.45)';for(let k=0;k<3;k++){ctx.beginPath();ctx.arc(cx+Math.cos(k*2.1+r.y)*R*.5,cy+R*.35+Math.sin(k*1.7)*R*.15,R*.12,0,7);ctx.fill()}ctx.restore()}}
+function drawYard(v,t){// shells mark the ring that must stay dry
+  const n=16;for(let k=0;k<n;k++){const a=k/n*Math.PI*2+.2;const x=v.kx+Math.cos(a)*(YARD_R+.15),y=v.ky+Math.sin(a)*(YARD_R+.15);
+    const i=clamp(Math.round(y),0,GH-1)*GW+clamp(Math.round(x),0,GW-1);const wet=v.d[i]>.03;
+    ctx.save();ctx.translate(SX(x),SY(y));ctx.rotate(a+1.2);ctx.globalAlpha=wet?.45:1;const s=L.s*.32;
+    ctx.fillStyle=k%3===0?'#f6b8a8':k%3===1?'#fff6e8':'#f3d9b6';ctx.strokeStyle='rgba(28,49,68,.55)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,s);ctx.quadraticCurveTo(-s*1.3,-s*.2,0,-s);ctx.quadraticCurveTo(s*1.3,-s*.2,0,s);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,s);ctx.lineTo(-s*.4,-s*.6);ctx.moveTo(0,s);ctx.lineTo(s*.4,-s*.6);ctx.moveTo(0,s);ctx.lineTo(0,-s*.8);ctx.stroke();ctx.restore()}}
+function drawTower(v,t){const cx=SX(v.kx),cy=SY(v.ky),R=KEEP_R*L.s*.98;
+  ctx.save();
+  ctx.fillStyle='rgba(60,40,20,.25)';ctx.beginPath();ctx.ellipse(cx+R*.25,cy+R*.3,R*1.05,R*.95,0,0,7);ctx.fill();
+  // a bucket-mould tower seen from above: ridged side, crenellated rim, a flat damp top
+  const g=ctx.createRadialGradient(cx-R*.35,cy-R*.4,R*.2,cx,cy,R*1.05);g.addColorStop(0,'#e9cf98');g.addColorStop(1,'#b2915f');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fill();ctx.strokeStyle='#1c3144';ctx.lineWidth=2;ctx.stroke();
+  ctx.strokeStyle='rgba(120,90,50,.45)';ctx.lineWidth=1.2;for(let k=0;k<14;k++){const a=k/14*Math.PI*2;ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*R*.72,cy+Math.sin(a)*R*.72);ctx.lineTo(cx+Math.cos(a)*R*.97,cy+Math.sin(a)*R*.97);ctx.stroke()}
+  ctx.fillStyle='#d8b97f';ctx.strokeStyle='#1c3144';ctx.lineWidth=1.5;
+  for(let k=0;k<8;k++){const a=k/8*Math.PI*2+.2;ctx.save();ctx.translate(cx+Math.cos(a)*R*.62,cy+Math.sin(a)*R*.62);ctx.rotate(a);ctx.fillRect(-R*.13,-R*.13,R*.26,R*.26);ctx.strokeRect(-R*.13,-R*.13,R*.26,R*.26);ctx.restore()}
+  ctx.fillStyle='#caa772';ctx.beginPath();ctx.arc(cx,cy,R*.42,0,7);ctx.fill();
+  // the flag
+  const down=v.lost?clamp((v.t-v.flagDown)/.6,0,1):0;const H=L.s*3.1;
+  ctx.translate(cx,cy);ctx.rotate(down*1.35);
+  ctx.strokeStyle='#5a3b22';ctx.lineWidth=Math.max(2,L.s*.16);ctx.lineCap='round';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-H);ctx.stroke();
+  const wav=Math.sin(t*5.5)*(1-down),fl=L.s*1.7;ctx.fillStyle='#e4572e';ctx.strokeStyle='#1c3144';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,-H);
+  ctx.quadraticCurveTo(fl*.5,-H+wav*3-2,fl,-H+L.s*.45+wav*2);ctx.quadraticCurveTo(fl*.5,-H+L.s*.75-wav*3,0,-H+L.s*.95);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.restore()}
+const TOOLCOL=['#e4572e','#a87a3d','#1c3144','#2a8fb8'];
+function drawAim(p,t){const k=TOOLS[p.tool];const r=(k==='dig'?1.25:k==='pile'?1.1:k==='pat'?1.05:1.5)*L.s*1.25;
+  const x=SX(p.tx),y=SY(p.ty);ctx.save();ctx.strokeStyle=TOOLCOL[p.tool];ctx.lineWidth=2.5;ctx.setLineDash([5,5]);ctx.lineDashOffset=-t*18;
+  ctx.globalAlpha=.9;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=.75;ctx.beginPath();ctx.arc(x,y,2.5,0,7);ctx.fillStyle=TOOLCOL[p.tool];ctx.fill();ctx.restore()}
+function shade(hex,f){const c=hexRGB(hex);return 'rgb('+c.map(v=>clamp(v*f,0,255)|0).join(',')+')'}
+function drawKid(p,t,isMe){const x=SX(p.x),y=SY(p.y),s=L.s*1.65;const ang=Math.atan2(p.fy,p.fx);const wd=p.inWater||0;
+  const bob=Math.sin((p.walk||0))*.06*s;
+  ctx.save();ctx.translate(x,y);
+  ctx.fillStyle='rgba(40,30,15,.28)';ctx.beginPath();ctx.ellipse(s*.15,s*.25,s*.62,s*.5,0,0,7);ctx.fill();
+  if(wd>.05){ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(0,s*.1,s*.75+Math.sin(t*6)*1.5,s*.55,0,0,7);ctx.stroke()}
+  ctx.rotate(ang-Math.PI/2);ctx.translate(0,bob);
+  const act=p.act>0?Math.sin((1-p.act/.18)*Math.PI):0;
+  // arms + the thing in your hands
+  ctx.fillStyle='#f2c7a0';ctx.strokeStyle='#1c3144';ctx.lineWidth=1.4;
+  const hand=(sx,reach)=>{ctx.beginPath();ctx.arc(sx,s*(.3+reach),s*.15,0,7);ctx.fill();ctx.stroke()};
+  hand(-s*.42,.05+act*.35);hand(s*.42,.05+act*.35);
+  drawHeld(p,s,act);
+  ctx.fillStyle=p.col;ctx.beginPath();ctx.ellipse(0,0,s*.5,s*.38,0,0,7);ctx.fill();ctx.stroke();
+  // sun hat
+  ctx.fillStyle='#fff3d6';ctx.beginPath();ctx.arc(0,-s*.02,s*.36,0,7);ctx.fill();ctx.stroke();
+  ctx.fillStyle=shade(p.col,1.15);ctx.beginPath();ctx.arc(0,-s*.02,s*.2,0,7);ctx.fill();
+  ctx.restore();
+  // name tag
+  ctx.save();ctx.font='900 '+Math.max(11,s*.72|0)+'px Nunito';ctx.textAlign='center';const nm=isMe?'you':p.name;const tw=ctx.measureText(nm).width+10;
+  ctx.fillStyle=isMe?'#1c3144':'rgba(251,244,226,.92)';ctx.strokeStyle='#1c3144';ctx.lineWidth=1.5;const ty=y-s*1.15;
+  ctx.beginPath();ctx.roundRect?ctx.roundRect(x-tw/2,ty-s*.62,tw,s*.82,6):ctx.rect(x-tw/2,ty-s*.62,tw,s*.82);ctx.fill();ctx.stroke();
+  ctx.fillStyle=isMe?'#fff':p.col;ctx.fillText(nm,x,ty);ctx.restore()}
+function drawHeld(p,s,act){const k=TOOLS[p.tool];ctx.save();ctx.translate(s*.42,s*(.4+act*.35));
+  if(k==='dig'||k==='pile'){ctx.fillStyle='#8a5a32';ctx.fillRect(-s*.05,-s*.3,s*.1,s*.5);ctx.fillStyle=k==='dig'?'#e4572e':'#f2b134';ctx.strokeStyle='#1c3144';ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.moveTo(-s*.18,s*.2);ctx.lineTo(s*.18,s*.2);ctx.lineTo(s*.1,s*.55);ctx.lineTo(-s*.1,s*.55);ctx.closePath();ctx.fill();ctx.stroke();
+    if(p.sand>0){ctx.fillStyle=p.sandWet>.45?'#b8935f':'#e3c88d';ctx.beginPath();ctx.arc(0,s*.33,s*.12*Math.min(1,.4+p.sand/MAXSAND),0,7);ctx.fill()}}
+  else if(k==='water'){ctx.fillStyle='#2a8fb8';ctx.strokeStyle='#1c3144';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(0,s*.18,s*.22,0,7);ctx.fill();ctx.stroke();
+    ctx.fillStyle=p.water>0?'#9fe0ef':'#e8dcc0';ctx.beginPath();ctx.arc(0,s*.18,s*.13,0,7);ctx.fill()}
+  ctx.restore();
+  // a pail of sand on your back shows how full your hands are
+  if(p.sand>0&&k!=='dig'&&k!=='pile'){ctx.fillStyle='#e4572e';ctx.strokeStyle='#1c3144';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(-s*.15,-s*.42,s*.17,0,7);ctx.fill();ctx.stroke()}}
+// particles: sand flecks, drops, spray. z is height for a little arc.
+function puff(x,y,n,col,spd,up,size){for(let k=0;k<n;k++){const a=Math.random()*6.283,v=spd*(.4+Math.random()*.8);PART.push({x,y,z:0,vx:Math.cos(a)*v,vy:Math.sin(a)*v,vz:up*(.6+Math.random()*.7),life:.5+Math.random()*.4,max:.9,col,size:size||1})}
+  if(PART.length>500)PART.splice(0,PART.length-500)}
+function drawParticles(dt,layer){if(layer===0){for(const q of PART){q.life-=dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.vz-=22*dt;q.z=Math.max(0,q.z+q.vz*dt);if(q.z===0){q.vx*=.85;q.vy*=.85}}
+    for(let i=PART.length-1;i>=0;i--)if(PART[i].life<=0)PART.splice(i,1);return}
+  for(const q of PART){ctx.globalAlpha=clamp(q.life/.3,0,1);ctx.fillStyle=q.col;const r=L.s*.09*q.size;ctx.fillRect(SX(q.x)-r,SY(q.y)-q.z*L.s*.35-r,r*2,r*2)}ctx.globalAlpha=1}
+
+// ═══════════════════════════════ HUD ═══════════════════════════════
+const ICONS=[
+  '<svg viewBox="0 0 40 40" fill="none" stroke="#1c3144" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M28 6l-9 15"/><path d="M26 4l5 3"/><path d="M19 21l-6-3-5 10c-1 3 1 6 4 7l2 1c3 1 6-1 7-4l3-8z" fill="#e4572e"/></svg>',
+  '<svg viewBox="0 0 40 40" fill="none" stroke="#1c3144" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 34c4-10 9-14 16-14s12 4 16 14z" fill="#e3c88d"/><path d="M20 3v11"/><path d="M15 10l5 5 5-5"/></svg>',
+  '<svg viewBox="0 0 40 40" fill="none" stroke="#1c3144" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V10a2.5 2.5 0 015 0v9m0-11a2.5 2.5 0 015 0v11m0-9a2.5 2.5 0 015 0v11m0-6a2.5 2.5 0 015 0v7c0 7-5 12-12 12-5 0-8-2-11-6l-5-7a2.5 2.5 0 014-3l4 4" fill="#f2c7a0"/></svg>',
+  '<svg viewBox="0 0 40 40" fill="none" stroke="#1c3144" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14h22l-3 20H12z" fill="#2a8fb8"/><path d="M9 14c0-7 22-7 22 0"/><path d="M11 18h18" stroke="#9fe0ef"/></svg>'];
+const TOOLNAME=['Spade','Pile','Pat','Bucket'];
+function buildToolbar(){const tb=$('toolbar');tb.innerHTML=TOOLNAME.map((n,i)=>'<button class="tool" data-t="'+i+'"><span class="k">'+(i+1)+'</span>'+ICONS[i]+'<span class="nm">'+n+'</span>'+
+    (i===0?'<span class="pips" id="pip-s">'+'<i></i>'.repeat(MAXSAND)+'</span>':i===3?'<span class="pips w" id="pip-w">'+'<i></i>'.repeat(MAXWATER)+'</span>':'')+'</button>').join('');
+  tb.querySelectorAll('.tool').forEach(b=>{b.addEventListener('pointerdown',e=>{e.stopPropagation();pickTool(+b.dataset.t)})})}
+buildToolbar();
+let PIPS='';
+function paintTools(){document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('sel',+b.dataset.t===LOCAL_TOOL))}
+function paintPips(p){const k=(p?Math.round(p.sand):0)+'/'+(p?p.water:0);if(k===PIPS)return;PIPS=k;
+  const s=$('pip-s'),w=$('pip-w');if(s)[...s.children].forEach((e,i)=>e.classList.toggle('f',p&&i<Math.round(p.sand)));if(w)[...w.children].forEach((e,i)=>e.classList.toggle('f',p&&i<p.water))}
+function paintHud(v){if(!v)return;const tb=$('tidebox');$('h-tide').textContent='TIDE '+v.round;
+  let ph='',frac=0,warn=false;const L_=phaseLen(v);
+  if(v.phase==='build'){const left=Math.max(0,L_-v.pt);ph='Low tide · build! '+Math.ceil(left)+'s';frac=left/L_;warn=left<6}
+  else if(v.phase==='rise'){ph='The tide is coming in';frac=1-v.pt/5;warn=true}
+  else if(v.phase==='waves'){ph='Wave '+Math.min(v.waveN,v.waveI+1)+' of '+v.waveN+(v.waveI===v.waveN-1?' · big one':'');frac=1-v.waveI/Math.max(1,v.waveN);warn=v.waveI>=v.waveN-1}
+  else if(v.phase==='ebb'){ph='Going out again';frac=v.pt/6}
+  else if(v.phase==='lost'){ph='Flag down!';frac=0;warn=true}
+  $('h-ph').textContent=ph;$('h-bar').style.width=(clamp(frac,0,1)*100)+'%';tb.classList.toggle('warn',warn)}
+let toastT=0;
+function toast(t,sec){const el=$('toast');el.textContent=t;el.style.opacity=1;toastT=sec||2}
+function tip(k,t){if(TIPS[k])return;TIPS[k]=1;toast(t,3.2)}
+let bannerT=0;
+function banner(big,small,sec){const el=$('banner');el.innerHTML=esc(big)+(small?'<small>'+esc(small)+'</small>':'');el.classList.add('on');bannerT=sec||2.2}
+
+// ═══════════════════════════════ EVENTS → sound, sparkle, words ═══════════════════════════════
+function fxEvent(e,v){const k=e[0];const mine=e[3]===MY_SEAT&&v!==DEMO;const quiet=v===DEMO;
+  switch(k){
+    case 'dig':puff(e[1],e[2],7,'#d9b97e',2.5,5);if(!quiet)sndAt('dig',e[1],e[2],{v:.8,r:rnd(.94,1.06)});break;
+    case 'pile':puff(e[1],e[2],6,'#e8cf96',1.8,3);if(!quiet)sndAt('pour',e[1],e[2],{v:.75,r:rnd(.95,1.08)});break;
+    case 'pat':puff(e[1],e[2],3,'#b8996b',1.2,2,.8);if(!quiet)sndAt('pat',e[1],e[2],{v:.9,r:rnd(.92,1.1)});break;
+    case 'drypat':puff(e[1],e[2],5,'#f1dcab',2.2,3);if(!quiet)sndAt('pat',e[1],e[2],{v:.6,r:1.2});if(mine)tip('drypat','Too dry to pack. Pour water on it first (4).');break;
+    case 'fill':puff(e[1],e[2],8,'#bfeaf2',2,4);if(!quiet)sndAt('fill',e[1],e[2],{v:.9});if(mine)tip('fill','Bucket full. Pour it on dry sand to make it hold.');break;
+    case 'pour':puff(e[1],e[2],12,'#9fe0ef',3,4);if(!quiet)sndAt('splash',e[1],e[2],{v:.75});break;
+    case 'step':if(!quiet&&(e[3]!==MY_SEAT||MODE!=='guest'))sndAt('step',e[1],e[2],{v:.35,r:rnd(.9,1.1)});break;
+    case 'wade':if(!quiet&&(e[3]!==MY_SEAT||MODE!=='guest'))sndAt('wade',e[1],e[2],{v:.5,r:rnd(.9,1.1)});break;
+    case 'wave':if(!quiet)snd('wave',{v:clamp(.45+e[1]*.45,.4,1),r:rnd(.94,1.04)});break;
+    case 'big':SHAKE=.5;if(!quiet)snd('big',{v:1});break;
+    case 'bigwarn':if(!quiet){banner('Big wave!','brace the sea side',1.8);snd('whistle',{v:.55,r:1.08})}break;
+    case 'slump':puff(e[1],e[2],8,'#e3c88d',1.5,1.5);if(!quiet)sndAt('slump',e[1],e[2],{v:.65});
+      {const me=myPlayer();if(me&&hyp(e[1]-me.x,e[2]-me.y)<7)tip('slump','Dry sand slides. Wet it (4), then pat it (3) and it will stand.')}break;
+    case 'whistle':if(!quiet){snd('whistle',{v:.8});banner('Here it comes','the tide is coming in',1.8)}break;
+    case 'gull':if(!quiet)snd('gull',{v:.6});break;
+    case 'held':if(!quiet){snd('cheer',{v:.8});const cl=v.closestR;banner('Tide '+e[1]+' held!',cl!=null&&cl<20?'closest wave: '+Math.max(0,Math.round(cl*10))+' cm from the shells':'next one comes in higher',2.6)}break;
+    case 'flag':if(!quiet){snd('flag',{v:1});snd('aww',{v:.8,at:.5})}SHAKE=.3;break;
+    case 'full':if(mine){tip('full','Hands full. Press 2 and pile it somewhere.');snd('ui',{v:.3})}break;
+    case 'empty':if(mine){tip('empty','Nothing to pile. Dig some sand first (1).');snd('ui',{v:.3})}break;
+    case 'nowater':if(mine){toast('The bucket is empty. Fill it in the sea.');snd('ui',{v:.3})}break;
+    case 'yard':if(mine){toast('Keep the shell ring clear. Build outside it.');snd('ui',{v:.3})}break;
+    case 'rock':if(mine){toast('Nothing to dig there.');snd('ui',{v:.3})}break;
+  }}
+// closest the sea got to the shell ring this tide (in cells; 1 cell = 10 cm)
+function trackClosest(v){if(!(v.phase==='rise'||v.phase==='waves'))return;let best=v.closestR==null?99:v.closestR;
+  const y0=Math.max(0,v.ky-14),y1=Math.min(GH-1,v.ky+14),x0=Math.max(0,v.kx-16),x1=Math.min(GW-1,v.kx+16);
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const i=y*GW+x;if(v.d[i]>.035&&!v.tower[i]){const r=hyp(x-v.kx,y-v.ky)-YARD_R;if(r<best)best=r}}
+  v.closestR=best}
+
+// ═══════════════════════════════ GAME FLOW ═══════════════════════════════
+function newSeed(){return (Math.random()*2**31)>>>0}
+function startSolo(beach,helpers){netClose();MODE='solo';MY_SEAT=0;ENDED=false;LOCAL_TOOL=0;
+  const ps=[{seat:0,name:myNameOr('You'),cid:MY_CID,local:true}];for(let k=0;k<helpers;k++)ps.push({seat:k+1,name:['Pip','Mo','Juno'][k],cid:'cpu'+k,cpu:1});
+  S=makeSim({beach,seed:newSeed(),players:ps});for(const p of S.players)if(p.cpu)botInit(S,p,'builder');
+  beginGame()}
+function beginGame(){PART.length=0;PAUSED=false;FOAM.fill(0);PREVD.fill(0);PIPS='';for(const k in TIPS)if(k!=='slump'&&k!=='drypat')delete TIPS[k];
+  show(null);paintTools();auWake();checkRotate();if(!TIPS.intro){TIPS.intro=1;setTimeout(()=>{if(!SCR)toast(TOUCH?'Dig a moat on the sea side and wall up the tower':'Dig with the mouse. A moat on the sea side, a wall behind it',3.5)},600)}}
+function myNameOr(d){return ($('myname').value||'').trim().slice(0,12)||LS.get('name','')||d}
+function gameOver(v,summary){if(ENDED)return;ENDED=true;const held=summary.held;const B=BEACH(summary.beach);
+  const prev=PROG.best[B.id]||0;const nb=held>prev;if(nb)PROG.best[B.id]=held;PROG.games++;saveProg();
+  try{const tot=Object.values(PROG.best).reduce((a,b)=>a+b,0);if(tot>0&&window.GLITCHBOX&&GLITCHBOX.score)GLITCHBOX.score(tot)}catch(e){}
+  setTimeout(()=>showResult(summary,nb,prev),SMOKE?0:900)}
+function summarize(S){const st=S.stats;const per=S.players.filter(p=>!p.gone).map(p=>({name:p.name,seat:p.seat,cpu:p.cpu,d:p.done}));
+  // what the castle looked like when it went: did you pat it, wet it, dig a moat?
+  let moat=0,wallPack=0,wallN=0;for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const i=y*GW+x,r=hyp(x-S.kx,y-S.ky);if(r<YARD_R+.5||r>11)continue;
+    if(y>=S.ky-1&&S.h[i]<S.base[i]-.5)moat++;if(S.h[i]>S.base[i]+.4){wallN++;wallPack+=S.pack[i]}}
+  const side=S.flagHitX==null?'':S.flagHitY<S.ky-1?'behind':S.flagHitX<S.kx-1?'left':S.flagHitX>S.kx+1?'right':'front';
+  return {beach:S.B.id,held:S.round-1,stats:st,per,moat,wallPack:wallN?wallPack/wallN:0,wallN,side,closest:S.closestR}}
+function showResult(sm,nb,prev){const B=BEACH(sm.beach);$('rs-beach').textContent=B.name.toUpperCase();
+  $('rs-n').textContent=sm.held;$('rs-title').textContent=sm.held>=8?'What a castle':sm.held>=4?'The tide got the flag':'Washed away';
+  $('rs-sub').innerHTML=(sm.held===1?'tide held':'tides held')+' on '+esc(B.name)+'<br>'+(nb&&sm.held>0?'<b style="color:var(--red)">New best!</b> (was '+prev+')':'Best: '+(PROG.best[B.id]||0));
+  const st=sm.stats;$('rs-stats').innerHTML=[['Scoops dug',st.dug],['Piles',st.piled],['Pats',st.pats],['Buckets',st.pours]].map(a=>'<div><b>'+a[1]+'</b>'+a[0]+'</div>').join('');
+  const L_=[];if(sm.side)L_.push('The last wave came in from the '+(sm.side==='front'?'sea side, straight at the tower':sm.side==='behind'?'back, round behind the tower':sm.side+' side')+'.');
+  if(sm.wallN<20)L_.push('Tip: a ring wall around the shells gives the waves something to hit first.');
+  else if(sm.wallPack<.35)L_.push('Tip: your walls were mostly loose. Wet them and pat them and they stand up to waves.');
+  else if(sm.moat<12)L_.push('Tip: dig your sand from a moat on the sea side. It soaks up a wave before it reaches the wall.');
+  else L_.push('Solid work: a packed wall and a moat. Keep the sea side highest.');
+  if(sm.per.length>1){const top=(k,label)=>{const b=sm.per.slice().sort((a,b)=>b.d[k]-a.d[k])[0];if(b&&b.d[k]>0)L_.push(label+': '+esc(b.name)+' ('+b.d[k]+')')};
+    top('dug','Most scoops');top('pats','Most pats');top('pours','Most buckets')}
+  $('rs-lines').innerHTML=L_.map(l=>'<div>'+l+'</div>').join('');
+  const host=MODE==='host',guest=MODE==='guest';
+  $('rs-again').classList.toggle('hidden',guest);$('rs-again-t').textContent=host?'Same beach again':'Build again';$('rs-menu-t').textContent=host?'Back to the lobby':guest?'Leave':'Beaches';
+  $('rs-lines').insertAdjacentHTML('beforeend',guest?'<div class="note">Waiting for the host to start another tide...</div>':'');
+  show('s-result')}
+$('rs-again').onclick=()=>{if(MODE==='host')hostGo();else if(S)startSolo(S.B.id,SET.helpers)};
+$('rs-menu').onclick=()=>{if(MODE==='host'){S=null;net.send({t:'lob'});openLobby()}else if(MODE==='guest'){netClose();MODE='menu';GV=null;show('s-title')}else{S=null;MODE='menu';openBeaches()}};
+
+// ═══════════════════════════════ SCREENS ═══════════════════════════════
+const SCREENS=['s-title','s-beach','s-online','s-lobby','s-help','s-pause','s-result'];
+function show(id){SCR=id;if(id){$('toast').style.opacity=0;toastT=0}for(const s of SCREENS)$(s).classList.toggle('hidden',s!==id);const inGame=MODE!=='menu'&&(S||GV);
+  $('hud').classList.toggle('hidden',!inGame||id==='s-result'||id==='s-lobby');$('toolbar').classList.toggle('hidden',!inGame||!!id);$('pausebtn').classList.toggle('hidden',!inGame||!!id);
+  $('touch').classList.toggle('hidden',!(TOUCH&&inGame&&!id));if(id==='s-title'&&!DEMO)demoStart()}
+let helpBack='s-title';
+function togglePause(){if(SCR==='s-pause'){resumeGame();return}if(SCR)return;PAUSED=MODE==='solo';$('pa-note').textContent=MODE==='solo'?'':'The tide keeps coming while you are here.';show('s-pause')}
+function resumeGame(){PAUSED=false;show(null)}
+function quitGame(){if(MODE==='host'||MODE==='guest')netClose();MODE='menu';S=null;GV=null;show('s-title')}
+function syncSoundBtns(){$('b-sound').textContent=SET.sound?'🔊 Sound on':'🔈 Sound off';$('pa-sound').querySelector('span:last-child').textContent=SET.sound?'Sound on':'Sound off';$('b-sound').classList.toggle('on',SET.sound)}
+// beach cards, each with a little drawing of that beach
+function beachThumb(cnv,id){const W=cnv.width=240,H=cnv.height=92;const c=cnv.getContext('2d');const s=makeSim({beach:id,seed:7,players:[]});
+  const img=c.createImageData(W,H);for(let py=0;py<H;py++)for(let px=0;px<W;px++){const x=Math.min(GW-1,px*GW/W|0),y=Math.min(GH-1,(py*(GH-6)/H|0)+6),i=y*GW+x;const o=(py*W+px)*4;
+    const rock=s.floor[i]>-5;const d=s.d[i];let r=rock?141:241,g=rock?132:220,b=rock?120:171;if(s.wet[i]>.4&&!rock){r=206;g=172;b=124}
+    if(d>.02){const k=1-Math.exp(-d*1.2);r=lerp(121,23,k);g=lerp(211,102,k);b=lerp(198,127,k)}
+    if(s.tower[i]===1){r=200;g=160;b=100}img.data[o]=r;img.data[o+1]=g;img.data[o+2]=b;img.data[o+3]=255}c.putImageData(img,0,0);
+  c.fillStyle='#e4572e';c.fillRect(W/2-1,(s.ky-6)*H/(GH-6)-14,3,14)}
+function beachCards(el,sel,pick){el.innerHTML=BEACHES.map(b=>'<button class="beach'+(b.id===sel?' sel':'')+'" data-b="'+b.id+'"><canvas></canvas>'+(PROG.best[b.id]?'<span class="best">best '+PROG.best[b.id]+'</span>':'')+'<div class="bd"><div class="nm">'+esc(b.name)+'</div><div class="ds">'+esc(b.desc)+'</div></div></button>').join('');
+  el.querySelectorAll('.beach').forEach(btn=>{beachThumb(btn.querySelector('canvas'),btn.dataset.b);if(pick)btn.onclick=()=>{snd('ui',{v:.5});pick(btn.dataset.b)};else btn.style.cursor='default'})}
+function openBeaches(){show('s-beach');beachCards($('beaches'),SET.beach,id=>{SET.beach=id;saveSet();openBeaches()});
+  $('helpers').innerHTML=[0,1,2,3].map(n=>'<button class="mini'+(SET.helpers===n?' on':'')+'" data-n="'+n+'">'+(n===0?'Just me':n+' helper'+(n>1?'s':''))+'</button>').join('');
+  $('helpers').querySelectorAll('.mini').forEach(b=>b.onclick=()=>{SET.helpers=+b.dataset.n;saveSet();openBeaches()})}
+// the title beach: two CPU kids building while the tide comes and goes
+function demoStart(){if(SMOKE||NORENDER)return;DEMO=makeSim({beach:'bay',seed:newSeed(),players:[{seat:0,name:'Pip',cid:'d0',cpu:1},{seat:1,name:'Mo',cid:'d1',cpu:1}]});
+  DEMO.players.forEach(p=>botInit(DEMO,p,'builder'))}
+
+// ═══════════════════════════════ ONLINE ═══════════════════════════════
+// Host-authoritative: the host runs the only sand and water sim and ships changed 8x8 patches
+// of the beach ten times a second. Guests move their own kid (so walking feels instant), send
+// where they stand, aim and which tool they hold, and the host does the digging for them.
+const MAXP=6;
+const MY_CID=(()=>{try{let c=sessionStorage.getItem('lt.cid');if(!c){c='c'+Math.random().toString(36).slice(2,10);sessionStorage.setItem('lt.cid',c)}return c}catch(e){return 'c'+Math.random().toString(36).slice(2,10)}})();
+const LOBBY={players:[],beach:'bay'};
+function wsURL(room,role){const b=window.GLITCHBOX_WS&&!/PLACEHOLDER/i.test(window.GLITCHBOX_WS)?window.GLITCHBOX_WS:(location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws';return b+'?room='+encodeURIComponent(room)+'&role='+role}
+const net={ws:null,role:'',code:'',online:false,bytes:0,
+  connect(room,role,onOpen){this.close();this.code=room;this.role=role;this.online=true;setStatus('Connecting...');let ws;
+    try{ws=new WebSocket(wsURL(room,role))}catch(e){setStatus("Couldn't reach the game server.",true);this.online=false;return}
+    this.ws=ws;ws.onopen=()=>onOpen&&onOpen();ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(_){return}handleNet(m)};
+    ws.onerror=()=>setStatus("Couldn't reach the game server. Check your connection.",true);
+    ws.onclose=()=>{if(!this.online)return;this.online=false;if(MODE==='guest'){GV=null;MODE='menu';show('s-online');setStatus('Lost the connection to the host.',true)}else if(MODE==='host'){toast('Lost the connection to the game server.',4)}}},
+  send(o){if(this.online&&this.ws&&this.ws.readyState===1){const s=JSON.stringify(o);this.bytes+=s.length;this.ws.send(s)}},
+  close(){this.online=false;if(this.ws){this.ws.onclose=null;try{this.ws.close()}catch(e){}this.ws=null}}};
+let HB=0,LAST_ROS=0,LAST_SNAP=0;
+function netClose(){net.close();clearInterval(HB);HB=0}
+function setStatus(t,err){const el=$('on-status');el.textContent=t||'';el.classList.toggle('err',!!err)}
+function myName(){return ($('myname').value||'').trim().slice(0,12)||'Sandy'}
+function code4(){const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<4;i++)s+=A[Math.random()*A.length|0];return s}
+function openOnline(){MODE='menu';netClose();if(!$('myname').value)$('myname').value=LS.get('name','');setStatus('');show('s-online');loadHubName()}
+async function loadHubName(){if($('myname').value)return;try{const st=await hubApi('/api/me');if(st&&st.profile&&st.profile.name&&!$('myname').value)$('myname').value=String(st.profile.name).slice(0,12)}catch(e){}}
+function hostRoom(room){LS.set('name',myName());MODE='host';MY_SEAT=0;S=null;LOBBY.players=[{seat:0,name:myName(),cid:MY_CID,seen:now()}];LOBBY.beach=SET.beach;
+  room=room||code4();net.connect(room,'host',()=>net.send({t:'create',code:room,max:MAXP}))}
+function joinRoom(room){room=(room||$('joincode').value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);if(room.length!==4){setStatus('The code is four letters.',true);return}
+  LS.set('name',myName());MODE='guest';GV=null;LOBBY.players=[];net.connect(room,'guest',()=>net.send({t:'join',code:room}))}
+function startHB(){clearInterval(HB);HB=setInterval(()=>{if(MODE==='guest')net.send({t:'hi',cid:MY_CID,name:myName()});
+  if(MODE==='guest'&&LAST_ROS&&now()-LAST_ROS>7000&&(!GV||now()-LAST_SNAP>7000))hostGone();
+  if(MODE==='host'){const t=now();bcRoster();if(!S){const b=LOBBY.players.length;LOBBY.players=LOBBY.players.filter(p=>p.cid===MY_CID||t-p.seen<9000);if(b!==LOBBY.players.length){LOBBY.players.forEach((p,i)=>p.seat=i);bcRoster();paintLobby()}}
+    else for(const p of S.players)if(!p.local&&!p.cpu&&!p.gone&&t-(p.seen||t)>8000){p.gone=true;p.use=0;toast(p.name+' left the beach')}}},2000)}
+function bcRoster(){net.send({t:'ros',ps:LOBBY.players.map(p=>[p.seat,p.name,p.cid]),beach:LOBBY.beach,ing:S?1:0})}
+function openLobby(){show('s-lobby');paintLobby();loadLobbyFriends()}
+function paintLobby(){$('lb-code').textContent=net.code||'····';const host=MODE==='host';const COL=['#e4572e','#2e86ab','#f2b134','#7a4fa0','#3aa36a','#e86fa6'];
+  $('lb-list').innerHTML=LOBBY.players.map(p=>'<div class="prow"><span class="dot" style="background:'+COL[p.seat%6]+'"></span>'+esc(p.name)+'<span class="tg">'+(p.seat===0?'host':'')+(p.cid===MY_CID?' · you':'')+'</span></div>').join('')+
+    (LOBBY.players.length<2?'<div class="note">Waiting for friends. Share the code.</div>':'');
+  $('lb-bt').textContent=host?'Pick the beach':'The beach';$('lb-wait').classList.toggle('hidden',host);$('lb-start').classList.toggle('hidden',!host);
+  $('lb-start').querySelector('span:last-child').textContent=LOBBY.players.length<2?'Start (waiting for a friend)':'Start ('+LOBBY.players.length+' builders)';
+  $('lb-start').disabled=LOBBY.players.length<2&&!DEBUG;
+  const el=$('lb-beaches');if(host)beachCards(el,LOBBY.beach,id=>{LOBBY.beach=id;SET.beach=id;saveSet();bcRoster();paintLobby()});
+  else{const key=LOBBY.beach;if(el.dataset.b!==key){el.dataset.b=key;beachCards(el,key,null)}}}
+function hostGo(beach){if(MODE!=='host')return;LOBBY.beach=beach||LOBBY.beach;ENDED=false;LOCAL_TOOL=0;
+  const seed=newSeed();S=makeSim({beach:LOBBY.beach,seed,players:LOBBY.players.map(p=>({seat:p.seat,name:p.name,cid:p.cid,local:p.cid===MY_CID}))});
+  for(const p of S.players){p.remote=!p.local;p.seen=now()}SENT=null;OUTBOX.length=0;
+  net.send({t:'go',beach:LOBBY.beach,seed,ps:LOBBY.players.map(p=>[p.seat,p.name,p.cid])});beginGame()}
+// the guest's beach: same shape as a sim (so the renderer doesn't care) but filled by the host
+function guestGo(m){ENDED=false;LOCAL_TOOL=0;const me=m.ps.find(r=>r[2]===MY_CID);MY_SEAT=me?me[0]:-1;
+  GV=makeSim({beach:m.beach,seed:m.seed,players:m.ps.map(r=>({seat:r[0],name:r[1],cid:r[2],local:r[2]===MY_CID}))});
+  GV.d0=new Float32Array(GN);GV.d1=new Float32Array(GV.d);GV.d0.set(GV.d);GV.dT=new Float32Array(Math.ceil(GW/CH)*Math.ceil(GH/CH));
+  for(const p of GV.players){p.nx=p.x;p.ny=p.y}LAST_SNAP=now();beginGame()}
+// ── beach patches ──
+const CH=8,CXN=Math.ceil(GW/CH),CYN=Math.ceil(GH/CH),NCH=CXN*CYN;
+function quant(S,i,o,Q){let hq=Math.round(S.h[i]*100);hq=hq<-32768?-32768:hq>32767?32767:hq;Q[o]=hq&255;Q[o+1]=(hq>>8)&255;Q[o+2]=Math.min(255,Math.round(S.d[i]*80));Q[o+3]=Math.round(S.wet[i]*255);Q[o+4]=Math.round(S.pack[i]*255)}
+let SENT=null,RR=0;
+// patch kinds: 0 everything (5 bytes a cell), 1 water (1), 2 height + water (3), 3 wetness + packing (2)
+let LANDTICK=0;
+function packChunks(S,all){if(!SENT){SENT=new Uint8Array(GN*5);all=true}const out=[];const Q=new Uint8Array(CH*CH*5);LANDTICK^=1;
+  for(let c=0;c<NCH;c++){const cx=c%CXN,cy=c/CXN|0;let n=0;const full=all||c===RR;let hc=false,wc=false,pc=false;
+    for(let y=cy*CH;y<Math.min(GH,cy*CH+CH);y++)for(let x=cx*CH;x<Math.min(GW,cx*CH+CH);x++){const i=y*GW+x,o=n*5;quant(S,i,o,Q);const s=i*5;
+      if(!full){if(!wc&&Math.abs(Q[o+2]-SENT[s+2])>=3)wc=true;
+        if(LANDTICK){if(!hc&&Math.abs(((Q[o]|Q[o+1]<<8)<<16>>16)-((SENT[s]|SENT[s+1]<<8)<<16>>16))>=3)hc=true;
+          if(!pc&&(Math.abs(Q[o+3]-SENT[s+3])>=26||Math.abs(Q[o+4]-SENT[s+4])>=14))pc=true}}n++}
+    if(!full&&!hc&&!wc&&!pc)continue;
+    const kind=full?0:hc?2:wc?1:-1,B=new Uint8Array(n*(kind===0?5:kind===2?3:1)),P=pc&&!full?new Uint8Array(n*2):null;let k=0;
+    for(let y=cy*CH;y<Math.min(GH,cy*CH+CH);y++)for(let x=cx*CH;x<Math.min(GW,cx*CH+CH);x++){const i=y*GW+x,o=k*5,s=i*5;
+      if(kind===0){for(let q=0;q<5;q++){B[k*5+q]=Q[o+q];SENT[s+q]=Q[o+q]}}
+      else if(kind===2){B[k*3]=Q[o];B[k*3+1]=Q[o+1];B[k*3+2]=Q[o+2];SENT[s]=Q[o];SENT[s+1]=Q[o+1];SENT[s+2]=Q[o+2]}
+      else if(kind===1){B[k]=Q[o+2];SENT[s+2]=Q[o+2]}
+      if(P){P[k*2]=Q[o+3];P[k*2+1]=Q[o+4];SENT[s+3]=Q[o+3];SENT[s+4]=Q[o+4]}k++}
+    if(kind>=0)out.push(kind?[c,b64(B),kind]:[c,b64(B)]);if(P)out.push([c,b64(P),3])}
+  RR=(RR+1)%NCH;return out}
+function b64(u8){let s='';for(let i=0;i<u8.length;i++)s+=String.fromCharCode(u8[i]);return btoa(s)}
+function unb64(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
+function applyChunk(V,c,data,kind){const u=unb64(data);const cx=c%CXN,cy=c/CXN|0;let n=0;const t=now();kind=kind|0;const st=[5,1,3,2][kind];
+  const setD=(i,d)=>{if(V.d0){V.d0[i]=V.d[i];V.d1[i]=d}else V.d[i]=d};
+  for(let y=cy*CH;y<Math.min(GH,cy*CH+CH);y++)for(let x=cx*CH;x<Math.min(GW,cx*CH+CH);x++){const i=y*GW+x,o=n*st;if(o+st>u.length)return;
+    if(kind===0){V.h[i]=((u[o]|u[o+1]<<8)<<16>>16)/100;setD(i,u[o+2]/80);V.wet[i]=u[o+3]/255;V.pack[i]=u[o+4]/255}
+    else if(kind===1)setD(i,u[o]/80);
+    else if(kind===2){V.h[i]=((u[o]|u[o+1]<<8)<<16>>16)/100;setD(i,u[o+2]/80)}
+    else{V.wet[i]=u[o]/255;V.pack[i]=u[o+1]/255}n++}
+  if(V.dT&&kind!==3)V.dT[c]=t}
+const r10=v=>Math.round(v*10),ACTK=['','dig','pile','pat','drypat','fill','pour'];
+function packSnap(S){
+  const ps=S.players.filter(p=>!p.gone).map(p=>[p.seat,r10(p.x),r10(p.y),Math.round(p.fx*100),Math.round(p.fy*100),p.tool,Math.round(p.sand*10),p.water,p.act>0?ACTK.indexOf(p.actK):0,Math.round(p.sandWet*100),r10(p.tx),r10(p.ty)]);
+  return {t:'s',f:S.frame,ph:S.phase,pt:Math.round(S.pt*10)/10,rd:S.round,td:Math.round(S.tide*1000)/1000,wn:S.waveN,wi:S.waveI,cl:S.closestR==null?null:Math.round(S.closestR*10)/10,
+    lost:S.lost?1:0,fd:S.lost?Math.round((S.t-S.flagDown)*10)/10:0,ps,ch:packChunks(S,false),e:OUTBOX.splice(0)}}
+const OUTBOX=[];
+function guestSnap(m){const v=GV;if(!v)return;LAST_SNAP=now();
+  v.phase=m.ph;v.pt=m.pt;if(m.rd!==v.round){v.closestR=null}v.round=m.rd;v.tide=m.td;v.waveN=m.wn;v.waveI=m.wi;v.closestR=m.cl;
+  if(m.lost&&!v.lost){v.lost=true;v.flagDown=v.t-m.fd}
+  for(const c of m.ch)applyChunk(v,c[0],c[1],c[2]);
+  for(const r of m.ps){const p=v.players.find(q=>q.seat===r[0]);if(!p)continue;p.seen=now();p.tool=p.seat===MY_SEAT?p.tool:r[5];p.sand=r[6]/10;p.water=r[7];p.sandWet=r[9]/100;
+    if(p.seat!==MY_SEAT){p.nx=r[1]/10;p.ny=r[2]/10;p.fx=r[3]/100;p.fy=r[4]/100;p.tx=r[10]/10;p.ty=r[11]/10;if(r[8]){p.act=.18;p.actK=ACTK[r[8]]}}}
+  for(const p of v.players)if(!m.ps.some(r=>r[0]===p.seat))p.gone=true;
+  for(const e of m.e)fxEvent(e,v)}
+function guestTick(dt){const v=GV;if(!v)return;v.t+=dt;
+  // water: ease from the last patch to the new one over the 100 ms between snapshots
+  const t=now();for(let c=0;c<NCH;c++){const f=clamp((t-v.dT[c])/100,0,1);const cx=c%CXN,cy=c/CXN|0;
+    for(let y=cy*CH;y<Math.min(GH,cy*CH+CH);y++)for(let x=cx*CH;x<Math.min(GW,cx*CH+CH);x++){const i=y*GW+x;v.d[i]=v.d0[i]+(v.d1[i]-v.d0[i])*f}}
+  for(const p of v.players){if(p.gone)continue;if(p.seat===MY_SEAT){
+      const ci=Math.round(clamp(p.y,0,GH-1))*GW+Math.round(clamp(p.x,0,GW-1));const wd=v.d[ci];p.inWater=wd;const spd=wd>.25?3.2:wd>.06?4.3:6.2;
+      let mx=p.mx,my=p.my;const m=hyp(mx,my);if(m>1){mx/=m;my/=m}p.x=clamp(p.x+mx*spd*dt,.5,GW-1.5);p.y=clamp(p.y+my*spd*dt,.5,GH-SEA_ROWS-.5);
+      if(m>.1){p.walk=(p.walk||0)+dt*spd*3.2;p.stepT+=dt*spd;if(p.stepT>1.55){p.stepT=0;snd(wd>.06?'wade':'step',{v:wd>.06?.5:.35,r:rnd(.9,1.1)})}}
+      p.act=Math.max(0,p.act-dt)}
+    else{const k=Math.min(1,dt*12);const ox=p.x,oy=p.y;p.x+=(p.nx-p.x)*k;p.y+=(p.ny-p.y)*k;p.walk=(p.walk||0)+hyp(p.x-ox,p.y-oy)*3.2;p.act=Math.max(0,p.act-dt);
+      const ci=Math.round(clamp(p.y,0,GH-1))*GW+Math.round(clamp(p.x,0,GW-1));p.inWater=v.d[ci]}}}
+let GSEND=0,HSEND=0;
+function guestSend(){const p=myPlayer();if(!p||MODE!=='guest')return;const t=now();if(t-GSEND<50)return;GSEND=t;
+  net.send({t:'i',cid:MY_CID,x:r10(p.x)/10,y:r10(p.y)/10,fx:Math.round(p.fx*100)/100,fy:Math.round(p.fy*100)/100,tx:r10(p.tx)/10,ty:r10(p.ty)/10,k:p.tool,u:p.use})}
+function hostSend(){if(MODE!=='host'||!S)return;const t=now();if(t-HSEND<100)return;HSEND=t;net.send(packSnap(S))}
+function handleNet(m){switch(m.t){
+  case 'created':setStatus('');openLobby();bcRoster();startHB();break;
+  case 'joined':setStatus('');net.send({t:'hi',cid:MY_CID,name:myName()});openLobby();startHB();break;
+  case 'error':setStatus(m.msg||"That didn't work.",true);netClose();MODE='menu';show('s-online');break;
+  case 'start':if(MODE==='guest')net.send({t:'hi',cid:MY_CID,name:myName()});break;
+  case 'hi':if(MODE!=='host')break;{let p=LOBBY.players.find(x=>x.cid===m.cid);const nm=String(m.name||'Sandy').slice(0,12);
+    if(p){p.seen=now();if(S){const sp=S.players.find(q=>q.cid===m.cid);if(sp)sp.seen=now()}if(p.name!==nm){p.name=nm;bcRoster();if(!S)paintLobby()}break}
+    if(S||LOBBY.players.length>=MAXP)break;
+    p={seat:LOBBY.players.length,name:nm,cid:m.cid,seen:now()};LOBBY.players.push(p);bcRoster();paintLobby();toast(p.name+' joined');snd('ui',{v:.5})}break;
+  case 'ros':if(MODE!=='guest')break;LAST_ROS=now();LOBBY.players=m.ps.map(r=>({seat:r[0],name:r[1],cid:r[2]}));LOBBY.beach=m.beach;if(SCR==='s-lobby')paintLobby();break;
+  case 'go':if(MODE==='guest')guestGo(m);break;
+  case 's':if(MODE==='guest'&&GV)guestSnap(m);break;
+  case 'i':if(MODE==='host'&&S){const p=S.players.find(q=>q.cid===m.cid);if(p&&!p.gone){p.nx=clamp(+m.x||0,.5,GW-1.5);p.ny=clamp(+m.y||0,.5,GH-SEA_ROWS-.5);p.fx=+m.fx||0;p.fy=+m.fy||1;
+      p.tx=+m.tx||p.x;p.ty=+m.ty||p.y;p.tool=clamp(m.k|0,0,3);p.use=m.u?1:0;p.seen=now()}
+      const lp=LOBBY.players.find(x=>x.cid===m.cid);if(lp)lp.seen=now()}break;
+  case 'end':if(MODE==='guest'&&GV)gameOver(GV,m.sm);break;
+  case 'lob':if(MODE==='guest'){GV=null;openLobby()}break;
+}}
+function hostGone(){GV=null;netClose();MODE='menu';LAST_ROS=0;show('s-online');setStatus('The host left the beach.',true)}
+async function hubApi(path,body){const base=window.GLITCHBOX_API;if(!base||!window.GLITCHBOX_BACKEND_READY)throw new Error('no backend');
+  let tok='';try{tok=localStorage.getItem('glitchbox_session')||''}catch(e){}if(!tok)throw new Error('signed out');
+  const res=await fetch(base+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:body?JSON.stringify(body):undefined});
+  if(!res.ok)throw new Error('http '+res.status);return res.json()}
+async function loadLobbyFriends(){const wrap=$('lb-invite'),box=$('lb-friends');if(MODE!=='host'){wrap.classList.add('hidden');return}let st;
+  try{st=await hubApi('/api/me')}catch(e){wrap.classList.add('hidden');return}wrap.classList.remove('hidden');const list=st.friends||[];
+  if(!list.length){box.innerHTML='<div class="note">No friends yet. Add some from the GLITCHBOX menu.</div>';return}
+  box.innerHTML=list.map(f=>'<div class="prow" style="font-size:16px"><span class="dot" style="background:'+(f.online?'#2f9c6b':'#ccc')+'"></span>'+esc(f.name)+'<button class="mini" style="margin:0 0 0 auto" data-sub="'+esc(f.sub)+'">Invite</button></div>').join('');
+  box.querySelectorAll('button').forEach(b=>b.onclick=async()=>{b.disabled=true;b.textContent='Sending...';try{await hubApi('/api/invite',{sub:b.dataset.sub,game:'low-tide.html',room:net.code});b.textContent='Invited'}catch(e){b.textContent='Failed';b.disabled=false}})}
+function autoRoom(){const h=new URLSearchParams(HASH.replace(/^#/,''));const room=(h.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');if(room.length!==4)return false;
+  $('myname').value=LS.get('name','');show('s-online');if(h.get('host')==='1')hostRoom(room);else joinRoom(room);return true}
+
+// ═══════════════════════════════ BUTTONS ═══════════════════════════════
+$('b-online').onclick=openOnline;$('b-solo').onclick=openBeaches;
+$('b-help').onclick=()=>{helpBack='s-title';show('s-help')};$('help-back').onclick=()=>show(helpBack);
+$('b-sound').onclick=$('pa-sound').onclick=()=>{SET.sound=!SET.sound;saveSet();auWake();auVol();syncSoundBtns()};
+$('beach-back').onclick=()=>show('s-title');$('beach-go').onclick=()=>startSolo(SET.beach,SET.helpers);
+$('b-host').onclick=()=>hostRoom();$('b-join').onclick=()=>joinRoom();$('joincode').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom()});
+$('on-back').onclick=()=>{netClose();MODE='menu';show('s-title')};
+$('lb-start').onclick=()=>hostGo();$('lb-leave').onclick=()=>{netClose();MODE='menu';S=null;GV=null;show('s-title')};
+$('pausebtn').onclick=togglePause;$('pa-resume').onclick=resumeGame;$('pa-help').onclick=()=>{helpBack='s-pause';show('s-help')};$('pa-quit').onclick=quitGame;
+syncSoundBtns();
+if(window.GBSave)GBSave.register({save:()=>({v:1,prog:PROG}),load:d=>{if(d&&d.prog){PROG=Object.assign({best:{},games:0},d.prog);saveProg()}},autosave:0});
+function checkRotate(){const portrait=TOUCH&&innerHeight>innerWidth;const inGame=MODE!=='menu'&&(S||GV);$('rotate').classList.toggle('hidden',!(portrait&&inGame));
+  if(portrait&&inGame&&MODE==='solo'&&!PAUSED)PAUSED='rot';if(!portrait&&PAUSED==='rot')PAUSED=false}
+addEventListener('resize',checkRotate);addEventListener('orientationchange',checkRotate);
+
+// ═══════════════════════════════ MAIN LOOP ═══════════════════════════════
+let last=now(),acc=0,T=0;
+function frame(){const t=now();let dt=Math.min(.1,(t-last)/1000);last=t;T+=dt;
+  if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0}
+  if(bannerT>0){bannerT-=dt;if(bannerT<=0)$('banner').classList.remove('on')}
+  const me=myPlayer();if(me&&!SCR&&!PAUSED)readInput(me);else if(me){me.mx=me.my=0;me.use=0}
+  if((MODE==='solo'||MODE==='host')&&S&&!PAUSED){acc+=dt;let n=0;while(acc>=1/60&&n<6){for(const p of S.players)if(p.cpu)botStep(S,p,1/60);
+      simStep(S,1/60);for(const p of S.players){if(hyp(p.mx||0,p.my||0)>.1&&!p.remote)p.walk=(p.walk||0)+1/60*20;}
+      trackClosest(S);if(S.phase==='build'&&S.closestR!=null&&S.pt>2)S.closestR=null;acc-=1/60;n++}
+    if(acc>.2)acc=0;
+    {const evs=S.ev.splice(0);for(const e of evs)fxEvent(e,S);if(MODE==='host'){OUTBOX.push(...evs);if(OUTBOX.length>120)OUTBOX.splice(0,OUTBOX.length-120)}}
+    if(MODE==='host'){const k=Math.min(1,dt*14);for(const p of S.players)if(p.remote&&p.nx!=null){const ox=p.x,oy=p.y;p.x+=(p.nx-p.x)*k;p.y+=(p.ny-p.y)*k;p.walk=(p.walk||0)+hyp(p.x-ox,p.y-oy)*3.2}hostSend()}
+    if(S.over&&!ENDED){const sm=summarize(S);if(MODE==='host'){hostSend();net.send({t:'end',sm})}gameOver(S,sm)}}
+  else if(MODE==='guest'&&GV){guestTick(dt);guestSend()}
+  else if(DEMO&&SCR==='s-title'){acc+=dt;let n=0;while(acc>=1/60&&n<3){for(const p of DEMO.players)botStep(DEMO,p,1/60);simStep(DEMO,1/60);for(const p of DEMO.players)if(hyp(p.mx,p.my)>.1)p.walk=(p.walk||0)+.33;acc-=1/60;n++}
+    if(acc>.2)acc=0;for(const e of DEMO.ev.splice(0))fxEvent(e,DEMO);if(DEMO.over)demoStart()}
+  const v=V();if(v&&v!==DEMO){paintHud(v);paintPips(myPlayer())}
+  if(!NORENDER&&!SMOKE)render(dt,T);
+  requestAnimationFrame(frame)}
+
+// ═══════════════════════════════ SELF-TEST (#smoke) ═══════════════════════════════
+function runSmoke(){const out=[];let pass=0,fail=0;const ok=(name,c,extra)=>{if(c)pass++;else fail++;out.push((c?'PASS ':'FAIL ')+name+(extra!=null?'  ['+extra+']':''))};
+  const vol=S=>{let v=0;for(let i=0;i<GN;i++)v+=S.h[i];return v};
+  const run=(S,sec,bots)=>{for(let k=0;k<sec*60&&!S.over;k++){if(bots)for(const p of S.players)if(p.bot)botStep(S,p,1/60);simStep(S,1/60);S.ev.length=0}};
+  // ── the beach ──
+  for(const B of BEACHES){const S=makeSim({beach:B.id,seed:5,players:[]});
+    ok(B.name+': the keep stands above the high tide of tide 1',S.h[S.ky*GW+S.kx]>highTide(S,1)+1);
+    ok(B.name+': the shell ring starts dry',S.foot.every(i=>S.d[i]===0));
+    ok(B.name+': the sea fills the bottom rows',S.d[(GH-1)*GW+5]>.5)}
+  {const S=makeSim({beach:'rocky',seed:5,players:[]});ok('Rocky Point has rocks',S.rocks.length>=3,S.rocks.length)}
+  // ── tools ──
+  {const S=makeSim({beach:'bay',seed:3,players:[{seat:0,name:'a',cid:'a'}]});const p=S.players[0];const v0=vol(S);
+    const x=S.kx+7,y=S.ky+1;for(let k=0;k<4;k++)act(S,p,0,x,y);ok('digging fills your hands',p.sand>3.5,p.sand.toFixed(2));
+    const hd=S.h[y*GW+x];ok('digging leaves a hole',hd<S.base[y*GW+x]-.3,(hd-S.base[y*GW+x]).toFixed(2));
+    while(p.sand>0)act(S,p,1,x+3,y);ok('dig + pile keeps every grain',Math.abs(vol(S)-v0)<.02,(vol(S)-v0).toFixed(4));
+    p.sand=0;for(let k=0;k<9;k++)act(S,p,0,x,y);ok('hands hold six scoops',p.sand<=MAXSAND+1e-6&&act(S,p,0,x,y)==='full');
+    ok('cannot dig the tower',act(S,{...p,sand:0,done:p.done},0,S.kx,S.ky)==='yard');
+    ok('cannot pile on the shell ring',act(S,p,1,S.kx,S.ky+YARD_R-.3)==='yard')}
+  {const S=makeSim({beach:'bay',seed:3,players:[{seat:0,name:'a',cid:'a'}]});const p=S.players[0];
+    const a=S.ky*GW+S.kx+8,b=S.ky*GW+S.kx-8;S.wet[a]=.05;S.wet[b]=.6;S.pack[a]=S.pack[b]=0;
+    for(let k=0;k<3;k++){act(S,p,2,S.kx+8,S.ky);act(S,p,2,S.kx-8,S.ky)}
+    ok('damp sand packs, dry sand barely does',S.pack[b]>.6&&S.pack[a]<S.pack[b]*.5,S.pack[a].toFixed(2)+' vs '+S.pack[b].toFixed(2));
+    ok('patting dry sand says so',act(S,p,2,S.kx+8,S.ky)==='drypat');
+    p.x=S.kx;p.y=S.ky+6;ok('no water to fill up on the dry beach',act(S,p,3,p.x,p.y)==='nowater');
+    p.y=GH-SEA_ROWS-1;ok('the bucket fills in the sea',act(S,p,3,p.x,p.y)==='fill'&&p.water===MAXWATER);
+    const w0=S.wet[S.ky*GW+S.kx+8];act(S,p,3,S.kx+8,S.ky);ok('pouring wets the sand',S.wet[S.ky*GW+S.kx+8]>w0+.3)}
+  // ── sand physics ──
+  {const S=makeSim({beach:'bay',seed:3,players:[]});const x=S.kx+12,y=S.ky,i=y*GW+x;
+    S.h[i]+=3;S.wet[i]=.02;S.pack[i]=0;run(S,2);const dryH=S.h[i]-S.base[i];
+    const S2=makeSim({beach:'bay',seed:3,players:[]});S2.h[i]+=3;S2.wet[i]=.6;S2.pack[i]=.9;S2.wet[i+1]=S2.wet[i-1]=S2.wet[i+GW]=S2.wet[i-GW]=.6;run(S2,2);const dampH=S2.h[i]-S2.base[i];
+    ok('a dry spike slumps flat, a damp packed one stands',dryH<1&&dampH>1.6,dryH.toFixed(2)+' vs '+dampH.toFixed(2))}
+  // identical ring walls, only the material differs, hit by the waves of tide 6
+  const wallTest=(wet,pack)=>{const S=makeSim({beach:'bay',seed:3,players:[]});S.round=6;const cells=[];
+    for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){const r=hyp(x-S.kx,(y-S.ky)/.92);const i=y*GW+x;if(r>4.3&&r<6.1){const k=1-Math.abs(r-5.2)/.9;S.h[i]+=1.6*Math.min(1,k*1.6);S.wet[i]=wet;S.pack[i]=pack;cells.push(i)}}
+    const v0=cells.reduce((a,i)=>a+S.h[i]-S.base[i],0);S.phase='rise';S.pt=0;S.tideFrom=S.tide;let t=0;while(S.phase!=='build'&&!S.over&&t<120){simStep(S,1/60);S.ev.length=0;t+=1/60}
+    return {left:cells.reduce((a,i)=>a+S.h[i]-S.base[i],0)/v0,lost:S.lost}};
+  {const loose=wallTest(.6,0),packed=wallTest(.6,.9),dry=wallTest(.1,0);
+    ok('tide 6: a damp packed wall holds the flag',!packed.lost&&packed.left>.85,Math.round(packed.left*100)+'%');
+    ok('tide 6: the same wall unpacked loses it',loose.lost,Math.round(loose.left*100)+'%');
+    ok('tide 6: a dry loose wall loses it',dry.lost,Math.round(dry.left*100)+'%')}
+  // ── the tide clock ──
+  {const S=makeSim({beach:'storm',seed:2,players:[]});const seen=[];let last='';let bigw=-1,big=-1,k=0;
+    for(;k<60*200&&S.round<3&&!S.over;k++){simStep(S,1/60);if(S.phase!==last){seen.push(S.phase);last=S.phase}for(const e of S.ev){if(e[0]==='bigwarn'&&bigw<0)bigw=k;if(e[0]==='big'&&big<0)big=k}S.ev.length=0}
+    ok('a tide goes build → rise → waves → ebb → build',seen.slice(0,5).join(',')==='build,rise,waves,ebb,build',seen.slice(0,5).join(','));
+    ok('the big wave is announced before it hits',bigw>0&&big>bigw+60,bigw+' < '+big);
+    ok('each tide comes in higher',highTide(S,4)>highTide(S,3)+.1)}
+  {const S=makeSim({beach:'bay',seed:2,players:[]});S.d[S.foot[0]]=.2;let k=0;for(;k<120&&!S.lost;k++){S.d[S.foot[0]]=Math.max(S.d[S.foot[0]],.2);simStep(S,1/60)}
+    ok('water on the shell ring drops the flag',S.lost&&S.ev.some(e=>e[0]==='flag'),k+' frames')}
+  // ── strategy: scripted crews (the masher must lose) ──
+  const crew=(beach,kinds,maxR)=>{const S=makeSim({beach,seed:2,players:kinds.map((k,i)=>({seat:i,name:k,cid:'c'+i}))});S.players.forEach((p,i)=>kinds[i]!=='idle'&&botInit(S,p,kinds[i]));
+    while(!S.over&&S.round<=maxR&&S.t<1500)run(S,1,true);return S.round-1};
+  {const idle=crew('bay',['idle'],10),dump=crew('bay',['dumper','dumper'],10),build=crew('bay',['builder','builder'],10);
+    ok('nobody building: the flag goes early',idle<=3,idle);
+    ok('mashing loose dry sand barely beats doing nothing',dump<=idle+2,dump+' vs '+idle);
+    ok('two wall+moat+pat builders beat two dumpers by 3+ tides',build>=dump+3,build+' vs '+dump)}
+  // ── online patches ──
+  {const A=makeSim({beach:'rocky',seed:9,players:[]});run(A,20);SENT=null;const ch=packChunks(A,true);
+    const B=makeSim({beach:'rocky',seed:9,players:[]});B.h.fill(0);B.d.fill(0);for(const c of ch)applyChunk(B,c[0],c[1],c[2]);
+    let md=0;for(let i=0;i<GN;i++)md=Math.max(md,Math.abs(A.h[i]-B.h[i]),Math.abs(A.d[i]-B.d[i])*.5);
+    ok('a full beach survives the trip to a guest',ch.length===NCH&&md<.013,md.toFixed(4));
+    ok('a quiet beach sends almost nothing',packChunks(A,false).length<=2);
+    for(let i=0;i<GN;i++)if(A.d[i]>0)A.d[i]+=.3;const wch=packChunks(A,false);for(const c of wch)applyChunk(B,c[0],c[1],c[2]);let wd=0;for(let i=0;i<GN;i++)wd=Math.max(wd,Math.abs(A.d[i]-B.d[i]));
+    ok('water-only patches carry the water',wch.some(c=>c[2])&&wd<.02,wd.toFixed(4));
+    // bandwidth over one stormy tide, ten snapshots a second
+    const S=makeSim({beach:'storm',seed:4,players:[{seat:0,name:'a',cid:'a'},{seat:1,name:'b',cid:'b'}]});S.players.forEach(p=>botInit(S,p,'builder'));SENT=null;
+    let bytes=0,snaps=0;const was=OUTBOX.length;while(S.round<2&&!S.over){for(let k=0;k<6;k++){for(const p of S.players)botStep(S,p,1/60);simStep(S,1/60)}OUTBOX.push(...S.ev.splice(0));bytes+=JSON.stringify(packSnap(S)).length;snaps++}
+    const kbs=bytes/(snaps/10)/1024;ok('one tide costs under 40 KB/s to watch',kbs<40,kbs.toFixed(1)+' KB/s')}
+  // ── page bits ──
+  ok('every sound the beach asks for is in the sprite',['ui','dig','pour','pat','fill','splash','step','wade','wave','big','slump','whistle','gull','flag','cheer','aww'].every(k=>SMAP[k]&&SMAP[k].length));
+  ok('the quit menu script is on the page',!!window.GLITCHBOX_OFFLINE||!!document.querySelector('script[src*="glitchbox-menu"]'));
+  ok('play with friends is the first button',document.querySelector('#s-title .btn').id==='b-online');
+  ok('no em dashes in anything a player reads',!/—/.test(document.body.innerText));
+  try{resize();const S0=S;S=makeSim({beach:'rocky',seed:3,players:[{seat:0,name:'a',cid:'a',local:true}]});MODE='solo';run(S,3);render(1/60,1);S=S0;MODE='menu';ok('a frame of the beach draws',true)}catch(e){ok('a frame of the beach draws',false,e.message)}
+  const box=document.createElement('pre');box.id='smokeout';box.style.cssText='position:fixed;inset:0;z-index:99;background:#fff;color:#000;overflow:auto;font:12px monospace;padding:10px';
+  box.textContent=out.join('\n');document.body.appendChild(box);document.title='SMOKE '+(fail?'FAIL':'PASS')+' '+pass+'/'+(pass+fail)}
+
+// ═══════════════════════════════ START ═══════════════════════════════
+if(DEBUG)window.__LT={get S(){return S},get GV(){return GV},get MODE(){return MODE},net,startSolo,hostRoom,joinRoom,hostGo,packSnap,myPlayer,pickTool,IN,KEYS};
+if(SMOKE){show(null);setTimeout(runSmoke,50)}
+else if(!autoRoom()){const h=new URLSearchParams(HASH.replace(/^#/,''));if(h.get('beach'))startSolo(h.get('beach'),+(h.get('helpers')||0));else show('s-title')}
+requestAnimationFrame(frame);
+
+</script>
+<script src="glitchbox-menu.js" data-pos="top-left" defer></script>
+</body>
+</html>

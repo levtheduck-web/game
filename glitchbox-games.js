@@ -3,6 +3,7 @@
 // roster and its canvas art only ever live in one place.
 
 const GAMES=[
+  {name:'Low Tide',           file:'low-tide.html',              emoji:'🏰',color:['#efd9a7','#1f8a8a'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Build a sandcastle with your friends before the tide comes in. Dig a moat, pat the walls, wet the sand, and keep the flag dry while every tide comes in higher. 2 to 6 friends online, or solo with CPU helpers'},
   {name:'Carry the Couch',    file:'carry-the-couch.html',       emoji:'🛋️',color:['#c99c63','#ee6a22'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Grab an end, lift together, pivot it through the doorway and down the stairs, and get it in the van before it leaves. 2 to 4 friends online, or you and a CPU buddy'},
   {name:'Five Nights at Monkes',file:'five-nights-at-monkes.html',emoji:'🐒',color:['#0b120c','#2a1a08'],category:'multiplayer',tags:['new','hot','mp'],blurb:'Night keeper at a jungle play place. Listen for the monkes, shut the doors, feed Clappy a banana and make it to 6 AM. Split the jobs with up to 4 friends, or let one friend BE the monkes'},
   {name:'Moving Mountains',   file:'moving-mountains.html',       emoji:'⛰️',color:['#3d7fd0','#9fd36a'],category:'simulation', tags:['new','hot','mp'],blurb:'A 2,700,000,000-rock mountain is ruining Mr. Grumbleton\'s sunset. Get rid of it. You start with a spoon, then work up to pickaxes, C4, dump trucks and diggers. Bring friends with a room code, or download it for Windows and Mac'},
@@ -57,6 +58,42 @@ const _SC=(c)=>{for(let y=0;y<200;y+=4){c.fillStyle='rgba(0,0,0,0.1)';c.fillRect
 
 // ── THUMBNAIL DRAW FUNCTIONS ──
 const DRAW={
+'low-tide':(c)=>{
+  // top-down beach: sea along the bottom, a wave running up, a packed ring wall and moat round a bucket tower with a red flag
+  c.fillStyle='#f1dcab';c.fillRect(0,0,320,200);
+  for(let i=0;i<900;i++){const x=(i*73.7)%320,y=(i*41.3)%200;c.fillStyle=i%3?'rgba(160,120,60,.10)':'rgba(255,255,255,.18)';c.fillRect(x,y,2,1)}
+  c.strokeStyle='rgba(150,110,60,.13)';c.lineWidth=2;for(let y=8;y<120;y+=9){c.beginPath();for(let x=0;x<=320;x+=8)c.lineTo(x,y+Math.sin(x*.05+y)*3);c.stroke()}
+  // wet band and the sea
+  _GV(c,0,118,320,22,'rgba(185,149,102,0)','#b99566');
+  c.fillStyle='#1f8a8a';c.beginPath();c.moveTo(0,200);c.lineTo(0,150);for(let x=0;x<=320;x+=10)c.lineTo(x,146+Math.sin(x*.06)*5-(x>120&&x<220?Math.sin((x-120)/100*Math.PI)*22:0));c.lineTo(320,200);c.fill();
+  _GV(c,0,165,320,35,'rgba(14,86,117,0)','#0e5675');
+  c.strokeStyle='#fbf6ea';c.lineWidth=4;c.lineCap='round';c.beginPath();for(let x=0;x<=320;x+=10)c.lineTo(x,146+Math.sin(x*.06)*5-(x>120&&x<220?Math.sin((x-120)/100*Math.PI)*22:0));c.stroke();
+  c.fillStyle='rgba(251,246,234,.7)';for(let i=0;i<22;i++){const x=(i*47)%320;c.beginPath();c.arc(x,156+(i*13)%30,1.6+(i%3),0,6.3);c.fill()}
+  // moat (dark, damp) then the packed wall ring
+  c.save();c.translate(160,84);c.scale(1,.86);
+  c.fillStyle='#9a7a4c';c.beginPath();c.arc(0,0,66,0,6.3);c.fill();c.fillStyle='#4fb3b0';c.beginPath();c.arc(0,4,62,.2,Math.PI-.2);c.arc(0,4,50,Math.PI-.2,.2,true);c.fill();
+  c.fillStyle='#f1dcab';c.beginPath();c.arc(0,0,50,0,6.3);c.fill();
+  c.lineWidth=13;c.strokeStyle='#d8bb83';c.beginPath();c.arc(0,0,38,0,6.3);c.stroke();c.lineWidth=5;c.strokeStyle='rgba(255,246,220,.75)';c.beginPath();c.arc(-2,-3,38,3.3,5.6);c.stroke();
+  c.strokeStyle='rgba(80,55,25,.45)';c.beginPath();c.arc(3,4,40,.3,2.6);c.stroke();c.restore();
+  // shells
+  for(let k=0;k<12;k++){const a=k/12*6.28;c.fillStyle=k%2?'#f6b8a8':'#fff6e8';c.beginPath();c.ellipse(160+Math.cos(a)*24,84+Math.sin(a)*20,3,2,a,0,6.3);c.fill()}
+  // tower + flag
+  c.fillStyle='rgba(60,40,20,.3)';c.beginPath();c.arc(166,90,17,0,6.3);c.fill();c.fillStyle='#d9b77c';c.strokeStyle='#1c3144';c.lineWidth=2;c.beginPath();c.arc(160,84,16,0,6.3);c.fill();c.stroke();
+  c.fillStyle='#e9cf98';for(let k=0;k<8;k++){const a=k/8*6.28;c.fillRect(160+Math.cos(a)*10-3,84+Math.sin(a)*10-3,6,6)}
+  _L(c,160,84,160,42,'#5a3b22',3);c.fillStyle='#e4572e';c.beginPath();c.moveTo(160,42);c.quadraticCurveTo(174,40,186,50);c.quadraticCurveTo(174,56,160,58);c.fill();c.stroke();
+  // two kids in sun hats, a spade and a bucket
+  const kid=(x,y,col,tool)=>{c.fillStyle='rgba(40,30,15,.28)';c.beginPath();c.ellipse(x+3,y+4,11,9,0,0,6.3);c.fill();c.fillStyle=col;c.strokeStyle='#1c3144';c.lineWidth=1.6;c.beginPath();c.ellipse(x,y,10,8,0,0,6.3);c.fill();c.stroke();
+    c.fillStyle='#fff3d6';c.beginPath();c.arc(x,y-1,7,0,6.3);c.fill();c.stroke();c.fillStyle=col;c.beginPath();c.arc(x,y-1,3.5,0,6.3);c.fill();
+    if(tool)_C(c,x+12,y+6,5,'#2a8fb8');else{_L(c,x-10,y+2,x-18,y+12,'#8a5a32',2.5);_F(c,x-22,y+11,8,6,'#e4572e')}};
+  kid(88,118,'#e4572e',0);kid(236,122,'#2e86ab',1);
+  // title
+  // title in the game's own face; the hub doesn't load it, so fetch it once and redraw when it lands
+  const ok=window.__ltFontOK;
+  c.save();c.translate(14,34);c.rotate(-.06);c.font=ok?"400 30px 'Shrikhand',cursive":"italic 900 30px Georgia,serif";c.fillStyle='#1c3144';c.fillText('Low Tide',3,3);c.fillStyle='#e4572e';c.fillText('Low Tide',0,0);c.restore();
+  if(!ok&&document.fonts){(window.__ltRedraw=window.__ltRedraw||[]).push(()=>DRAW['low-tide'](c));
+    if(!window.__ltFontReq){window.__ltFontReq=1;const l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family=Shrikhand&display=swap';
+      l.onload=()=>document.fonts.load("30px Shrikhand").then(f=>{if(f&&f.length){window.__ltFontOK=1;const q=window.__ltRedraw||[];window.__ltRedraw=[];q.forEach(fn=>{try{fn()}catch(e){}})}}).catch(()=>{});document.head.appendChild(l)}}
+},
 'carry-the-couch':(c)=>{
   // top-down floor plan on kraft: two movers carry a mustard couch out through a doorway towards the van
   c.fillStyle='#b98b54';c.fillRect(0,0,320,200);c.strokeStyle='rgba(36,27,20,.22)';c.lineWidth=1.2;for(let d=-200;d<320;d+=10){c.beginPath();c.moveTo(d,0);c.lineTo(d+200,200);c.stroke()}
