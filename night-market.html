@@ -67,6 +67,7 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';
 .cashbox{min-width:136px;display:flex;flex-direction:column;gap:4px}
 .cashbox .cash{font-family:'Bungee';font-size:28px;color:#ffe9c7;line-height:1}.cashbox .pf{font-weight:800;font-size:13.5px}.pf.up{color:var(--good)}.pf.dn{color:#ff8a80}
 .stars{color:var(--amber);font-size:15px;letter-spacing:1px}.stars i{font-style:normal;color:rgba(255,181,71,.25)}
+.helpb{font:800 12px 'Karla';border:1.5px solid rgba(246,234,210,.3);border-radius:999px;background:rgba(255,255,255,.06);padding:2px 8px;cursor:pointer;align-self:flex-start}.helpb.on{background:rgba(127,211,107,.2);border-color:#7fd36b;color:#cff5c4}
 .bellb{margin-top:auto;font:800 14px 'Karla';border:2px solid var(--amber);background:rgba(255,181,71,.15);border-radius:10px;padding:6px 8px;cursor:pointer;position:relative;overflow:hidden}
 .bellb .cdbar{position:absolute;left:0;bottom:0;height:3px;background:var(--amber)}
 .bellb:disabled{opacity:.55}
@@ -136,7 +137,7 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';
 <div id="hud" class="hidden"><div class="clock"><span class="tm" id="h-time">6:00 PM</span><span class="ev" id="h-ev">The market opens</span></div></div>
 <button id="pausebtn" class="hidden" title="Pause (Esc)">II</button>
 <div id="panel" class="hidden">
-  <div class="pbox cashbox"><div class="cash" id="p-cash">$60</div><div class="pf" id="p-pf">profit $0</div><div class="stars" id="p-stars"></div>
+  <div class="pbox cashbox"><div class="cash" id="p-cash">$60</div><div class="pf" id="p-pf">profit $0</div><div class="stars" id="p-stars"></div><button class="helpb" id="p-help">🧑‍🍳 Helper</button>
     <button class="bellb" id="p-bell">🔔 Ring the bell <span class="k">(B)</span><span class="cdbar" id="p-bellbar"></span></button>
     <div class="two"><button class="fam" id="p-fam">🕴️ Family</button><button class="fam bld" id="p-bld">🏗️ Build</button></div></div>
   <div class="slots" id="p-slots"></div>
@@ -160,6 +161,7 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';
 
 <div class="scr hidden" id="s-solo"><div class="card">
   <h2 class="neon">Solo night</h2>
+  <label class="lb">How hard</label><div id="solo-diff"></div>
   <label class="lb">CPU stalls on your street</label><div id="solo-cpu"></div>
   <label class="lb">Night length</label><div id="solo-len"></div>
   <div class="row"><button class="btn" id="solo-back"><span class="ic">←</span><span>Back</span></button><button class="btn pri" id="solo-go"><span class="ic">🏮</span><span>Open the stall</span></button></div>
@@ -186,6 +188,7 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';
     <div style="flex:1;min-width:240px">
       <label class="lb" style="margin-top:0">CPU stalls</label><div id="lb-cpu"></div>
       <label class="lb">Night length</label><div id="lb-len"></div>
+      <label class="lb">How hard</label><div id="lb-diff"></div>
       <div class="note" id="lb-note"></div>
     </div>
   </div>
@@ -213,7 +216,8 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';
 
 <div class="scr hidden" id="s-help"><div class="card wide help">
   <h2 class="neon">How to play</h2>
-  <p><b>Your stall</b> has three menu slots. Tap a slot's dish to change it. Each dish needs two ingredients from the <b>wholesaler</b>. Press <b>Cook</b> (or <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>) and a batch is ready a few seconds later on one of your two burners.</p>
+  <p><b>Quick start:</b> you open with three dishes ready to go. Press <b>Cook</b> (or <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>) when people line up; Cook buys any missing ingredients itself. On <b>Easy</b> a kitchen helper does the cooking for you and the CPU stalls leave you alone, so you can just set prices and have fun with the Family and building. Switch the helper off on your panel when you want to do it all yourself.</p>
+  <p><b>Your stall</b>: tap a dish to swap it. Buying in bulk from the <b>wholesaler</b> is cheaper than letting Cook buy one at a time when prices are up.</p>
   <p><b>Customers</b> each want one dish most tonight, and the hourly craze is the most wanted. They pick a stall by that dish, your price, how long your line is, whether something is sizzling, and your stars. Ring the <b>bell</b> (<kbd>B</kbd>) to pull in walkers nearby.</p>
   <p><b>Undercut a rival</b> and their line walks to you. But you earn less, and a long line sends people next door. Selling the dish nobody else sells means nobody can undercut you.</p>
   <p><b>Food goes stale.</b> Fresh food earns stars, stale food loses them, and old food gets thrown out. Cook to the line, not to the burner. People who wait too long walk off and cost you a star.</p>
@@ -297,7 +301,7 @@ const lerp=(a,b,t)=>a+(b-a)*t;
 const r2=v=>Math.round(v*100)/100;
 
 function makeSim(o){const R=rng32(o.seed>>>0||1);const N=o.stalls.length;
-  const S={seed:o.seed,R,t:0,frame:0,hourLen:o.hourLen||45,hour:0,over:false,ending:false,ev:[],cust:[],cid:0,spawnAcc:0,
+  const S={seed:o.seed,R,easy:!!o.easy,t:0,frame:0,hourLen:o.hourLen||45,hour:0,over:false,ending:false,ev:[],cust:[],cid:0,spawnAcc:0,
     stalls:[],price:ING.map(g=>g.base),mod:ING.map(()=>1),trend:DISH.map(()=>1),event:null,events:[],critic:null,stats:{spawned:0,walked:0}};
   // tonight's plan: a craze every hour, a rush at 7, and one surprise later on
   for(let h=0;h<HOURS;h++){const e={hour:h,craze:R()*DISH.length|0,kind:null,arg:0};S.events.push(e)}
@@ -307,8 +311,11 @@ function makeSim(o){const R=rng32(o.seed>>>0||1);const N=o.stalls.length;
   for(const e of S.events)if(e.kind==='shortage')e.arg=R()*ING.length|0;
   o.stalls.forEach((p,i)=>S.stalls.push({i,seat:p.seat,name:p.name,cid:p.cid,cpu:p.cpu||0,local:!!p.local,col:STALL_COLS[p.seat%8],
     x:(i+.5)*STREET/N,cash:START_CASH,menu:[-1,-1,-1,-1],tier:0,buildVal:0,goons:1,busy:0,cam:0,cat:0,roach:0,roachT:0,catT:0,spike:0,badT:0,closedUntil:0,strikes:0,out:0,sickT:[],hits:0,stompT:0,sick:0,price:DISH.map(d=>d.fair),stock:DISH.map(()=>[]),burn:[],pantry:ING.map(()=>0),
-    rating:3,smell:0,bell:-99,queue:[],serveT:0,served:0,lost:0,wasted:0,revenue:0,spent:0,sold:DISH.map(()=>0),idle:0,gone:false}));
+    rating:3,smell:0,bell:-99,helper:o.easy&&!p.cpu?1:0,helpT:0,queue:[],serveT:0,served:0,lost:0,wasted:0,revenue:0,spent:0,sold:DISH.map(()=>0),idle:0,gone:false}));
   S.goons=[];S.insp=[];S.gid=0;
+  // nobody opens to an empty stall: three dishes (the opening craze first) and enough for a couple of batches
+  const cz=S.events[0].craze;for(const st of S.stalls){const picks=[cz];for(let k=1;picks.length<3;k++){const d=(cz+k*2+st.i)%DISH.length;if(!picks.includes(d))picks.push(d)}
+    st.menu=[...picks,-1];for(const d of picks)for(const id of DISH[d].ing)st.pantry[INGI[id]]+=2}
   startHour(S,0);return S}
 function emit(S,e){S.ev.push(e);if(S.ev.length>120)S.ev.shift()}
 function hourOf(S){return Math.min(HOURS-1,Math.floor(S.t/S.hourLen))}
@@ -339,9 +346,11 @@ function doAction(S,st,a){if(!st||st.gone||S.over)return '';
   if(a.k==='buy'){const g=a.g|0,n=clamp(a.n|0,1,10);if(!ING[g])return '';let bought=0;
     for(let k=0;k<n;k++){const p=S.price[g];if(st.cash<p)break;st.cash-=p;st.spent+=p;st.pantry[g]++;bought++;S.price[g]+=ING[g].base*.07}
     if(!bought)return 'broke';emit(S,['buy',st.i,g,bought]);return 'buy'}
+  if(a.k==='helper'){st.helper=st.helper?0:1;return 'helper'}
   if(a.k==='bell'){if(S.t-st.bell<BELL_CD)return 'bellcd';st.bell=S.t;emit(S,['bell',st.i]);return 'bell'}
   if(a.k==='cook'){const d=st.menu[a.slot|0];if(d==null||d<0)return 'nomenu';if(st.burn.length>=burnersOf(st))return 'burners';
-    const need=DISH[d].ing.map(id=>INGI[id]);if(need.some(g=>st.pantry[g]<1))return 'noing';
+    const need=DISH[d].ing.map(id=>INGI[id]);const miss=need.filter(g=>st.pantry[g]<1);
+    if(miss.length){if(a.noBuy||st.cash<miss.reduce((t,g)=>t+S.price[g],0))return 'noing';for(const g of miss)doAction(S,st,{k:'buy',g,n:1})}
     for(const g of need)st.pantry[g]--;st.burn.push({d,left:DISH[d].cook});st.smell=1;emit(S,['cook',st.i,d]);return 'cook'}
   return ''}
 // ── customers ──
@@ -399,13 +408,21 @@ function simStep(S,dt){if(S.over)return;S.t+=dt;S.frame++;const L=nightLen(S);
     if(st.roach>0){st.roachT+=dt;if(st.roachT>9){st.roachT=0;st.roach=Math.min(9,st.roach+1)}st.rating=clamp(st.rating-.004*st.roach*dt,1,5);
       if(st.cat){st.catT+=dt;if(st.catT>1.4){st.catT=0;st.roach--;emit(S,['cateat',st.i])}}}else st.roachT=0;
     if(isClosed(S,st)&&st.queue.length){for(const id of st.queue){const c=S.cust.find(q=>q.id===id);if(c){c.st='leave';c.mood=-1}}st.queue.length=0}
-    serveStep(S,st,dt);st.idle=st.queue.length?0:st.idle+dt}
+    helperStep(S,st,dt);serveStep(S,st,dt);st.idle=st.queue.length?0:st.idle+dt}
   goonStep(S,dt);inspStep(S,dt);
   if(S.t>=L&&!S.ending){S.ending=true;emit(S,['close'])}
   if(S.ending){for(const st of S.stalls){for(const id of st.queue){const c=S.cust.find(q=>q.id===id);if(c)c.st='leave'}st.queue.length=0}
     if(S.t>=L+3){S.over=true;emit(S,['sunrise'])}}}
 function profit(st){return Math.round((worth(st)-START_CASH)*100)/100}
 function standings(S){return S.stalls.slice().sort((a,b)=>worth(b)-worth(a))}
+// the kitchen helper: cooks for whoever is waiting, stomps roaches, bins bad food (slower than a quick player)
+function helperStep(S,st,dt){if(!st.helper||st.bot||st.out)return;st.helpT-=dt;if(st.helpT>0)return;st.helpT=.6;
+  if(st.roach>0&&S.R()<.55){doAction(S,st,{k:'stomp'});return}
+  if(anyBad(st)){if(!st.helpBad)st.helpBad=S.t+2.5;if(S.t>=st.helpBad){doAction(S,st,{k:'bin'});st.helpBad=0}}else st.helpBad=0;
+  if(isClosed(S,st))return;const late=S.t>nightLen(S)-S.hourLen*.3;
+  for(let k=0;k<slotsOf(st);k++){const d=st.menu[k];if(d<0)continue;
+    const waiting=st.queue.map(id=>S.cust.find(c=>c.id===id)).filter(c=>c&&c.d===d).length+S.cust.filter(c=>c.st==='go'&&c.to===st.i&&c.d===d).length;
+    if(stockN(st,d)+cookingN(st,d)<waiting+(late?0:1))doAction(S,st,{k:'cook',slot:k})}}
 function goonStep(S,dt){for(let k=S.goons.length-1;k>=0;k--){const g=S.goons[k],from=S.stalls[g.from],to=S.stalls[g.to];
     if(g.ph==='go'){const dx=to.x-g.x;if(Math.abs(dx)>5){g.x+=Math.sign(dx)*Math.min(Math.abs(dx),GOON_SPD*dt);continue}g.ph='do';g.w=1.1;continue}
     if(g.ph==='do'){g.w-=dt;if(g.w>0)continue;
@@ -419,7 +436,7 @@ function goonStep(S,dt){for(let k=S.goons.length-1;k>=0;k--){const g=S.goons[k],
 function sendInspector(S,st,why){const left=st.x<STREET/2;S.insp.push({to:st.i,x:left?-30:STREET+30,y:80,why});emit(S,['inspcoming',st.i,why==='sick'?1:0])}
 function inspStep(S,dt){for(let k=S.insp.length-1;k>=0;k--){const q=S.insp[k],st=S.stalls[q.to];
     if(q.done){q.x+=(q.x<STREET/2?-1:1)*INSP_SPD*dt;if(q.x<-40||q.x>STREET+40)S.insp.splice(k,1);continue}
-    const dx=st.x-q.x;if(Math.abs(dx)>5){q.x+=Math.sign(dx)*Math.min(Math.abs(dx),INSP_SPD*dt);continue}
+    const dx=st.x-q.x;if(Math.abs(dx)>5){q.x+=Math.sign(dx)*Math.min(Math.abs(dx),INSP_SPD*(S.easy?.55:1)*dt);continue}
     q.done=1;if(st.out)continue;
     if(st.roach>0||anyBad(st)){st.strikes++;st.closedUntil=S.t+SHUT_T;st.burn.length=0;for(const arr of st.stock)arr.length=0;st.spike=0;st.roach=0;st.rating=clamp(st.rating-.4,1,5);
       if(st.strikes>=STRIKES_OUT){st.out=1;emit(S,['out',st.i])}else emit(S,['shut',st.i,st.strikes])}
@@ -444,8 +461,8 @@ function botFamily(S,st){const b=st.bot;
   if(st.hits>0&&!st.cat&&st.cash>70)doAction(S,st,{k:'def',def:'cat'});
   if((st.hits>1||st.tier>=2)&&!st.cam&&st.cash>90)doAction(S,st,{k:'def',def:'cam'});
   if(S.hour>=1&&S.t>=b.opT&&st.cash>70){b.opT=S.t+S.hourLen*(1.1-b.aggro*.5)*(.7+S.R()*.6);
-    const rivals=S.stalls.filter(o=>o!==st&&!o.gone&&!o.out).sort((a,c)=>worth(c)-worth(a));const tg=rivals[0];
-    if(tg&&worth(tg)>worth(st)*.9&&S.R()<b.aggro){if(st.goons-st.busy<1)doAction(S,st,{k:'hire'});
+    const rivals=S.stalls.filter(o=>o!==st&&!o.gone&&!o.out&&(!S.easy||o.cpu)).sort((a,c)=>worth(c)-worth(a));const tg=rivals[0];
+    if(tg&&worth(tg)>worth(st)*.9&&S.R()<b.aggro*(S.easy?.45:1)){if(st.goons-st.busy<1)doAction(S,st,{k:'hire'});
       const op=(tg.roach>0||anyBad(tg))?'tip':S.R()<.5?'roach':'poison';doAction(S,st,{k:'op',op,to:tg.i})}}
   return false}
 function botStep(S,st,dt){const b=st.bot;if(!b||st.gone||S.over)return;b.t-=dt;if(b.t>0)return;b.t=.5+S.R()*.3;
@@ -489,7 +506,7 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 const money=v=>(v<0?'-$':'$')+Math.abs(v).toFixed(Math.abs(v)%1?2:0);
 const LS={get(k,d){try{const v=localStorage.getItem('nightmkt.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
   set(k,v){try{localStorage.setItem('nightmkt.'+k,JSON.stringify(v))}catch(e){}}};
-const SET=Object.assign({sound:true,vol:.85,cpu:3,len:45},LS.get('set',{}));
+const SET=Object.assign({sound:true,vol:.85,cpu:3,len:45,easy:1},LS.get('set',{}));
 function saveSet(){LS.set('set',SET)}
 let PROG=Object.assign({best:0,nights:0,wins:0},LS.get('prog',{}));
 function saveProg(){LS.set('prog',PROG)}
@@ -533,7 +550,7 @@ const badAny=st=>st.badD?(st.badD.length>0||!!st.spike):anyBad(st);
 
 // ═══════════════════════════════ ACTIONS ═══════════════════════════════
 const WHY={dup:'That dish is already on your menu.',busy:'Sell what is on the counter first, then swap the dish.',broke:'Not enough cash for that.',
-  nomenu:'Pick a dish for that slot first.',burners:'Both burners are busy.',noing:'Missing ingredients. Buy them from the wholesaler.',bellcd:'The bell needs a moment.',maxed:'Already as big as it gets.',goonmax:'Build bigger to run a bigger Family.',nogoon:'All your goons are busy. Hire another or wait.',have:'You already have that.',closed:'The inspector boarded you up. Wait it out.',locked:'A Corner shop unlocks a fourth dish.'};
+  nomenu:'Pick a dish for that slot first.',burners:'Both burners are busy.',noing:'Not enough cash to buy the ingredients.',bellcd:'The bell needs a moment.',maxed:'Already as big as it gets.',goonmax:'Build bigger to run a bigger Family.',nogoon:'All your goons are busy. Hire another or wait.',have:'You already have that.',closed:'The inspector boarded you up. Wait it out.',locked:'A Corner shop unlocks a fourth dish.'};
 function act(a){const st=myStall();if(!st||ENDED)return;
   // check it here first so a guest hears "why not" straight away; the host checks again for real
   const pre=precheck(st,a);if(pre){toast(WHY[pre]||pre);snd('ui',{v:.3});return}
@@ -547,7 +564,7 @@ function precheck(st,a){const v=V();
   if(a.k==='hire'){if(st.goons>=TIERS[st.tier].goons)return 'goonmax';if(st.cash<GOON_COST)return 'broke'}
   if(a.k==='op'){if(st.goons-st.busy<1)return 'nogoon';if(st.cash<OPS[a.op].cost)return 'broke'}
   if(a.k==='def'){if(st[a.def])return 'have';if(st.cash<DEFS[a.def].cost)return 'broke'}
-  if(a.k==='cook'){const d=st.menu[a.slot];if(d==null||d<0)return 'nomenu';if(st.burn.length>=burnersOf(st))return 'burners';if(DISH[d].ing.some(id=>st.pantry[INGI[id]]<1))return 'noing'}
+  if(a.k==='cook'){const d=st.menu[a.slot];if(d==null||d<0)return 'nomenu';if(st.burn.length>=burnersOf(st))return 'burners';const mc=DISH[d].ing.filter(id=>st.pantry[INGI[id]]<1).reduce((t,id)=>t+v.price[INGI[id]],0);if(mc>st.cash)return 'noing'}
   if(a.k==='buy'&&st.cash<v.price[a.g])return 'broke';
   if(a.k==='menu'){if(a.d>=0&&st.menu.includes(a.d))return 'dup';const old=st.menu[a.slot];if(old>=0&&(sN(st,old)>0||cN(st,old)>0))return 'busy'}
   if(a.k==='bell'&&v.t-st.bell<BELL_CD)return 'bellcd';return ''}
@@ -711,10 +728,10 @@ function drawRain(t){ctx.strokeStyle='rgba(170,190,255,.35)';ctx.lineWidth=1;ctx
 let PSIG='';
 function paintPanel(force){const st=myStall(),v=V();if(!st||!v)return;
   const sig=[st.cash.toFixed(2),st.rating.toFixed(1),st.menu.join(),st.menu.map(d=>d>=0?st.price[d]+':'+sN(st,d)+':'+(sAge(st,d,v.t)>FRESH?1:0):'').join(),st.pantry.join(),v.price.map(p=>p.toFixed(1)).join(),
-    st.burn.map(b=>b.d+':'+Math.round(b.left*4)).join(),Math.ceil(Math.max(0,BELL_CD-(v.t-st.bell))),st.tier,st.roach,badAny(st)?1:0,Math.ceil(Math.max(0,st.closedUntil-v.t)),st.out,st.goons,st.busy].join('|');
+    st.burn.map(b=>b.d+':'+Math.round(b.left*4)).join(),Math.ceil(Math.max(0,BELL_CD-(v.t-st.bell))),st.tier,st.roach,badAny(st)?1:0,Math.ceil(Math.max(0,st.closedUntil-v.t)),st.out,st.goons,st.busy,st.helper].join('|');
   if(sig===PSIG&&!force)return;PSIG=sig;
   $('p-cash').textContent=money(Math.floor(st.cash));const pf=worth(st)-START_CASH;$('p-pf').textContent='worth '+money(Math.round(pf))+(st.tier?' · '+TIERS[st.tier].name:'');$('p-pf').className='pf '+(pf>=0?'up':'dn');
-  $('p-stars').innerHTML=stars(st.rating).replace(/☆/g,'<i>★</i>');
+  $('p-stars').innerHTML=stars(st.rating).replace(/☆/g,'<i>★</i>');$('p-help').textContent='🧑‍🍳 Helper '+(st.helper?'on':'off');$('p-help').classList.toggle('on',!!st.helper);
   const bl=BELL_CD-(v.t-st.bell);$('p-bell').disabled=bl>0;$('p-bellbar').style.width=(bl>0?100-bl/BELL_CD*100:100)+'%';
   const need=new Set();st.menu.forEach(d=>{if(d>=0)DISH[d].ing.forEach(id=>need.add(INGI[id]))});
   $('p-slots').innerHTML=st.menu.map((d,k)=>{if(k>=slotsOf(st))return k===3?'<div class="pbox slot empty" style="opacity:.5"><div class="top"><div class="em">🔒</div><div class="nm">4th dish<small>Corner shop</small></div></div></div>':'';if(d<0)return '<div class="pbox slot empty"><div class="top"><div class="em" data-pick="'+k+'">+</div><div class="nm" data-pick="'+k+'">Pick a dish<small>slot '+(k+1)+'</small></div></div><div class="note" style="margin:0">Tap + to put a dish on your menu.</div></div>';
@@ -723,7 +740,7 @@ function paintPanel(force){const st=myStall(),v=V();if(!st||!v)return;
     return '<div class="pbox slot"><div class="top"><div class="em" data-pick="'+k+'" title="Change dish">'+D.em+'</div><div class="nm" data-pick="'+k+'">'+esc(D.name)+(craze?' 🔥':'')+'<small>fair price $'+D.fair+'</small></div>'+
       '<div class="stk'+(stale||badD(st,d)?' cold':'')+'"'+(badD(st,d)?' style="color:#7dff8a"':'')+'>'+n+'<small>'+(badD(st,d)?'☠️ bad!':stale?'going stale':'ready')+'</small></div></div>'+
       '<div class="prc"><button data-pr="'+d+'" data-dv="-0.5">−</button><span class="pv">$'+st.price[d].toFixed(st.price[d]%1?1:0)+'<small>'+(st.price[d]<D.fair?'cheap':st.price[d]>D.fair?'pricey':'fair')+'</small></span><button data-pr="'+d+'" data-dv="0.5">+</button></div>'+
-      '<button class="cookb" data-cook="'+k+'"><span class="k">'+(k+1)+'</span>Cook '+D.yield+' '+ing+(b?'<span class="bar" style="width:'+((1-b.left/D.cook)*100)+'%"></span>':'')+'</button></div>'}).join('');
+      (()=>{const mc=D.ing.filter(id=>st.pantry[INGI[id]]<1).reduce((t,id)=>t+v.price[INGI[id]],0);return '<button class="cookb" data-cook="'+k+'"><span class="k">'+(k+1)+'</span>Cook '+D.yield+' '+ing+(mc?' <span style="font-size:11.5px;opacity:.85">+$'+mc.toFixed(mc%1?2:0)+'</span>':'')})()+(b?'<span class="bar" style="width:'+((1-b.left/D.cook)*100)+'%"></span>':'')+'</button></div>'}).join('');
   $('p-ings').innerHTML=ING.map((g,i)=>{const p=v.price[i],r=p/g.base;return '<div class="ingr'+(need.has(i)?' need':'')+'"><span class="e">'+g.em+'</span><span class="n">'+st.pantry[i]+'</span><span class="p'+(r>1.25?' hi':r<1.05?' lo':'')+'">$'+p.toFixed(2)+'</span><button data-buy="'+i+'" data-n="1">+1</button><button data-buy="'+i+'" data-n="5">+5</button></div>'}).join('');
   paintAlerts(st,v);
   $('p-burn').innerHTML=[...Array(burnersOf(st))].map((_,k)=>{const b=st.burn[k];return '<div class="burner">'+(b?'<i style="width:'+((1-b.left/DISH[b.d].cook)*100)+'%"></i><span>'+DISH[b.d].em+' '+Math.ceil(b.left)+'s</span>':'<span style="color:var(--mut)">burner free</span>')+'</div>'}).join('')}
@@ -753,8 +770,9 @@ document.addEventListener('pointerdown',e=>{if(SCR!=='s-family'&&SCR!=='s-build'
   if(b.id==='fm-hire')act({k:'hire'});else if(b.dataset.op)act({k:'op',op:b.dataset.op,to:+b.dataset.to});else if(b.dataset.def)act({k:'def',def:b.dataset.def});else act({k:'up'});
   setTimeout(paintSheet,60);setTimeout(paintSheet,400)});
 $('p-fam').onclick=()=>openSheet('s-family');$('p-bld').onclick=()=>openSheet('s-build');$('fm-close').onclick=closeSheet;$('bd-close').onclick=closeSheet;
-$('panel').addEventListener('pointerdown',e=>{const el=e.target.closest('[data-cook],[data-pr],[data-buy],[data-pick],#p-bell');if(!el)return;e.preventDefault();
+$('panel').addEventListener('pointerdown',e=>{const el=e.target.closest('[data-cook],[data-pr],[data-buy],[data-pick],#p-bell,#p-help');if(!el)return;e.preventDefault();
   if(el.id==='p-bell')return act({k:'bell'});
+  if(el.id==='p-help'){act({k:'helper'});const st=myStall();if(MODE==='guest'){st.helper=st.helper?0:1;st.localEdit=now()}toast(st.helper?'Your helper cooks when people wait, stomps roaches and bins bad food.':'Helper off. You do the cooking.');return}
   if(el.dataset.cook!=null)return act({k:'cook',slot:+el.dataset.cook});
   if(el.dataset.pr!=null){const st=myStall(),d=+el.dataset.pr;snd('ui',{v:.25,i:1});return act({k:'price',d,v:st.price[d]+(+el.dataset.dv)})}
   if(el.dataset.buy!=null)return act({k:'buy',g:+el.dataset.buy,n:+el.dataset.n});
@@ -820,14 +838,14 @@ function fxEvent(e,v){const k=e[0],quiet=v===DEMO;const st=e[1]!=null&&typeof e[
 // ═══════════════════════════════ FLOW ═══════════════════════════════
 function newSeed(){return (Math.random()*2**31)>>>0}
 const CPU_NAMES=['Auntie Wu','Big Sam','Lucky Lin','Night Owl','Mama Rosa','Uncle Ko','Dot','Mr. Bun'];
-function startSolo(cpu,len){netClose();MODE='solo';MY_SEAT=0;ENDED=false;const stalls=[{seat:0,name:myNameOr('Your stall'),cid:MY_CID,local:true}];
+function startSolo(cpu,len,easy){if(easy==null)easy=SET.easy;netClose();MODE='solo';MY_SEAT=0;ENDED=false;const stalls=[{seat:0,name:myNameOr('Your stall'),cid:MY_CID,local:true}];
   for(let k=0;k<cpu;k++)stalls.push({seat:k+1,name:CPU_NAMES[k],cid:'cpu'+k,cpu:1});
   // put you somewhere in the middle of the street
   const me=stalls.shift();stalls.splice(Math.floor(stalls.length/2),0,me);
-  S=makeSim({seed:newSeed(),hourLen:len,stalls});for(const st of S.stalls)if(st.cpu)botInit(S,st,'reader');beginGame()}
+  S=makeSim({seed:newSeed(),hourLen:len,stalls,easy:!!easy});for(const st of S.stalls)if(st.cpu)botInit(S,st,'reader');beginGame()}
 function myNameOr(d){return ($('myname').value||'').trim().slice(0,12)||LS.get('name','')||d}
 function beginGame(){PART.length=0;FLOAT.length=0;PAUSED=false;PSIG='';HUDSIG='';show(null);auWake();checkRotate();paintPanel(true);
-  setTimeout(()=>{if(!SCR&&myStall()&&myStall().menu.every(d=>d<0))toast('Tap + to pick your dishes, buy their ingredients, then Cook.',4)},700)}
+  setTimeout(()=>{const st=myStall();if(!SCR&&st)toast(st.helper?'Your helper cooks for you. Set prices, follow the craze, and try the Family (F) and Build (U).':'Press Cook (1, 2, 3) when people line up. Cook buys what it needs.',5)},800)}
 function summarize(v){const rows=v.stalls.filter(s=>!s.gone).map(s=>({seat:s.seat,name:s.name,col:s.col,cpu:s.cpu,profit:Math.round((worth(s)-START_CASH)*100)/100,tier:s.tier,out:s.out,strikes:s.strikes,served:s.served,lost:s.lost,wasted:s.wasted,rating:Math.round(s.rating*10)/10,
   shared:s.menu.filter(d=>d>=0&&v.stalls.some(o=>o!==s&&!o.gone&&o.menu.includes(d))).length,sold:s.sold?s.sold.slice():null}));rows.sort((a,b)=>b.profit-a.profit);return rows}
 function gameOver(rows){if(ENDED)return;ENDED=true;closePicker();const me=rows.find(r=>r.seat===MY_SEAT);const rank=rows.indexOf(me)+1;
@@ -846,7 +864,7 @@ function showResult(rows,me,rank){$('rs-title').textContent=rank===1?'You ran th
   $('rs-lines').innerHTML=L.map(l=>'<div>'+l+'</div>').join('');
   const guest=MODE==='guest';$('rs-again').classList.toggle('hidden',guest);$('rs-again-t').textContent=MODE==='host'?'Another night':'Another night';$('rs-menu-t').textContent=MODE==='host'?'Back to the lobby':guest?'Leave':'Menu';
   if(guest)$('rs-lines').insertAdjacentHTML('beforeend','<div class="note">Waiting for the host to open another night...</div>');show('s-result')}
-$('rs-again').onclick=()=>{if(MODE==='host')hostGo();else startSolo(SET.cpu,SET.len)};
+$('rs-again').onclick=()=>{if(MODE==='host')hostGo();else startSolo(SET.cpu,SET.len,SET.easy)};
 $('rs-menu').onclick=()=>{if(MODE==='host'){S=null;net.send({t:'lob'});openLobby()}else if(MODE==='guest'){netClose();MODE='menu';GV=null;show('s-title')}else{S=null;MODE='menu';show('s-title')}};
 
 // ═══════════════════════════════ SCREENS ═══════════════════════════════
@@ -861,14 +879,14 @@ function quitGame(){if(MODE==='host'||MODE==='guest')netClose();MODE='menu';S=nu
 function syncSoundBtns(){$('b-sound').textContent=SET.sound?'🔊 Sound on':'🔈 Sound off';$('pa-sound').querySelector('span:last-child').textContent=SET.sound?'Sound on':'Sound off';$('b-sound').classList.toggle('on',SET.sound)}
 function chips(el,opts,cur,pick){el.innerHTML=opts.map(o=>'<button class="mini'+(o[0]===cur?' on':'')+'" data-v="'+o[0]+'">'+o[1]+'</button>').join('');el.querySelectorAll('.mini').forEach(b=>b.onclick=()=>{snd('ui',{v:.4});pick(+b.dataset.v)})}
 const LENS=[[30,'Quick (3 min)'],[45,'Full night (4.5 min)'],[60,'Long (6 min)']];
-function openSolo(){show('s-solo');chips($('solo-cpu'),[[2,'2'],[3,'3'],[4,'4'],[5,'5'],[7,'7']],SET.cpu,v=>{SET.cpu=v;saveSet();openSolo()});chips($('solo-len'),LENS,SET.len,v=>{SET.len=v;saveSet();openSolo()})}
+function openSolo(){show('s-solo');chips($('solo-diff'),[[1,'Easy · a helper cooks, CPUs leave you alone'],[0,'Normal']],SET.easy?1:0,v=>{SET.easy=v;saveSet();openSolo()});chips($('solo-cpu'),[[2,'2'],[3,'3'],[4,'4'],[5,'5'],[7,'7']],SET.cpu,v=>{SET.cpu=v;saveSet();openSolo()});chips($('solo-len'),LENS,SET.len,v=>{SET.len=v;saveSet();openSolo()})}
 function demoStart(){if(SMOKE||NORENDER)return;const st=[0,1,2,3,4].map(k=>({seat:k,name:CPU_NAMES[k],cid:'d'+k,cpu:1}));DEMO=makeSim({seed:newSeed(),hourLen:30,stalls:st});DEMO.stalls.forEach(s=>botInit(DEMO,s,'reader'))}
 
 // ═══════════════════════════════ ONLINE ═══════════════════════════════
 // Host-authoritative: the host runs the street and the CPU stalls and sends the whole street eight
 // times a second. Guests send what they press (cook, price, menu, buy, bell); the host checks it.
 const MY_CID=(()=>{try{let c=sessionStorage.getItem('nm.cid');if(!c){c='c'+Math.random().toString(36).slice(2,10);sessionStorage.setItem('nm.cid',c)}return c}catch(e){return 'c'+Math.random().toString(36).slice(2,10)}})();
-const LOBBY={players:[],cpu:2,len:45};
+const LOBBY={players:[],cpu:2,len:45,easy:1};
 function wsURL(room,role){const b=window.GLITCHBOX_WS&&!/PLACEHOLDER/i.test(window.GLITCHBOX_WS)?window.GLITCHBOX_WS:(location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws';return b+'?room='+encodeURIComponent(room)+'&role='+role}
 const net={ws:null,role:'',code:'',online:false,bytes:0,
   connect(room,role,onOpen){this.close();this.code=room;this.role=role;this.online=true;setStatus('Connecting...');let ws;
@@ -885,7 +903,7 @@ function myName(){return ($('myname').value||'').trim().slice(0,12)||'Night Owl'
 function code4(){const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<4;i++)s+=A[Math.random()*A.length|0];return s}
 function openOnline(){MODE='menu';netClose();if(!$('myname').value)$('myname').value=LS.get('name','');setStatus('');show('s-online');loadHubName()}
 async function loadHubName(){if($('myname').value)return;try{const st=await hubApi('/api/me');if(st&&st.profile&&st.profile.name&&!$('myname').value)$('myname').value=String(st.profile.name).slice(0,12)}catch(e){}}
-function hostRoom(room){LS.set('name',myName());MODE='host';MY_SEAT=0;S=null;LOBBY.players=[{seat:0,name:myName(),cid:MY_CID,seen:now()}];LOBBY.cpu=SET.cpuOnline!=null?SET.cpuOnline:2;LOBBY.len=SET.len;
+function hostRoom(room){LS.set('name',myName());MODE='host';MY_SEAT=0;S=null;LOBBY.players=[{seat:0,name:myName(),cid:MY_CID,seen:now()}];LOBBY.cpu=SET.cpuOnline!=null?SET.cpuOnline:2;LOBBY.len=SET.len;LOBBY.easy=SET.easy;
   room=room||code4();net.connect(room,'host',()=>net.send({t:'create',code:room,max:MAXP}))}
 function joinRoom(room){room=(room||$('joincode').value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);if(room.length!==4){setStatus('The code is four letters.',true);return}
   LS.set('name',myName());MODE='guest';GV=null;LOBBY.players=[];net.connect(room,'guest',()=>net.send({t:'join',code:room}))}
@@ -893,14 +911,14 @@ function startHB(){clearInterval(HB);HB=setInterval(()=>{if(MODE==='guest')net.s
   if(MODE==='guest'&&LAST_ROS&&now()-LAST_ROS>7000&&(!GV||now()-LAST_SNAP>7000))hostGone();
   if(MODE==='host'){const t=now();bcRoster();if(!S){const b=LOBBY.players.length;LOBBY.players=LOBBY.players.filter(p=>p.cid===MY_CID||t-p.seen<9000);if(b!==LOBBY.players.length){LOBBY.players.forEach((p,i)=>p.seat=i);bcRoster();paintLobby()}}
     else for(const st of S.stalls)if(!st.local&&!st.cpu&&!st.bot&&t-(st.seen||t)>9000){botInit(S,st,'reader');toast(st.name+' left. A CPU runs their stall now.',3)}}},2000)}
-function bcRoster(){net.send({t:'ros',ps:LOBBY.players.map(p=>[p.seat,p.name,p.cid]),cpu:LOBBY.cpu,len:LOBBY.len,ing:S?1:0})}
+function bcRoster(){net.send({t:'ros',ps:LOBBY.players.map(p=>[p.seat,p.name,p.cid]),cpu:LOBBY.cpu,len:LOBBY.len,easy:LOBBY.easy,ing:S?1:0})}
 function openLobby(){show('s-lobby');paintLobby();loadLobbyFriends()}
 function paintLobby(){$('lb-code').textContent=net.code||'····';const host=MODE==='host';
   $('lb-list').innerHTML=LOBBY.players.map(p=>'<div class="prow"><span class="dot" style="background:'+STALL_COLS[p.seat%8]+';color:'+STALL_COLS[p.seat%8]+'"></span>'+esc(p.name)+'<span class="tg">'+(p.seat===0?'host':'')+(p.cid===MY_CID?' · you':'')+'</span></div>').join('')+
     (LOBBY.players.length<2?'<div class="note">Waiting for friends. Share the code.</div>':'');
   const cpuMax=Math.max(0,MAXP-LOBBY.players.length);const cpu=Math.min(LOBBY.cpu,cpuMax);
-  if(host){chips($('lb-cpu'),[0,1,2,3,4].filter(n=>n<=cpuMax).map(n=>[n,n?String(n):'none']),cpu,v=>{LOBBY.cpu=v;SET.cpuOnline=v;saveSet();bcRoster();paintLobby()});chips($('lb-len'),LENS,LOBBY.len,v=>{LOBBY.len=v;SET.len=v;saveSet();bcRoster();paintLobby()})}
-  else{$('lb-cpu').innerHTML='<div class="note">'+(cpu?cpu+' CPU stalls':'No CPU stalls')+'</div>';$('lb-len').innerHTML='<div class="note">'+(LENS.find(l=>l[0]===LOBBY.len)||LENS[1])[1]+'</div>'}
+  if(host){chips($('lb-cpu'),[0,1,2,3,4].filter(n=>n<=cpuMax).map(n=>[n,n?String(n):'none']),cpu,v=>{LOBBY.cpu=v;SET.cpuOnline=v;saveSet();bcRoster();paintLobby()});chips($('lb-len'),LENS,LOBBY.len,v=>{LOBBY.len=v;SET.len=v;saveSet();bcRoster();paintLobby()});chips($('lb-diff'),[[1,'Easy'],[0,'Normal']],LOBBY.easy?1:0,v=>{LOBBY.easy=v;SET.easy=v;saveSet();bcRoster();paintLobby()})}
+  else{$('lb-cpu').innerHTML='<div class="note">'+(cpu?cpu+' CPU stalls':'No CPU stalls')+'</div>';$('lb-len').innerHTML='<div class="note">'+(LENS.find(l=>l[0]===LOBBY.len)||LENS[1])[1]+'</div>';$('lb-diff').innerHTML='<div class="note">'+(LOBBY.easy?'Easy: kitchen helpers on, CPUs leave players alone':'Normal')+'</div>'}
   $('lb-note').textContent=(LOBBY.players.length+cpu)+' stalls on the street.';
   $('lb-wait').classList.toggle('hidden',host);$('lb-start').classList.toggle('hidden',!host);
   $('lb-start').querySelector('span:last-child').textContent=LOBBY.players.length<2?'Open the market (waiting for a friend)':'Open the market';$('lb-start').disabled=LOBBY.players.length<2&&!DEBUG}
@@ -908,24 +926,24 @@ function hostGo(){if(MODE!=='host')return;ENDED=false;const cpu=Math.min(LOBBY.c
   const stalls=LOBBY.players.map(p=>({seat:p.seat,name:p.name,cid:p.cid,local:p.cid===MY_CID}));for(let k=0;k<cpu;k++)stalls.push({seat:LOBBY.players.length+k,name:CPU_NAMES[k],cid:'cpu'+k,cpu:1});
   // shuffle who stands where
   for(let i=stalls.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[stalls[i],stalls[j]]=[stalls[j],stalls[i]]}
-  const seed=newSeed();S=makeSim({seed,hourLen:LOBBY.len,stalls});for(const st of S.stalls){st.seen=now();if(st.cpu)botInit(S,st,'reader')}OUTBOX.length=0;
-  net.send({t:'go',seed,len:LOBBY.len,st:S.stalls.map(s=>[s.seat,s.name,s.cid,s.cpu])});beginGame()}
+  const seed=newSeed();S=makeSim({seed,hourLen:LOBBY.len,stalls,easy:!!LOBBY.easy});for(const st of S.stalls){st.seen=now();if(st.cpu)botInit(S,st,'reader')}OUTBOX.length=0;
+  net.send({t:'go',seed,len:LOBBY.len,easy:LOBBY.easy?1:0,st:S.stalls.map(s=>[s.seat,s.name,s.cid,s.cpu])});beginGame()}
 function guestGo(m){ENDED=false;const me=m.st.find(r=>r[2]===MY_CID);MY_SEAT=me?me[0]:-1;
-  GV=makeSim({seed:m.seed,hourLen:m.len,stalls:m.st.map(r=>({seat:r[0],name:r[1],cid:r[2],cpu:r[3]}))});GV.cust=[];
+  GV=makeSim({seed:m.seed,hourLen:m.len,easy:!!m.easy,stalls:m.st.map(r=>({seat:r[0],name:r[1],cid:r[2],cpu:r[3]}))});GV.cust=[];
   for(const st of GV.stalls){st.sn=DISH.map(()=>0);st.sa=DISH.map(()=>0)}LAST_SNAP=now();beginGame()}
 const OUTBOX=[];
 const CST={walk:0,go:1,queue:2,eat:3,leave:4},CSTN=Object.keys(CST);
 function packSnap(S){return {t:'s',tt:Math.round(S.t*10)/10,hr:S.hour,end:S.ending?1:0,pr:S.price.map(p=>Math.round(p*100)),
   st:S.stalls.map(st=>[Math.round(st.cash*100),Math.round(st.rating*100),st.menu,st.price.map(p=>p*2),DISH.map((d,i)=>stockN(st,i)),DISH.map((d,i)=>st.stock[i].length?Math.round((S.t-st.stock[i][0].born)):0),
     st.burn.map(b=>[b.d,Math.round(b.left*10)]),st.pantry,Math.round(st.smell*100),Math.round((S.t-st.bell)*10),st.served,st.lost,st.wasted,st.queue.length,st.gone?1:0,
-    [st.tier,st.goons,st.busy,st.cam,st.cat,st.roach,st.spike,Math.round(Math.max(0,st.closedUntil-S.t)*10),st.strikes,st.out,Math.round(st.buildVal*100),st.hits],DISH.map((d,i)=>st.stock[i].some(b=>b.bad)?1:0)]),
+    [st.tier,st.goons,st.busy,st.cam,st.cat,st.roach,st.spike,Math.round(Math.max(0,st.closedUntil-S.t)*10),st.strikes,st.out,Math.round(st.buildVal*100),st.hits,st.helper],DISH.map((d,i)=>st.stock[i].some(b=>b.bad)?1:0)]),
   c:S.cust.map(c=>[c.id,Math.round(c.x),Math.round(c.y),CST[c.st],c.to,c.d,c.mood,c.critic?1:0,Math.round(c.pat)]),
   g:S.goons.map(g=>[g.id,g.from,g.to,g.op,Math.round(g.x),g.ph]),q:S.insp.map(q=>[q.to,Math.round(q.x),q.done?1:0]),e:OUTBOX.splice(0)}}
 function guestSnap(m){const v=GV;if(!v)return;LAST_SNAP=now();v.t=m.tt;v.ending=!!m.end;if(m.hr!==v.hour){v.hour=m.hr;v.event=v.events[m.hr]}v.price=m.pr.map(p=>p/100);
   m.st.forEach((r,i)=>{const st=v.stalls[i];if(!st)return;st.cash=r[0]/100;st.rating=r[1]/100;
     if(st.seat!==MY_SEAT||!st.localEdit||now()-st.localEdit>800){st.menu=r[2];st.price=r[3].map(p=>p/2)}
     st.sn=r[4];st.sa=r[5];st.burn=r[6].map(b=>({d:b[0],left:b[1]/10}));st.pantry=r[7];st.smell=r[8]/100;st.bell=v.t-r[9]/10;st.served=r[10];st.lost=r[11];st.wasted=r[12];st.qn=r[13];st.gone=!!r[14];
-    const x=r[15];if(x){st.tier=x[0];st.goons=x[1];st.busy=x[2];st.cam=x[3];st.cat=x[4];st.roach=x[5];st.spike=x[6];st.closedUntil=v.t+x[7]/10;st.strikes=x[8];st.out=x[9];st.buildVal=x[10]/100;st.hits=x[11]}
+    const x=r[15];if(x){st.tier=x[0];st.goons=x[1];st.busy=x[2];st.cam=x[3];st.cat=x[4];st.roach=x[5];st.spike=x[6];st.closedUntil=v.t+x[7]/10;st.strikes=x[8];st.out=x[9];st.buildVal=x[10]/100;st.hits=x[11];if(st.seat!==MY_SEAT||!st.localEdit||now()-st.localEdit>800)st.helper=x[12]}
     st.badD=(r[16]||[]).map((b,k)=>b?k:-1).filter(k=>k>=0)});
   v.goons=(m.g||[]).map(r=>{const o=(v.goons||[]).find(q=>q.id===r[0]);return {id:r[0],from:r[1],to:r[2],op:r[3],x:o?o.x:r[4],nx:r[4],y:92,ph:r[5]}});
   v.insp=(m.q||[]).map((r,k)=>{const o=(v.insp||[])[k];return {to:r[0],x:o&&o.to===r[0]?o.x:r[1],nx:r[1],y:80,done:r[2]}});
@@ -942,7 +960,7 @@ function handleNet(m){switch(m.t){
   case 'hi':if(MODE!=='host')break;{let p=LOBBY.players.find(x=>x.cid===m.cid);const nm=String(m.name||'Night Owl').slice(0,12);
     if(p){p.seen=now();if(S){const st=S.stalls.find(q=>q.cid===m.cid);if(st)st.seen=now()}if(p.name!==nm&&!S){p.name=nm;bcRoster();paintLobby()}break}
     if(S||LOBBY.players.length>=MAXP)break;p={seat:LOBBY.players.length,name:nm,cid:m.cid,seen:now()};LOBBY.players.push(p);bcRoster();paintLobby();toast(p.name+' joined');snd('ui',{v:.5})}break;
-  case 'ros':if(MODE!=='guest')break;LAST_ROS=now();LOBBY.players=m.ps.map(r=>({seat:r[0],name:r[1],cid:r[2]}));LOBBY.cpu=m.cpu;LOBBY.len=m.len;if(SCR==='s-lobby')paintLobby();break;
+  case 'ros':if(MODE!=='guest')break;LAST_ROS=now();LOBBY.players=m.ps.map(r=>({seat:r[0],name:r[1],cid:r[2]}));LOBBY.cpu=m.cpu;LOBBY.len=m.len;LOBBY.easy=m.easy;if(SCR==='s-lobby')paintLobby();break;
   case 'go':if(MODE==='guest')guestGo(m);break;
   case 's':if(MODE==='guest'&&GV)guestSnap(m);break;
   case 'a':if(MODE==='host'&&S&&m.a&&typeof m.a==='object'){const st=S.stalls.find(q=>q.cid===m.cid);if(st&&!st.bot){st.seen=now();doAction(S,st,m.a)}}break;
@@ -998,13 +1016,13 @@ function runSmoke(){const out=[];let pass=0,fail=0;const ok=(n,c,x)=>{if(c)pass+
   ok('every recipe uses real ingredients',DISH.every(d=>d.ing.every(id=>INGI[id]!=null)));
   ok('every ingredient is in some recipe',ING.every(g=>DISH.some(d=>d.ing.includes(g.id))));
   // ── the stall ──
-  {const S=mk(2),st=S.stalls[0];const c0=st.cash,p0=S.price[INGI.flour];
+  {const S=mk(2),st=S.stalls[0];st.menu=[-1,-1,-1,-1];st.pantry=ING.map(()=>0);const c0=st.cash,p0=S.price[INGI.flour];
     ok('buying costs cash',doAction(S,st,{k:'buy',g:INGI.flour,n:5})==='buy'&&st.pantry[INGI.flour]===5&&st.cash<c0);
     ok('buying pushes the wholesale price up for everyone',S.price[INGI.flour]>p0*1.25,(S.price[INGI.flour]/p0).toFixed(2)+'x');
     run(S,40);ok('the price drifts back afterwards',S.price[INGI.flour]<p0*1.15,(S.price[INGI.flour]/p0).toFixed(2)+'x');
     ok('cannot cook without a menu',doAction(S,st,{k:'cook',slot:0})==='nomenu');
     doAction(S,st,{k:'menu',slot:0,d:DISHI.dump});ok('the same dish cannot go in two slots',doAction(S,st,{k:'menu',slot:1,d:DISHI.dump})==='dup');
-    ok('cannot cook without the ingredients',doAction(S,st,{k:'cook',slot:0})==='noing');
+    ok('cannot cook without ingredients when told not to buy',doAction(S,st,{k:'cook',slot:0,noBuy:true})==='noing');
     doAction(S,st,{k:'buy',g:INGI.pork,n:5});ok('cooking uses one of each ingredient',doAction(S,st,{k:'cook',slot:0})==='cook'&&st.pantry[INGI.pork]===4&&st.pantry[INGI.flour]===4);
     doAction(S,st,{k:'cook',slot:0});ok('only two burners',doAction(S,st,{k:'cook',slot:0})==='burners');
     ok('a dish with food on it cannot be swapped out',doAction(S,st,{k:'menu',slot:0,d:DISHI.tea})==='busy');
@@ -1013,6 +1031,22 @@ function runSmoke(){const out=[];let pass=0,fail=0;const ok=(n,c,x)=>{if(c)pass+
     ok('the bell has a cooldown',doAction(S,st,{k:'bell'})==='bell'&&doAction(S,st,{k:'bell'})==='bellcd')}
   {const S=mk(1),st=S.stalls[0];S.t=1;st.menu[0]=DISHI.tea;st.stock[DISHI.tea].push({n:5,born:S.t});S.cust.length=0;S.spawnAcc=-1e9;
     run(S,STALE+2);ok('food left too long gets binned',stockN(st,DISHI.tea)===0&&st.wasted===5,st.wasted)}
+  // ── easier to play ──
+  {const S=mk(4);const cz=S.events[0].craze;
+    ok('every stall opens with three dishes, the craze first',S.stalls.every(st=>st.menu[0]===cz&&st.menu.slice(0,3).every(d=>d>=0)&&new Set(st.menu.slice(0,3)).size===3));
+    ok('and the ingredients for a couple of batches',S.stalls.every(st=>st.menu.slice(0,3).every(d=>DISH[d].ing.every(id=>st.pantry[INGI[id]]>=2))));
+    const st=S.stalls[0];st.pantry=ING.map(()=>0);const c=st.cash;ok('Cook buys missing ingredients itself',doAction(S,st,{k:'cook',slot:0})==='cook'&&st.cash<c);
+    st.pantry=ING.map(()=>0);st.cash=0;st.burn.length=0;ok('and only fails when you cannot pay for them',doAction(S,st,{k:'cook',slot:0})==='noing')}
+  {const help=on=>{const S=makeSim({seed:9,hourLen:45,easy:true,stalls:[{seat:0,name:'me',cid:'a'}]});const st=S.stalls[0];st.helper=on;S.spawnAcc=-1e9;const d=st.menu[0];
+      const c=spawnCustomer(S);c.st='queue';c.to=0;c.d=d;st.queue.push(c.id);c.pat=99;run(S,DISH[d].cook+3);return st.served};
+    ok('the kitchen helper cooks for someone waiting',help(1)===1);ok('with the helper off, nobody cooks for you',help(0)===0);
+    const S=makeSim({seed:9,hourLen:45,easy:true,stalls:[{seat:0,name:'me',cid:'a'}]});const st=S.stalls[0];st.roach=4;st.stock[st.menu[0]].push({n:3,born:0,bad:1});S.spawnAcc=-1e9;run(S,12);
+    ok('the helper stomps roaches and bins bad food',st.roach===0&&!anyBad(st))}
+  {const hits=easy=>{let h=0;for(const sd of [3,4]){const S=makeSim({seed:sd,hourLen:45,easy,stalls:[{seat:0,name:'a',cid:'a',cpu:1},{seat:1,name:'me',cid:'me'},{seat:2,name:'b',cid:'b',cpu:1}]});
+      S.stalls.forEach(st=>{if(st.cpu){botInit(S,st,'reader');st.bot.aggro=1}});S.stalls[1].cash+=300;run(S,9999,true);h+=S.stalls[1].hits}return h};
+    const he=hits(true),hn=hits(false);ok('on Easy the CPU stalls leave players alone (on Normal they do not)',he===0&&hn>0,he+' vs '+hn)}
+  {const walk=easy=>{const S=makeSim({seed:2,hourLen:45,easy,stalls:[{seat:0,name:'a',cid:'a'},{seat:1,name:'b',cid:'b'}]});const st=S.stalls[1];S.spawnAcc=-1e9;sendInspector(S,st,'tip');let k=0;while(!S.insp[0].done&&k<3000){simStep(S,1/30);k++}return k/30};
+    const we=walk(true),wn=walk(false);ok('on Easy the inspector takes longer to arrive',we>wn*1.5,we.toFixed(1)+'s vs '+wn.toFixed(1)+'s')}
   // ── customers ──
   {const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.menu=[DISHI.dump,-1,-1];b.menu=[DISHI.tea,-1,-1];for(const st of [a,b])for(const d of st.menu)if(d>=0)st.stock[d].push({n:50,born:0});
     let toA=0,n=0;for(let k=0;k<200;k++){const c=spawnCustomer(S);c.x=STREET/2;c.crave=DISH.map((d,i)=>i===DISHI.dump?2:.5);decide(S,c);if(c.to===0)toA++;n++}
@@ -1054,7 +1088,7 @@ function runSmoke(){const out=[];let pass=0,fail=0;const ok=(n,c,x)=>{if(c)pass+
     b.roach=2;sendInspector(S,b,'tip');run(S,20);run(S,SHUT_T+1);b.roach=2;sendInspector(S,b,'tip');run(S,20);ok('three strikes shuts a stall down for the night',b.out===1,b.strikes)}
   {const S=mk(1),st=S.stalls[0];st.cash=1000;const w0=worth(st);
     ok('building up costs cash but half counts toward worth',doAction(S,st,{k:'up'})==='up'&&Math.abs(worth(st)-(w0-TIERS[1].cost*.5))<1e-6);
-    ok('a market stall gets a third burner',burnersOf(st)===3);doAction(S,st,{k:'up'});ok('a corner shop unlocks a fourth dish',slotsOf(st)===4&&doAction(S,st,{k:'menu',slot:3,d:0})==='menu');
+    ok('a market stall gets a third burner',burnersOf(st)===3);doAction(S,st,{k:'up'});ok('a corner shop unlocks a fourth dish',slotsOf(st)===4&&doAction(S,st,{k:'menu',slot:3,d:DISH.findIndex((_,i)=>!st.menu.includes(i))})==='menu');
     doAction(S,st,{k:'up'});doAction(S,st,{k:'up'});ok('the mega tower is the top',st.tier===4&&doAction(S,st,{k:'up'})==='maxed'&&serveOf(st)<SERVE_T*.6)}
   {const strikes=k=>{let n=0;for(const sd of [5,6,7]){const S=makeSim({seed:sd,hourLen:45,stalls:['reader','reader',k].map((q,i)=>({seat:i,name:q,cid:'c'+i,cpu:1}))});S.stalls.forEach((st,i)=>{botInit(S,st,['reader','reader',k][i]);if(i<2)st.bot.aggro=1});
       S.stalls[2].cash+=200;run(S,9999,true);n+=S.stalls[2].strikes}return n};
