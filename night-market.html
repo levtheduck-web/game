@@ -121,6 +121,20 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';
 .medal.new{border-color:#ffe066;background:rgba(255,224,102,.22);box-shadow:0 0 14px rgba(255,224,102,.45)}.medal b{color:#ffe066;font-size:11px}
 #t-medals{margin-top:12px;font-size:22px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}#t-medals .dim{filter:grayscale(1);opacity:.25}#t-medals small{font-size:12.5px;font-weight:800;color:var(--mut);margin-left:6px}
 .cashbox .cash.up{color:#bff5a8;text-shadow:0 0 10px rgba(127,211,107,.6)}
+.tabs{display:flex;align-items:center;gap:5px;margin-bottom:5px}.tabs button{font:800 12.5px 'Karla';border:1.5px solid rgba(246,234,210,.25);border-radius:999px;background:rgba(255,255,255,.05);padding:3px 10px;cursor:pointer}
+.tabs button.on{background:var(--amber);color:var(--ink);border-color:var(--amber)}.tabs .gn{margin-left:auto;font-weight:800;font-size:12.5px;color:var(--mut)}
+.jt{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px;align-items:center;font-weight:800;font-size:12px;color:var(--mut)}
+.jt button{font:800 12px 'Karla';border:2px solid transparent;border-radius:8px;background:rgba(255,255,255,.07);padding:2px 7px;cursor:pointer}.jt button.on{border-color:#fff;background:rgba(255,255,255,.18)}
+.jg{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.jb{display:flex;flex-direction:column;align-items:center;font:800 11px 'Karla';border:1.5px solid rgba(178,140,255,.45);border-radius:9px;background:rgba(178,140,255,.12);padding:3px 0 2px;cursor:pointer;line-height:1.05}
+.jb span{font-size:19px}.jb:disabled{opacity:.33;cursor:default}.jb.boost{border-color:rgba(62,224,197,.55);background:rgba(62,224,197,.12)}.jb.boss{border-color:#ffe066;background:rgba(255,224,102,.16)}
+.tgts{display:flex;flex-wrap:wrap;gap:6px}.tgts button{font:800 14px 'Karla';border:2px solid rgba(246,234,210,.25);border-radius:10px;background:rgba(255,255,255,.06);padding:6px 10px;cursor:pointer}
+.tgts button.on{border-color:#fff;background:rgba(255,255,255,.16)}.tgts button small{display:block;font-size:11.5px;color:var(--mut)}
+.jobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:7px}
+.jcard{display:flex;gap:9px;align-items:center;text-align:left;border:2px solid rgba(178,140,255,.4);border-radius:12px;background:rgba(178,140,255,.09);padding:7px 9px;cursor:pointer;font:700 12.5px 'Karla';color:#d8cfee;line-height:1.25}
+.jcard .e{font-size:26px;flex:none}.jcard b{display:block;font-size:14.5px;color:#fff}.jcard .c{margin-left:auto;font-family:'Bungee';font-size:14px;color:#ffe9c7;flex:none}
+.jcard:disabled{opacity:.38;cursor:default}.jcard.boost{border-color:rgba(62,224,197,.5);background:rgba(62,224,197,.08)}.jcard.def{border-color:rgba(255,181,71,.5);background:rgba(255,181,71,.08)}.jcard.boss{border-color:#ffe066;background:rgba(255,224,102,.12)}
+@media (max-width:980px){.jg{grid-template-columns:repeat(4,1fr)}}
 #picker{position:fixed;z-index:30;background:#241c40;border:2px solid var(--amber);border-radius:12px;padding:8px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;box-shadow:0 10px 40px rgba(0,0,0,.6)}
 #picker button{display:flex;flex-direction:column;align-items:center;gap:2px;font:800 12.5px 'Karla';border:2px solid rgba(246,234,210,.2);border-radius:10px;background:rgba(255,255,255,.06);padding:6px 4px;cursor:pointer;min-width:84px}
 #picker button span{font-size:26px}#picker button small{color:var(--mut);font-size:11px}#picker button.hot{border-color:var(--amber)}#picker button:disabled{opacity:.35}
@@ -145,7 +159,8 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';
     <button class="bellb" id="p-bell">🔔 Ring the bell <span class="k">(B)</span><span class="cdbar" id="p-bellbar"></span></button>
     <div class="two"><button class="fam" id="p-fam">🕴️ Family</button><button class="fam bld" id="p-bld">🏗️ Build</button></div></div>
   <div class="slots" id="p-slots"></div>
-  <div class="pbox whole"><div class="hd">Wholesaler <small>everyone buys here, prices climb when people stock up</small></div><div class="ings" id="p-ings"></div>
+  <div class="pbox whole"><div class="tabs"><button data-tab="jobs" class="on" id="tab-jobs">🕴️ Jobs</button><button data-tab="shop" id="tab-shop">🛒 Wholesaler</button><span class="gn" id="p-goons"></span></div>
+    <div id="p-jobs"></div><div id="p-shop" class="hidden"><div class="ings" id="p-ings"></div></div>
     <div class="burners" id="p-burn"></div></div>
 </div>
 <div id="picker" class="hidden"></div>
@@ -205,8 +220,10 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';
   <h2 class="neon">The Family</h2>
   <div class="sub" style="margin-bottom:2px">Goons sneak across the street and mess with a rival. A rival with a camera might catch them, and then everyone knows it was you.</div>
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0"><div class="goons" id="fm-goons"></div><button class="opb buy" id="fm-hire"></button></div>
-  <div id="fm-rivals"></div>
-  <label class="lb">Protect your own stall</label><div class="row" id="fm-defs" style="gap:8px"></div>
+  <label class="lb">Who gets it?</label><div class="tgts" id="fm-tgts"></div>
+  <label class="lb">Dirty jobs</label><div class="jobs" id="fm-jobs"></div>
+  <label class="lb">Favors for your stall</label><div class="jobs" id="fm-boosts"></div>
+  <label class="lb">Protect your own stall</label><div class="jobs" id="fm-defs"></div>
   <div class="note" id="fm-note"></div>
   <button class="btn pri" id="fm-close"><span class="ic">🏮</span><span>Back to the stall <small>F or Esc</small></span></button>
 </div></div>
@@ -227,7 +244,8 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';
   <p><b>Undercut a rival</b> and their line walks to you. But you earn less, and a long line sends people next door. Selling the dish nobody else sells means nobody can undercut you.</p>
   <p><b>Food goes stale.</b> Fresh food earns stars, stale food loses them, and old food gets thrown out. Cook to the line, not to the burner. People who wait too long walk off and cost you a star.</p>
   <p><b>The Family</b> (<kbd>F</kbd>): hire goons and send them to a rival. 🪳 Cockroaches scare customers off until the owner stomps them. ☠️ Poison turns their counter food bad, so people get a tummy ache. 🕵️ A tip-off sends the health inspector: a stall with roaches or bad food gets boarded up, and three strikes shuts it down for the night. A 📹 camera catches goons, and a 🐈 cat eats roaches.</p>
-  <p><b>Under attack?</b> Stomp roaches (<kbd>Space</kbd>) and bin bad food (<kbd>X</kbd>) before the inspector arrives.</p>
+  <p><b>Way more jobs:</b> stink bombs, ghost peppers, cutting their gas, roadwork cones, line cloggers, monkey raids, pickpockets, firecracker scares and rumors. Use the Jobs tab on your panel to hit a rival in one tap. Bigger stalls unlock the <b>Boss's favor</b>. Favors for yourself: a street juggler, an influencer or a bribed inspector.</p>
+  <p><b>Under attack?</b> <b>Tap a goon</b> walking toward your stall to chase them off. Tap roaches on your stall (or <kbd>Space</kbd>) to squish them, tap a stink cloud to fan it away, and bin bad food (<kbd>X</kbd>). A 🐕 guard dog scares goons off too.</p>
   <p><b>Build up</b> (<kbd>U</kbd>): cart, stall, shop, restaurant, mega tower. More burners, a fourth menu slot, faster service, more customers.</p>
   <p><b>The wholesaler is shared.</b> Every pack anyone buys pushes that price up for the whole street for a while. Stocking up early beats paying the rush price.</p>
   <button class="btn" id="help-back"><span class="ic">←</span><span>Back</span></button>
@@ -263,17 +281,41 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';
 const BELL_CD=18,BELL_T=6,BELL_R=330,STREET=1000,HOURS=6,START_CASH=60,BURNERS=2,MENU_SLOTS=4,FRESH=40,STALE=90,SERVE_T=1.7;
 // ── stall buildings: each tier is bought with cash; half of what you spend counts toward your worth at sunrise ──
 const TIERS=[
-  {name:'Food cart',   cost:0,  burners:2,slots:3,serve:1.7,appeal:0,  goons:2},
-  {name:'Market stall',cost:45, burners:3,slots:3,serve:1.5,appeal:.25,goons:2},
-  {name:'Corner shop', cost:90, burners:3,slots:4,serve:1.3,appeal:.5, goons:3},
-  {name:'Restaurant',  cost:160,burners:4,slots:4,serve:1.1,appeal:.8, goons:3},
-  {name:'Mega tower',  cost:260,burners:5,slots:4,serve:.9, appeal:1.2,goons:4},
+  {name:'Food cart',   cost:0,  burners:2,slots:3,serve:1.7,appeal:0,  goons:3},
+  {name:'Market stall',cost:45, burners:3,slots:3,serve:1.5,appeal:.25,goons:3},
+  {name:'Corner shop', cost:90, burners:3,slots:4,serve:1.3,appeal:.5, goons:4},
+  {name:'Restaurant',  cost:160,burners:4,slots:4,serve:1.1,appeal:.8, goons:5},
+  {name:'Mega tower',  cost:260,burners:5,slots:4,serve:.9, appeal:1.2,goons:6},
 ];
 const burnersOf=st=>TIERS[st.tier].burners,slotsOf=st=>TIERS[st.tier].slots,serveOf=st=>TIERS[st.tier].serve;
 // ── the Family: goons sneak over to a rival stall and do a job ──
-const GOON_COST=20,OPS={roach:{cost:8,name:'Cockroaches',em:'🪳'},poison:{cost:14,name:'Poison',em:'☠️'},tip:{cost:10,name:'Inspector tip-off',em:'🕵️'}};
-const DEFS={cam:{cost:40,name:'Camera',em:'📹'},cat:{cost:30,name:'Stall cat',em:'🐈'}};
-const PARADE_T=22,CATCH=.55,SHUT_T=25,STRIKES_OUT=3,GOON_SPD=95,INSP_SPD=75;
+const GOON_COST=15;
+// dirty jobs: a goon walks over and does it (a camera or a guard dog might stop them, the owner can shoo them)
+const OPS={
+  roach: {cost:8, name:'Cockroaches',      em:'🪳',desc:'Customers run from a stall full of roaches until the owner stomps them.'},
+  stink: {cost:9, name:'Stink bomb',       em:'💨',desc:'A green cloud keeps everyone away for 15 seconds.'},
+  pepper:{cost:10,name:'Ghost pepper',     em:'🌶️',desc:'Their customers breathe fire and run off without paying.'},
+  poison:{cost:12,name:'Poison',           em:'☠️',desc:'Their food goes bad: tummy aches, no money, lost stars.'},
+  gas:   {cost:9, name:'Cut the gas',      em:'🔌',desc:'Their burners go out for 15 seconds.'},
+  cones: {cost:11,name:'Roadwork',         em:'🚧',desc:'Cones block their counter for 12 seconds.'},
+  clog:  {cost:9, name:'Line cloggers',    em:'🕶️',desc:'Fake customers stand in their line and never buy.'},
+  monkey:{cost:8, name:'Monkey raid',      em:'🐒',desc:'A monkey runs off with food from their counter.'},
+  pick:  {cost:7, name:'Pickpocket',       em:'👛',desc:'Lift a fifth of their cash (up to $40) into your till.'},
+  scare: {cost:5, name:'Firecracker scare',em:'🧨',desc:'Their whole line scatters.'},
+  rumor: {cost:5, name:'Spread a rumor',   em:'🗣️',desc:'Knock half a star off their rating.'},
+  tip:   {cost:10,name:'Inspector tip-off',em:'🕵️',desc:'Sends the inspector. Roaches or bad food gets them boarded up.'},
+};
+const BOSS={cost:55,name:"Boss's favor",em:'👑',desc:'The whole Family hits every rival with cockroaches at once.',minTier:3};
+// favours for your own stall
+const BOOSTS={
+  juggler:{cost:12,name:'Street juggler',em:'🤹',desc:'A juggler pulls a crowd to your stall for 20 seconds.'},
+  influencer:{cost:16,name:'Influencer',em:'🤳',desc:'A golden customer heads straight for you.'},
+  bribe:{cost:18,name:'Bribe the inspector',em:'🤝',desc:'Your next inspection passes no matter what.'},
+};
+const DEFS={cam:{cost:35,name:'Camera',em:'📹'},cat:{cost:25,name:'Stall cat',em:'🐈'},dog:{cost:35,name:'Guard dog',em:'🐕'}};
+const STINK_T=15,GAS_T=15,CONES_T=12,CLOG_T=15,JUGGLE_T=20;
+const blocked=(S,st)=>S.t<st.conesU||S.t<st.clogU;
+const PARADE_T=22,CATCH=.55,DOG=.5,SHUT_T=25,STRIKES_OUT=3,GOON_SPD=120,INSP_SPD=75;
 const isClosed=(S,st)=>st.out||S.t<st.closedUntil;
 const anyBad=st=>st.spike||st.stock.some(a=>a.some(b=>b.bad));
 function worth(st){return st.cash+st.buildVal}
@@ -318,7 +360,7 @@ function makeSim(o){const R=rng32(o.seed>>>0||1);const N=o.stalls.length;
   // one dragon dance parade a night, somewhere between 8 and 11
   S.paradeAt=(2+R()*2.6)*S.hourLen;S.paradeDir=R()<.5?1:-1;S.paradeOn=false;
   o.stalls.forEach((p,i)=>S.stalls.push({i,seat:p.seat,name:p.name,cid:p.cid,cpu:p.cpu||0,local:!!p.local,col:STALL_COLS[p.seat%8],
-    x:(i+.5)*STREET/N,cash:START_CASH,menu:[-1,-1,-1,-1],tier:0,buildVal:0,goons:1,busy:0,cam:0,cat:0,roach:0,roachT:0,catT:0,spike:0,badT:0,closedUntil:0,strikes:0,out:0,sickT:[],hits:0,stompT:0,sick:0,price:DISH.map(d=>d.fair),stock:DISH.map(()=>[]),burn:[],pantry:ING.map(()=>0),
+    x:(i+.5)*STREET/N,cash:START_CASH,menu:[-1,-1,-1,-1],tier:0,buildVal:0,goons:2,dog:0,stinkU:0,gasU:0,conesU:0,clogU:0,juggleU:0,bribed:0,shooT:0,busy:0,cam:0,cat:0,roach:0,roachT:0,catT:0,spike:0,badT:0,closedUntil:0,strikes:0,out:0,sickT:[],hits:0,stompT:0,sick:0,price:DISH.map(d=>d.fair),stock:DISH.map(()=>[]),burn:[],pantry:ING.map(()=>0),
     rating:3,smell:0,bell:-99,streak:0,bestStreak:0,tips:0,goldServed:0,jobs:0,camCatch:0,helper:o.easy&&!p.cpu?1:0,helpT:0,queue:[],serveT:0,served:0,lost:0,wasted:0,revenue:0,spent:0,sold:DISH.map(()=>0),idle:0,gone:false}));
   S.goons=[];S.insp=[];S.gid=0;
   // nobody opens to an empty stall: three dishes (the opening craze first) and enough for a couple of batches
@@ -345,9 +387,18 @@ function doAction(S,st,a){if(!st||st.gone||S.over)return '';
   if(a.k==='up'){const nx=TIERS[st.tier+1];if(!nx)return 'maxed';if(st.cash<nx.cost)return 'broke';st.cash-=nx.cost;st.spent+=nx.cost;st.buildVal+=nx.cost*.5;st.tier++;emit(S,['build',st.i,st.tier]);return 'up'}
   if(a.k==='hire'){if(st.goons>=TIERS[st.tier].goons)return 'goonmax';if(st.cash<GOON_COST)return 'broke';st.cash-=GOON_COST;st.spent+=GOON_COST;st.goons++;emit(S,['hire',st.i]);return 'hire'}
   if(a.k==='def'){const D=DEFS[a.def];if(!D)return '';if(st[a.def])return 'have';if(st.cash<D.cost)return 'broke';st.cash-=D.cost;st.spent+=D.cost;st[a.def]=1;emit(S,['def',st.i,a.def]);return 'def'}
+  if(a.k==='boss'){if(st.tier<BOSS.minTier)return 'bosstier';if(st.cash<BOSS.cost)return 'broke';st.cash-=BOSS.cost;st.spent+=BOSS.cost;st.jobs+=3;
+    for(const o of S.stalls){if(o===st||o.gone||o.out)continue;o.hits++;if(o.cat)emit(S,['cat',o.i]);else{o.roach=Math.max(o.roach,6);o.roachT=0}}emit(S,['boss',st.i]);return 'boss'}
+  if(a.k==='boost'){const B=BOOSTS[a.b];if(!B)return '';if(st.cash<B.cost)return 'broke';if(a.b==='bribe'&&st.bribed)return 'have';if(a.b==='juggler'&&S.t<st.juggleU)return 'have';
+    st.cash-=B.cost;st.spent+=B.cost;if(a.b==='juggler')st.juggleU=S.t+JUGGLE_T;if(a.b==='bribe')st.bribed=1;
+    if(a.b==='influencer'){let d=st.menu.find(x=>x>=0&&(stockN(st,x)>0||cookingN(st,x)>0));if(d==null)d=st.menu.find(x=>x>=0);if(d!=null&&d>=0){const c=spawnCustomer(S);c.gold=1;c.critic=false;c.pat+=10;c.st='go';c.to=st.i;c.d=d}}
+    emit(S,['boost',st.i,a.b]);return 'boost'}
+  if(a.k==='shoo'){if(S.t<st.shooT)return '';st.shooT=S.t+.3;const g=S.goons.find(q=>q.id===a.id&&q.to===st.i&&q.ph==='go');if(!g)return '';g.ph='back';g.shoo=1;emit(S,['shoo',st.i,g.from,g.op]);return 'shoo'}
+  if(a.k==='fan'){if(S.t>=st.stinkU)return '';st.stinkU-=2.5;emit(S,['fan',st.i]);return 'fan'}
   if(a.k==='op'){const O=OPS[a.op],tg=S.stalls[a.to|0];if(!O||!tg||tg===st||tg.gone||tg.out)return '';if(st.goons-st.busy<1)return 'nogoon';if(st.cash<O.cost)return 'broke';
     st.cash-=O.cost;st.spent+=O.cost;st.busy++;st.jobs++;S.goons.push({id:++S.gid,from:st.i,to:tg.i,op:a.op,x:st.x,y:92,ph:'go',w:0});emit(S,['sneak',st.i,tg.i,a.op]);return 'op'}
   if(isClosed(S,st)&&(a.k==='cook'||a.k==='bell'))return 'closed';
+  if(a.k==='cook'&&S.t<st.gasU)return 'gasoff';
   if(a.k==='menu'){const sl=a.slot|0,d=a.d|0;if(sl<0||sl>=slotsOf(st)||d<-1||d>=DISH.length)return '';if(d>=0&&st.menu.includes(d))return 'dup';
     const old=st.menu[sl];if(old>=0&&(stockN(st,old)>0||cookingN(st,old)>0))return 'busy';st.menu[sl]=d;return 'menu'}
   if(a.k==='price'){const d=a.d|0;if(!DISH[d])return '';st.price[d]=clamp(Math.round((+a.v||0)*2)/2,1,DISH[d].fair*3);return 'price'}
@@ -370,10 +421,10 @@ function spawnCustomer(S,critic){const R=S.R,left=R()<.5;
   c.fav=fav;c.crave=DISH.map((d,i)=>(i===fav?1.65:0)+.3+R()*.55);
   if(critic){c.budget=1.6;c.pat=30}else if(R()<.05){c.gold=1;c.pat+=8}
   S.cust.push(c);S.stats.spawned++;return c}
-function utility(S,c,st,d){if(isClosed(S,st))return -9;const D=DISH[d];const have=stockN(st,d)+cookingN(st,d);
+function utility(S,c,st,d){if(isClosed(S,st)||S.t<st.conesU)return -9;const D=DISH[d];const have=stockN(st,d)+cookingN(st,d);
   const pr=st.price[d]/(D.fair*c.budget);if(pr>1.75)return -9;
   const bell=S.t-st.bell<BELL_T&&Math.abs(c.x-st.x)<BELL_R?.75:0;
-  let u=2.4*c.crave[d]-2.2*(pr-1)+.8*st.smell+bell+.5*(st.rating-3)+TIERS[st.tier].appeal-.2*Math.min(st.roach,6)-.38*st.queue.length-(have<=0?1.6:0)-.0012*Math.abs(c.x-st.x);
+  let u=2.4*c.crave[d]-2.2*(pr-1)+.8*st.smell+bell+.5*(st.rating-3)+TIERS[st.tier].appeal-.2*Math.min(st.roach,6)-(S.t<st.stinkU?2.2:0)-(S.t<st.clogU?1.6:0)+(S.t<st.juggleU?1.3:0)-.38*st.queue.length-(have<=0?1.6:0)-.0012*Math.abs(c.x-st.x);
   return u}
 function decide(S,c){let best=-9,bs=null,bd=-1;
   for(const st of S.stalls){if(st.gone)continue;for(const d of st.menu){if(d<0)continue;const u=utility(S,c,st,d)+(S.R()-.5)*1.3;if(u>best){best=u;bs=st;bd=d}}}
@@ -390,8 +441,9 @@ function custStep(S,c,dt){
   if(c.st==='leave'||c.st==='eat'){c.y=lerp(c.y,75,dt*1.2);c.x+=c.dir*c.spd*dt;if(c.eat>0)c.eat-=dt}}
 // serve the front of each queue from the oldest batch on the counter
 function serveStep(S,st,dt){if(!st.queue.length){st.serveT=0;return}const c=S.cust.find(q=>q.id===st.queue[0]);if(!c){st.queue.shift();return}
-  if(stockN(st,c.d)<=0||isClosed(S,st)){st.serveT=0;return}st.serveT+=dt;if(st.serveT<serveOf(st))return;st.serveT=0;
+  if(stockN(st,c.d)<=0||isClosed(S,st)||blocked(S,st)){st.serveT=0;return}st.serveT+=dt;if(st.serveT<serveOf(st))return;st.serveT=0;
   const b=st.stock[c.d][0];b.n--;const age=S.t-b.born;if(b.n<=0)st.stock[c.d].shift();
+  if(b.bad===2){st.queue.shift();st.streak=0;st.rating=clamp(st.rating-.15,1,5);c.st='leave';c.mood=-3;c.dir=c.x<st.x?-1:1;c.spd*=2.2;emit(S,['fire',st.i,c.id]);return}
   if(b.bad){st.queue.shift();st.sick++;st.streak=0;st.sickT.push(S.t);st.rating=clamp(st.rating-.3,1,5);c.st='leave';c.mood=-2;emit(S,['sick',st.i,r2(c.x)]);
     if(st.sickT.filter(t=>S.t-t<40).length>=2&&!S.insp.some(q=>q.to===st.i))sendInspector(S,st,'sick');return}
   const fresh=age<FRESH;let pay=st.price[c.d]*(c.gold?3:1);let tip=0;if(fresh&&S.R()<.25)tip=1+(S.R()<.3?1:0);pay+=tip;st.tips+=tip;
@@ -412,7 +464,7 @@ function simStep(S,dt){if(S.over)return;S.t+=dt;S.frame++;const L=nightLen(S);
   for(const c of S.cust)custStep(S,c,dt);
   S.cust=S.cust.filter(c=>c.x>-60&&c.x<STREET+60);
   for(const st of S.stalls){if(st.gone)continue;
-    for(let k=st.burn.length-1;k>=0;k--){const b=st.burn[k];b.left-=dt;if(b.left<=0){st.burn.splice(k,1);st.stock[b.d].push({n:DISH[b.d].yield,born:S.t,bad:st.spike?1:0});if(st.spike){st.spike=0}emit(S,['done',st.i,b.d])}}
+    for(let k=st.burn.length-1;k>=0;k--){const b=st.burn[k];if(S.t<st.gasU)continue;b.left-=dt;if(b.left<=0){st.burn.splice(k,1);st.stock[b.d].push({n:DISH[b.d].yield,born:S.t,bad:st.spike||0});if(st.spike){st.spike=0}emit(S,['done',st.i,b.d])}}
     st.smell=st.burn.length?1:Math.max(0,st.smell-dt*.1);
     for(let d=0;d<DISH.length;d++){const s=st.stock[d];while(s.length&&S.t-s[0].born>STALE){st.wasted+=s[0].n;s.shift();emit(S,['waste',st.i,d])}}
     if(st.roach>0){st.roachT+=dt;if(st.roachT>9){st.roachT=0;st.roach=Math.min(9,st.roach+1)}st.rating=clamp(st.rating-.004*st.roach*dt,1,5);
@@ -436,18 +488,30 @@ function helperStep(S,st,dt){if(!st.helper||st.bot||st.out)return;st.helpT-=dt;i
 function goonStep(S,dt){for(let k=S.goons.length-1;k>=0;k--){const g=S.goons[k],from=S.stalls[g.from],to=S.stalls[g.to];
     if(g.ph==='go'){const dx=to.x-g.x;if(Math.abs(dx)>5){g.x+=Math.sign(dx)*Math.min(Math.abs(dx),GOON_SPD*dt);continue}g.ph='do';g.w=1.1;continue}
     if(g.ph==='do'){g.w-=dt;if(g.w>0)continue;
+      if(to.dog&&S.R()<DOG){g.ph='back';g.shoo=1;emit(S,['dog',to.i,g.from]);continue}
       if(to.cam&&S.R()<CATCH){to.camCatch++;from.goons--;from.busy--;from.rating=clamp(from.rating-.3,1,5);S.goons.splice(k,1);emit(S,['caught',g.from,g.to,g.op]);continue}
       to.hits++;
       if(g.op==='roach'){if(to.cat){emit(S,['cat',to.i])}else{to.roach=Math.max(to.roach,5);to.roachT=0}}
       if(g.op==='poison'){for(const arr of to.stock)for(const b of arr)b.bad=1;to.spike=1;to.badT=S.t}
       if(g.op==='tip')sendInspector(S,to,'tip');
+      if(g.op==='pepper'){for(const arr of to.stock)for(const b of arr)b.bad=2;to.spike=2;to.badT=S.t}
+      if(g.op==='stink')to.stinkU=S.t+STINK_T;
+      if(g.op==='gas'){to.gasU=S.t+GAS_T}
+      if(g.op==='cones'){to.conesU=S.t+CONES_T;scatter(S,to)}
+      if(g.op==='clog')to.clogU=S.t+CLOG_T;
+      if(g.op==='scare')scatter(S,to);
+      if(g.op==='rumor')to.rating=clamp(to.rating-.5,1,5);
+      if(g.op==='monkey'){let n=0;for(const arr of to.stock){while(arr.length&&n<6){arr[0].n--;n++;if(arr[0].n<=0)arr.shift()}}g.loot=n;emit(S,['monkey',to.i,n])}
+      if(g.op==='pick'){const amt=Math.min(40,Math.round(Math.max(0,to.cash)*.2));to.cash-=amt;from.cash+=amt;g.loot=amt;emit(S,['pick',g.from,g.to,amt])}
       emit(S,['deed',g.from,g.to,g.op]);g.ph='back';continue}
     const dx=from.x-g.x;if(Math.abs(dx)>5){g.x+=Math.sign(dx)*Math.min(Math.abs(dx),GOON_SPD*dt);continue}from.busy--;S.goons.splice(k,1)}}
+function scatter(S,st){for(const id of st.queue){const c=S.cust.find(q=>q.id===id);if(c){c.st='leave';c.mood=0;c.spd*=1.8}}st.queue.length=0}
 function sendInspector(S,st,why){const left=st.x<STREET/2;S.insp.push({to:st.i,x:left?-30:STREET+30,y:80,why});emit(S,['inspcoming',st.i,why==='sick'?1:0])}
 function inspStep(S,dt){for(let k=S.insp.length-1;k>=0;k--){const q=S.insp[k],st=S.stalls[q.to];
     if(q.done){q.x+=(q.x<STREET/2?-1:1)*INSP_SPD*dt;if(q.x<-40||q.x>STREET+40)S.insp.splice(k,1);continue}
     const dx=st.x-q.x;if(Math.abs(dx)>5){q.x+=Math.sign(dx)*Math.min(Math.abs(dx),INSP_SPD*(S.easy?.55:1)*dt);continue}
     q.done=1;if(st.out)continue;
+    if(st.bribed&&(st.roach>0||anyBad(st))){st.bribed=0;emit(S,['bribed',st.i]);continue}
     if(st.roach>0||anyBad(st)){st.strikes++;st.closedUntil=S.t+SHUT_T;st.burn.length=0;for(const arr of st.stock)arr.length=0;st.spike=0;st.roach=0;st.rating=clamp(st.rating-.4,1,5);
       if(st.strikes>=STRIKES_OUT){st.out=1;emit(S,['out',st.i])}else emit(S,['shut',st.i,st.strikes])}
     else emit(S,['pass',st.i])}}
@@ -464,16 +528,24 @@ function botInit(S,st,kind){const sloppy=kind==='sloppy',clean=kind==='clean'||s
 // CPU reactions and the Family: stomp roaches, bin bad food once noticed, build up, defend, and go after whoever is winning
 function botFamily(S,st){const b=st.bot;
   if(b.sloppy){}else{if(st.roach>0){doAction(S,st,{k:'stomp'});return true}
-  if(anyBad(st)){if(b.seenBad<0)b.seenBad=S.t+3+S.R()*4;if(S.t>=b.seenBad){doAction(S,st,{k:'bin'});b.seenBad=-1}}else b.seenBad=-1;}
+  if(anyBad(st)){if(b.seenBad<0)b.seenBad=S.t+3+S.R()*4;if(S.t>=b.seenBad){doAction(S,st,{k:'bin'});b.seenBad=-1}}else b.seenBad=-1;
+  if(S.t<st.stinkU&&S.R()<.6)doAction(S,st,{k:'fan'});
+  // a CPU owner notices some goons coming
+  for(const g of S.goons)if(g.to===st.i&&g.ph==='go'&&Math.abs(g.x-st.x)<200&&!g.seen){g.seen=1;if(S.R()<.25)doAction(S,st,{k:'shoo',id:g.id})}}
   if(st.out)return false;const late=S.t>nightLen(S)*.62;
   const nx=TIERS[st.tier+1];if(b.build&&!b.sloppy&&nx&&!late&&st.cash>nx.cost+35)doAction(S,st,{k:'up'});
   if(!b.mafia)return false;
   if(st.hits>0&&!st.cat&&st.cash>70)doAction(S,st,{k:'def',def:'cat'});
+  if(st.hits>2&&!st.dog&&st.cash>90)doAction(S,st,{k:'def',def:'dog'});
+  if(st.strikes>0&&!st.bribed&&st.cash>80)doAction(S,st,{k:'boost',b:'bribe'});
+  if(st.cash>110&&S.R()<.04&&!late)doAction(S,st,{k:'boost',b:S.R()<.6?'juggler':'influencer'});
   if((st.hits>1||st.tier>=2)&&!st.cam&&st.cash>90)doAction(S,st,{k:'def',def:'cam'});
   if(S.hour>=1&&S.t>=b.opT&&st.cash>70){b.opT=S.t+S.hourLen*(1.1-b.aggro*.5)*(.7+S.R()*.6);
     const rivals=S.stalls.filter(o=>o!==st&&!o.gone&&!o.out&&(!S.easy||o.cpu)).sort((a,c)=>worth(c)-worth(a));const tg=rivals[0];
     if(tg&&worth(tg)>worth(st)*.9&&S.R()<b.aggro*(S.easy?.45:1)){if(st.goons-st.busy<1)doAction(S,st,{k:'hire'});
-      const op=(tg.roach>0||anyBad(tg))?'tip':S.R()<.5?'roach':'poison';doAction(S,st,{k:'op',op,to:tg.i})}}
+      if(st.tier>=BOSS.minTier&&st.cash>BOSS.cost+60&&S.R()<.15){doAction(S,st,{k:'boss'});return false}
+      const pool=['roach','stink','pepper','poison','gas','cones','clog','monkey','pick','scare','rumor'];
+      const op=(tg.roach>0||anyBad(tg))&&S.R()<.7?'tip':pool[S.R()*pool.length|0];doAction(S,st,{k:'op',op,to:tg.i})}}
   return false}
 function botStep(S,st,dt){const b=st.bot;if(!b||st.gone||S.over)return;b.t-=dt;if(b.t>0)return;b.t=.5+S.R()*.3;
   const kind=b.kind;if(botFamily(S,st))return;if(isClosed(S,st))return;
@@ -524,7 +596,7 @@ function saveProg(){LS.set('prog',PROG)}
 // ═══════════════════════════════ SOUND ═══════════════════════════════
 // Real recordings only (sfx/night-market-sfx.m4a, credits in sfx/CREDITS-night-market.txt).
 // Event-only: a sizzle when a batch goes on, a coin when food sells. No crowd bed, no music.
-const SMAP=/*SMAP*/{"ui":[[0.1,0.1],[0.45,0.11]],"sizzle":[[0.81,1.24],[2.3,1.24],[3.79,1.24]],"chop":[[5.28,0.62],[6.15,0.62]],"ding":[[7.02,0.64],[7.91,0.64]],"coin":[[8.8,0.39],[9.44,0.39],[10.08,0.34]],"till":[[10.67,0.94]],"crate":[[11.86,0.54],[12.65,0.54]],"hmph":[[13.44,0.52],[14.21,0.64]],"yum":[[15.1,0.7],[16.05,0.66]],"trash":[[16.96,0.64]],"gong":[[17.85,2.04]],"firecracker":[[20.14,1.54]],"rain":[[21.93,2.54]],"rooster":[[24.72,1.84]],"pour":[[26.81,0.84]],"cheer":[[27.9,1.54]],"scuttle":[[29.69,0.7],[30.64,0.7]],"squish":[[31.59,0.34],[32.18,0.34]],"sick":[[32.77,0.7],[33.72,0.7]],"police":[[34.67,0.84]],"stamp":[[35.76,0.3],[36.31,0.3]],"hammer":[[36.86,1]],"build":[[38.11,1.24],[39.6,1.2]],"meow":[[41.05,0.7],[42,0.7]],"shutter":[[42.95,0.3]],"snicker":[[43.5,0.76],[44.51,0.8]],"drums":[[45.56,2.54]],"firework":[[48.35,1.54],[50.14,1.54]],"chime":[[51.93,0.84],[53.02,0.84]],"whoosh":[[54.11,0.54],[54.9,0.54]]}/*END*/;
+const SMAP=/*SMAP*/{"ui":[[0.1,0.1],[0.45,0.11]],"sizzle":[[0.81,1.24],[2.3,1.24],[3.79,1.24]],"chop":[[5.28,0.62],[6.15,0.62]],"ding":[[7.02,0.64],[7.91,0.64]],"coin":[[8.8,0.39],[9.44,0.39],[10.08,0.34]],"till":[[10.67,0.94]],"crate":[[11.86,0.54],[12.65,0.54]],"hmph":[[13.44,0.52],[14.21,0.64]],"yum":[[15.1,0.7],[16.05,0.66]],"trash":[[16.96,0.64]],"gong":[[17.85,2.04]],"firecracker":[[20.14,1.54]],"rain":[[21.93,2.54]],"rooster":[[24.72,1.84]],"pour":[[26.81,0.84]],"cheer":[[27.9,1.54]],"scuttle":[[29.69,0.7],[30.64,0.7]],"squish":[[31.59,0.34],[32.18,0.34]],"sick":[[32.77,0.7],[33.72,0.7]],"police":[[34.67,0.84]],"stamp":[[35.76,0.3],[36.31,0.3]],"hammer":[[36.86,1]],"build":[[38.11,1.24],[39.6,1.2]],"meow":[[41.05,0.7],[42,0.7]],"shutter":[[42.95,0.3]],"snicker":[[43.5,0.76],[44.51,0.8]],"drums":[[45.56,2.54]],"firework":[[48.35,1.54],[50.14,1.54]],"chime":[[51.93,0.84],[53.02,0.84]],"whoosh":[[54.11,0.54],[54.9,0.54]],"bark":[[55.69,0.66],[56.6,0.44]],"monkey":[[57.29,0.8],[58.34,0.84]],"hiss":[[59.43,0.7],[60.38,0.7]],"clatter":[[61.33,0.64],[62.22,0.59]],"gasp":[[63.06,0.9],[64.21,0.94]]}/*END*/;
 const NOAUDIO=/smoke|mute|norender/.test(HASH);
 const AU={ctx:null,sfx:null,buf:null,off:0,raw:null,st:0};
 function auInit(){if(AU.ctx||NOAUDIO)return;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
@@ -560,14 +632,14 @@ const badAny=st=>st.badD?(st.badD.length>0||!!st.spike):anyBad(st);
 
 // ═══════════════════════════════ ACTIONS ═══════════════════════════════
 const WHY={dup:'That dish is already on your menu.',busy:'Sell what is on the counter first, then swap the dish.',broke:'Not enough cash for that.',
-  nomenu:'Pick a dish for that slot first.',burners:'Both burners are busy.',noing:'Not enough cash to buy the ingredients.',bellcd:'The bell needs a moment.',maxed:'Already as big as it gets.',goonmax:'Build bigger to run a bigger Family.',nogoon:'All your goons are busy. Hire another or wait.',have:'You already have that.',closed:'The inspector boarded you up. Wait it out.',locked:'A Corner shop unlocks a fourth dish.'};
+  nomenu:'Pick a dish for that slot first.',burners:'Both burners are busy.',noing:'Not enough cash to buy the ingredients.',bellcd:'The bell needs a moment.',maxed:'Already as big as it gets.',goonmax:'Build bigger to run a bigger Family.',nogoon:'All your goons are busy. Hire another or wait.',have:'You already have that.',closed:'The inspector boarded you up. Wait it out.',locked:'A Corner shop unlocks a fourth dish.',notarget:'Pick a rival to hit first.',bosstier:'The Boss only does favors for a Restaurant or bigger.',gasoff:'Your gas is cut off! It comes back in a few seconds.'};
 function act(a){const st=myStall();if(!st||ENDED)return;
   // check it here first so a guest hears "why not" straight away; the host checks again for real
   const pre=precheck(st,a);if(pre){toast(WHY[pre]||pre);snd('ui',{v:.3});return}
   if(MODE==='guest'){net.send({t:'a',cid:MY_CID,a});if(a.k==='price'||a.k==='menu')st.localEdit=now();if(a.k==='price'){st.price[a.d]=clamp(Math.round(a.v*2)/2,1,DISH[a.d].fair*3);paintPanel(true)}
     if(a.k==='menu'){st.menu[a.slot]=a.d;paintPanel(true)}return}
   const r=doAction(S,st,a);if(WHY[r]){toast(WHY[r]);snd('ui',{v:.3})}paintPanel(true)}
-function precheck(st,a){const v=V();
+function precheck(st,a){const v=V();{const p2=precheck2(st,a,v);if(p2)return p2}
   if((a.k==='cook'||a.k==='bell')&&(st.out||v.t<st.closedUntil))return 'closed';
   if(a.k==='menu'&&a.slot>=slotsOf(st))return 'locked';
   if(a.k==='up'){const nx=TIERS[st.tier+1];if(!nx)return 'maxed';if(st.cash<nx.cost)return 'broke'}
@@ -644,11 +716,6 @@ function drawTrouble(v,st,X,w,x0,top,yb,cy,ch,t){
     ctx.beginPath();ctx.moveTo(x0+6,top+40);ctx.lineTo(x0+w-6,yb-10);ctx.moveTo(x0+w-6,top+40);ctx.lineTo(x0+6,yb-10);ctx.stroke();
     ctx.fillStyle='#f6ead2';ctx.fillRect(X-w*.38,top+LY.bh*.42,w*.76,26);ctx.font="400 "+Math.min(14,w/11|0)+"px Bungee";ctx.fillStyle='#c2342c';ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText(st.out?'SHUT DOWN':'CLOSED '+Math.ceil(st.closedUntil-v.t)+'s',X,top+LY.bh*.42+13)}}
-function drawGoon(v,g,t){const X=WX(g.x),Y=WY(g.y),s=clamp(VH/90,6,11);const bob=g.ph==='do'?0:Math.abs(Math.sin(t*10+g.id))*s*.25;ctx.save();ctx.translate(X,Y-bob);
-  ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(0,bob+s*.2,s*.9,s*.3,0,0,7);ctx.fill();ctx.fillStyle='#232029';ctx.fillRect(-s*.75,-s*2.4,s*1.5,s*2.4);
-  ctx.fillStyle='#f6ead2';ctx.fillRect(-s*.15,-s*2.4,s*.3,s*1.2);ctx.fillStyle='#e9b48a';ctx.beginPath();ctx.arc(0,-s*3,s*.66,0,7);ctx.fill();
-  ctx.fillStyle='#151217';ctx.fillRect(-s*1,-s*3.45,s*2,s*.24);ctx.fillRect(-s*.6,-s*4.1,s*1.2,s*.7);ctx.fillStyle=(v.stalls[g.from]||{}).col||'#e2453c';ctx.fillRect(-s*.6,-s*3.55,s*1.2,s*.14);
-  if(g.ph==='do'){ctx.font=(s*1.4|0)+'px sans-serif';ctx.textAlign='center';ctx.fillText(OPS[g.op].em,s*1.3,-s*4.2)}ctx.restore()}
 function drawInspector(v,q,t){const X=WX(q.x),Y=WY(q.y),s=clamp(VH/90,6,11);ctx.save();ctx.translate(X,Y-Math.abs(Math.sin(t*8))*s*.2);
   ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(0,s*.2,s*.9,s*.3,0,0,7);ctx.fill();ctx.fillStyle='#f4f4f4';ctx.fillRect(-s*.75,-s*2.4,s*1.5,s*2.4);
   ctx.fillStyle='#c98b5e';ctx.beginPath();ctx.arc(0,-s*3,s*.66,0,7);ctx.fill();ctx.fillStyle='#3b5a8a';ctx.fillRect(-s*.75,-s*3.6,s*1.5,s*.45);
@@ -656,6 +723,7 @@ function drawInspector(v,q,t){const X=WX(q.x),Y=WY(q.y),s=clamp(VH/90,6,11);ctx.
   if(!q.done){ctx.font='800 '+(s*1.1|0)+'px Karla';ctx.textAlign='center';ctx.fillStyle='#ffe9c7';ctx.fillText('INSPECTOR',0,-s*4.4)}ctx.restore()}
 function steam(st,x,y){PART.push({x,y,vx:rnd(-6,6),vy:rnd(-28,-18),life:1.6,max:1.6,r:rnd(5,9),col:'smell',hue:st.col})}
 function drawParticles(dt){for(let k=PART.length-1;k>=0;k--){const p=PART[k];p.life-=dt;if(p.life<=0){PART.splice(k,1);continue}p.x+=p.vx*dt;p.y+=p.vy*dt;
+    if(p.col==='flame'){const f=p.life/p.max;ctx.fillStyle='rgba(255,'+(120+f*120|0)+',40,'+f+')';ctx.beginPath();ctx.arc(p.x,p.y,3+(1-f)*5,0,7);ctx.fill();continue}
     if(p.col==='spark'){p.vy+=40*dt;ctx.fillStyle='rgba(255,225,120,'+(p.life/p.max)+')';ctx.fillRect(p.x-1.5,p.y-1.5,3,3);continue}
     if(p.col==='dust'){p.vy+=20*dt;ctx.fillStyle='rgba(210,190,160,'+(p.life/p.max*.5)+')';ctx.beginPath();ctx.arc(p.x,p.y,4+(1-p.life/p.max)*6,0,7);ctx.fill();continue}
     if(p.col==='heart'){ctx.globalAlpha=p.life/p.max;ctx.font='10px sans-serif';ctx.textAlign='center';ctx.fillText('💗',p.x,p.y);ctx.globalAlpha=1;continue}
@@ -671,7 +739,7 @@ function drawRain(t){ctx.strokeStyle='rgba(170,190,255,.35)';ctx.lineWidth=1;ctx
 let PSIG='';
 function paintPanel(force){const st=myStall(),v=V();if(!st||!v)return;
   const sig=[st.cash.toFixed(2),st.rating.toFixed(1),st.menu.join(),st.menu.map(d=>d>=0?st.price[d]+':'+sN(st,d)+':'+(sAge(st,d,v.t)>FRESH?1:0):'').join(),st.pantry.join(),v.price.map(p=>p.toFixed(1)).join(),
-    st.burn.map(b=>b.d+':'+Math.round(b.left*4)).join(),Math.ceil(Math.max(0,BELL_CD-(v.t-st.bell))),st.tier,st.roach,badAny(st)?1:0,Math.ceil(Math.max(0,st.closedUntil-v.t)),st.out,st.goons,st.busy,st.helper].join('|');
+    st.burn.map(b=>b.d+':'+Math.round(b.left*4)).join(),Math.ceil(Math.max(0,BELL_CD-(v.t-st.bell))),st.tier,st.roach,badAny(st)?1:0,Math.ceil(Math.max(0,st.closedUntil-v.t)),st.out,st.goons,st.busy,st.helper,JOBTGT,PTAB,st.bribed,v.t<st.juggleU,v.stalls.filter(o=>!o.out).length,Math.round(worth(st)/20)].join('|');
   if(sig===PSIG&&!force)return;PSIG=sig;
 const pf=worth(st)-START_CASH;$('p-pf').textContent='worth '+money(Math.round(pf))+(st.tier?' · '+TIERS[st.tier].name:'');$('p-pf').className='pf '+(pf>=0?'up':'dn');
   $('p-stars').innerHTML=stars(st.rating).replace(/☆/g,'<i>★</i>');$('p-help').textContent='🧑‍🍳 Helper '+(st.helper?'on':'off');$('p-help').classList.toggle('on',!!st.helper);
@@ -685,33 +753,23 @@ const pf=worth(st)-START_CASH;$('p-pf').textContent='worth '+money(Math.round(pf
       '<div class="prc"><button data-pr="'+d+'" data-dv="-0.5">−</button><span class="pv">$'+st.price[d].toFixed(st.price[d]%1?1:0)+'<small>'+(st.price[d]<D.fair?'cheap':st.price[d]>D.fair?'pricey':'fair')+'</small></span><button data-pr="'+d+'" data-dv="0.5">+</button></div>'+
       (()=>{const mc=D.ing.filter(id=>st.pantry[INGI[id]]<1).reduce((t,id)=>t+v.price[INGI[id]],0);return '<button class="cookb" data-cook="'+k+'"><span class="k">'+(k+1)+'</span>Cook '+D.yield+' '+ing+(mc?' <span style="font-size:10.5px;opacity:.85">+$'+Math.ceil(mc)+'</span>':'')})()+(b?'<span class="bar" style="width:'+((1-b.left/D.cook)*100)+'%"></span>':'')+'</button></div>'}).join('');
   $('p-ings').innerHTML=ING.map((g,i)=>{const p=v.price[i],r=p/g.base;return '<div class="ingr'+(need.has(i)?' need':'')+'"><span class="e">'+g.em+'</span><span class="n">'+st.pantry[i]+'</span><span class="p'+(r>1.25?' hi':r<1.05?' lo':'')+'">$'+p.toFixed(2)+'</span><button data-buy="'+i+'" data-n="1">+1</button><button data-buy="'+i+'" data-n="5">+5</button></div>'}).join('');
-  paintAlerts(st,v);
+  paintAlerts(st,v);paintJobs(st,v);
   $('p-burn').innerHTML=[...Array(burnersOf(st))].map((_,k)=>{const b=st.burn[k];return '<div class="burner">'+(b?'<i style="width:'+((1-b.left/DISH[b.d].cook)*100)+'%"></i><span>'+DISH[b.d].em+' '+Math.ceil(b.left)+'s</span>':'<span style="color:var(--mut)">burner free</span>')+'</div>'}).join('')}
 function paintAlerts(st,v){const A=[];
   if(st.out)A.push('<div class="alert">🚫 Shut down for the night. Your Family can still get even (F).</div>');
   else if(v.t<st.closedUntil)A.push('<div class="alert">🪧 Boarded up by the inspector: '+Math.ceil(st.closedUntil-v.t)+'s · strike '+st.strikes+' of '+STRIKES_OUT+'</div>');
   if(st.roach>0)A.push('<div class="alert">🪳 '+st.roach+' roaches! <button data-stomp>Stomp (Space)</button></div>');
   if(badAny(st))A.push('<div class="alert">☠️ Your food smells off! <button data-bin>Bin it (X)</button></div>');
+  if((v.goons||[]).some(g=>g.to===st.i&&g.ph==='go'))A.push('<div class="alert">🕴️ A goon is coming for you! Tap them!</div>');
+  if(v.t<st.stinkU)A.push('<div class="alert">💨 Stink bomb! Tap your stall to fan it away</div>');
+  if(v.t<st.gasU)A.push('<div class="alert">🔌 Your gas is cut: '+Math.ceil(st.gasU-v.t)+'s</div>');
+  if(v.t<st.conesU)A.push('<div class="alert">🚧 Roadwork blocks your counter: '+Math.ceil(st.conesU-v.t)+'s</div>');
+  if(v.t<st.clogU)A.push('<div class="alert">🕶️ Fake customers clog your line: '+Math.ceil(st.clogU-v.t)+'s</div>');
   if((v.insp||[]).some(q=>q.to===st.i&&!q.done))A.push('<div class="alert">🕵️ The health inspector is coming to your stall!</div>');
   const el=$('alerts');el.innerHTML=A.join('');const pn=$('panel');el.style.bottom=((pn.classList.contains('hidden')?0:pn.offsetHeight)+8)+'px'}
 $('alerts').addEventListener('pointerdown',e=>{if(e.target.closest('[data-stomp]')){e.preventDefault();act({k:'stomp'})}if(e.target.closest('[data-bin]')){e.preventDefault();act({k:'bin'})}});
 function openSheet(id){const st=myStall();if(!st||MODE==='menu'||ENDED)return;if(MODE==='solo')PAUSED='sheet';show(id);paintSheet();snd('ui',{v:.4})}
 function closeSheet(){if(PAUSED==='sheet')PAUSED=false;show(null)}
-function paintSheet(){const st=myStall(),v=V();if(!st)return;
-  if(SCR==='s-family'){const cap=TIERS[st.tier].goons,free=st.goons-st.busy;
-    $('fm-goons').innerHTML=[...Array(cap)].map((_,k)=>k<st.goons?(k<st.busy?'<span title="out on a job">🏃</span>':'🕴️'):'<i>🕴️</i>').join('')+'<b>'+free+' free of '+st.goons+'</b>';
-    const h=$('fm-hire');h.textContent=st.goons>=cap?'Build bigger for more goons':'Hire a goon · $'+GOON_COST;h.disabled=st.goons>=cap||st.cash<GOON_COST;
-    $('fm-rivals').innerHTML=v.stalls.filter(o=>o!==st&&!o.gone).map(o=>'<div class="sheet-row"><div class="who"><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:'+o.col+';margin-right:6px"></span>'+esc(o.name)+
-      '<small>'+TIERS[o.tier].name+' · worth '+money(Math.round(worth(o)-START_CASH))+' · '+(o.out?'shut down':o.strikes+' strikes')+(o.cam?' · 📹':'')+(o.cat?' · 🐈':'')+'</small></div>'+
-      Object.entries(OPS).map(([k,O])=>'<button class="opb" data-op="'+k+'" data-to="'+o.i+'"'+(o.out||free<1||st.cash<O.cost?' disabled':'')+'>'+O.em+' '+O.name+' · $'+O.cost+'</button>').join('')+'</div>').join('');
-    $('fm-defs').innerHTML=Object.entries(DEFS).map(([k,D])=>'<button class="opb buy" data-def="'+k+'"'+(st[k]||st.cash<D.cost?' disabled':'')+'>'+D.em+' '+D.name+(st[k]?' · yours':' · $'+D.cost)+'</button>').join('');
-    $('fm-note').textContent='You have '+money(Math.floor(st.cash))+'. '+(MODE==='solo'?'The street waits while you plot. ':'The street keeps going while you plot. ')+'A camera catches a goon about half the time. A cat eats roaches.'}
-  if(SCR==='s-build'){$('bd-tiers').innerHTML=TIERS.map((T,k)=>'<div class="tier'+(k===st.tier?' cur':k<st.tier?' done':'')+'"><div class="tn">'+T.name+'</div><div class="tp">'+T.burners+' burners · '+T.slots+' dishes · serves in '+T.serve+'s · '+T.goons+' goons'+(T.appeal?' · pull +'+Math.round(T.appeal*4):'')+'</div>'+
-      (k===st.tier+1?'<button class="opb buy" data-up'+(st.cash<T.cost?' disabled':'')+'>Build · $'+T.cost+'</button>':k<=st.tier?'<span style="color:var(--teal);font-weight:800">✓</span>':'<span style="color:var(--mut);font-weight:800">$'+T.cost+'</span>')+'</div>').join('');
-    $('bd-note').textContent='You have '+money(Math.floor(st.cash))+'. '+(MODE==='solo'?'The street waits while you build.':'The street keeps going while you build.')}}
-document.addEventListener('pointerdown',e=>{if(SCR!=='s-family'&&SCR!=='s-build')return;const b=e.target.closest('[data-op],[data-def],[data-up],#fm-hire');if(!b||b.disabled)return;e.preventDefault();
-  if(b.id==='fm-hire')act({k:'hire'});else if(b.dataset.op)act({k:'op',op:b.dataset.op,to:+b.dataset.to});else if(b.dataset.def)act({k:'def',def:b.dataset.def});else act({k:'up'});
-  setTimeout(paintSheet,60);setTimeout(paintSheet,400)});
 $('p-fam').onclick=()=>openSheet('s-family');$('p-bld').onclick=()=>openSheet('s-build');$('fm-close').onclick=closeSheet;$('bd-close').onclick=closeSheet;
 $('panel').addEventListener('pointerdown',e=>{const el=e.target.closest('[data-cook],[data-pr],[data-buy],[data-pick],#p-bell,#p-help');if(!el)return;e.preventDefault();
   if(el.id==='p-bell')return act({k:'bell'});
@@ -756,11 +814,22 @@ function fxEvent(e,v){const k=e[0],quiet=v===DEMO;const st=e[1]!=null&&typeof e[
       else banner(t,'craze: '+D.em+' '+D.name)}break;
     case 'criticin':if(!quiet){banner('A food critic!','serve them fresh food for a big rating boost',2.6)}break;
     case 'critic':if(!quiet&&st){toast(st.name+(e[2]?' impressed the critic! ★':' let the critic down'),3);if(e[2])snd('cheer',{v:.6})}break;
-    case 'sneak':if(mine){snd('snicker',{v:.6});toast('Your goon is on the way to '+v.stalls[e[2]].name+'.')}break;
+    case 'sneak':if(mine){snd('snicker',{v:.6});toast((e[3]==='monkey'?'Your monkey':'Your goon')+' is on the way to '+v.stalls[e[2]].name+'.')}else if(!quiet&&v.stalls[e[2]]&&v.stalls[e[2]].seat===MY_SEAT&&v!==DEMO){snd('snicker',{v:.4,r:.9});tip('goon','A goon is coming for your stall. Tap them before they get there!')}if(e[3]==='monkey'&&!quiet)sndSt('monkey',e[1],{v:.6});break;
+    case 'shoo':if(!quiet){sndSt('hmph',e[2],{v:.5,r:1.2});const vic=v.stalls[e[1]];if(vic&&vic.seat===MY_SEAT)toast('Chased them off! 💨',1.6);else if(st&&v.stalls[e[2]]&&v.stalls[e[2]].seat===MY_SEAT)toast(vic.name+' chased your goon off.',2)}break;
+    case 'dog':if(!quiet){sndSt('bark',e[1],{v:.9});const vic=v.stalls[e[1]];floatText(WX(vic.x)+30,LY.yb-6,'WOOF!','#ffe9c7');if(v.stalls[e[2]]&&v.stalls[e[2]].seat===MY_SEAT)toast(vic.name+"'s dog chased your goon off.",2)}break;
+    case 'fire':if(!quiet){sndSt('whoosh',e[1],{v:.8,r:1.2});const c=(v.cust||[]).find(q=>q.id===e[2]);if(c){const a=ca(c);a.fire=2.2}if(mine)tip('pepper','Ghost pepper! Bin your food (X) or keep scaring customers off.')}break;
+    case 'monkey':if(!quiet){sndSt('monkey',e[1],{v:.9});if(mine)toast('A monkey ran off with '+e[2]+' of your portions!',2.4)}break;
+    case 'pick':if(!quiet){const a2=v.stalls[e[1]],b2=v.stalls[e[2]];if(a2&&a2.seat===MY_SEAT){snd('coin',{v:.9});snd('snicker',{v:.5,at:.2});toast('👛 Lifted $'+e[3]+' from '+b2.name+'!',2.4)}else if(b2&&b2.seat===MY_SEAT){snd('gasp',{v:.7});toast('Your till is $'+e[3]+' lighter. Pickpocket!',2.4)}}break;
+    case 'boss':if(!quiet){banner('The Boss called in a favor','cockroaches for everyone but '+st.name,2.6);sndSt('scuttle',e[1],{v:1});snd('gasp',{v:.7,at:.3})}break;
+    case 'boost':if(mine&&!quiet){const B=BOOSTS[e[2]];snd(e[2]==='juggler'?'cheer':'chime',{v:.6});toast(B.em+' '+B.name+(e[2]==='influencer'?': a golden customer is on the way!':e[2]==='bribe'?': the inspector will look the other way once.':': the crowd loves it!'),2.6)}break;
+    case 'bribed':if(!quiet){sndSt('stamp',e[1],{v:.7});if(mine)toast('The inspector took the bribe and looked the other way. 🤝',2.6)}break;
+    case 'fan':if(mine)snd('hiss',{v:.4,r:1.3});break;
     case 'deed':{const vic=v.stalls[e[2]];if(!vic||quiet)break;const me2=vic.seat===MY_SEAT;const O=OPS[e[3]];
-      if(e[3]==='roach'&&!vic.cat)sndSt('scuttle',e[2],{v:me2?1:.8});
+      if(e[3]==='roach'&&!vic.cat)sndSt('scuttle',e[2],{v:me2?1:.8});if(e[3]==='stink'||e[3]==='gas')sndSt('hiss',e[2],{v:.8});if(e[3]==='cones')sndSt('clatter',e[2],{v:.9});if(e[3]==='scare'){sndSt('firecracker',e[2],{v:.8});const vs=v.stalls[e[2]];for(let k=0;k<20;k++)PART.push({x:WX(vs.x)+rnd(-30,30),y:LY.yb+rnd(0,30),vx:rnd(-90,90),vy:rnd(-140,-40),life:.6,max:.6,col:'spark'})}
+      if(e[3]==='rumor'){sndSt('gasp',e[2],{v:.6});const vs=v.stalls[e[2]];['eww','gross!','I heard...','yuck'].forEach((w2,k)=>setTimeout(()=>floatText(WX(vs.x)+rnd(-50,50),LY.yb+rnd(10,40),w2,'#c8f0a0'),k*250))}
       if(me2){if(e[3]==='roach'&&!vic.cat)banner('Cockroaches!','stomp them before customers see (Space)',2.2);if(e[3]==='poison')toast('Something smells off at your counter...',3);if(e[3]==='tip')toast('Someone tipped off the health inspector about you!',3)}
-      else if(st&&st.seat===MY_SEAT)toast(O.em+' Done. '+vic.name+' got '+(e[3]==='roach'?'cockroaches':e[3]==='poison'?'poisoned food':'a visit from the inspector')+'.',2.6)}break;
+      else if(st&&st.seat===MY_SEAT)toast(O.em+' Done! '+vic.name+': '+O.name.toLowerCase()+'.',2.4)
+      if(me2&&!['roach','poison','tip'].includes(e[3]))banner(O.em+' '+O.name+'!',{stink:'tap your stall to fan it away',pepper:'bin your food (X)',gas:'your woks are cold for a bit',cones:'nobody can reach your counter',clog:'fake customers block your line',monkey:'it ran off with your food',pick:'someone lifted cash from your till',scare:'your line ran off',rumor:'your stars took a hit'}[e[3]]||'',2)}break;
     case 'caught':if(!quiet){snd('police',{v:.8});snd('shutter',{v:.7,at:.05});const a=v.stalls[e[1]],b=v.stalls[e[2]];banner('Caught!',b.name+"'s camera caught a goon from "+a.name,2.8)}break;
     case 'cat':if(!quiet){sndSt('meow',e[1],{v:1});if(mine)toast('Your cat ate the roaches before anyone saw. Good kitty.',2.6)}break;
     case 'cateat':if(mine&&Math.random()<.4)snd('meow',{v:.5});break;
@@ -894,16 +963,16 @@ const CST={walk:0,go:1,queue:2,eat:3,leave:4},CSTN=Object.keys(CST);
 function packSnap(S){return {t:'s',tt:Math.round(S.t*10)/10,hr:S.hour,end:S.ending?1:0,pr:S.price.map(p=>Math.round(p*100)),
   st:S.stalls.map(st=>[Math.round(st.cash*100),Math.round(st.rating*100),st.menu,st.price.map(p=>p*2),DISH.map((d,i)=>stockN(st,i)),DISH.map((d,i)=>st.stock[i].length?Math.round((S.t-st.stock[i][0].born)):0),
     st.burn.map(b=>[b.d,Math.round(b.left*10)]),st.pantry,Math.round(st.smell*100),Math.round((S.t-st.bell)*10),st.served,st.lost,st.wasted,st.queue.length,st.gone?1:0,
-    [st.tier,st.goons,st.busy,st.cam,st.cat,st.roach,st.spike,Math.round(Math.max(0,st.closedUntil-S.t)*10),st.strikes,st.out,Math.round(st.buildVal*100),st.hits,st.helper,st.streak],DISH.map((d,i)=>st.stock[i].some(b=>b.bad)?1:0)]),
+    [st.tier,st.goons,st.busy,st.cam,st.cat,st.roach,st.spike,Math.round(Math.max(0,st.closedUntil-S.t)*10),st.strikes,st.out,Math.round(st.buildVal*100),st.hits,st.helper,st.streak,...[st.stinkU,st.gasU,st.conesU,st.clogU,st.juggleU].map(u=>Math.round(Math.max(0,u-S.t)*10)),st.bribed,st.dog],DISH.map((d,i)=>st.stock[i].some(b=>b.bad)?1:0)]),
   c:S.cust.map(c=>[c.id,Math.round(c.x),Math.round(c.y),CST[c.st],c.to,c.d,c.mood,c.critic?1:0,Math.round(c.pat),c.gold?1:0,c.dir]),
-  g:S.goons.map(g=>[g.id,g.from,g.to,g.op,Math.round(g.x),g.ph]),q:S.insp.map(q=>[q.to,Math.round(q.x),q.done?1:0]),e:OUTBOX.splice(0)}}
+  g:S.goons.map(g=>[g.id,g.from,g.to,g.op,Math.round(g.x),g.ph,g.shoo?1:0,g.loot||0]),q:S.insp.map(q=>[q.to,Math.round(q.x),q.done?1:0]),e:OUTBOX.splice(0)}}
 function guestSnap(m){const v=GV;if(!v)return;LAST_SNAP=now();v.t=m.tt;v.ending=!!m.end;if(m.hr!==v.hour){v.hour=m.hr;v.event=v.events[m.hr]}v.price=m.pr.map(p=>p/100);
   m.st.forEach((r,i)=>{const st=v.stalls[i];if(!st)return;st.cash=r[0]/100;st.rating=r[1]/100;
     if(st.seat!==MY_SEAT||!st.localEdit||now()-st.localEdit>800){st.menu=r[2];st.price=r[3].map(p=>p/2)}
     st.sn=r[4];st.sa=r[5];st.burn=r[6].map(b=>({d:b[0],left:b[1]/10}));st.pantry=r[7];st.smell=r[8]/100;st.bell=v.t-r[9]/10;st.served=r[10];st.lost=r[11];st.wasted=r[12];st.qn=r[13];st.gone=!!r[14];
-    const x=r[15];if(x){st.tier=x[0];st.goons=x[1];st.busy=x[2];st.cam=x[3];st.cat=x[4];st.roach=x[5];st.spike=x[6];st.closedUntil=v.t+x[7]/10;st.strikes=x[8];st.out=x[9];st.buildVal=x[10]/100;st.hits=x[11];st.streak=x[13]||0;if(st.seat!==MY_SEAT||!st.localEdit||now()-st.localEdit>800)st.helper=x[12]}
+    const x=r[15];if(x){st.tier=x[0];st.goons=x[1];st.busy=x[2];st.cam=x[3];st.cat=x[4];st.roach=x[5];st.spike=x[6];st.closedUntil=v.t+x[7]/10;st.strikes=x[8];st.out=x[9];st.buildVal=x[10]/100;st.hits=x[11];st.streak=x[13]||0;if(x.length>14){st.stinkU=v.t+x[14]/10;st.gasU=v.t+x[15]/10;st.conesU=v.t+x[16]/10;st.clogU=v.t+x[17]/10;st.juggleU=v.t+x[18]/10;st.bribed=x[19];st.dog=x[20]}if(st.seat!==MY_SEAT||!st.localEdit||now()-st.localEdit>800)st.helper=x[12]}
     st.badD=(r[16]||[]).map((b,k)=>b?k:-1).filter(k=>k>=0)});
-  v.goons=(m.g||[]).map(r=>{const o=(v.goons||[]).find(q=>q.id===r[0]);return {id:r[0],from:r[1],to:r[2],op:r[3],x:o?o.x:r[4],nx:r[4],y:92,ph:r[5]}});
+  v.goons=(m.g||[]).map(r=>{const o=(v.goons||[]).find(q=>q.id===r[0]);return {id:r[0],from:r[1],to:r[2],op:r[3],x:o?o.x:r[4],nx:r[4],y:92,ph:r[5],shoo:r[6],loot:r[7]}});
   v.insp=(m.q||[]).map((r,k)=>{const o=(v.insp||[])[k];return {to:r[0],x:o&&o.to===r[0]?o.x:r[1],nx:r[1],y:80,done:r[2]}});
   const seen=new Map(v.cust.map(c=>[c.id,c]));v.cust=m.c.map(r=>{let c=seen.get(r[0]);if(!c){c={id:r[0],x:r[1],y:r[2]}}c.nx=r[1];c.ny=r[2];c.st=CSTN[r[3]];c.to=r[4];c.d=r[5];c.mood=r[6];c.critic=!!r[7];c.pat=r[8];c.gold=r[9];c.dir=r[10];return c});
   for(const e of m.e)fxEvent(e,v)}
@@ -967,6 +1036,88 @@ function frame(){const t=now();let dt=Math.min(.1,(t-last)/1000);last=t;T+=dt;
   if(!NORENDER&&!SMOKE)render(dt,T);
   requestAnimationFrame(frame)}
 
+// ═══════════════════════════════ THE FAMILY: panel tab, sheet, taps, visuals ═══════════════════════════════
+let JOBTGT=-1,PTAB='jobs';
+function rivalsOf(st,v){return v.stalls.filter(o=>o!==st&&!o.gone&&!o.out)}
+function leaderOf(st,v){return rivalsOf(st,v).sort((a,b)=>worth(b)-worth(a))[0]}
+function jobTarget(st,v){const r=rivalsOf(st,v);if(!r.some(o=>o.i===JOBTGT)){const l=leaderOf(st,v);JOBTGT=l?l.i:-1}return JOBTGT}
+// the Jobs tab on your panel: pick a rival (the leader by default), one tap per job
+function paintJobs(st,v){const el=$('p-jobs');if(PTAB!=='jobs')return;const tg=jobTarget(st,v),free=st.goons-st.busy,lead=leaderOf(st,v);
+  $('p-goons').textContent='🕴️ '+free+' of '+st.goons+' free';
+  const rv=rivalsOf(st,v);
+  el.innerHTML='<div class="jt">hit:'+rv.map(o=>'<button data-tgt="'+o.i+'" class="'+(o.i===tg?'on':'')+'" style="color:'+o.col+'">'+(lead&&o.i===lead.i?'👑 ':'')+esc(o.name.slice(0,10))+'</button>').join('')+
+    (rv.length?'':'<span>no one left to hit</span>')+'</div><div class="jg">'+
+    Object.entries(OPS).map(([k,O])=>'<button class="jb" data-op="'+k+'" title="'+esc(O.name+': '+O.desc)+'"'+(tg<0||free<1||st.cash<O.cost?' disabled':'')+'><span>'+O.em+'</span>$'+O.cost+'</button>').join('')+
+    Object.entries(BOOSTS).map(([k,B])=>'<button class="jb boost" data-boost="'+k+'" title="'+esc(B.name+': '+B.desc)+'"'+(st.cash<B.cost||(k==='bribe'&&st.bribed)||(k==='juggler'&&v.t<st.juggleU)?' disabled':'')+'><span>'+B.em+'</span>$'+B.cost+'</button>').join('')+
+    (st.tier>=BOSS.minTier?'<button class="jb boss" data-boss title="'+esc(BOSS.name+': '+BOSS.desc)+'"'+(st.cash<BOSS.cost?' disabled':'')+'><span>'+BOSS.em+'</span>$'+BOSS.cost+'</button>':'')+
+    (free<1&&st.goons<TIERS[st.tier].goons?'<button class="jb boost" data-hire title="Hire a goon"'+(st.cash<GOON_COST?' disabled':'')+'><span>➕</span>$'+GOON_COST+'</button>':'')+'</div>'}
+document.getElementById('panel').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-tab],[data-tgt],[data-op],[data-boost],[data-boss],[data-hire]');if(!b||b.disabled||!b.closest('.whole'))return;e.preventDefault();e.stopPropagation();
+  if(b.dataset.tab){PTAB=b.dataset.tab;$('tab-jobs').classList.toggle('on',PTAB==='jobs');$('tab-shop').classList.toggle('on',PTAB==='shop');$('p-jobs').classList.toggle('hidden',PTAB!=='jobs');$('p-shop').classList.toggle('hidden',PTAB!=='shop');paintPanel(true);snd('ui',{v:.3});return}
+  if(b.dataset.tgt){JOBTGT=+b.dataset.tgt;paintPanel(true);snd('ui',{v:.3});return}
+  const st=myStall(),v=V();if(!st)return;
+  if(b.dataset.op)act({k:'op',op:b.dataset.op,to:jobTarget(st,v)});else if(b.dataset.boost)act({k:'boost',b:b.dataset.boost});else if(b.hasAttribute('data-boss'))act({k:'boss'});else act({k:'hire'});
+  setTimeout(()=>paintPanel(true),80)},true);
+// the full Family sheet: same jobs with descriptions, boosts and defenses
+function paintSheet(){const st=myStall(),v=V();if(!st)return;
+  if(SCR==='s-family'){const cap=TIERS[st.tier].goons,free=st.goons-st.busy,tg=jobTarget(st,v),lead=leaderOf(st,v);
+    $('fm-goons').innerHTML=[...Array(cap)].map((_,k)=>k<st.goons?(k<st.busy?'<span title="out on a job">🏃</span>':'🕴️'):'<i>🕴️</i>').join('')+'<b>'+free+' free of '+st.goons+'</b>';
+    const h=$('fm-hire');h.textContent=st.goons>=cap?'Build bigger for more goons':'Hire a goon · $'+GOON_COST;h.disabled=st.goons>=cap||st.cash<GOON_COST;
+    $('fm-tgts').innerHTML=rivalsOf(st,v).map(o=>'<button data-tgt2="'+o.i+'" class="'+(o.i===tg?'on':'')+'"><span style="color:'+o.col+'">■</span> '+(lead&&o.i===lead.i?'👑 ':'')+esc(o.name)+'<small>'+TIERS[o.tier].name+' · worth '+money(Math.round(worth(o)-START_CASH))+(o.cam?' · 📹':'')+(o.dog?' · 🐕':'')+(o.cat?' · 🐈':'')+' · '+o.strikes+' strikes</small></button>').join('')||'<div class="note">Everyone else is shut down.</div>';
+    $('fm-jobs').innerHTML=Object.entries(OPS).map(([k,O])=>'<button class="jcard" data-op2="'+k+'"'+(tg<0||free<1||st.cash<O.cost?' disabled':'')+'><span class="e">'+O.em+'</span><span><b>'+esc(O.name)+'</b>'+esc(O.desc)+'</span><span class="c">$'+O.cost+'</span></button>').join('')+
+      '<button class="jcard boss" data-boss2'+(st.tier<BOSS.minTier||st.cash<BOSS.cost?' disabled':'')+'><span class="e">'+BOSS.em+'</span><span><b>'+esc(BOSS.name)+'</b>'+esc(BOSS.desc)+(st.tier<BOSS.minTier?' Needs a Restaurant.':'')+'</span><span class="c">$'+BOSS.cost+'</span></button>';
+    $('fm-boosts').innerHTML=Object.entries(BOOSTS).map(([k,B])=>'<button class="jcard boost" data-boost2="'+k+'"'+(st.cash<B.cost||(k==='bribe'&&st.bribed)||(k==='juggler'&&v.t<st.juggleU)?' disabled':'')+'><span class="e">'+B.em+'</span><span><b>'+esc(B.name)+'</b>'+esc(B.desc)+(k==='bribe'&&st.bribed?' (paid up)':'')+'</span><span class="c">$'+B.cost+'</span></button>').join('');
+    const dd={cam:'Catches about half the goons who reach you, and tells everyone who sent them.',cat:'Eats cockroaches.',dog:'Chases off half the goons who reach you.'};
+    $('fm-defs').innerHTML=Object.entries(DEFS).map(([k,D])=>'<button class="jcard def" data-def="'+k+'"'+(st[k]||st.cash<D.cost?' disabled':'')+'><span class="e">'+D.em+'</span><span><b>'+esc(D.name)+'</b>'+dd[k]+'</span><span class="c">'+(st[k]?'yours':'$'+D.cost)+'</span></button>').join('');
+    $('fm-note').textContent='You have '+money(Math.floor(st.cash))+'. '+(MODE==='solo'?'The street waits while you plot. ':'The street keeps going while you plot. ')+'Tap a goon walking at your stall to chase them off.'}
+  if(SCR==='s-build'){$('bd-tiers').innerHTML=TIERS.map((T,k)=>'<div class="tier'+(k===st.tier?' cur':k<st.tier?' done':'')+'"><div class="tn">'+T.name+'</div><div class="tp">'+T.burners+' burners · '+T.slots+' dishes · serves in '+T.serve+'s · '+T.goons+' goons'+(T.appeal?' · pull +'+Math.round(T.appeal*4):'')+(k===BOSS.minTier?' · Boss favors':'')+'</div>'+
+      (k===st.tier+1?'<button class="opb buy" data-up'+(st.cash<T.cost?' disabled':'')+'>Build · $'+T.cost+'</button>':k<=st.tier?'<span style="color:var(--teal);font-weight:800">✓</span>':'<span style="color:var(--mut);font-weight:800">$'+T.cost+'</span>')+'</div>').join('');
+    $('bd-note').textContent='You have '+money(Math.floor(st.cash))+'. '+(MODE==='solo'?'The street waits while you build.':'The street keeps going while you build.')}}
+document.addEventListener('pointerdown',e=>{if(SCR!=='s-family'&&SCR!=='s-build')return;const b=e.target.closest('[data-tgt2],[data-op2],[data-boss2],[data-boost2],[data-def],[data-up],#fm-hire');if(!b||b.disabled)return;e.preventDefault();
+  const st=myStall(),v=V();if(!st)return;
+  if(b.dataset.tgt2){JOBTGT=+b.dataset.tgt2}else if(b.id==='fm-hire')act({k:'hire'});else if(b.dataset.op2)act({k:'op',op:b.dataset.op2,to:jobTarget(st,v)});else if(b.hasAttribute('data-boss2'))act({k:'boss'});
+  else if(b.dataset.boost2)act({k:'boost',b:b.dataset.boost2});else if(b.dataset.def)act({k:'def',def:b.dataset.def});else act({k:'up'});
+  setTimeout(paintSheet,60);setTimeout(paintSheet,400)});
+// ── tapping the street: shoo goons coming at you, squish roaches, fan away stink ──
+cv.addEventListener('pointerdown',e=>{if(SCR||MODE==='menu'||ENDED)return;const st=myStall(),v=V();if(!st||!v)return;const x=e.clientX,y=e.clientY;
+  let best=null,bd=38;for(const g of v.goons||[]){if(g.to!==st.i||g.ph!=='go')continue;const gx=WX(g.x),gy=WY(g.y)-clamp(VH/90,6,11)*2;const d=Math.hypot(gx-x,gy-y);if(d<bd){bd=d;best=g}}
+  if(best){act({k:'shoo',id:best.id});floatText(x,y-10,'Shoo!','#ffe9c7');return}
+  const N=v.stalls.length,X=WX(st.x),w=Math.min(VW/N*.9,200);if(Math.abs(x-X)<w/2+10&&y>LY.top-10&&y<LY.yb+20){
+    if(st.roach>0){act({k:'stomp'});PART.push({x,y,vx:0,vy:0,life:.3,max:.3,col:'spark'});return}
+    if(v.t<st.stinkU){act({k:'fan'});return}}});
+function precheck2(st,a,v){
+  if(a.k==='op'){if(st.goons-st.busy<1)return 'nogoon';if(st.cash<OPS[a.op].cost)return 'broke';if(a.to==null||a.to<0)return 'notarget'}
+  if(a.k==='boost'){if(st.cash<BOOSTS[a.b].cost)return 'broke';if(a.b==='bribe'&&st.bribed)return 'have';if(a.b==='juggler'&&v.t<st.juggleU)return 'have'}
+  if(a.k==='boss'){if(st.tier<BOSS.minTier)return 'bosstier';if(st.cash<BOSS.cost)return 'broke'}
+  if(a.k==='cook'&&v.t<st.gasU)return 'gasoff';return ''}
+// ── what each job looks like on the street ──
+function drawJobs(v,st,X,w,x0,top,yb,cy,ch,t){const s=clamp(VH/90,6,11);
+  if(v.t<st.stinkU){const left=st.stinkU-v.t;for(let k=0;k<7;k++){const a=t*.8+k*.9,r=w*.35+Math.sin(a*1.3)*8;const px=X+Math.cos(a)*r,py=cy-LY.bh*.25+Math.sin(a*1.7)*LY.bh*.3;
+      ctx.fillStyle='rgba(140,220,90,'+Math.min(.35,left/8)+')';ctx.beginPath();ctx.arc(px,py,14+Math.sin(t*3+k)*4,0,7);ctx.fill()}
+    ctx.strokeStyle='rgba(120,200,80,.6)';ctx.lineWidth=2;for(let k=0;k<3;k++){ctx.beginPath();for(let j=0;j<8;j++){const yy=yb-10-j*6,xx=x0+w*(.3+k*.2)+Math.sin(t*5+j+k)*4;j?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)}ctx.stroke()}}
+  if(v.t<st.gasU){ctx.font='800 12px Karla';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='rgba(14,11,29,.8)';ctx.fillRect(X-44,cy+ch*.15,88,16);ctx.fillStyle='#9ad0ff';ctx.fillText('🔌 GAS OFF '+Math.ceil(st.gasU-v.t)+'s',X,cy+ch*.15+8)}
+  if(v.t<st.conesU){for(let k=0;k<5;k++){const cx=x0+w*(.1+k*.2),cyy=yb+12;ctx.fillStyle='#ff7a1a';ctx.beginPath();ctx.moveTo(cx-6,cyy+8);ctx.lineTo(cx,cyy-10);ctx.lineTo(cx+6,cyy+8);ctx.fill();ctx.fillStyle='#fff';ctx.fillRect(cx-4,cyy-1,8,3);ctx.fillStyle='#333';ctx.fillRect(cx-8,cyy+7,16,3)}
+    ctx.fillStyle='#ffe066';ctx.font='800 11px Karla';ctx.textAlign='center';ctx.fillText('ROADWORK',X,yb+32)}
+  if(v.t<st.clogU){for(let k=0;k<3;k++){const px=X+(k%2?6:-6),py=WY(14+k*7.5);ctx.save();ctx.translate(px,py);ctx.fillStyle='#16141c';ctx.fillRect(-s*.7,-s*2.4,s*1.4,s*2.4);ctx.fillStyle='#e9b48a';ctx.beginPath();ctx.arc(0,-s*3,s*.68,0,7);ctx.fill();
+      ctx.fillStyle='#000';ctx.fillRect(-s*.6,-s*3.2,s*1.2,s*.32);ctx.restore()}ctx.font='12px sans-serif';ctx.textAlign='center';ctx.fillText('🕶️',X+22,WY(10))}
+  if(v.t<st.juggleU){const jx=x0-6,jy=WY(26);ctx.save();ctx.translate(jx,jy);ctx.fillStyle='#ff7ab6';ctx.fillRect(-s*.7,-s*2.4,s*1.4,s*2.4);ctx.fillStyle='#f2c9a1';ctx.beginPath();ctx.arc(0,-s*3,s*.68,0,7);ctx.fill();
+    for(let k=0;k<3;k++){const ph=t*5+k*2.09;ctx.fillStyle=['#ffb547','#3ee0c5','#e2453c'][k];ctx.beginPath();ctx.arc(Math.cos(ph)*s*1.4,-s*4.4-Math.abs(Math.sin(ph))*s*2.4,s*.35,0,7);ctx.fill()}ctx.restore()}
+  if(st.dog){ctx.font='18px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';const hop=Math.abs(Math.sin(t*2+st.i))*2;ctx.fillText('🐕',x0+w-10,yb+12-hop)}
+  if(st.bribed){ctx.font='12px sans-serif';ctx.textAlign='center';ctx.fillText('🤝',x0+12,top+30)}}
+// goons: monkeys for monkey raids, a loot bag on the way home, a red "tap me" ring when they're coming for you
+function drawGoon(v,g,t){const X=WX(g.x),Y=WY(g.y),s=clamp(VH/90,6,11);const me=myStall();const forMe=me&&g.to===me.i&&g.ph==='go'&&v!==DEMO;
+  if(forMe){const r=s*3+Math.sin(t*10)*2;ctx.strokeStyle='rgba(255,80,60,.85)';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(X,Y-s*2,r,0,7);ctx.stroke();ctx.fillStyle='#ff6b5e';ctx.font='800 11px Karla';ctx.textAlign='center';ctx.fillText('TAP!',X,Y-s*2-r-6)}
+  if(g.op==='monkey'){const hop=Math.abs(Math.sin(t*12+g.id))*s*1.2;ctx.font=(s*2.6|0)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🐒',X,Y-s*1.4-hop);
+    if(g.ph==='back'&&g.loot)ctx.fillText('🥟',X+s*1.3,Y-s*3-hop);return}
+  const bob=g.ph==='do'?0:Math.abs(Math.sin(t*10+g.id))*s*.25;ctx.save();ctx.translate(X,Y-bob);
+  ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(0,bob+s*.2,s*.9,s*.3,0,0,7);ctx.fill();
+  const sw=g.ph==='do'?0:Math.sin(t*12+g.id)*s*.5;ctx.strokeStyle='#151217';ctx.lineWidth=s*.42;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-s*.3,-s*.9);ctx.lineTo(-s*.3+sw,0);ctx.moveTo(s*.3,-s*.9);ctx.lineTo(s*.3-sw,0);ctx.stroke();
+  ctx.fillStyle='#232029';ctx.fillRect(-s*.75,-s*2.4,s*1.5,s*1.6);ctx.fillStyle='#f6ead2';ctx.fillRect(-s*.15,-s*2.4,s*.3,s*1.2);ctx.fillStyle='#e9b48a';ctx.beginPath();ctx.arc(0,-s*3,s*.66,0,7);ctx.fill();
+  ctx.fillStyle='#000';ctx.fillRect(-s*.55,-s*3.15,s*1.1,s*.26);
+  ctx.fillStyle='#151217';ctx.fillRect(-s*1,-s*3.45,s*2,s*.24);ctx.fillRect(-s*.6,-s*4.1,s*1.2,s*.7);ctx.fillStyle=(v.stalls[g.from]||{}).col||'#e2453c';ctx.fillRect(-s*.6,-s*3.55,s*1.2,s*.14);
+  const O=OPS[g.op];if(g.ph==='do'&&O){ctx.font=(s*1.5|0)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(O.em,s*1.3,-s*4.2)}
+  if(g.ph==='back'){ctx.font=(s*1.2|0)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(g.shoo?'💨':g.op==='pick'&&g.loot?'💰':'😏',s*1.2,-s*3.8)}
+  ctx.restore()}
+
 // ═══════════════════════════════ GRAPHICS ═══════════════════════════════
 // Everything on the street that moves for show: the sky turning from dusk to dawn, chefs who toss woks
 // and hand food over, people who walk, hop, munch and pull faces, coins that fly to the till,
@@ -1027,7 +1178,7 @@ function drawStall(v,st,t){const N=v.stalls.length,X=WX(st.x),w=Math.min(VW/N*.9
   ctx.save();
   if(st.tier>0){const bt=A.build>0?1-A.build/1.6:1,sq=A.build>0?1+Math.sin(bt*Math.PI*3)*.04*(1-bt):1;ctx.save();ctx.translate(X,top);ctx.scale(sq,1/sq);ctx.translate(-X,-top);drawTower(v,st,X,w,top,t);ctx.restore()}
   // glow + back wall, lit by the burners
-  const fire=st.burn.length&&!shut;const rg=ctx.createRadialGradient(X,top+LY.bh*.55,6,X,top+LY.bh*.55,w*.85);rg.addColorStop(0,'rgba(255,190,110,'+(fire?.45:.3)+')');rg.addColorStop(1,'rgba(255,190,110,0)');ctx.fillStyle=rg;ctx.fillRect(x0-w*.3,top-10,w*1.6,LY.bh+30);
+  const fire=st.burn.length&&!shut&&v.t>=st.gasU;const rg=ctx.createRadialGradient(X,top+LY.bh*.55,6,X,top+LY.bh*.55,w*.85);rg.addColorStop(0,'rgba(255,190,110,'+(fire?.45:.3)+')');rg.addColorStop(1,'rgba(255,190,110,0)');ctx.fillStyle=rg;ctx.fillRect(x0-w*.3,top-10,w*1.6,LY.bh+30);
   ctx.fillStyle='#3a2a2a';ctx.fillRect(x0+6,top+34,w-12,LY.bh-34);const wg=ctx.createLinearGradient(0,top+34,0,yb);wg.addColorStop(0,'rgba(255,200,130,.12)');wg.addColorStop(1,fire?'rgba(255,150,70,.32)':'rgba(255,200,130,.2)');ctx.fillStyle=wg;ctx.fillRect(x0+6,top+34,w-12,LY.bh-34);
   ctx.fillStyle='#5a3a24';ctx.fillRect(x0+2,top+20,7,LY.bh-20);ctx.fillRect(x0+w-9,top+20,7,LY.bh-20);ctx.fillStyle='rgba(255,220,170,.12)';ctx.fillRect(x0+2,top+20,2,LY.bh-20);ctx.fillRect(x0+w-9,top+20,2,LY.bh-20);
   // menu board (upper half), chef in front of its lower edge
@@ -1045,7 +1196,7 @@ function drawStall(v,st,t){const N=v.stalls.length,X=WX(st.x),w=Math.min(VW/N*.9
   for(const d of st.menu){if(d<0)continue;const n=sN(st,d);const stale=n&&sAge(st,d,v.t)>FRESH;ctx.globalAlpha=stale?.55:1;for(let k=0;k<Math.min(n,4);k++)ctx.fillText(DISH[d].em,fx+k*6,cy+2-k%2*3);ctx.globalAlpha=1;
     if(n>4){ctx.font='800 10px Karla';ctx.fillStyle='#ffe9c7';ctx.fillText('x'+n,fx+26,cy-6);ctx.font='15px sans-serif';ctx.fillStyle='#fff'}fx+=(w-16)/Math.max(3,rows.length)}
   const nb=burnersOf(st);for(let k=0;k<nb;k++){const b=st.burn[k];const wx=x0+w*((k+.5)/nb),wy=cy+ch*.55;const tossing=A.toss>0&&A.tossK===k;const lift=tossing?Math.sin((1-A.toss)*Math.PI*2)*7:0;
-    if(b&&!shut)drawFlames(wx,wy+5,t,k,tossing);
+    if(b&&!shut&&v.t>=st.gasU)drawFlames(wx,wy+5,t,k,tossing);
     ctx.save();ctx.translate(wx,wy-Math.max(0,lift));ctx.rotate(tossing?Math.sin((1-A.toss)*Math.PI*2)*.25:0);ctx.fillStyle='#2a2a30';ctx.beginPath();ctx.ellipse(0,0,15,6,0,0,7);ctx.fill();ctx.strokeStyle='#666670';ctx.lineWidth=1.5;ctx.stroke();
     ctx.strokeStyle='#3a3a42';ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(14,-1);ctx.lineTo(24,-5);ctx.stroke();
     if(b){ctx.font='12px sans-serif';ctx.textAlign='center';ctx.fillStyle='#fff';const hop=tossing?-Math.abs(Math.sin((1-A.toss)*Math.PI*2))*16:0;ctx.fillText(DISH[b.d].em,0,-2+hop)}ctx.restore();
@@ -1067,7 +1218,7 @@ function drawStall(v,st,t){const N=v.stalls.length,X=WX(st.x),w=Math.min(VW/N*.9
   if(mine){ctx.strokeStyle='#ffe9c7';ctx.lineWidth=2;ctx.shadowColor='#ffb547';ctx.shadowBlur=14;ctx.strokeRect(x0-4,top-12,w+8,LY.bh+26);ctx.shadowBlur=0}
   if(v.t-st.bell<BELL_T){const a=Math.sin(t*30)*.4;ctx.save();ctx.translate(x0+w-12,top+40);ctx.rotate(a);ctx.font='20px sans-serif';ctx.fillText('🔔',0,0);ctx.restore();
     ctx.strokeStyle='rgba(255,181,71,'+(.5-(v.t-st.bell)/BELL_T*.5)+')';ctx.lineWidth=2;ctx.beginPath();ctx.arc(X,yb,(v.t-st.bell)*60%120+20,Math.PI,0);ctx.stroke()}
-  drawTrouble(v,st,X,w,x0,top,yb,cy,ch,t);
+  drawTrouble(v,st,X,w,x0,top,yb,cy,ch,t);drawJobs(v,st,X,w,x0,top,yb,cy,ch,t);
   if(A.build>0)drawScaffold(X,w,top,A.build);
   ctx.restore()}
 function drawFlames(x,y,t,k,big){const n=big?6:4;ctx.save();ctx.globalCompositeOperation='lighter';
@@ -1104,7 +1255,7 @@ function drawScaffold(X,w,top,left){const a=Math.min(1,left/.4);ctx.save();ctx.g
 const HATS=['none','none','cap','beanie','none','bun','none','headband'];
 function drawPerson(v,c,t){const a=ca(c);const dx=c.x-a.px;a.px=c.x;a.walk+=Math.abs(dx)*.28;
   if(a.prev!==c.st){if(c.st==='eat'){a.hop=.45;a.eatT=0}a.prev=c.st}if(a.hop>0)a.hop-=1/60;if(c.st==='eat')a.eatT+=1/60;
-  const k=c.id,kid=k%7===0&&!c.critic,sick=c.mood===-2;const X=WX(c.x),Y=WY(c.y),s=clamp(VH/90,6,11)*(.85+c.y/250)*(kid?.72:1);
+  const k=c.id,kid=k%7===0&&!c.critic,sick=c.mood===-2;if(c.mood===-3&&a.fire==null){a.fire=2.2}const X=WX(c.x),Y=WY(c.y),s=clamp(VH/90,6,11)*(.85+c.y/250)*(kid?.72:1);
   const moving=Math.abs(dx)>.05,ph=a.walk;const hopY=a.hop>0?Math.sin((1-a.hop/.45)*Math.PI)*s*1.3:0;
   ctx.save();ctx.translate(X+(sick?Math.sin(t*12+k)*s*.25:0),Y-hopY);
   ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(0,hopY+s*.15,s*.95,s*.3,0,0,7);ctx.fill();
@@ -1136,6 +1287,7 @@ function drawPerson(v,c,t){const a=ca(c);const dx=c.x-a.px;a.px=c.x;a.walk+=Math
     if(c.st==='queue'&&c.pat<5){ctx.fillStyle='#ff6b5e';ctx.font='800 '+(s*1.1|0)+'px Karla';ctx.fillText('!',-s*.95,-s*4.3)}}
   if(c.st==='eat'&&c.d>=0&&c.mood>=0){const bite=Math.max(.35,1-a.eatT/5),mun=Math.sin(a.eatT*14)>0?s*.15:0;ctx.font=((s*1.2*bite)|0)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.fillText(DISH[c.d].em,s*.85,-s*2.2-mun);
     if(a.eatT<1.2&&Math.random()<.15)PART.push({x:X+s*.8,y:Y-s*3.2,vx:rnd(-6,6),vy:-22,life:.6,max:.6,col:'heart'})}
+  if(a.fire>0){a.fire-=1/60;const fd=c.dir||1;ctx.fillStyle='#ff3b1f';ctx.globalAlpha=.25;ctx.beginPath();ctx.arc(0,-s*3,s*.7,0,7);ctx.fill();ctx.globalAlpha=1;for(let j=0;j<3;j++)PART.push({x:X+fd*s*.8,y:Y-s*2.8,vx:fd*rnd(60,120),vy:rnd(-20,10),life:.35,max:.35,col:'flame'});ctx.font=(s*1|0)+'px sans-serif';ctx.textAlign='center';ctx.fillText('🥵',s*1.1,-s*4.2)}
   if(sick){ctx.font=(s*1.1|0)+'px sans-serif';ctx.textAlign='center';ctx.fillText('🤢',s*1.1,-s*4)}
   else if(c.mood<0&&c.st==='leave'){ctx.font=(s*1.2|0)+'px sans-serif';ctx.textAlign='center';ctx.fillText('💢',s*.9,-s*3.8)}
   ctx.restore()}
@@ -1224,15 +1376,35 @@ function runSmoke(){const out=[];let pass=0,fail=0;const ok=(n,c,x)=>{if(c)pass+
     ok('the front of the line gets served and pays',st.served===1&&Math.abs(st.cash-cash-st.price[DISHI.dump])<1e-6)}
   // ── the Family, the inspector, buildings ──
   {const S=mk(3);const a=S.stalls[0],b=S.stalls[1],c=S.stalls[2];a.cash=b.cash=c.cash=500;S.spawnAcc=-1e9;
-    ok('every stall starts with one goon',a.goons===1);
-    ok('a food cart runs two goons at most',doAction(S,a,{k:'hire'})==='hire'&&doAction(S,a,{k:'hire'})==='goonmax');
-    ok('a job needs a free goon',doAction(S,a,{k:'op',op:'roach',to:1})==='op'&&doAction(S,a,{k:'op',op:'roach',to:1})==='op'&&doAction(S,a,{k:'op',op:'roach',to:1})==='nogoon');
-    ok('the goons walk over before anything happens',b.roach===0&&S.goons.length===2);
+    ok('every stall starts with two goons',a.goons===2);
+    ok('a food cart runs three goons at most',doAction(S,a,{k:'hire'})==='hire'&&doAction(S,a,{k:'hire'})==='goonmax');
+    ok('a job needs a free goon',doAction(S,a,{k:'op',op:'roach',to:1})==='op'&&doAction(S,a,{k:'op',op:'roach',to:1})==='op'&&doAction(S,a,{k:'op',op:'roach',to:1})==='op'&&doAction(S,a,{k:'op',op:'roach',to:1})==='nogoon');
+    ok('the goons walk over before anything happens',b.roach===0&&S.goons.length===3);
     run(S,11);ok('cockroaches arrive',b.roach>=5,b.roach);ok('the goons come home',a.busy===0&&S.goons.length===0);
     const u0=utility(S,{crave:DISH.map(()=>1),budget:1,x:b.x},b,DISHI.dump);b.roach=0;const u1=utility(S,{crave:DISH.map(()=>1),budget:1,x:b.x},b,DISHI.dump);b.roach=5;
     ok('customers avoid a stall with roaches',u0<u1-.8,(u1-u0).toFixed(2));
     const r0=b.roach;doAction(S,b,{k:'stomp'});ok('stomping kills a roach',b.roach===r0-1);
     c.cat=1;doAction(S,a,{k:'op',op:'roach',to:2});run(S,10);ok('a stall cat stops cockroaches',c.roach===0)}
+  // ── every dirty job, boost and defense does its thing ──
+  const job=(op,setup,check)=>{const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.cash=500;b.cash=200;S.spawnAcc=-1e9;if(setup)setup(S,a,b);const r=doAction(S,a,{k:'op',op,to:1});run(S,7);return r==='op'&&check(S,a,b)};
+  const cu=(S,b,d)=>utility(S,{crave:DISH.map(()=>1),budget:1,x:b.x},b,d==null?b.menu[0]:d);
+  ok('stink bomb: customers keep away, fanning shortens it',job('stink',null,(S,a,b)=>{const u=cu(S,b);const u0=S.t;const t0=b.stinkU;doAction(S,b,{k:'fan'});return S.t<b.stinkU&&b.stinkU<t0&&u<-1}));
+  ok('cut the gas: the burners stop and cooking waits',job('gas',(S,a,b)=>{doAction(S,b,{k:'cook',slot:0})},(S,a,b)=>{const left=b.burn[0]&&b.burn[0].left;run(S,2);return b.burn.length===1&&b.burn[0].left===left&&doAction(S,b,{k:'cook',slot:1})==='gasoff'}));
+  ok('roadwork: nobody can reach the counter',job('cones',null,(S,a,b)=>cu(S,b)===-9&&blocked(S,b)));
+  ok('line cloggers: the line stops moving',job('clog',null,(S,a,b)=>blocked(S,b)&&cu(S,b)<cu(S,a,a.menu[0])-1));
+  ok('monkey raid: food goes missing',job('monkey',(S,a,b)=>{b.stock[b.menu[0]].push({n:5,born:S.t})},(S,a,b)=>stockN(b,b.menu[0])===0));
+  ok('pickpocket: their cash ends up in your till',job('pick',null,(S,a,b)=>b.cash===160&&Math.abs(a.cash-(500-OPS.pick.cost+40))<1e-6));
+  ok('firecracker scare: the line scatters',job('scare',(S,a,b)=>{for(let k=0;k<3;k++){const c=spawnCustomer(S);c.st='queue';c.to=1;c.d=b.menu[0];c.pat=99;b.queue.push(c.id)}},(S,a,b)=>b.queue.length===0&&b.lost===0));
+  ok('a rumor knocks off half a star',job('rumor',null,(S,a,b)=>Math.abs(b.rating-2.5)<1e-6));
+  ok('ghost pepper: people breathe fire and run without paying',job('pepper',(S,a,b)=>{b.stock[b.menu[0]].push({n:3,born:S.t})},(S,a,b)=>{const c=spawnCustomer(S);c.st='queue';c.to=1;c.d=b.menu[0];c.pat=99;b.queue.push(c.id);const cash=b.cash;run(S,2);return c.mood===-3&&b.cash===cash&&b.served===0}));
+  {const S=mk(3);const a=S.stalls[0];a.cash=999;ok("the Boss's favor needs a Restaurant",doAction(S,a,{k:'boss'})==='bosstier');a.tier=3;ok("the Boss's favor hits every rival",doAction(S,a,{k:'boss'})==='boss'&&S.stalls[1].roach>=5&&S.stalls[2].roach>=5)}
+  {const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.cash=200;const u0=cu(S,a,a.menu[0]);doAction(S,a,{k:'boost',b:'juggler'});ok('a street juggler pulls a crowd',cu(S,a,a.menu[0])>u0+1);
+    const n=S.cust.length;doAction(S,a,{k:'boost',b:'influencer'});const g=S.cust[S.cust.length-1];ok('an influencer sends a golden customer your way',S.cust.length===n+1&&g.gold&&g.to===0&&g.st==='go');
+    doAction(S,a,{k:'boost',b:'bribe'});a.roach=3;S.spawnAcc=-1e9;sendInspector(S,a,'tip');run(S,20);ok('a bribed inspector looks the other way once',a.strikes===0&&a.bribed===0)}
+  {const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.cash=500;S.spawnAcc=-1e9;doAction(S,a,{k:'op',op:'roach',to:1});run(S,.5);const g=S.goons[0];
+    ok('tapping a goon on its way chases it off',doAction(S,b,{k:'shoo',id:g.id})==='shoo'&&g.ph==='back');run(S,10);ok('a shooed goon does nothing',b.roach===0&&a.busy===0)}
+  {const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.cash=900;b.dog=1;S.spawnAcc=-1e9;let stopped=0;for(let k=0;k<20;k++){a.busy=0;a.goons=3;doAction(S,a,{k:'op',op:'rumor',to:1});const r=b.rating;run(S,10);if(b.rating===r)stopped++;b.rating=3}
+    ok('a guard dog chases off about half the goons',stopped>=5&&stopped<=16,stopped+'/20')}
   {const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.cash=900;b.cam=1;S.spawnAcc=-1e9;let caught=0;
     for(let k=0;k<20;k++){a.goons=Math.max(a.goons,1);a.busy=0;doAction(S,a,{k:'op',op:'roach',to:1});const before=a.goons;run(S,10);if(a.goons<before)caught++;b.roach=0}
     ok('a camera catches goons about half the time',caught>=5&&caught<=16,caught+'/20')}
@@ -1270,7 +1442,7 @@ function runSmoke(){const out=[];let pass=0,fail=0;const ok=(n,c,x)=>{if(c)pass+
     let bytes=0,n=0;for(let k=0;k<60;k++){run(S,.125,true);OUTBOX.length=0;bytes+=JSON.stringify(packSnap(S)).length;n++}
     const kbs=bytes/(n/8)/1024;ok('a busy street costs under 30 KB/s to watch',kbs<30,kbs.toFixed(1)+' KB/s')}
   // ── page ──
-  ok('every sound the street asks for is in the sprite',['ui','sizzle','chop','ding','coin','crate','hmph','yum','trash','gong','firecracker','rain','rooster','cheer','till','pour','scuttle','squish','sick','police','stamp','hammer','build','meow','shutter','snicker','drums','firework','chime','whoosh'].every(k=>SMAP[k]&&SMAP[k].length));
+  ok('every sound the street asks for is in the sprite',['ui','sizzle','chop','ding','coin','crate','hmph','yum','trash','gong','firecracker','rain','rooster','cheer','till','pour','scuttle','squish','sick','police','stamp','hammer','build','meow','shutter','snicker','drums','firework','chime','whoosh','bark','monkey','hiss','clatter','gasp'].every(k=>SMAP[k]&&SMAP[k].length));
   ok('the quit menu script is on the page',!!window.GLITCHBOX_OFFLINE||!!document.querySelector('script[src*="glitchbox-menu"]'));
   ok('play with friends is the first button',document.querySelector('#s-title .btn').id==='b-online');
   ok('no em dashes in anything a player reads',!/—/.test(document.body.innerText+DISH.map(d=>d.name).join()+ING.map(g=>g.name).join()));

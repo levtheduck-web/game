@@ -10,13 +10,18 @@ Kenney - Impact Sounds (www.kenney.nl, CC0): impactSoft_medium_000
 Freesound.org (all CC0):
   groans.wav by iggy1345 - https://freesound.org/people/iggy1345/sounds/103072/
   cat meow II by tuberatanka - https://freesound.org/people/tuberatanka/sounds/110010/
+  Slips air release v2 by mcpable - https://freesound.org/people/mcpable/sounds/131933/
+  Item Falling (Plastic).mp3 by EchoCinematics - https://freesound.org/people/EchoCinematics/sounds/133978/
   tinymortar.wav by j1987 - https://freesound.org/people/j1987/sounds/140727/
   DSLR Camera Click by akonze - https://freesound.org/people/akonze/sounds/157812/
+  LBS_FX DOG Small Alert Bark001.wav by LittleBigSounds - https://freesound.org/people/LittleBigSounds/sounds/163459/
   humpf tsk tsk.mp3 by juror2 - https://freesound.org/people/juror2/sounds/196402/
   Hammering.wav by Dvideoguy - https://freesound.org/people/Dvideoguy/sounds/207782/
   service bell ring by AlaskaRobotics - https://freesound.org/people/AlaskaRobotics/sounds/221515/
   Gas Torch Light by SyntaxSeed - https://freesound.org/people/SyntaxSeed/sounds/244229/
+  Aerosol Spray by WeeJee_vdH - https://freesound.org/people/WeeJee_vdH/sounds/267709/
   Rain (Field Recording) by Opticreep - https://freesound.org/people/Opticreep/sounds/320520/
+  Crowd Oooh.wav by deleted_user_2104797 - https://freesound.org/people/deleted_user_2104797/sounds/324890/
   Whistle and Explosion Single_Firework by Rudmer_Rotteveel - https://freesound.org/people/Rudmer_Rotteveel/sounds/336008/
   Cha Ching.wav by deleted_user_96253 - https://freesound.org/people/deleted_user_96253/sounds/351304/
   Wind_Chime_Monte_00.wav by monte32 - https://freesound.org/people/monte32/sounds/361427/
@@ -27,6 +32,7 @@ Freesound.org (all CC0):
   Rooster Crow 1 by BenjaminNelan - https://freesound.org/people/BenjaminNelan/sounds/435508/
   supermarket pack cart paper bag of groceries handling and down.flac by kyles - https://freesound.org/people/kyles/sounds/453580/
   PouringTea.mp3 by shelbyshark - https://freesound.org/people/shelbyshark/sounds/457276/
+  Bin_Knocked_Over.wav by Galbenshire - https://freesound.org/people/Galbenshire/sounds/464576/
   Coins Drop - 13 by SpaceJoe - https://freesound.org/people/SpaceJoe/sounds/485749/
   Coins Drop - 14 by SpaceJoe - https://freesound.org/people/SpaceJoe/sounds/485750/
   Splat/Squish 1 by mrickey13 - https://freesound.org/people/mrickey13/sounds/515618/
@@ -36,7 +42,10 @@ Freesound.org (all CC0):
   Saw wood 3.wav by Pagey1969 - https://freesound.org/people/Pagey1969/sounds/566040/
   CDOG_small_box_thud.wav by CANADIAN_DOG - https://freesound.org/people/CANADIAN_DOG/sounds/575290/
   Sizzling Pan by AntoineRomo - https://freesound.org/people/AntoineRomo/sounds/587050/
+  Animal Dog Bark 08.wav by abhisheky948 - https://freesound.org/people/abhisheky948/sounds/625497/
   flame burst ignite bbq barbecue.flac by kyles - https://freesound.org/people/kyles/sounds/637533/
+  S01-23_Chimpanzee Chatter.wav by craigsmith - https://freesound.org/people/craigsmith/sounds/675429/
+  S27-29 Chimpanzee whimper and scream.wav by craigsmith - https://freesound.org/people/craigsmith/sounds/675431/
   meow-1.wav by nathan-osman - https://freesound.org/people/nathan-osman/sounds/686775/
   Satisfied Moan (Food).wav by akapastels - https://freesound.org/people/akapastels/sounds/697901/
   skitter-clicks.wav by InsanityZeta - https://freesound.org/people/InsanityZeta/sounds/702986/
@@ -48,6 +57,7 @@ Freesound.org (all CC0):
   Paper Bag Crinkle by vhschool2019 - https://freesound.org/people/vhschool2019/sounds/716928/
   Voice_Crowd_Small_Expression_Applause_Cheer_Stereo by Nox_Sound - https://freesound.org/people/Nox_Sound/sounds/752709/
   laugh_giggle_man_witch_cartoon by 3LMN_audio - https://freesound.org/people/3LMN_audio/sounds/754399/
+  CRWDReac_Crowd Gasping In Surprise, Quick 04_ShaneVincent_GSC24_XY-AKG214-96k.wav by ShangusBurger - https://freesound.org/people/ShangusBurger/sounds/763870/
   Mark Tree Fast Up scale by mbthetd - https://freesound.org/people/mbthetd/sounds/796545/
   A male sigh by randbsoundbites - https://freesound.org/people/randbsoundbites/sounds/799579/
   Noises - Short laugh by Sadiquecat - https://freesound.org/people/Sadiquecat/sounds/800973/
