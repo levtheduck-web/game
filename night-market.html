@@ -103,8 +103,20 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';
 .burner{flex:1;height:22px;border-radius:7px;background:rgba(0,0,0,.35);border:1.5px solid rgba(246,234,210,.18);position:relative;overflow:hidden;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center}
 .burner i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#e2453c,#ffb547);opacity:.55}
 .burner span{position:relative}
+.burner.rdy{border-color:#7dffb0;color:#7dffb0;animation:rdy .6s ease-in-out infinite alternate}@keyframes rdy{to{background:rgba(125,255,176,.18)}}
+.jhow{font-size:12px;font-weight:700;color:var(--mut);margin:0 0 4px;line-height:1.3}
+.jb.ji{cursor:default;border-style:dashed;background:rgba(255,122,182,.08)}
+.alert.hot{border-color:#ff3b3b;background:rgba(80,10,16,.95);animation:hot .5s ease-in-out infinite alternate}@keyframes hot{to{box-shadow:0 0 30px rgba(255,59,59,.7)}}
+#fpuse{position:fixed;right:22px;bottom:200px;z-index:7;width:92px;height:92px;border-radius:50%;border:3px solid #ffb547;background:rgba(14,11,29,.78);color:#ffe9c7;font:400 17px 'Bungee';touch-action:none;user-select:none;-webkit-user-select:none}
+#fpuse:active{background:rgba(255,181,71,.35)}
+body.g3d #cv{touch-action:none}
 /* the Family + Build buttons, alert strip, sheets */
 .cashbox .two{display:flex;gap:5px;margin-top:4px}
+.morb{display:none;font:800 12px 'Karla';border:1.5px solid rgba(255,181,71,.6);border-radius:9px;background:rgba(255,181,71,.12);color:#ffe9c7;padding:4px 8px;cursor:pointer;white-space:nowrap}
+body.fpmini #panel .slots,body.fpmini #panel .whole{display:none}
+body.fpmini #panel{padding:3px 8px 4px}body.fpmini .cashbox{flex-direction:row;align-items:center;gap:8px;width:100%;min-width:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+body.fpmini .cashbox .cash{font-size:19px}body.fpmini .cashbox .two{margin:0;flex:none}body.fpmini .bellb{flex:none;margin:0;width:auto}body.fpmini .helpb{flex:none}body.fpmini .morb{display:block;flex:none}
+body.pfull .morb{display:block}
 .fam{flex:1;font:800 13px 'Karla';border:2px solid rgba(178,140,255,.7);background:rgba(178,140,255,.16);border-radius:10px;padding:5px 4px;cursor:pointer}
 .fam.bld{border-color:rgba(62,224,197,.7);background:rgba(62,224,197,.14)}
 #alerts{position:fixed;left:50%;transform:translateX(-50%);z-index:7;display:flex;gap:8px;pointer-events:none;flex-wrap:wrap;justify-content:center;width:max-content;max-width:96vw}
@@ -165,13 +177,14 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';
 <div id="panel" class="hidden">
   <div class="pbox cashbox"><div class="cash" id="p-cash">$60</div><div class="pf" id="p-pf">profit $0</div><div class="stars" id="p-stars"></div><button class="helpb" id="p-help">🧑‍🍳 Helper</button>
     <button class="bellb" id="p-bell">🔔 Ring the bell <span class="k">(B)</span><span class="cdbar" id="p-bellbar"></span></button>
-    <div class="two"><button class="fam" id="p-fam">🕴️ Family</button><button class="fam bld" id="p-bld">🏗️ Build</button></div></div>
+    <button class="morb" id="p-more">🍜 Menu &amp; prices ▲</button><div class="two"><button class="fam" id="p-fam">🕴️ Family</button><button class="fam bld" id="p-bld">🏗️ Build</button></div></div>
   <div class="slots" id="p-slots"></div>
   <div class="pbox whole"><div class="tabs"><button data-tab="jobs" class="on" id="tab-jobs">🕴️ Jobs</button><button data-tab="shop" id="tab-shop">🛒 Wholesaler</button><span class="gn" id="p-goons"></span></div>
     <div id="p-jobs"></div><div id="p-shop" class="hidden"><div class="ings" id="p-ings"></div></div>
     <div class="burners" id="p-burn"></div></div>
 </div>
 <div id="picker" class="hidden"></div>
+<button id="fpuse" class="hidden">USE</button>
 <div id="alerts"></div>
 <div id="toast"></div>
 <div id="banner"></div>
@@ -226,7 +239,7 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';
 
 <div class="scr hidden" id="s-family"><div class="card wide">
   <h2 class="neon">The Family</h2>
-  <div class="sub" style="margin-bottom:2px">Goons sneak across the street and mess with a rival. A rival with a camera might catch them, and then everyone knows it was you.</div>
+  <div class="sub" style="margin-bottom:2px">No goons: you sneak out your back door and do it yourself in a rival's back yard. If the owner catches you there, or their dog or camera does, you get chased home.</div>
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0"><div class="goons" id="fm-goons"></div><button class="opb buy" id="fm-hire"></button></div>
   <label class="lb">Who gets it?</label><div class="tgts" id="fm-tgts"></div>
   <label class="lb">Dirty jobs</label><div class="jobs" id="fm-jobs"></div>
@@ -246,15 +259,14 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';
 
 <div class="scr hidden" id="s-help"><div class="card wide help">
   <h2 class="neon">How to play</h2>
-  <p><b>Quick start:</b> you open with three dishes ready to go. Press <b>Cook</b> (or <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>) when people line up; Cook buys any missing ingredients itself. On <b>Easy</b> a kitchen helper does the cooking for you and the CPU stalls leave you alone, so you can just set prices and have fun with the Family and building. Switch the helper off on your panel when you want to do it all yourself.</p>
-  <p><b>Your stall</b>: tap a dish to swap it. Buying in bulk from the <b>wholesaler</b> is cheaper than letting Cook buy one at a time when prices are up.</p>
-  <p><b>Customers</b> each want one dish most tonight, and the hourly craze is the most wanted. They pick a stall by that dish, your price, how long your line is, whether something is sizzling, and your stars. Ring the <b>bell</b> (<kbd>B</kbd>) to pull in walkers nearby.</p>
-  <p><b>Undercut a rival</b> and their line walks to you. But you earn less, and a long line sends people next door. Selling the dish nobody else sells means nobody can undercut you.</p>
-  <p><b>Food goes stale.</b> Fresh food earns stars, stale food loses them, and old food gets thrown out. Cook to the line, not to the burner. People who wait too long walk off and cost you a star.</p>
-  <p><b>The Family</b> (<kbd>F</kbd>): hire goons and send them to a rival. 🪳 Cockroaches scare customers off until the owner stomps them. ☠️ Poison turns their counter food bad, so people get a tummy ache. 🕵️ A tip-off sends the health inspector: a stall with roaches or bad food gets boarded up, and three strikes shuts it down for the night. A 📹 camera catches goons, and a 🐈 cat eats roaches.</p>
-  <p><b>Way more jobs:</b> stink bombs, ghost peppers, cutting their gas, roadwork cones, line cloggers, monkey raids, pickpockets, firecracker scares and rumors. Use the Jobs tab on your panel to hit a rival in one tap. Bigger stalls unlock the <b>Boss's favor</b>. Favors for yourself: a street juggler, an influencer or a bribed inspector.</p>
-  <p><b>Under attack?</b> <b>Tap a goon</b> walking toward your stall to chase them off. Tap roaches on your stall (or <kbd>Space</kbd>) to squish them, tap a stink cloud to fan it away, and bin bad food (<kbd>X</kbd>). A 🐕 guard dog scares goons off too.</p>
-  <p><b>Build up</b> (<kbd>U</kbd>): cart, stall, shop, restaurant, mega tower. More burners, a fourth menu slot, faster service, more customers.</p>
+  <p><b>You are the chef.</b> On a computer: click to look around with the mouse, <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to walk, <kbd>Shift</kbd> to run, <kbd>E</kbd> or click to use what you look at, <kbd>Tab</kbd> to free the mouse for your panel. On a phone: your left thumb walks, drag on the right to look, tap things (or the big button) to use them.</p>
+  <p><b>Cooking:</b> look at a free wok and press <kbd>E</kbd> to cook what your line wants most, or <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> for a dish. When the ❗ pops up, <b>toss it</b> (<kbd>E</kbd>): it cooks faster and earns better tips. When it's done, <b>plate it</b> before it burns. Food on the counter sells by itself. Cook buys any missing ingredients itself.</p>
+  <p><b>Easy</b> gives you a kitchen helper who keeps cooking while you are out of the kitchen and saves food you forget, and the CPU stalls leave you alone.</p>
+  <p><b>Customers</b> each want one dish most tonight, and the hourly craze is the most wanted. They pick a stall by that dish, your price, how long your line is, whether something is sizzling, and your stars. Ring the <b>bell</b> on your counter (<kbd>B</kbd>) to pull in walkers nearby. Change prices and dishes on your panel.</p>
+  <p><b>Undercut a rival</b> and their line walks to you. But you earn less, and a long line sends people next door. Fresh food earns stars, stale food loses them, and old food gets thrown out.</p>
+  <p><b>Sneaking out:</b> your back door is behind you, on your left. It opens into your back yard; the gate at the back leads to the lane behind every stall, and alleys between the stalls lead to the street, where you'll see the other chefs. Every rival's yard has spots that glow when you get close: 🪳 tip their bins over, 💨 a stink bomb down the vent, 🔌 their gas, ☠️ spoil their ice chest, 🌶️ ghost pepper sauce, 👛 their cash tin, 🕵️ the payphone to call the health inspector. Hold <kbd>E</kbd> there until it's done. While you're out, nobody cooks at your stall (unless your helper does).</p>
+  <p><b>Getting caught:</b> if a stall's owner catches you in their back yard (<kbd>E</kbd> on you), you're chased home and have to lie low for a bit. A 🐕 guard dog and a 📹 camera can catch you too. When someone sneaks into <i>your</i> yard, the map flashes red: go out the back and catch them. A 🐈 cat eats roaches. Stomp roaches in your kitchen (<kbd>E</kbd>) and bin bad food (<kbd>X</kbd>) before the inspector comes: three strikes shuts a stall down for the night.</p>
+  <p><b>Build up</b> (<kbd>U</kbd>): cart, stall, shop, restaurant, mega tower. More woks, a fourth menu slot, faster service, more customers. Bigger stalls unlock the <b>Boss's favor</b> (<kbd>F</kbd>).</p>
   <p><b>The wholesaler is shared.</b> Every pack anyone buys pushes that price up for the whole street for a while. Stocking up early beats paying the rush price.</p>
   <button class="btn" id="help-back"><span class="ic">←</span><span>Back</span></button>
 </div></div>
@@ -288,32 +300,37 @@ kbd{display:inline-block;min-width:22px;text-align:center;font:800 13px 'Karla';
 // (craving, price, queue, the smell of something cooking, the stall's rating) and queue for it.
 // Food goes stale and gets thrown out, and people who wait too long walk off grumbling.
 const BELL_CD=18,BELL_T=6,BELL_R=330,STREET=1000,HOURS=6,START_CASH=60,BURNERS=2,MENU_SLOTS=4,FRESH=40,STALE=90,SERVE_T=1.7;
+// cooking by hand: a batch waits in the wok when it is done until someone plates it, and burns if nobody does.
+// Half way through there is a moment to toss it: a tossed batch cooks faster and earns better tips.
+const BURN_T=9,TOSS_AT=.3,TOSS_W=2.2;
 // ── stall buildings: each tier is bought with cash; half of what you spend counts toward your worth at sunrise ──
 const TIERS=[
-  {name:'Food cart',   cost:0,  burners:2,slots:3,serve:1.7,appeal:0,  goons:3},
-  {name:'Market stall',cost:45, burners:3,slots:3,serve:1.5,appeal:.25,goons:3},
-  {name:'Corner shop', cost:90, burners:3,slots:4,serve:1.3,appeal:.5, goons:4},
-  {name:'Restaurant',  cost:160,burners:4,slots:4,serve:1.1,appeal:.8, goons:5},
-  {name:'Mega tower',  cost:260,burners:5,slots:4,serve:.9, appeal:1.2,goons:6},
+  {name:'Food cart',   cost:0,  burners:2,slots:3,serve:1.7,appeal:0},
+  {name:'Market stall',cost:45, burners:3,slots:3,serve:1.5,appeal:.25},
+  {name:'Corner shop', cost:90, burners:3,slots:4,serve:1.3,appeal:.5},
+  {name:'Restaurant',  cost:160,burners:4,slots:4,serve:1.1,appeal:.8},
+  {name:'Mega tower',  cost:260,burners:5,slots:4,serve:.9, appeal:1.2},
 ];
 const burnersOf=st=>TIERS[st.tier].burners,slotsOf=st=>TIERS[st.tier].slots,serveOf=st=>TIERS[st.tier].serve;
-// ── the Family: goons sneak over to a rival stall and do a job ──
-const GOON_COST=15;
-// dirty jobs: a goon walks over and does it (a camera or a guard dog might stop them, the owner can shoo them)
+// ── the street in metres (the 3D view uses the same numbers): every stall has a kitchen and, out the
+// back door, a fenced back yard. A lane runs behind the yards, and alleys run between the stalls.
+const PITCH=9,KZ=-2.05,YZ0=-3.45,YZ1=-9.05,DOOR_X=3.1,STATION_R=1.45;
+const stWX=(S,st)=>(st.x/STREET-.5)*S.stalls.length*PITCH;
+function inKitchen(S,st){const c=st.ch;if(!c||c.auto)return true;return Math.abs(c.x-stWX(S,st))<3.85&&c.z<-1.3&&c.z>-3.5}
+function inYardOf(S,c,o){return !!c&&!c.auto&&Math.abs(c.x-stWX(S,o))<4.1&&c.z<-3.3&&c.z>-9.2}
+// the Family: no more goons. You sneak out your back door into a rival's back yard and do it yourself.
+// Each job happens at one spot in their yard: hold the button there until it's done.
 const OPS={
-  roach: {cost:8, name:'Cockroaches',      em:'🪳',desc:'Customers run from a stall full of roaches until the owner stomps them.'},
-  stink: {cost:9, name:'Stink bomb',       em:'💨',desc:'A green cloud keeps everyone away for 15 seconds.'},
-  pepper:{cost:10,name:'Ghost pepper',     em:'🌶️',desc:'Their customers breathe fire and run off without paying.'},
-  poison:{cost:12,name:'Poison',           em:'☠️',desc:'Their food goes bad: tummy aches, no money, lost stars.'},
-  gas:   {cost:9, name:'Cut the gas',      em:'🔌',desc:'Their burners go out for 15 seconds.'},
-  cones: {cost:11,name:'Roadwork',         em:'🚧',desc:'Cones block their counter for 12 seconds.'},
-  clog:  {cost:9, name:'Line cloggers',    em:'🕶️',desc:'Fake customers stand in their line and never buy.'},
-  monkey:{cost:8, name:'Monkey raid',      em:'🐒',desc:'A monkey runs off with food from their counter.'},
-  pick:  {cost:7, name:'Pickpocket',       em:'👛',desc:'Lift a fifth of their cash (up to $40) into your till.'},
-  scare: {cost:5, name:'Firecracker scare',em:'🧨',desc:'Their whole line scatters.'},
-  rumor: {cost:5, name:'Spread a rumor',   em:'🗣️',desc:'Knock half a star off their rating.'},
-  tip:   {cost:10,name:'Inspector tip-off',em:'🕵️',desc:'Sends the inspector. Roaches or bad food gets them boarded up.'},
+  roach: {cost:6, name:'Cockroaches', em:'🪳',at:[-3.05,-5.05],prop:'trash bins',  verb:'Tip their bins over',          hold:1.4,desc:'Roaches crawl into their kitchen. Customers run off until the owner stomps them.'},
+  stink: {cost:6, name:'Stink bomb',  em:'💨',at:[-1.4,-3.95], prop:'kitchen vent', verb:'Drop a stink bomb down the vent',hold:1.4,desc:'A green cloud keeps everyone away for 15 seconds.'},
+  gas:   {cost:6, name:'Cut the gas', em:'🔌',at:[3.3,-6.05],  prop:'gas bottles',  verb:'Shut off their gas',           hold:1.2,desc:'Their burners go out for 15 seconds.'},
+  poison:{cost:9, name:'Poison',      em:'☠️',at:[-3.1,-7.65], prop:'ice chest',    verb:'Spoil their ingredients',      hold:2,  desc:'Their next food goes bad: tummy aches, no money, lost stars.'},
+  pepper:{cost:8, name:'Ghost pepper',em:'🌶️',at:[3.1,-7.95],  prop:'sauce crates', verb:'Swap in ghost pepper sauce',   hold:1.6,desc:'Their customers breathe fire and run off without paying.'},
+  pick:  {cost:4, name:'Pickpocket',  em:'👛',at:[.95,-3.95],  prop:'cash tin',     verb:'Lift cash from their tin',     hold:2.6,desc:'A fifth of their cash (up to $40) goes in your pocket.'},
+  tip:   {cost:4, name:'Inspector tip-off',em:'🕵️',at:[-1.95,-8.7],prop:'payphone',verb:'Call the health inspector',  hold:1.6,desc:'Sends the inspector. Roaches or bad food gets them boarded up.'},
 };
+const opAt=(S,o,op)=>[stWX(S,o)+OPS[op].at[0],OPS[op].at[1]];
+function nearOp(S,c,o,op,slack){if(!c||c.auto||!OPS[op])return false;const p=opAt(S,o,op);return Math.hypot(c.x-p[0],c.z-p[1])<STATION_R*(slack||1)}
 const BOSS={cost:55,name:"Boss's favor",em:'👑',desc:'The whole Family hits every rival with cockroaches at once.',minTier:3};
 // favours for your own stall
 const BOOSTS={
@@ -322,9 +339,9 @@ const BOOSTS={
   bribe:{cost:18,name:'Bribe the inspector',em:'🤝',desc:'Your next inspection passes no matter what.'},
 };
 const DEFS={cam:{cost:35,name:'Camera',em:'📹'},cat:{cost:25,name:'Stall cat',em:'🐈'},dog:{cost:35,name:'Guard dog',em:'🐕'}};
-const STINK_T=15,GAS_T=15,CONES_T=12,CLOG_T=15,JUGGLE_T=20;
+const STINK_T=15,GAS_T=15,CONES_T=12,CLOG_T=15,JUGGLE_T=20,BUSTED_T=9,REJOB_T=14;
 const blocked=(S,st)=>S.t<st.conesU||S.t<st.clogU;
-const PARADE_T=22,CATCH=.55,DOG=.5,SHUT_T=25,STRIKES_OUT=3,GOON_SPD=120,INSP_SPD=75;
+const PARADE_T=22,CATCH=.55,DOG=.5,SHUT_T=25,STRIKES_OUT=3,INSP_SPD=75,CHEF_SPD=4.4;
 const isClosed=(S,st)=>st.out||S.t<st.closedUntil;
 const anyBad=st=>st.spike||st.stock.some(a=>a.some(b=>b.bad));
 function worth(st){return st.cash+st.buildVal}
@@ -369,9 +386,9 @@ function makeSim(o){const R=rng32(o.seed>>>0||1);const N=o.stalls.length;
   // one dragon dance parade a night, somewhere between 8 and 11
   S.paradeAt=(2+R()*2.6)*S.hourLen;S.paradeDir=R()<.5?1:-1;S.paradeOn=false;
   o.stalls.forEach((p,i)=>S.stalls.push({i,seat:p.seat,name:p.name,cid:p.cid,cpu:p.cpu||0,local:!!p.local,col:STALL_COLS[p.seat%8],
-    x:(i+.5)*STREET/N,cash:START_CASH,menu:[-1,-1,-1,-1],tier:0,buildVal:0,goons:2,dog:0,stinkU:0,gasU:0,conesU:0,clogU:0,juggleU:0,bribed:0,shooT:0,busy:0,cam:0,cat:0,roach:0,roachT:0,catT:0,spike:0,badT:0,closedUntil:0,strikes:0,out:0,sickT:[],hits:0,stompT:0,sick:0,price:DISH.map(d=>d.fair),stock:DISH.map(()=>[]),burn:[],pantry:ING.map(()=>0),
+    x:(i+.5)*STREET/N,cash:START_CASH,menu:[-1,-1,-1,-1],tier:0,buildVal:0,ch:{x:0,z:KZ,yaw:0,tp:0},job:null,jobCD:0,jobLast:{},burnt:0,yardIn:-1,dog:0,stinkU:0,gasU:0,conesU:0,clogU:0,juggleU:0,bribed:0,shooT:0,busy:0,cam:0,cat:0,roach:0,roachT:0,catT:0,spike:0,badT:0,closedUntil:0,strikes:0,out:0,sickT:[],hits:0,stompT:0,sick:0,price:DISH.map(d=>d.fair),stock:DISH.map(()=>[]),burn:[],pantry:ING.map(()=>0),
     rating:3,smell:0,bell:-99,streak:0,bestStreak:0,tips:0,goldServed:0,jobs:0,camCatch:0,helper:o.easy&&!p.cpu?1:0,helpT:0,queue:[],serveT:0,served:0,lost:0,wasted:0,revenue:0,spent:0,sold:DISH.map(()=>0),idle:0,gone:false}));
-  S.goons=[];S.insp=[];S.gid=0;
+  S.insp=[];for(const st of S.stalls)st.ch.x=stWX(S,st);
   // nobody opens to an empty stall: three dishes (the opening craze first) and enough for a couple of batches
   const cz=S.events[0].craze;for(const st of S.stalls){const picks=[cz];for(let k=1;picks.length<3;k++){const d=(cz+k*2+st.i)%DISH.length;if(!picks.includes(d))picks.push(d)}
     st.menu=[...picks,-1];for(const d of picks)for(const id of DISH[d].ing)st.pantry[INGI[id]]+=2}
@@ -390,11 +407,16 @@ const stockN=(st,d)=>st.stock[d].reduce((a,b)=>a+b.n,0);
 const cookingN=(st,d)=>st.burn.filter(b=>b.d===d).length*DISH[d].yield;
 function onMenu(st,d){return st.menu.includes(d)}
 // ── things a stall owner can do (players, guests through the host, CPU owners) ──
+// Kitchen work (cook, toss, plate, stomp, bin, fan, bell) needs the chef in the kitchen; a.h marks the helper doing it.
+const KITCHEN_ACTS={cook:1,toss:1,plate:1,stomp:1,bin:1,fan:1,bell:1};
+const tossOpen=b=>!b.ready&&!b.toss&&b.el>=DISH[b.d].cook*TOSS_AT&&b.el<=DISH[b.d].cook*TOSS_AT+TOSS_W;
+function freeWok(st,w){const n=burnersOf(st);if(w!=null&&w>=0&&w<n&&!st.burn.some(b=>b.w===w))return w;for(let k=0;k<n;k++)if(!st.burn.some(b=>b.w===k))return k;return -1}
+function plateIt(S,st,b){st.burn.splice(st.burn.indexOf(b),1);st.stock[b.d].push({n:DISH[b.d].yield,born:S.t,bad:st.spike||0,good:b.toss?1:0});st.spike=0;emit(S,['plate',st.i,b.d,b.w,b.toss?1:0])}
 function doAction(S,st,a){if(!st||st.gone||S.over)return '';
+  if(KITCHEN_ACTS[a.k]&&!a.h&&!inKitchen(S,st))return 'away';
   if(a.k==='stomp'){if(st.roach<=0||S.t<st.stompT)return '';st.stompT=S.t+.1;st.roach--;emit(S,['squish',st.i]);return 'stomp'}
   if(a.k==='bin'){if(!anyBad(st))return '';let n=0;for(const arr of st.stock)for(let k=arr.length-1;k>=0;k--)if(arr[k].bad){n+=arr[k].n;arr.splice(k,1)}st.spike=0;st.wasted+=n;emit(S,['binbad',st.i,n]);return 'bin'}
   if(a.k==='up'){const nx=TIERS[st.tier+1];if(!nx)return 'maxed';if(st.cash<nx.cost)return 'broke';st.cash-=nx.cost;st.spent+=nx.cost;st.buildVal+=nx.cost*.5;st.tier++;emit(S,['build',st.i,st.tier]);return 'up'}
-  if(a.k==='hire'){if(st.goons>=TIERS[st.tier].goons)return 'goonmax';if(st.cash<GOON_COST)return 'broke';st.cash-=GOON_COST;st.spent+=GOON_COST;st.goons++;emit(S,['hire',st.i]);return 'hire'}
   if(a.k==='def'){const D=DEFS[a.def];if(!D)return '';if(st[a.def])return 'have';if(st.cash<D.cost)return 'broke';st.cash-=D.cost;st.spent+=D.cost;st[a.def]=1;emit(S,['def',st.i,a.def]);return 'def'}
   if(a.k==='boss'){if(st.tier<BOSS.minTier)return 'bosstier';if(st.cash<BOSS.cost)return 'broke';st.cash-=BOSS.cost;st.spent+=BOSS.cost;st.jobs+=3;
     for(const o of S.stalls){if(o===st||o.gone||o.out)continue;o.hits++;if(o.cat)emit(S,['cat',o.i]);else{o.roach=Math.max(o.roach,6);o.roachT=0}}emit(S,['boss',st.i]);return 'boss'}
@@ -402,10 +424,16 @@ function doAction(S,st,a){if(!st||st.gone||S.over)return '';
     st.cash-=B.cost;st.spent+=B.cost;if(a.b==='juggler')st.juggleU=S.t+JUGGLE_T;if(a.b==='bribe')st.bribed=1;
     if(a.b==='influencer'){let d=st.menu.find(x=>x>=0&&(stockN(st,x)>0||cookingN(st,x)>0));if(d==null)d=st.menu.find(x=>x>=0);if(d!=null&&d>=0){const c=spawnCustomer(S);c.gold=1;c.critic=false;c.pat+=10;c.st='go';c.to=st.i;c.d=d}}
     emit(S,['boost',st.i,a.b]);return 'boost'}
-  if(a.k==='shoo'){if(S.t<st.shooT)return '';st.shooT=S.t+.3;const g=S.goons.find(q=>q.id===a.id&&q.to===st.i&&q.ph==='go');if(!g)return '';g.ph='back';g.shoo=1;emit(S,['shoo',st.i,g.from,g.op]);return 'shoo'}
+  // catch someone sneaking around your back yard: they get chased home
+  if(a.k==='shoo'){const o=S.stalls[a.who|0];if(!o||o===st||o.gone||S.t<st.shooT)return '';if(!inYardOf(S,o.ch,st)||st.ch.auto||Math.hypot(o.ch.x-st.ch.x,o.ch.z-st.ch.z)>3.4)return 'far';
+    st.shooT=S.t+.3;st.caught=(st.caught||0)+1;sendHome(S,o,BUSTED_T);emit(S,['shoo',st.i,o.i]);return 'shoo'}
   if(a.k==='fan'){if(S.t>=st.stinkU)return '';st.stinkU-=2.5;emit(S,['fan',st.i]);return 'fan'}
-  if(a.k==='op'){const O=OPS[a.op],tg=S.stalls[a.to|0];if(!O||!tg||tg===st||tg.gone||tg.out)return '';if(st.goons-st.busy<1)return 'nogoon';if(st.cash<O.cost)return 'broke';
-    st.cash-=O.cost;st.spent+=O.cost;st.busy++;st.jobs++;S.goons.push({id:++S.gid,from:st.i,to:tg.i,op:a.op,x:st.x,y:92,ph:'go',w:0});emit(S,['sneak',st.i,tg.i,a.op]);return 'op'}
+  // start a job: you have to be standing at that spot in their back yard, then hold until it's done
+  if(a.k==='op'){const O=OPS[a.op],tg=S.stalls[a.to|0];if(!O||!tg||tg===st||tg.gone)return '';if(st.job)return st.job.op===a.op&&st.job.to===tg.i?'op':'busyjob';
+    if(S.t<st.jobCD)return 'busted';if(!nearOp(S,st.ch,tg,a.op))return 'far';if(st.cash<O.cost)return 'broke';
+    const last=st.jobLast[a.op+tg.i];if(last!=null&&S.t-last<REJOB_T)return 'rejob';
+    st.job={op:a.op,to:tg.i,t:0,dur:O.hold};emit(S,['sneak',st.i,tg.i,a.op]);return 'op'}
+  if(a.k==='opx'){if(!st.job)return '';st.job=null;return 'opx'}
   if(isClosed(S,st)&&(a.k==='cook'||a.k==='bell'))return 'closed';
   if(a.k==='cook'&&S.t<st.gasU)return 'gasoff';
   if(a.k==='menu'){const sl=a.slot|0,d=a.d|0;if(sl<0||sl>=slotsOf(st)||d<-1||d>=DISH.length)return '';if(d>=0&&st.menu.includes(d))return 'dup';
@@ -416,11 +444,31 @@ function doAction(S,st,a){if(!st||st.gone||S.over)return '';
     if(!bought)return 'broke';emit(S,['buy',st.i,g,bought]);return 'buy'}
   if(a.k==='helper'){st.helper=st.helper?0:1;return 'helper'}
   if(a.k==='bell'){if(S.t-st.bell<BELL_CD)return 'bellcd';st.bell=S.t;emit(S,['bell',st.i]);return 'bell'}
-  if(a.k==='cook'){const d=st.menu[a.slot|0];if(d==null||d<0)return 'nomenu';if(st.burn.length>=burnersOf(st))return 'burners';
+  if(a.k==='toss'){const b=st.burn.find(q=>q.w===(a.w|0));if(!b||b.ready)return '';if(!tossOpen(b))return b.toss?'tossed':'early';b.toss=1;b.left=Math.max(.3,b.left-1.4);st.tosses=(st.tosses||0)+1;emit(S,['toss',st.i,b.w]);return 'toss'}
+  if(a.k==='plate'){const b=a.w!=null?st.burn.find(q=>q.w===(a.w|0)&&q.ready):st.burn.find(q=>q.ready);if(!b)return a.w!=null&&st.burn.some(q=>q.w===(a.w|0))?'notyet':'';plateIt(S,st,b);return 'plate'}
+  if(a.k==='cook'){const d=a.d!=null&&a.d>=0&&st.menu.includes(a.d|0)?a.d|0:st.menu[a.slot|0];if(d==null||d<0)return 'nomenu';const w=freeWok(st,a.w);if(w<0)return 'burners';
     const need=DISH[d].ing.map(id=>INGI[id]);const miss=need.filter(g=>st.pantry[g]<1);
     if(miss.length){if(a.noBuy||st.cash<miss.reduce((t,g)=>t+S.price[g],0))return 'noing';for(const g of miss)doAction(S,st,{k:'buy',g,n:1})}
-    for(const g of need)st.pantry[g]--;st.burn.push({d,left:DISH[d].cook});st.smell=1;emit(S,['cook',st.i,d]);return 'cook'}
+    for(const g of need)st.pantry[g]--;st.burn.push({d,left:DISH[d].cook,w,el:0,ready:0,rt:0,toss:0});st.smell=1;emit(S,['cook',st.i,d,w]);return 'cook'}
   return ''}
+// back to your own kitchen (chased off, caught on camera, or a CPU taking over): tp tells a player's screen to jump there
+function sendHome(S,st,cd){st.job=null;st.ch.x=stWX(S,st);st.ch.z=KZ;st.ch.yaw=0;st.ch.tp=(st.ch.tp||0)+1;if(cd)st.jobCD=S.t+cd;if(st.bot)st.bot.trip=null;emit(S,['home',st.i])}
+// a job finishes: the dog or the camera might stop it, otherwise it lands
+function finishJob(S,st){const j=st.job,O=OPS[j.op],tg=S.stalls[j.to];st.job=null;st.jobLast[j.op+tg.i]=S.t;st.cash-=O.cost;st.spent+=O.cost;st.jobs++;
+  if(tg.dog&&S.R()<DOG){sendHome(S,st,BUSTED_T);emit(S,['dog',tg.i,st.i]);return}
+  if(tg.cam&&S.R()<CATCH){tg.camCatch++;st.rating=clamp(st.rating-.3,1,5);sendHome(S,st,BUSTED_T);emit(S,['caught',st.i,tg.i,j.op]);return}
+  tg.hits++;applyOp(S,st,tg,j.op);emit(S,['deed',st.i,tg.i,j.op])}
+function applyOp(S,from,to,op){
+  if(op==='roach'){if(to.cat){emit(S,['cat',to.i])}else{to.roach=Math.max(to.roach,5);to.roachT=0}}
+  if(op==='poison'){for(const arr of to.stock)for(const b of arr)b.bad=1;to.spike=1;to.badT=S.t}
+  if(op==='pepper'){for(const arr of to.stock)for(const b of arr)b.bad=2;to.spike=2;to.badT=S.t}
+  if(op==='tip')sendInspector(S,to,'tip');
+  if(op==='stink')to.stinkU=S.t+STINK_T;
+  if(op==='gas')to.gasU=S.t+GAS_T;
+  if(op==='pick'){const amt=Math.min(40,Math.round(Math.max(0,to.cash)*.2));to.cash-=amt;from.cash+=amt;emit(S,['pick',from.i,to.i,amt])}}
+function jobStep(S,st,dt){const j=st.job;if(!j)return;const tg=S.stalls[j.to];
+  if(!tg||tg.gone||!nearOp(S,st.ch,tg,j.op,1.35)){st.job=null;emit(S,['jobx',st.i]);return}
+  j.t+=dt;if(j.t>=j.dur)finishJob(S,st)}
 // ── customers ──
 function spawnCustomer(S,critic){const R=S.R,left=R()<.5;
   const c={id:++S.cid,x:left?-30:STREET+30,y:58+R()*36,dir:left?1:-1,spd:20+R()*12,budget:.75+R()*.8,pat:13+R()*12,
@@ -455,7 +503,7 @@ function serveStep(S,st,dt){if(!st.queue.length){st.serveT=0;return}const c=S.cu
   if(b.bad===2){st.queue.shift();st.streak=0;st.rating=clamp(st.rating-.15,1,5);c.st='leave';c.mood=-3;c.dir=c.x<st.x?-1:1;c.spd*=2.2;emit(S,['fire',st.i,c.id]);return}
   if(b.bad){st.queue.shift();st.sick++;st.streak=0;st.sickT.push(S.t);st.rating=clamp(st.rating-.3,1,5);c.st='leave';c.mood=-2;emit(S,['sick',st.i,r2(c.x)]);
     if(st.sickT.filter(t=>S.t-t<40).length>=2&&!S.insp.some(q=>q.to===st.i))sendInspector(S,st,'sick');return}
-  const fresh=age<FRESH;let pay=st.price[c.d]*(c.gold?3:1);let tip=0;if(fresh&&S.R()<.25)tip=1+(S.R()<.3?1:0);pay+=tip;st.tips+=tip;
+  const fresh=age<FRESH;let pay=st.price[c.d]*(c.gold?3:1);let tip=0;if(fresh&&S.R()<(b.good?.5:.25))tip=1+(S.R()<(b.good?.5:.3)?1:0);pay+=tip;st.tips+=tip;
   st.cash+=pay;st.revenue+=pay;st.served++;st.sold[c.d]++;st.queue.shift();if(c.gold&&fresh)st.goldServed++;
   if(fresh){st.streak++;if(st.streak>st.bestStreak)st.bestStreak=st.streak;if(st.streak%5===0){const bonus=st.streak/5*2;st.cash+=bonus;st.revenue+=bonus;emit(S,['streak',st.i,st.streak,bonus])}}else st.streak=0;st.rating=clamp(st.rating+(fresh?.03:-.06),1,5);
   if(c.critic){st.rating=clamp(st.rating+(fresh?.6:-.6),1,5);emit(S,['critic',st.i,fresh?1:0])}
@@ -473,47 +521,36 @@ function simStep(S,dt){if(S.over)return;S.t+=dt;S.frame++;const L=nightLen(S);
   for(const c of S.cust)custStep(S,c,dt);
   S.cust=S.cust.filter(c=>c.x>-60&&c.x<STREET+60);
   for(const st of S.stalls){if(st.gone)continue;
-    for(let k=st.burn.length-1;k>=0;k--){const b=st.burn[k];if(S.t<st.gasU)continue;b.left-=dt;if(b.left<=0){st.burn.splice(k,1);st.stock[b.d].push({n:DISH[b.d].yield,born:S.t,bad:st.spike||0});if(st.spike){st.spike=0}emit(S,['done',st.i,b.d])}}
-    st.smell=st.burn.length?1:Math.max(0,st.smell-dt*.1);
+    for(let k=st.burn.length-1;k>=0;k--){const b=st.burn[k];
+      // done and waiting in the wok: plate it before it burns
+      if(b.ready){b.rt+=dt;if(st.ch.auto&&b.rt>.4){plateIt(S,st,b);continue}if(b.rt>=BURN_T){st.burn.splice(k,1);st.wasted+=DISH[b.d].yield;st.burnt++;st.rating=clamp(st.rating-.05,1,5);emit(S,['burnt',st.i,b.d,b.w])}continue}
+      if(S.t<st.gasU)continue;b.left-=dt;b.el+=dt;if(b.left<=0){b.ready=1;b.rt=0;emit(S,['done',st.i,b.d,b.w])}}
+    st.smell=st.burn.some(b=>!b.ready)?1:Math.max(0,st.smell-dt*.1);
     for(let d=0;d<DISH.length;d++){const s=st.stock[d];while(s.length&&S.t-s[0].born>STALE){st.wasted+=s[0].n;s.shift();emit(S,['waste',st.i,d])}}
     if(st.roach>0){st.roachT+=dt;if(st.roachT>9){st.roachT=0;st.roach=Math.min(9,st.roach+1)}st.rating=clamp(st.rating-.004*st.roach*dt,1,5);
       if(st.cat){st.catT+=dt;if(st.catT>1.4){st.catT=0;st.roach--;emit(S,['cateat',st.i])}}}else st.roachT=0;
     if(isClosed(S,st)&&st.queue.length){for(const id of st.queue){const c=S.cust.find(q=>q.id===id);if(c){c.st='leave';c.mood=-1}}st.queue.length=0}
-    helperStep(S,st,dt);serveStep(S,st,dt);st.idle=st.queue.length?0:st.idle+dt}
-  goonStep(S,dt);inspStep(S,dt);
+    helperStep(S,st,dt);serveStep(S,st,dt);jobStep(S,st,dt);st.idle=st.queue.length?0:st.idle+dt;
+    // walking into somebody's back yard: they hear about it
+    let y=-1;for(const o of S.stalls)if(o!==st&&!o.gone&&inYardOf(S,st.ch,o)){y=o.i;break}if(y!==st.yardIn){st.yardIn=y;if(y>=0)emit(S,['intrude',st.i,y])}}
+  inspStep(S,dt);
   if(S.t>=L&&!S.ending){S.ending=true;emit(S,['close'])}
   if(S.ending){for(const st of S.stalls){for(const id of st.queue){const c=S.cust.find(q=>q.id===id);if(c)c.st='leave'}st.queue.length=0}
     if(S.t>=L+3){S.over=true;emit(S,['sunrise'])}}}
 function profit(st){return Math.round((worth(st)-START_CASH)*100)/100}
 function standings(S){return S.stalls.slice().sort((a,b)=>worth(b)-worth(a))}
-// the kitchen helper: cooks for whoever is waiting, stomps roaches, bins bad food (slower than a quick player)
+// the kitchen helper: while you're out of the kitchen it cooks for whoever is waiting, plates, stomps roaches and
+// bins bad food. While you're in there it only rescues a batch you forgot before it burns.
 function helperStep(S,st,dt){if(!st.helper||st.bot||st.out)return;st.helpT-=dt;if(st.helpT>0)return;st.helpT=.6;
-  if(st.roach>0&&S.R()<.55){doAction(S,st,{k:'stomp'});return}
-  if(anyBad(st)){if(!st.helpBad)st.helpBad=S.t+2.5;if(S.t>=st.helpBad){doAction(S,st,{k:'bin'});st.helpBad=0}}else st.helpBad=0;
+  const away=!inKitchen(S,st);
+  for(const b of st.burn)if(b.ready&&b.rt>(away?.8:4.5)){plateIt(S,st,b);return}
+  if(!away)return;
+  if(st.roach>0&&S.R()<.55){doAction(S,st,{k:'stomp',h:1});return}
+  if(anyBad(st)){if(!st.helpBad)st.helpBad=S.t+2.5;if(S.t>=st.helpBad){doAction(S,st,{k:'bin',h:1});st.helpBad=0}}else st.helpBad=0;
   if(isClosed(S,st))return;const late=S.t>nightLen(S)-S.hourLen*.3;
   for(let k=0;k<slotsOf(st);k++){const d=st.menu[k];if(d<0)continue;
     const waiting=st.queue.map(id=>S.cust.find(c=>c.id===id)).filter(c=>c&&c.d===d).length+S.cust.filter(c=>c.st==='go'&&c.to===st.i&&c.d===d).length;
-    if(stockN(st,d)+cookingN(st,d)<waiting+(late?0:1))doAction(S,st,{k:'cook',slot:k})}}
-function goonStep(S,dt){for(let k=S.goons.length-1;k>=0;k--){const g=S.goons[k],from=S.stalls[g.from],to=S.stalls[g.to];
-    if(g.ph==='go'){const dx=to.x-g.x;if(Math.abs(dx)>5){g.x+=Math.sign(dx)*Math.min(Math.abs(dx),GOON_SPD*dt);continue}g.ph='do';g.w=1.1;continue}
-    if(g.ph==='do'){g.w-=dt;if(g.w>0)continue;
-      if(to.dog&&S.R()<DOG){g.ph='back';g.shoo=1;emit(S,['dog',to.i,g.from]);continue}
-      if(to.cam&&S.R()<CATCH){to.camCatch++;from.goons--;from.busy--;from.rating=clamp(from.rating-.3,1,5);S.goons.splice(k,1);emit(S,['caught',g.from,g.to,g.op]);continue}
-      to.hits++;
-      if(g.op==='roach'){if(to.cat){emit(S,['cat',to.i])}else{to.roach=Math.max(to.roach,5);to.roachT=0}}
-      if(g.op==='poison'){for(const arr of to.stock)for(const b of arr)b.bad=1;to.spike=1;to.badT=S.t}
-      if(g.op==='tip')sendInspector(S,to,'tip');
-      if(g.op==='pepper'){for(const arr of to.stock)for(const b of arr)b.bad=2;to.spike=2;to.badT=S.t}
-      if(g.op==='stink')to.stinkU=S.t+STINK_T;
-      if(g.op==='gas'){to.gasU=S.t+GAS_T}
-      if(g.op==='cones'){to.conesU=S.t+CONES_T;scatter(S,to)}
-      if(g.op==='clog')to.clogU=S.t+CLOG_T;
-      if(g.op==='scare')scatter(S,to);
-      if(g.op==='rumor')to.rating=clamp(to.rating-.5,1,5);
-      if(g.op==='monkey'){let n=0;for(const arr of to.stock){while(arr.length&&n<6){arr[0].n--;n++;if(arr[0].n<=0)arr.shift()}}g.loot=n;emit(S,['monkey',to.i,n])}
-      if(g.op==='pick'){const amt=Math.min(40,Math.round(Math.max(0,to.cash)*.2));to.cash-=amt;from.cash+=amt;g.loot=amt;emit(S,['pick',g.from,g.to,amt])}
-      emit(S,['deed',g.from,g.to,g.op]);g.ph='back';continue}
-    const dx=from.x-g.x;if(Math.abs(dx)>5){g.x+=Math.sign(dx)*Math.min(Math.abs(dx),GOON_SPD*dt);continue}from.busy--;S.goons.splice(k,1)}}
+    if(stockN(st,d)+cookingN(st,d)<waiting+(late?0:1))doAction(S,st,{k:'cook',slot:k,h:1})}}
 function scatter(S,st){for(const id of st.queue){const c=S.cust.find(q=>q.id===id);if(c){c.st='leave';c.mood=0;c.spd*=1.8}}st.queue.length=0}
 function sendInspector(S,st,why){const left=st.x<STREET/2;S.qid=(S.qid||0)+1;S.insp.push({id:S.qid,to:st.i,x:left?-30:STREET+30,y:80,why});emit(S,['inspcoming',st.i,why==='sick'?1:0])}
 function inspStep(S,dt){for(let k=S.insp.length-1;k>=0;k--){const q=S.insp[k],st=S.stalls[q.to];
@@ -533,14 +570,39 @@ function inspStep(S,dt){for(let k=S.insp.length-1;k>=0;k--){const q=S.insp[k],st
 //  premium - the same, but always charges 135% of fair.
 //  masher  - picks three popular dishes once, sells at 60%, cooks whenever a burner is free and
 //            buys whatever it runs out of at any price (the smoke test's button masher).
-function botInit(S,st,kind){const sloppy=kind==='sloppy',clean=kind==='clean'||sloppy,flat=kind==='flat';if(clean||flat)kind='reader';st.bot={kind,t:0,hour:-1,mafia:!clean&&!flat&&kind!=='masher',build:!flat&&kind!=='masher',aggro:.4+S.R()*.6,sloppy,opT:S.hourLen*(.9+S.R()*.8),seenBad:-1}}
-// CPU reactions and the Family: stomp roaches, bin bad food once noticed, build up, defend, and go after whoever is winning
+function botInit(S,st,kind){const sloppy=kind==='sloppy',clean=kind==='clean'||sloppy,flat=kind==='flat';if(clean||flat)kind='reader';st.bot={kind,t:0,hour:-1,mafia:!clean&&!flat&&kind!=='masher',build:!flat&&kind!=='masher',aggro:.4+S.R()*.6,sloppy,opT:S.hourLen*(.9+S.R()*.8),seenBad:-1,trip:null,kx:0};
+  // a CPU taking over a stall walks its chef home first
+  if(st.ch){st.ch.auto=0;if(!inKitchen(S,st))sendHome(S,st,0)}}
+// ── CPU chefs walk: out the back door, through their yard and gate, along the lane, into a rival's yard ──
+function yardPath(S,from,to,op){const fx=stWX(S,from),tx=stWX(S,to),p=opAt(S,to,op);
+  // stand just inside the yard from the spot, so the chef is next to the bins, not inside them
+  const sx=p[0]+(tx-p[0])*.12,sz=p[1]+(p[1]<-6.5?.55:-.6);
+  return [[fx+DOOR_X,-2.6],[fx+DOOR_X,-4.1],[fx+.3,-8.2],[fx,-10.4],[tx,-10.4],[tx-.3,-8.2],[sx,sz]]}
+function homePath(S,st){const c=st.ch,x=stWX(S,st),P=[];if(c.z<-9.05)P.push([c.x,-10.4],[x,-10.4]);if(c.z<-3.4){P.push([x+.2,-8.2],[x+DOOR_X,-4.1])}P.push([x+DOOR_X,-2.6],[x+st.bot.kx,KZ]);return P}
+function botMove(S,st,dt){const b=st.bot,c=st.ch,tr=b.trip;
+  if(!tr){// at work in the kitchen: shuffle over to the wok that needs you
+    const x0=stWX(S,st),nb=burnersOf(st);const hot=st.burn.find(q=>q.ready)||st.burn.find(q=>tossOpen(q))||st.burn[st.burn.length-1];
+    const tgt=hot?(-3.5+7*(hot.w+.5)/nb)*.85:b.kx;const dx=x0+tgt-c.x;c.x+=Math.sign(dx)*Math.min(Math.abs(dx),3*dt);c.z+=(KZ-c.z)*Math.min(1,dt*4);
+    c.yaw+=(0-c.yaw)*Math.min(1,dt*6);if(S.R()<dt*.25)b.kx=(S.R()-.5)*2.2;return}
+  if(tr.ph==='do')return;
+  if(tr.chase!=null){const o=S.stalls[tr.chase];if(o&&inYardOf(S,o.ch,st))tr.path[tr.path.length-1]=[o.ch.x,o.ch.z];else if(tr.path.length<=1){tr.path=homePath(S,st);tr.chase=null;tr.home=1}}
+  const p=tr.path[0];if(!p){b.trip=null;return}const dx=p[0]-c.x,dz=p[1]-c.z,d=Math.hypot(dx,dz),stp=CHEF_SPD*(b.sloppy?.85:1)*dt;
+  if(d>.05){c.yaw=Math.atan2(dx,dz);const k=Math.min(1,stp/d);c.x+=dx*k;c.z+=dz*k}
+  if(d<=stp+.05){if(tr.chase!=null&&tr.path.length===1){const o=S.stalls[tr.chase];if(o&&Math.hypot(o.ch.x-c.x,o.ch.z-c.z)<2.6){doAction(S,st,{k:'shoo',who:o.i});tr.path=homePath(S,st);tr.chase=null;tr.home=1}return}
+    tr.path.shift();if(!tr.path.length){if(tr.home){b.trip=null;return}
+      if(doAction(S,st,{k:'op',op:tr.op,to:tr.to})==='op'){tr.ph='do'}else{tr.path=homePath(S,st);tr.home=1}}}}
+function botTrip(S,st,tg,op){st.bot.trip={path:yardPath(S,st,tg,op),op,to:tg.i,ph:'go'}}
+// CPU reactions and the Family: stomp roaches, bin bad food once noticed, catch sneaks in the back yard, build up, defend, and go after whoever is winning
 function botFamily(S,st){const b=st.bot;
+  if(b.trip&&b.trip.ph==='do'&&!st.job){b.trip.ph='go';b.trip.path=homePath(S,st);b.trip.home=1}
+  if(b.trip)return true;
   if(b.sloppy){}else{if(st.roach>0){doAction(S,st,{k:'stomp'});return true}
-  if(anyBad(st)){if(b.seenBad<0)b.seenBad=S.t+3+S.R()*4;if(S.t>=b.seenBad){doAction(S,st,{k:'bin'});b.seenBad=-1}}else b.seenBad=-1;
+  // bad food: noticed after a few seconds, or straight away when a customer gets sick
+  if(anyBad(st)){if(b.seenBad<0)b.seenBad=S.t+2+S.R()*3;if((st.sick||0)>(b.sick||0))b.seenBad=S.t;if(S.t>=b.seenBad&&doAction(S,st,{k:'bin'})==='bin')b.seenBad=-1}else b.seenBad=-1;b.sick=st.sick||0;
   if(S.t<st.stinkU&&S.R()<.6)doAction(S,st,{k:'fan'});
-  // a CPU owner notices some goons coming
-  for(const g of S.goons)if(g.to===st.i&&g.ph==='go'&&Math.abs(g.x-st.x)<200&&!g.seen){g.seen=1;if(S.R()<.25)doAction(S,st,{k:'shoo',id:g.id})}}
+  // someone in the back yard: a CPU owner notices sometimes, walks out and chases them home
+  const sneak=S.stalls.find(o=>o!==st&&!o.gone&&inYardOf(S,o.ch,st));
+  if(sneak&&S.R()<(S.easy?.2:.3)){b.trip={path:[[stWX(S,st)+DOOR_X,-2.6],[stWX(S,st)+DOOR_X,-4.1],[sneak.ch.x,sneak.ch.z]],chase:sneak.i,ph:'go'};return true}}
   if(st.out)return false;const late=S.t>nightLen(S)*.62;
   const nx=TIERS[st.tier+1];if(b.build&&!b.sloppy&&nx&&!late&&st.cash>nx.cost+35)doAction(S,st,{k:'up'});
   if(!b.mafia)return false;
@@ -549,15 +611,18 @@ function botFamily(S,st){const b=st.bot;
   if(st.strikes>0&&!st.bribed&&st.cash>80)doAction(S,st,{k:'boost',b:'bribe'});
   if(st.cash>110&&S.R()<.04&&!late)doAction(S,st,{k:'boost',b:S.R()<.6?'juggler':'influencer'});
   if((st.hits>1||st.tier>=2)&&!st.cam&&st.cash>90)doAction(S,st,{k:'def',def:'cam'});
-  if(S.hour>=1&&S.t>=b.opT&&st.cash>70){b.opT=S.t+S.hourLen*(1.1-b.aggro*.5)*(.7+S.R()*.6);
+  if(S.hour>=1&&S.t>=b.opT&&st.cash>70&&S.t>=st.jobCD&&!st.burn.length){b.opT=S.t+S.hourLen*(1.1-b.aggro*.5)*(.7+S.R()*.6);
     const rivals=S.stalls.filter(o=>o!==st&&!o.gone&&!o.out&&(!S.easy||o.cpu)).sort((a,c)=>worth(c)-worth(a));const tg=rivals[0];
-    if(tg&&worth(tg)>worth(st)*.9&&S.R()<b.aggro*(S.easy?.45:1)){if(st.goons-st.busy<1)doAction(S,st,{k:'hire'});
+    if(tg&&worth(tg)>worth(st)*.9&&S.R()<b.aggro*(S.easy?.45:1)){
       if(st.tier>=BOSS.minTier&&st.cash>BOSS.cost+60&&S.R()<.15){doAction(S,st,{k:'boss'});return false}
-      const pool=['roach','stink','pepper','poison','gas','cones','clog','monkey','pick','scare','rumor'];
-      const op=(tg.roach>0||anyBad(tg))&&S.R()<.7?'tip':pool[S.R()*pool.length|0];doAction(S,st,{k:'op',op,to:tg.i})}}
+      const pool=['roach','stink','pepper','poison','gas','pick'];
+      const op=(tg.roach>0||anyBad(tg))&&S.R()<.7?'tip':pool[S.R()*pool.length|0];botTrip(S,st,tg,op);return true}}
   return false}
-function botStep(S,st,dt){const b=st.bot;if(!b||st.gone||S.over)return;b.t-=dt;if(b.t>0)return;b.t=.5+S.R()*.3;
-  const kind=b.kind;if(botFamily(S,st))return;if(isClosed(S,st))return;
+function botStep(S,st,dt){const b=st.bot;if(!b||st.gone||S.over)return;botMove(S,st,dt);b.t-=dt;if(b.t>0)return;b.t=.5+S.R()*.3;
+  const kind=b.kind;
+  // at the woks: plate what's done and toss what's ready to toss (a sloppy cook misses more)
+  if(!b.trip){for(const q of st.burn.slice())if(q.ready&&q.rt>.3)doAction(S,st,{k:'plate',w:q.w});for(const q of st.burn)if(tossOpen(q)&&S.R()<(b.sloppy?.25:.6))doAction(S,st,{k:'toss',w:q.w})}
+  if(botFamily(S,st))return;if(isClosed(S,st))return;
   if(kind==='masher'){if(b.hour<0){[DISHI.dump,DISHI.nood,DISHI.tea].forEach((d,k)=>doAction(S,st,{k:'menu',slot:k,d}));for(const d of st.menu)if(d>=0)doAction(S,st,{k:'price',d,v:DISH[d].fair*.6});b.hour=0}
     for(const d of st.menu.filter(d=>d>=0))for(const id of DISH[d].ing){const g=INGI[id];if(st.pantry[g]<2)doAction(S,st,{k:'buy',g,n:5})}
     for(let k=0;k<slotsOf(st);k++)doAction(S,st,{k:'cook',slot:k});return}
@@ -746,6 +811,7 @@ function makeGeometry(){const T=T3,GG=G3.geo;
   GG.post=new T.CylinderGeometry(.12,.13,5.6,12);GG.rod=new T.CylinderGeometry(.04,.04,.75,8);GG.signb=RBG(7.32,1.22,.22,.06,2);GG.signp=new T.PlaneGeometry(7.12,1.04);
   GG.menuf=RBG(5.76,1.15,.1,.03,2);GG.menup=new T.PlaneGeometry(5.5,.95);GG.cooker=new T.CylinderGeometry(.32,.3,.42,18);GG.lid=new T.SphereGeometry(.31,16,8,0,Math.PI*2,0,Math.PI/2);
   GG.cboard=RBG(.95,.06,.52,.02,1);GG.bowl=new T.CylinderGeometry(.24,.17,.1,16);GG.val=new T.PlaneGeometry(8.7,.62);GG.box=new T.BoxGeometry(1,1,1);
+  GG.backc2=RBG(6,.95,.62,.05,2);GG.backtop2=RBG(6.12,.08,.72,.03,2);GG.wallL=RBG(6.4,4.7,.16,.04,2);GG.wallR=RBG(.3,4.7,.16,.02,1);GG.lintel=RBG(1.2,2.2,.16,.03,1);GG.side=RBG(.14,3,2,.03,2);GG.shelf2=RBG(5.9,.07,.36,.02,2);
   GG.ac=RBG(.9,.6,.5,.06,2);GG.tank=new T.CylinderGeometry(.8,.8,1.4,16);GG.tleg=new T.CylinderGeometry(.06,.06,.9,6);GG.cone=new T.ConeGeometry(1,1,4);GG.plane=new T.PlaneGeometry(1,1);
   // a fabric awning that curves down to the front
   const aw=new T.PlaneGeometry(8.7,1,1,14),p=aw.attributes.position;for(let i=0;i<p.count;i++){const v=p.getY(i)+.5;p.setXYZ(i,p.getX(i),5.95-.92*Math.pow(v,1.7),-3.62+4.34*v)}aw.computeVertexNormals();GG.awn=aw}
@@ -764,7 +830,7 @@ function buildWorld(){const T=T3;
 function ground(){const T=T3,X=G3.tx;for(const t of [X.cobC,X.cobR]){t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(90,35);t.anisotropy=8}
   G3.groundMat=new T.MeshStandardMaterial({map:X.cobC,roughnessMap:X.cobR,roughness:1,metalness:.05,envMapIntensity:.8});
   const gr=mesh(new T.PlaneGeometry(360,140),G3.groundMat,0,0,0,G3.scene);gr.rotation.x=-Math.PI/2;gr.receiveShadow=true;
-  const kb=mesh(new T.BoxGeometry(360,.25,14),new T.MeshStandardMaterial({color:'#2a2140',roughness:.85}),0,.12,-11.2,G3.scene);kb.receiveShadow=true}
+  const kb=mesh(new T.BoxGeometry(360,.25,4.6),new T.MeshStandardMaterial({color:'#2a2140',roughness:.85}),0,.12,-18.4,G3.scene);kb.receiveShadow=true}
 const NEONWORDS=[['NOODLES','#ff7ab6'],['KARAOKE','#3ee0c5'],['HOTEL','#ffb547'],['TEA','#7fd36b'],['KTV','#5aa9ff'],['ARCADE','#b28cff'],['MAHJONG','#ff5a4d'],['BAKERY','#ffd166'],['SNACKS','#3ee0c5'],['DUMPLINGS','#ff9a4d'],['BUBBLE TEA','#ff7ab6'],['RAMEN','#ffb547']];
 function neonTex(word,col,w,h){return ctex(w||512,h||128,(g,W,H)=>{g.fillStyle='rgba(8,5,16,1)';g.fillRect(0,0,W,H);const vert=H>W;
   g.strokeStyle=col;g.lineWidth=Math.min(W,H)*.05;g.strokeRect(Math.min(W,H)*.08,Math.min(W,H)*.08,W-Math.min(W,H)*.16,H-Math.min(W,H)*.16);
@@ -878,12 +944,15 @@ function body(o){const sc=o.s||1;_t.e.set(0,o.yaw||0,0);_t.q.setFromEuler(_t.e);
 function buildStall(st){const T=T3,GG=G3.geo,M=G3.mats,g=new T.Group();g.position.set(xw(st.x),0,0);G3.scene.add(g);
   const S3={st,g,signKey:'',menuKey:'',tier:-1,tower:null,beacon:null,off:0,disp:[],tdisp:[],flick:0};const it=[],A=(geo,mat,x,y,z,rx,ry,rz,sx,sy,sz)=>it.push({geo,mat,m:MLOC(x,y,z,rx,ry,rz,sx,sy,sz).clone()});
   A(GG.counter,M.planks,0,.575,-.72);A(GG.ctop,M.lightwood,0,1.215,-.76);A(GG.trim,SM(st.col,{emissive:st.col,emissiveIntensity:.5,roughness:.45}),0,.93,.005);A(GG.kick,M.dark,0,.07,.01);
-  A(GG.backc,M.darkwood,0,.475,-2.95);A(GG.backtop,M.steel,0,.99,-2.95);A(GG.wall,M.wall,0,2.35,-3.42);A(GG.shelf,M.lightwood,0,2.18,-3.2);
+  // the back counter stops short of the back door (right-hand corner); side walls close the kitchen in
+  A(GG.backc2,M.darkwood,-.65,.475,-2.95);A(GG.backtop2,M.steel,-.65,.99,-2.95);A(GG.wallL,M.wall,-.65,2.35,-3.42);A(GG.wallR,M.wall,3.72,2.35,-3.42);A(GG.lintel,M.wall,DOOR_X,3.6,-3.42);
+  A(GG.shelf2,M.lightwood,-.6,2.18,-3.2);for(const x of [-3.97,3.97])A(GG.side,M.wall,x,1.5,-2.42);
   for(const x of [-3.97,3.97])for(const z of [-.05,-3.35])A(GG.post,M.darkwood,x,2.8,z);
   A(GG.awn,stripeMat(st.col),0,0,0);A(GG.val,valMat(st.col),0,4.74,.72);for(const x of [-2.9,2.9])A(GG.rod,M.iron,x,5.48,.25);A(GG.signb,M.signboard,0,6.42,.25);
-  A(GG.menuf,M.lightwood,0,3.3,-3.3);A(GG.cooker,M.white,2.45,1.2,-2.95);A(GG.lid,M.white,2.45,1.41,-2.95);A(GG.cboard,M.lightwood,-2.25,1.03,-2.95);
+  A(GG.menuf,M.lightwood,0,3.3,-3.3);A(GG.cooker,M.white,1.7,1.2,-2.95);A(GG.lid,M.white,1.7,1.41,-2.95);A(GG.cboard,M.lightwood,-2.25,1.03,-2.95);
   for(let k=0;k<3;k++)A(GG.bowl,M.white,-.75,1.04+k*.1,-2.95);
-  bake(g,it,S3.disp);
+  yardBuild(S3,A);
+  bake(g,it,S3.disp);yardDoor(S3);
   S3.signTex=ctex(512,80,()=>{},null);S3.signMat=new T.MeshBasicMaterial({map:S3.signTex,color:new T.Color(1.6,1.6,1.6)});S3.disp.push(S3.signTex,S3.signMat);mesh(GG.signp,S3.signMat,0,6.42,.365,g);
   S3.menuTex=ctex(512,88,()=>{},null);S3.menuMat=new T.MeshBasicMaterial({map:S3.menuTex});S3.disp.push(S3.menuTex,S3.menuMat);mesh(GG.menup,S3.menuMat,0,3.3,-3.244,g);
   const rg=new T.TorusGeometry(1,.06,6,40);rg.rotateX(Math.PI/2);S3.ringMat=new T.MeshBasicMaterial({color:new T.Color(2,1.3,.4),transparent:true,opacity:.6,depthWrite:false});S3.ring=mesh(rg,S3.ringMat,0,.08,2,g);S3.ring.visible=false;S3.disp.push(rg,S3.ringMat);
@@ -937,7 +1006,7 @@ function tablesInit(){const half=G3.N*P3/2+4,T=[];let j=0;for(let x=-half;x<=hal
 function diners3D(v,t){const lamp=hdr('#ff6a3a',1.6),pool=hdr('#ff8a4a',.6);for(const tb of G3.tables||[]){const {x,z}=tb;
   ibW('ttop',col3(tb.col),x,.74,z);ibW('tleg',WHITE3,x,.37,z);ibW('pool',pool,x,.02,z+.3,0,0,0,5,1,3.6);
   ibW('lantern',lamp,x,.93,z,0,0,0,.32);ibW('lcap',WHITE3,x,1.08,z,0,0,0,.32);bput('glw',x,.98,z+.05,1.5,1.5,0,.55,hdr('#ff9a50',1.1));
-  for(const s of tb.seats){const sx=x+s.dx*.98,sz=z+s.dz*.92;ibW('stool',col3(s.stool),sx,.21,sz);if(s.who<0)continue;const k=s.who,ph=t*2.2+k*1.7,bite=Math.max(0,Math.sin(ph));
+  for(const s of tb.seats){const sx=x+s.dx*.98,sz=z+s.dz*.92;ibW('stool',col3(s.stool),sx,.21,sz);if(s.who<0||fpCull(sx,sz))continue;const k=s.who,ph=t*2.2+k*1.7,bite=Math.max(0,Math.sin(ph));
     body({x:sx,z:sz,y:-.36,yaw:s.yaw,sit:1,shirt:SHIRT[k%SHIRT.length],pants:PANTS3[k%PANTS3.length],skin:PEOPLE[k%PEOPLE.length],hair:HAIR[(k*7)%HAIR.length],hat:HATS3[(k*3)%8],hatCol:SHIRT[(k+3)%SHIRT.length],
       armL:[-1.15,.12],armR:[-1.2-bite*.7,.08],mood:1,squint:bite>.8?1:0,nod:Math.sin(ph*.5)*.06});
     bput('emo',x+s.dx*.42,.98,z+s.dz*.38,.42,.42,emo(DISH[s.d].em),1)}}}
@@ -962,10 +1031,10 @@ function render3D(v,dt,t){if(G3.v!==v||G3.N!==v.stalls.length||G3.stalls.length!
   if(innerWidth<2)return;autoQualityTick(dt);const [W,H]=sizeView();const cam=G3.cam;
   // camera: a slow drift on the title, a short fly-in when a night starts
   G3.camT+=dt;const title=v===DEMO,intro=title?0:1-smooth01(G3.camT/2.8);
-  const dx=title?Math.sin(t*.05)*5:Math.sin(t*.06)*.7,dy=title?Math.sin(t*.07)*.5:0;frameCam(cam,W,H,intro,dx,dy);G3.camQ.copy(cam.quaternion);
+  const dx=title?Math.sin(t*.05)*5:Math.sin(t*.06)*.7,dy=title?Math.sin(t*.07)*.5:0;if(fpOn())fpCam(cam,W,H,dt);else{cam.near=.5;cam.fov=32;FP.on=0;frameCam(cam,W,H,intro,dx,dy)}G3.camQ.copy(cam.quaternion);
   const key=W+'x'+H+':'+G3.N;if(G3.cam2key!==key){frameCam(G3.cam2,W,H,0,0,0);G3.cam2key=key;placeSky()}
   // fog thins out as the camera backs off for a wide street on a narrow screen, so the counters stay clear
-  G3.scene.fog.density=.0072*Math.min(1,50/Math.hypot(cam.position.y-1.2,cam.position.z+.7));
+  G3.scene.fog.density=fpOn()?.0105:.0072*Math.min(1,50/Math.hypot(cam.position.y-1.2,cam.position.z+.7));
   // sky, fog and light follow the night
   const u=nightU(v);if(Math.abs(u-G3.lastU)>.003){G3.lastU=u;const [a,b,c,sv,dusk,dawn]=skyColors(u);const cx=G3.sky.userData.c.getContext('2d'),gd=cx.createLinearGradient(0,0,0,256);gd.addColorStop(0,a);gd.addColorStop(.55,b);gd.addColorStop(1,c);cx.fillStyle=gd;cx.fillRect(0,0,4,256);G3.sky.needsUpdate=true;
     G3.scene.fog.color.set(b);G3.stars.material.opacity=sv;G3.hemi.color.set(dusk>0?mixC('#8a74e0','#ffa890',dusk*.6):mixC('#8a74e0','#ffc0a0',dawn*.6))}
@@ -976,12 +1045,11 @@ function render3D(v,dt,t){if(G3.v!==v||G3.N!==v.stalls.length||G3.stalls.length!
   for(let k=G3.stalls.length;k<G3.slights.length;k++)G3.slights[k].intensity=0;
   for(const S3 of G3.stalls)stall3D(v,S3,t,dt);
   for(const c of v.cust||[])person3D(v,c,t,dt);
-  for(const g of v.goons||[])goon3D(v,g,t,dt);
   (v.insp||[]).forEach((q,k)=>insp3D(q,t,dt,k));
   diners3D(v,t);
   dragon3D(v,t,dt);coins3D(dt);rockets3D(dt);
   if(raining){G3.rain.visible=true;const p=G3.rain.geometry.attributes.position;for(let k=0;k<p.count;k++){let y=p.getY(k)-dt*24;if(y<0){y+=26;if(Math.random()<.04)part({x:p.getX(k),y:.05,z:p.getZ(k),s:.18,grow:2.4,life:.35,cell:3,b:'puf',a:.5})}p.setY(k,y)}p.needsUpdate=true}else G3.rain.visible=false;
-  parts3D(dt);ibEnd();
+  fpHands3D(v,t,dt);parts3D(dt);ibEnd();
   if(!G3.comp&&G3.q.bloom&&TX)G3.comp=makeComposer(W,H);
   if(G3.comp)G3.comp.render(dt);else G3.r.render(G3.scene,cam)}
 function lantern3D(x,y,z,sw,glow,sc){sc=sc||1;const L=.56*sc,s=Math.sin(sw),c=Math.cos(sw);const cx=x+L*s,cy=y-L*c,str=Math.max(.05,L-.47*sc);
@@ -1004,23 +1072,21 @@ function stall3D(v,S3,t,dt){const st=S3.st,A=sa(st.i);S3.g.visible=!st.gone;cons
   // lanterns on the corners
   const glow=shut?LAN_OFF:hdr('#ff5a2a',1.8);for(const [lx,ph] of [[-3.7,0],[3.7,2]])lantern3D(X+lx,4.45,.9,Math.sin(t*1.8+st.i+ph)*.15,glow,1);
   // woks on burners, flames and steam when cooking, tossed by the chef
-  for(let k=0;k<nb;k++){const b=st.burn[k];const tossing=A.toss>0&&A.tossK===k,ph=(1-A.toss)*Math.PI*2;const wx=X-3.5+7*(k+.5)/nb,lift=tossing?Math.max(0,Math.sin(ph))*.35:0,rz=tossing?Math.sin(ph)*.32:0;
+  for(let k=0;k<nb;k++){const b=st.burn.find(q=>q.w===k);const tossing=A.toss>0&&A.tossK===k,ph=(1-A.toss)*Math.PI*2;const mineFP=st.seat===MY_SEAT&&fpOn(),wx=X-3.5+7*(k+.5)/nb,lift=tossing?Math.max(0,Math.sin(ph))*(mineFP?.08:.35):0,rz=tossing?Math.sin(ph)*(mineFP?.1:.32):0;
     ibW('wok',WHITE3,wx,1.33+lift,-.95,0,0,rz);ibW('whandle',WHITE3,wx+.82,1.53+lift+rz*.6,-.95,0,0,rz);
-    const on=!!b&&!shut&&!gas;ibW('burner',on?hdr('#5a8cff',2.2):col3('#1a1a22'),wx,1.3,-.95);
+    const on=!!b&&!b.ready&&!shut&&!gas;ibW('burner',on?hdr('#5a8cff',2.2):col3('#1a1a22'),wx,1.3,-.95);
+    if(b&&b.ready){const late=b.rt/BURN_T,pul=.5+.5*Math.sin(t*(6+late*14));bput('glw',wx,1.62,-.92,1.3+pul*.4,1.3+pul*.4,3,.5+.4*pul,hdr(late>.55?'#ff5a3a':'#7dffb0',1.6));
+      if(chance(.1+late*.5,dt))part({x:wx+rnd(-.2,.2),y:1.7,z:-.9,vy:rnd(.8,1.4),s:.3,grow:2.4,life:1.4,cell:0,b:'puf',a:.25+late*.5,col:col3(late>.55?'#4a4048':'#fff4ea')})}
+    if(b&&wokTossable(b))bput('emo',wx,2.55+Math.abs(Math.sin(t*9))*.12,-.9,.5,.5,emo('❗'),1);
     if(on){for(let j=0;j<4;j++){const fl=.55+.45*Math.abs(Math.sin(t*14+j*1.7+k));bput('glw',wx+Math.cos(j*1.57+t)*.2,1.36+fl*.15,-.95+Math.sin(j*1.57+t)*.2,.32,.55*fl+.2,1,1,hdr('#ff8a30',2.6))}
       bput('glw',wx,1.45,-.9,1.6,1.1,0,.55,hdr('#ff7a2a',1.3));if(chance(.28,dt))part({x:wx+rnd(-.2,.2),y:1.9,z:-.9,vy:rnd(1.2,1.8),vx:rnd(-.2,.2),s:.32,grow:2.2,life:1.5,cell:0,b:'puf',a:.35,col:col3('#fff4ea')})}
-    if(b){const hop=tossing?Math.abs(Math.sin(ph))*1.15:0;bput('emo',wx,1.82+hop+lift,-.88,.62,.62,emo(DISH[b.d].em),1)}}
+    if(b){const hop=tossing?Math.abs(Math.sin(ph))*1.15:0,big=b.ready?.78:.62;bput('emo',wx,1.82+hop+lift,-.88,big,big,emo(DISH[b.d].em),1)}}
   // shelf jars, plates and food on the counter
-  for(let k=0;k<6;k++){const jx=X-2.6+k*1.04;ibW('jar',col3(['#ffd9a0','#c8f0b0','#ffb0c0','#b0e0ff','#ffe9a0','#e0c8ff'][(k+st.i)%6]),jx,2.37,-3.2);ibW('jarlid',WHITE3,jx,2.54,-3.2)}
+  for(let k=0;k<5;k++){const jx=X-2.9+k*1.04;ibW('jar',col3(['#ffd9a0','#c8f0b0','#ffb0c0','#b0e0ff','#ffe9a0','#e0c8ff'][(k+st.i)%6]),jx,2.37,-3.2);ibW('jarlid',WHITE3,jx,2.54,-3.2)}
   const rows=st.menu.filter(d=>d>=0);let fx=X-3.3;for(const d of rows){const n=sN(st,d),stale=n&&sAge(st,d,v.t)>FRESH;if(n>0){ibW('plate',WHITE3,fx+.42,1.305,-.3);for(let k=0;k<Math.min(n,4);k++)bput('emo',fx+.18+k*.18,1.56+(k%2)*.1,-.24+(k%2)*.06,.55,.55,emo(DISH[d].em),stale?.55:1)}fx+=6.6/Math.max(3,rows.length)}
   if(badAny(st)&&chance(.22,dt))part({x:X+rnd(-3,3),y:1.5,z:-.3,vy:rnd(.6,1),s:.3,grow:1.6,life:1.3,cell:1,b:'puf',a:.45,col:col3('#80ff70')});
-  // the chef
-  if(!shut){const tgt=A.toss>0?(-3.5+7*(A.tossK+.5)/nb)*.85:A.serve>0?0:Math.sin(t*.4+st.i)*1.1;S3.off+=(tgt-S3.off)*Math.min(1,dt*7);
-    const panic=st.roach>0,cheer=A.cheer>0,bob=panic?Math.abs(Math.sin(t*16))*.25:cheer?Math.abs(Math.sin(t*10))*.3:0;
-    let aL=[-.3,.12],aR=[-.3,.12];if(cheer||panic){const w=Math.sin(t*14)*.4;aL=[0,2.5+w];aR=[0,2.5-w]}else if(A.toss>0){const p=Math.sin((1-A.toss)*Math.PI*2);aL=[-1.25-p*.35,.2];aR=[-1.25-p*.35,.2]}else if(A.serve>0){const p=Math.sin((1-A.serve/.5)*Math.PI);aR=[-1.2-p*.5,0]}
-    body({x:X+S3.off,z:-1.95,y:bob,yaw:0,shirt:'#fbf6ea',pants:'#3a3048',skin:'#eab48c',hair:'#2a1a10',hat:'chef',apron:st.col,armL:aL,armR:aR,mood:panic?-1:1,squint:cheer?1:0});
-    if(A.serve>0&&A.serveD>=0){const p=Math.sin((1-A.serve/.5)*Math.PI);bput('emo',X+S3.off+.5,1.95+p*.25,-1.2+p*.9,.58,.58,emo(DISH[A.serveD].em),1)}
-    if(panic&&chance(.12,dt))part({x:X+S3.off+.4,y:2.6,z:-1.6,vy:-.6,s:.12,life:.5,cell:3,b:'puf',a:.8,col:col3('#8fd8ff')})}
+  // the chef: wherever they really are (kitchen, back yard, out in the lane). You don't see yourself in first person.
+  chef3D(v,st,A,t,dt,shut);
   // roaches on the counter and the wall
   for(let k=0;k<Math.min(st.roach||0,9);k++){const a=t*(1.3+k*.17)+k*2.1;if(k%3===2)ibW('roach',WHITE3,X+Math.cos(a)*3,2+Math.sin(a*1.4)*1.4,-3.32,Math.PI/2,0,a,1.6,.6,1);else ibW('roach',WHITE3,X+Math.cos(a)*3.5,1.36,-.8+Math.sin(a*1.7)*.72,0,-a,0,1.6,.6,1)}
   // jobs and defenses
@@ -1030,15 +1096,14 @@ function stall3D(v,S3,t,dt){const st=S3.st,A=sa(st.i);S3.g.visible=!st.gone;cons
   if(v.t<st.clogU)for(let k=0;k<3;k++)body({x:X+(k%2?.35:-.35),z:zw(14+k*7.5),yaw:Math.PI,shirt:'#16141c',pants:'#0e0c12',skin:'#e9b48a',hair:'#111111',shades:1,tie:'#e2453c'});
   if(v.t<st.juggleU){const jx=X-4.7,jz=3.3;body({x:jx,z:jz,yaw:.3,shirt:'#ff7ab6',pants:'#3a2a60',skin:'#f2c9a1',hair:'#3a2418',hat:'beanie',hatCol:'#ffb547',armL:[-1.1,.3],armR:[-1.1,.3],mood:1});
     for(let k=0;k<3;k++){const ph=t*5+k*2.09;bput('glw',jx+Math.cos(ph)*.7,3.2+Math.abs(Math.sin(ph))*1.5,jz+.3,.5,.5,0,1,hdr(['#ffb547','#3ee0c5','#ff5a4d'][k],2.4))}}
-  if(st.dog)bput('emo',X+3.35,.62+Math.abs(Math.sin(t*2+st.i))*.12,1.15,1.1,1.1,emo('🐕'),1);
-  if(st.cat)bput('emo',X-3.3,1.72,-.4,.9,.9,emo('🐈'),1);if(st.cam)bput('emo',X+3.97,4.35,.25,.7,.7,emo('📹'),1);if(st.bribed)bput('emo',X-3.97,4.35,.25,.6,.6,emo('🤝'),1);
+  yard3D(v,S3,t,dt);if(st.bribed)bput('emo',X-3.97,4.35,.25,.6,.6,emo('🤝'),1);
   const rb=v.t-st.bell;S3.ring.visible=rb<BELL_T;if(S3.ring.visible){const r=1+((rb*3)%3);S3.ring.scale.set(r,r,r);S3.ringMat.opacity=.6*(1-rb/BELL_T);bput('emo',X+3.4+Math.sin(t*30)*.08,5.62,.45,.8,.8,emo('🔔'),1)}
   S3.scaf.visible=A.build>0;if(A.build>0){S3.scaf.position.set(0,9+st.tier,-1.6);if(chance(.4,dt))part({x:X+rnd(-4,4),y:rnd(6,11),z:-.2,vy:.3,s:.5,grow:2,life:1.2,cell:1,b:'puf',a:.5,col:col3('#d2be9f')})}
   // light on the wet street
   const ls=shut?.25:1;ibW('streak',hdr(st.col,q5(.6*ls)),X,.03,4.1,0,0,0,3.2,1,6.4);for(const lx of [-3.7,3.7])ibW('streak',hdr('#ff8a50',q5(.6*ls)),X+lx,.031,3.8,0,0,0,.9,1,5.4);
   ibW('puddle',hdr(st.col,q5(.4*ls)),X,.025,3.1,0,0,0,10,1,7)}
 const HATS3=['','','cap','beanie','','bun','','band'],PANTS3=['#2c2440','#3a4a6a','#4a3a2a','#22303a','#5a2a3a'];
-function person3D(v,c,t,dt){const a=ca(c);const x=xw(c.x),z=zw(c.y);const dx=x-(a.px3==null?x:a.px3),dz=z-(a.pz3==null?z:a.pz3);a.px3=x;a.pz3=z;a.w3=(a.w3||0)+(Math.abs(dx)+Math.abs(dz))*2.6;
+function person3D(v,c,t,dt){const a=ca(c);const x=xw(c.x),z=zw(c.y);if(fpCull(x,z)){a.px3=x;a.pz3=z;return}const dx=x-(a.px3==null?x:a.px3),dz=z-(a.pz3==null?z:a.pz3);a.px3=x;a.pz3=z;a.w3=(a.w3||0)+(Math.abs(dx)+Math.abs(dz))*2.6;
   if(a.prev3!==c.st){if(c.st==='eat'){a.hop3=.45;a.eat3=0}a.prev3=c.st}a.hop3=Math.max(0,(a.hop3||0)-dt);if(c.st==='eat')a.eat3=(a.eat3||0)+dt;
   const k=c.id,kid=k%7===0&&!c.critic,sick=c.mood===-2,fire=c.mood===-3,moving=Math.abs(dx)+Math.abs(dz)>.003;
   const yaw=a.yaw3||0,tgt=c.st==='queue'?Math.PI:moving?Math.atan2(dx,dz):yaw;a.yaw3=yaw+(((tgt-yaw+Math.PI*3)%(Math.PI*2))-Math.PI)*Math.min(1,dt*10);
@@ -1056,14 +1121,6 @@ function person3D(v,c,t,dt){const a=ca(c);const x=xw(c.x),z=zw(c.y);const dx=x-(
   if(sick)bput('emo',x+.45,top+.4,z,.6,.6,emo('🤢'),1);
   else if(fire){bput('emo',x+.45,top+.4,z,.6,.6,emo('🥵'),1);const fdx=Math.sin(a.yaw3),fdz=Math.cos(a.yaw3);for(let j=0;j<2;j++)if(chance(1,dt))part({x:x+fdx*.4,y:1.95*sc,z:z+fdz*.4,vx:fdx*rnd(4,7),vz:fdz*rnd(4,7),vy:rnd(-.4,.6),s:.22,grow:1.8,life:.35,cell:1,b:'glw',a:1,col:hdr(j?'#ffd060':'#ff5020',2.6)})}
   else if(c.mood<0&&c.st==='leave')bput('emo',x+.45,top+.4,z,.55,.55,emo('💢'),1)}
-function goon3D(v,g,t,dt){const a=am3('g'+g.id),x=xw(g.x),home=zw(92);const dx=x-(a.px==null?x:a.px);a.px=x;a.w=(a.w||0)+Math.abs(dx)*2.6;if(Math.abs(dx)>.004)a.dir=dx>0?1:-1;
-  const tz=g.ph==='do'?3.1:home;a.z=a.z==null?home:a.z+(tz-a.z)*Math.min(1,dt*(g.ph==='do'?6:3.5));const z=a.z,dz=z-(a.pz==null?z:a.pz);a.pz=z;a.w+=Math.abs(dz)*2.6;
-  const walking=Math.abs(dx)+Math.abs(dz)>.004;
-  if(g.op==='monkey'){const hop=Math.abs(Math.sin(t*12+g.id))*.6;bput('emo',x,.95+hop,z,1.5,1.5,emo('🐒'),1);if(g.ph==='back'&&g.loot)bput('emo',x+.55,1.75+hop,z,.6,.6,emo('🥟'),1);return}
-  const band=(v.stalls[g.from]||{}).col||'#e2453c',yaw=turn3(a,g.ph==='do'||dz<-.004?Math.PI:dz>.004&&Math.abs(dz)>Math.abs(dx)?0:(a.dir||1)>0?Math.PI/2:-Math.PI/2,dt);
-  const doing=g.ph==='do'&&!walking,thr=doing?Math.sin(t*9):0;
-  body({x,z,yaw,shirt:'#232029',pants:'#151217',skin:'#e9b48a',hair:'#111111',hat:'fedora',band,shades:1,tie:band,swing:walking?Math.sin(a.w)*.62:0,armR:doing?[-1.6-thr*.7,.1]:null,mood:1});
-  const O=OPS[g.op];if(g.ph==='do'&&O)bput('emo',x+.55,3.35,z,.8,.8,emo(O.em),1);if(g.ph==='back')bput('emo',x+.45,3.15,z,.62,.62,emo(g.shoo?'💨':g.op==='pick'&&g.loot?'💰':'😏'),1)}
 function insp3D(q,t,dt,k){const a=am3('q'+(q.id||('k'+k+':'+q.to))),x=xw(q.x),z=zw(q.y||80);const dx=x-(a.px==null?x:a.px);a.px=x;a.w=(a.w||0)+Math.abs(dx)*2.6;const walking=Math.abs(dx)>.004;
   const yaw=turn3(a,walking?(dx>0?Math.PI/2:-Math.PI/2):Math.PI,dt);
   body({x,z,yaw,shirt:'#f4f4f4',pants:'#3b5a8a',skin:'#c98b5e',hair:'#222222',hat:'insp',hatCol:'#3b5a8a',swing:walking?Math.sin(a.w)*.62:0,board:1,mood:-1,armR:walking?null:[-.9,.15]})}
@@ -1097,22 +1154,21 @@ function parts3D(dt){const P=G3.P;let j=0;for(let k=0;k<P.length;k++){const p=P[
 function pill(text,x,y,font,fg,bg){ctx.font=font;const w=ctx.measureText(text).width+18;ctx.fillStyle=bg;ctx.beginPath();ctx.roundRect?ctx.roundRect(x-w/2,y-12,w,24,12):ctx.rect(x-w/2,y-12,w,24);ctx.fill();ctx.fillStyle=fg;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,x,y+1)}
 function overlay3D(v,dt,t){const me=myStall();
   for(const S3 of G3.stalls){const st=S3.st;if(st.gone)continue;const X=S3.g.position.x;
-    const [sx,sy,sz]=proj(X,.2,.7);if(sz<1){ctx.font='700 13px Karla';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='rgba(10,6,20,.7)';ctx.strokeText(stars(st.rating),sx,sy+12);ctx.fillStyle='#ffc45c';ctx.fillText(stars(st.rating),sx,sy+12);
+    const [sx,sy,sz]=proj(X,.2,.7);if(sz<1&&(!fpOn()||(FP.z>0&&Math.abs(X-FP.x)<16))){ctx.font='700 13px Karla';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='rgba(10,6,20,.7)';ctx.strokeText(stars(st.rating),sx,sy+12);ctx.fillStyle='#ffc45c';ctx.fillText(stars(st.rating),sx,sy+12);
       if((st.streak||0)>=3){ctx.font='800 13px Karla';ctx.strokeText('🔥x'+st.streak,sx+50,sy+12);ctx.fillStyle=st.streak>=10?'#ffdd55':'#ff9a4d';ctx.fillText('🔥x'+st.streak,sx+50,sy+12)}}
-    if(st.strikes){const [a,b]=proj(X-3.7,7.15,.3);ctx.font='800 14px Karla';ctx.fillStyle='#ff6b5e';ctx.textAlign='left';ctx.fillText('✖'.repeat(st.strikes),a,b)}
+    if(st.strikes){const [a,b,c]=proj(X-3.7,7.15,.3);if(c<1)ctx.font='800 14px Karla';ctx.fillStyle='#ff6b5e';ctx.textAlign='left';ctx.fillText('✖'.repeat(st.strikes),a,b)}
     const lab=st.out?'SHUT DOWN':v.t<st.closedUntil?'CLOSED '+Math.ceil(st.closedUntil-v.t)+'s':v.t<st.gasU?'🔌 GAS OFF '+Math.ceil(st.gasU-v.t)+'s':v.t<st.conesU?'🚧 ROADWORK':v.t<st.clogU?'🕶️ CLOGGED':'';
-    if(lab){const [a,b]=proj(X,2.75,.5);pill(lab,a,b,"400 14px Bungee",'#c2342c','rgba(246,234,210,.94)')}}
-  if(me&&!ENDED){const S3=G3.stalls[me.i];if(S3){const top=me.tier?6.95+[0,1,2,3,6][me.tier]*2.2+.4:7.35;const [a,b]=proj(S3.g.position.x,Math.min(top,12.5),.2);const y=Math.max(76,b)-6+Math.sin(t*4)*3;
+    if(lab){const [a,b,c]=proj(X,2.75,.5);if(c<1)pill(lab,a,b,"400 14px Bungee",'#c2342c','rgba(246,234,210,.94)')}}
+  if(me&&!ENDED&&!fpOn()){const S3=G3.stalls[me.i];if(S3){const top=me.tier?6.95+[0,1,2,3,6][me.tier]*2.2+.4:7.35;const [a,b]=proj(S3.g.position.x,Math.min(top,12.5),.2);const y=Math.max(76,b)-6+Math.sin(t*4)*3;
       ctx.font="400 13px Bungee";const tw=ctx.measureText('YOU').width+18;ctx.fillStyle='rgba(18,10,32,.85)';ctx.beginPath();if(ctx.roundRect)ctx.roundRect(a-tw/2,y-23,tw,21,10);else ctx.rect(a-tw/2,y-23,tw,21);ctx.fill();
       ctx.strokeStyle='#ffb547';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#ffe9c7';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('YOU',a,y-12);
       ctx.fillStyle='#ffb547';ctx.beginPath();ctx.moveTo(a-6,y-2);ctx.lineTo(a+6,y-2);ctx.lineTo(a,y+5);ctx.fill()}
-    for(const g of v.goons||[]){if(g.to!==me.i||g.ph!=='go')continue;const [a,b]=proj(xw(g.x),1.9,zw(92));const r=28+Math.sin(t*10)*3;ctx.strokeStyle='rgba(255,80,60,.95)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(a,b,r,0,7);ctx.stroke();
-      ctx.fillStyle='#ff6b5e';ctx.font='800 12px Karla';ctx.textAlign='center';ctx.fillText('TAP!',a,b-r-8)}}
-  for(const q of v.insp||[])if(!q.done){const [a,b]=proj(xw(q.x),3.1,zw(q.y||80));pill('INSPECTOR',a,b-6,'800 11px Karla','#1c3144','rgba(246,234,210,.9)')}}
+  }
+  for(const q of v.insp||[])if(!q.done){const [a,b,c]=proj(xw(q.x),3.1,zw(q.y||80));if(c<1)pill('INSPECTOR',a,b-6,'800 11px Karla','#1c3144','rgba(246,234,210,.9)')}
+  chefTags(v,t)}
 // screen positions both renderers agree on (floating text, taps)
-function SP(st,part3){if(G3.ok&&want3D()){const S3=G3.stalls[st.i];const X=S3?S3.g.position.x:xw(st.x);const P={sign:[6.42,.37],mid:[3.7,-.3],counter:[1.6,0],front:[.3,1.6]}[part3]||[3.7,0];return proj(X,P[0],P[1])}
+function SP(st,part3){if(G3.ok&&want3D()){const S3=G3.stalls[st.i];const X=S3?S3.g.position.x:xw(st.x);const P={sign:[6.42,.37],mid:[3.7,-.3],counter:[1.6,0],front:[.3,1.6]}[part3]||[3.7,0];const r=proj(X,P[0],P[1]);return r[2]<1?r:[-9999,-9999,2]}
   return [WX(st.x),part3==='sign'?LY.top+4:part3==='counter'?LY.yb-14:part3==='front'?LY.yb+12:LY.top+LY.bh*.5]}
-function GP(g){if(G3.ok&&want3D())return proj(xw(g.x),1.9,zw(92));return [WX(g.x),WY(g.y)-clamp(VH/90,6,11)*2]}
 function stallRect(st){if(G3.ok&&want3D()){const S3=G3.stalls[st.i];const X=S3?S3.g.position.x:xw(st.x);const a=proj(X-4.2,0,.6),b=proj(X+4.2,7,-.4);return [Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[0],b[0]),Math.max(a[1],b[1])]}
   const N=V().stalls.length,X=WX(st.x),w=Math.min(VW/N*.9,200);return [X-w/2-10,LY.top-10,X+w/2+10,LY.yb+20]}
 
@@ -1153,7 +1209,10 @@ function snd(name,o){o=o||{};const L=SMAP[name];if(!AU.buf||!L||!SET.sound)retur
   g.gain.value=o.v==null?1:o.v;s.connect(g);s.start(t,Math.max(0,seg[0]+AU.off),seg[1]/r+.02);return s}
 const rnd=(a,b)=>a+Math.random()*(b-a);
 // a stall's sounds pan to where it is, and other stalls are quieter than your own
-function sndSt(name,i,o){o=Object.assign({},o||{});const v=V();if(!v)return;const st=v.stalls[i];if(!st)return;o.pan=clamp((st.x/STREET-.5)*1.4,-.8,.8);
+function sndSt(name,i,o){o=Object.assign({},o||{});const v=V();if(!v)return;const st=v.stalls[i];if(!st)return;
+  // first person: sounds come from where that stall is, relative to where you stand and face
+  if(typeof fpOn==='function'&&fpOn()){const dx=stWX(v,st)-FP.x,dz=-1.5-FP.z,d=Math.hypot(dx,dz)||1;o.pan=clamp((dx*-Math.cos(FP.yaw)+dz*Math.sin(FP.yaw))/d,-.85,.85);o.v=(o.v==null?1:o.v)*clamp(10/(d+4),.15,1);return snd(name,o)}
+  o.pan=clamp((st.x/STREET-.5)*1.4,-.8,.8);
   if(st.seat!==MY_SEAT||v===DEMO)o.v=(o.v==null?1:o.v)*.42;return snd(name,o)}
 
 // ═══════════════════════════════ STATE ═══════════════════════════════
@@ -1165,12 +1224,13 @@ function myStall(){const v=V();if(!v||v===DEMO)return null;return v.stalls.find(
 const sN=(st,d)=>st.sn?st.sn[d]:stockN(st,d);
 const sAge=(st,d,t)=>st.sa?st.sa[d]:(st.stock[d].length?t-st.stock[d][0].born:0);
 const cN=(st,d)=>st.burn.filter(b=>b.d===d).length;
+const ready=st=>st.burn.filter(b=>b.ready);
 const badD=(st,d)=>st.badD?st.badD.includes(d):st.stock[d].some(b=>b.bad);
 const badAny=st=>st.badD?(st.badD.length>0||!!st.spike):anyBad(st);
 
 // ═══════════════════════════════ ACTIONS ═══════════════════════════════
 const WHY={dup:'That dish is already on your menu.',busy:'Sell what is on the counter first, then swap the dish.',broke:'Not enough cash for that.',
-  nomenu:'Pick a dish for that slot first.',burners:'Both burners are busy.',noing:'Not enough cash to buy the ingredients.',bellcd:'The bell needs a moment.',maxed:'Already as big as it gets.',goonmax:'Build bigger to run a bigger Family.',nogoon:'All your goons are busy. Hire another or wait.',have:'You already have that.',closed:'The inspector boarded you up. Wait it out.',locked:'A Corner shop unlocks a fourth dish.',notarget:'Pick a rival to hit first.',bosstier:'The Boss only does favors for a Restaurant or bigger.',gasoff:'Your gas is cut off! It comes back in a few seconds.'};
+  nomenu:'Pick a dish for that slot first.',burners:'Every wok is busy.',away:'Get back in your kitchen first (through your back door).',far:'Get closer.',busyjob:'Finish the job you are on first.',busted:'You just got caught. Lie low for a few seconds.',rejob:'You just did that one. Try another spot.',notyet:'Not ready yet.',early:'Not yet! Toss it when the ❗ pops up.',tossed:'Already tossed.',noing:'Not enough cash to buy the ingredients.',bellcd:'The bell needs a moment.',maxed:'Already as big as it gets.',have:'You already have that.',closed:'The inspector boarded you up. Wait it out.',locked:'A Corner shop unlocks a fourth dish.',notarget:'Pick a rival to hit first.',bosstier:'The Boss only does favors for a Restaurant or bigger.',gasoff:'Your gas is cut off! It comes back in a few seconds.'};
 function act(a){const st=myStall();if(!st||ENDED)return;
   // check it here first so a guest hears "why not" straight away; the host checks again for real
   const pre=precheck(st,a);if(pre){toast(WHY[pre]||pre);snd('ui',{v:.3});return}
@@ -1178,13 +1238,12 @@ function act(a){const st=myStall();if(!st||ENDED)return;
     if(a.k==='menu'){st.menu[a.slot]=a.d;paintPanel(true)}return}
   const r=doAction(S,st,a);if(WHY[r]){toast(WHY[r]);snd('ui',{v:.3})}paintPanel(true)}
 function precheck(st,a){const v=V();{const p2=precheck2(st,a,v);if(p2)return p2}
+  if(KITCHEN_ACTS[a.k]&&!inKitchen(v,st))return 'away';
   if((a.k==='cook'||a.k==='bell')&&(st.out||v.t<st.closedUntil))return 'closed';
   if(a.k==='menu'&&a.slot>=slotsOf(st))return 'locked';
   if(a.k==='up'){const nx=TIERS[st.tier+1];if(!nx)return 'maxed';if(st.cash<nx.cost)return 'broke'}
-  if(a.k==='hire'){if(st.goons>=TIERS[st.tier].goons)return 'goonmax';if(st.cash<GOON_COST)return 'broke'}
-  if(a.k==='op'){if(st.goons-st.busy<1)return 'nogoon';if(st.cash<OPS[a.op].cost)return 'broke'}
   if(a.k==='def'){if(st[a.def])return 'have';if(st.cash<DEFS[a.def].cost)return 'broke'}
-  if(a.k==='cook'){const d=st.menu[a.slot];if(d==null||d<0)return 'nomenu';if(st.burn.length>=burnersOf(st))return 'burners';const mc=DISH[d].ing.filter(id=>st.pantry[INGI[id]]<1).reduce((t,id)=>t+v.price[INGI[id]],0);if(mc>st.cash)return 'noing'}
+  if(a.k==='cook'){const d=a.d!=null&&a.d>=0?a.d:st.menu[a.slot];if(d==null||d<0)return 'nomenu';if(st.burn.length>=burnersOf(st))return 'burners';const mc=DISH[d].ing.filter(id=>st.pantry[INGI[id]]<1).reduce((t,id)=>t+v.price[INGI[id]],0);if(mc>st.cash)return 'noing'}
   if(a.k==='buy'&&st.cash<v.price[a.g])return 'broke';
   if(a.k==='menu'){if(a.d>=0&&st.menu.includes(a.d))return 'dup';const old=st.menu[a.slot];if(old>=0&&(sN(st,old)>0||cN(st,old)>0))return 'busy'}
   if(a.k==='bell'&&v.t-st.bell<BELL_CD)return 'bellcd';return ''}
@@ -1194,9 +1253,9 @@ addEventListener('keydown',e=>{if(e.repeat)return;
   if((SCR==='s-family'&&(e.code==='KeyF'||e.code==='Escape'))||(SCR==='s-build'&&(e.code==='KeyU'||e.code==='Escape'))){closeSheet();return}
   if(e.code==='Escape'){if(!$('picker').classList.contains('hidden')){closePicker();return}if(MODE!=='menu'&&(!SCR||SCR==='s-pause'))togglePause();return}
   if(SCR||MODE==='menu')return;if(e.target&&e.target.tagName==='INPUT')return;
-  const n={Digit1:0,Digit2:1,Digit3:2,Digit4:3,Numpad1:0,Numpad2:1,Numpad3:2,Numpad4:3}[e.code];if(n!=null){act({k:'cook',slot:n});e.preventDefault()}
+  const n={Digit1:0,Digit2:1,Digit3:2,Digit4:3,Numpad1:0,Numpad2:1,Numpad3:2,Numpad4:3}[e.code];if(n!=null){fpCookSlot(n);e.preventDefault()}
   if(e.code==='KeyB'){act({k:'bell'});e.preventDefault()}
-  if(e.code==='Space'){const st=myStall();if(st&&st.roach>0)act({k:'stomp'});e.preventDefault()}
+  if(e.code==='Space'&&!fpOn()){const st=myStall();if(st&&st.roach>0)act({k:'stomp'});e.preventDefault()}
   if(e.code==='KeyX'){const st=myStall();if(st&&badAny(st))act({k:'bin'});e.preventDefault()}
   if(e.code==='KeyF'){openSheet('s-family');e.preventDefault()}if(e.code==='KeyU'){openSheet('s-build');e.preventDefault()}
   if(e.code==='KeyM'){SET.sound=!SET.sound;saveSet();auVol();syncSoundBtns();toast(SET.sound?'Sound on':'Sound off')}});
@@ -1218,7 +1277,7 @@ const PEOPLE=['#e9b48a','#c98b5e','#8d5a3b','#f2c9a1','#a8704a'],HAIR=['#1b1210'
 function tickAnim(v,dt){for(const k in ANIM.st){const A=ANIM.st[k];A.toss=Math.max(0,A.toss-dt);A.serve=Math.max(0,A.serve-dt);A.cheer=Math.max(0,A.cheer-dt);A.build=Math.max(0,A.build-dt)}
   if(v&&Math.random()<.004){const ids=new Set((v.cust||[]).map(c=>c.id));for(const id of ANIM.c.keys())if(!ids.has(id))ANIM.c.delete(id)}}
 function render(dt,t){const v=V();ctx.setTransform(DPR,0,0,DPR,0,0);layout();
-  if(want3D()&&(G3.ok||try3D())){show3D(true);ctx.clearRect(0,0,VW,VH);if(!v)return;render3D(v,dt,t);drawParticles(dt);overlay3D(v,dt,t);drawFloats(dt);tickAnim(v,dt);return}
+  if(want3D()&&(G3.ok||try3D())){show3D(true);ctx.clearRect(0,0,VW,VH);if(!v)return;render3D(v,dt,t);drawParticles(dt);overlay3D(v,dt,t);drawFloats(dt);fpOverlay(v,t);tickAnim(v,dt);return}
   show3D(false);
   // three.js is still on its way: show only the sky so the 2D street doesn't flash up first
   if(waiting3D()){drawSky(t);return}
@@ -1228,7 +1287,7 @@ function render(dt,t){const v=V();ctx.setTransform(DPR,0,0,DPR,0,0);layout();
   for(const st of stalls)drawStall(v,st,t);
   // people: the ones in line in front of the counter first, then the street
   const cs=(v.cust||[]).slice().sort((a,b)=>a.y-b.y);for(const c of cs)drawPerson(v,c,t);
-  for(const g of v.goons||[])drawGoon(v,g,t);for(const q of v.insp||[])drawInspector(v,q,t);
+  for(const q of v.insp||[])drawInspector(v,q,t);
   drawDragon(v,t);drawParticles(dt);drawCoins(dt);drawFloats(dt);tickAnim(v,dt);
   if(v.event&&v.event.kind==='rain'&&v.t<nightLen(v))drawRain(t);
   const me=myStall();if(me&&!ENDED){const X=WX(me.x),y=LY.top-14+Math.sin(t*4)*3;ctx.fillStyle='#ffe9c7';ctx.font="400 13px Bungee";ctx.textAlign='center';ctx.shadowColor='#ffb547';ctx.shadowBlur=10;ctx.fillText('YOU',X,y-6);
@@ -1281,8 +1340,8 @@ function drawRain(t){ctx.strokeStyle='rgba(170,190,255,.35)';ctx.lineWidth=1;ctx
 let PSIG='';
 function paintPanel(force){const st=myStall(),v=V();if(!st||!v)return;
   const sig=[st.cash.toFixed(2),st.rating.toFixed(1),st.menu.join(),st.menu.map(d=>d>=0?st.price[d]+':'+sN(st,d)+':'+(sAge(st,d,v.t)>FRESH?1:0):'').join(),st.pantry.join(),v.price.map(p=>p.toFixed(1)).join(),
-    st.burn.map(b=>b.d+':'+Math.round(b.left*4)).join(),Math.ceil(Math.max(0,BELL_CD-(v.t-st.bell))),st.tier,st.roach,badAny(st)?1:0,Math.ceil(Math.max(0,st.closedUntil-v.t)),st.out,st.goons,st.busy,st.helper,JOBTGT,PTAB,st.bribed,v.t<st.juggleU,v.stalls.filter(o=>!o.out).length,Math.round(worth(st)/20)].join('|');
-  if(sig===PSIG&&!force)return;PSIG=sig;
+    st.burn.map(b=>b.d+':'+b.w+':'+(b.ready?'r':Math.round(b.left*4))).join(),Math.ceil(Math.max(0,BELL_CD-(v.t-st.bell))),st.tier,st.roach,badAny(st)?1:0,Math.ceil(Math.max(0,st.closedUntil-v.t)),st.out,st.job?st.job.op:'',st.helper,fpOn()?1:0,v.stalls.map(o=>o!==st&&o.ch&&inYardOf(v,o.ch,st)?o.i:'').join(''),st.burn.map(b=>b.ready&&b.rt>BURN_T*.5?1:0).join(''),JOBTGT,PTAB,st.bribed,v.t<st.juggleU,v.stalls.filter(o=>!o.out).length,Math.round(worth(st)/20)].join('|');
+  if(sig===PSIG&&!force)return;PSIG=sig;const fp=fpOn();
 const pf=worth(st)-START_CASH;$('p-pf').textContent='worth '+money(Math.round(pf))+(st.tier?' · '+TIERS[st.tier].name:'');$('p-pf').className='pf '+(pf>=0?'up':'dn');
   $('p-stars').innerHTML=stars(st.rating).replace(/☆/g,'<i>★</i>');$('p-help').textContent='🧑‍🍳 Helper '+(st.helper?'on':'off');$('p-help').classList.toggle('on',!!st.helper);
   const bl=BELL_CD-(v.t-st.bell);$('p-bell').disabled=bl>0;$('p-bellbar').style.width=(bl>0?100-bl/BELL_CD*100:100)+'%';
@@ -1293,30 +1352,29 @@ const pf=worth(st)-START_CASH;$('p-pf').textContent='worth '+money(Math.round(pf
     return '<div class="pbox slot"><div class="top"><div class="em" data-pick="'+k+'" title="Change dish">'+D.em+'</div><div class="nm" data-pick="'+k+'">'+esc(D.name)+(craze?' 🔥':'')+'<small>fair price $'+D.fair+'</small></div>'+
       '<div class="stk'+(stale||badD(st,d)?' cold':'')+'"'+(badD(st,d)?' style="color:#7dff8a"':'')+'>'+n+'<small>'+(badD(st,d)?'☠️ bad!':stale?'going stale':'ready')+'</small></div></div>'+
       '<div class="prc"><button data-pr="'+d+'" data-dv="-0.5">−</button><span class="pv">$'+st.price[d].toFixed(st.price[d]%1?1:0)+'<small>'+(st.price[d]<D.fair?'cheap':st.price[d]>D.fair?'pricey':'fair')+'</small></span><button data-pr="'+d+'" data-dv="0.5">+</button></div>'+
-      (()=>{const mc=D.ing.filter(id=>st.pantry[INGI[id]]<1).reduce((t,id)=>t+v.price[INGI[id]],0);return '<button class="cookb" data-cook="'+k+'"><span class="k">'+(k+1)+'</span>Cook '+D.yield+' '+ing+(mc?' <span style="font-size:10.5px;opacity:.85">+$'+Math.ceil(mc)+'</span>':'')})()+(b?'<span class="bar" style="width:'+((1-b.left/D.cook)*100)+'%"></span>':'')+'</button></div>'}).join('');
+      (()=>{const mc=D.ing.filter(id=>st.pantry[INGI[id]]<1).reduce((t,id)=>t+v.price[INGI[id]],0);return '<button class="cookb" data-cook="'+k+'"><span class="k">'+(k+1)+'</span>'+(fp?'Cook ':'Cook '+D.yield+' ')+ing+(mc?' <span style="font-size:10.5px;opacity:.85">+$'+Math.ceil(mc)+'</span>':'')})()+(b?'<span class="bar" style="width:'+((1-b.left/D.cook)*100)+'%"></span>':'')+'</button></div>'}).join('');
   $('p-ings').innerHTML=ING.map((g,i)=>{const p=v.price[i],r=p/g.base;return '<div class="ingr'+(need.has(i)?' need':'')+'"><span class="e">'+g.em+'</span><span class="n">'+st.pantry[i]+'</span><span class="p'+(r>1.25?' hi':r<1.05?' lo':'')+'">$'+p.toFixed(2)+'</span><button data-buy="'+i+'" data-n="1">+1</button><button data-buy="'+i+'" data-n="5">+5</button></div>'}).join('');
   paintAlerts(st,v);paintJobs(st,v);
-  $('p-burn').innerHTML=[...Array(burnersOf(st))].map((_,k)=>{const b=st.burn[k];return '<div class="burner">'+(b?'<i style="width:'+((1-b.left/DISH[b.d].cook)*100)+'%"></i><span>'+DISH[b.d].em+' '+Math.ceil(b.left)+'s</span>':'<span style="color:var(--mut)">burner free</span>')+'</div>'}).join('')}
+  $('p-burn').innerHTML=[...Array(burnersOf(st))].map((_,k)=>{const b=st.burn.find(q=>q.w===k);return '<div class="burner'+(b&&b.ready?' rdy':'')+'">'+(b?(b.ready?'<span>'+DISH[b.d].em+' plate it!</span>':'<i style="width:'+((1-b.left/DISH[b.d].cook)*100)+'%"></i><span>'+DISH[b.d].em+' '+Math.ceil(b.left)+'s</span>'):'<span style="color:var(--mut)">wok '+(k+1)+' free</span>')+'</div>'}).join('')}
 function paintAlerts(st,v){const A=[];
   if(st.out)A.push('<div class="alert">🚫 Shut down for the night. Your Family can still get even (F).</div>');
   else if(v.t<st.closedUntil)A.push('<div class="alert">🪧 Boarded up by the inspector: '+Math.ceil(st.closedUntil-v.t)+'s · strike '+st.strikes+' of '+STRIKES_OUT+'</div>');
-  if(st.roach>0)A.push('<div class="alert">🪳 '+st.roach+' roaches! <button data-stomp>Stomp (Space)</button></div>');
+  if(st.roach>0)A.push('<div class="alert">🪳 '+st.roach+' roaches! <button data-stomp>Stomp ('+(fpOn()?'E':'Space')+')</button></div>');
   if(badAny(st))A.push('<div class="alert">☠️ Your food smells off! <button data-bin>Bin it (X)</button></div>');
-  if((v.goons||[]).some(g=>g.to===st.i&&g.ph==='go'))A.push('<div class="alert">🕴️ A goon is coming for you! Tap them!</div>');
-  if(v.t<st.stinkU)A.push('<div class="alert">💨 Stink bomb! Tap your stall to fan it away</div>');
+  {const sn=v.stalls.filter(o=>o!==st&&!o.gone&&o.ch&&inYardOf(v,o.ch,st));if(sn.length)A.push('<div class="alert hot">🚨 '+esc(sn.map(o=>o.name).join(' and '))+(sn.length>1?' are':' is')+' in your back yard!</div>')}
+  {const rb=st.burn.filter(b=>b.ready&&b.rt>BURN_T*.5);if(rb.length)A.push('<div class="alert">🔥 Food is burning in your wok! Plate it.</div>')}
+  if(v.t<st.stinkU)A.push('<div class="alert">💨 Stink bomb! Fan it away (E in your kitchen)</div>');
   if(v.t<st.gasU)A.push('<div class="alert">🔌 Your gas is cut: '+Math.ceil(st.gasU-v.t)+'s</div>');
-  if(v.t<st.conesU)A.push('<div class="alert">🚧 Roadwork blocks your counter: '+Math.ceil(st.conesU-v.t)+'s</div>');
-  if(v.t<st.clogU)A.push('<div class="alert">🕶️ Fake customers clog your line: '+Math.ceil(st.clogU-v.t)+'s</div>');
   if((v.insp||[]).some(q=>q.to===st.i&&!q.done))A.push('<div class="alert">🕵️ The health inspector is coming to your stall!</div>');
   const el=$('alerts');el.innerHTML=A.join('');const pn=$('panel');el.style.bottom=((pn.classList.contains('hidden')?0:pn.offsetHeight)+8)+'px'}
 $('alerts').addEventListener('pointerdown',e=>{if(e.target.closest('[data-stomp]')){e.preventDefault();act({k:'stomp'})}if(e.target.closest('[data-bin]')){e.preventDefault();act({k:'bin'})}});
-function openSheet(id){const st=myStall();if(!st||MODE==='menu'||ENDED)return;if(MODE==='solo')PAUSED='sheet';show(id);paintSheet();snd('ui',{v:.4})}
+function openSheet(id){const st=myStall();if(!st||MODE==='menu'||ENDED)return;if(document.pointerLockElement)document.exitPointerLock();if(MODE==='solo')PAUSED='sheet';show(id);paintSheet();snd('ui',{v:.4})}
 function closeSheet(){if(PAUSED==='sheet')PAUSED=false;show(null)}
 $('p-fam').onclick=()=>openSheet('s-family');$('p-bld').onclick=()=>openSheet('s-build');$('fm-close').onclick=closeSheet;$('bd-close').onclick=closeSheet;
 $('panel').addEventListener('pointerdown',e=>{const el=e.target.closest('[data-cook],[data-pr],[data-buy],[data-pick],#p-bell,#p-help');if(!el)return;e.preventDefault();
   if(el.id==='p-bell')return act({k:'bell'});
-  if(el.id==='p-help'){act({k:'helper'});const st=myStall();if(MODE==='guest'){st.helper=st.helper?0:1;st.localEdit=now()}toast(st.helper?'Your helper cooks when people wait, stomps roaches and bins bad food.':'Helper off. You do the cooking.');return}
-  if(el.dataset.cook!=null)return act({k:'cook',slot:+el.dataset.cook});
+  if(el.id==='p-help'){act({k:'helper'});const st=myStall();if(MODE==='guest'){st.helper=st.helper?0:1;st.localEdit=now()}toast(st.helper?'Your helper keeps cooking while you are out of the kitchen, and saves food you forget in the wok.':'Helper off. When you leave, nobody cooks.');return}
+  if(el.dataset.cook!=null)return fpCookSlot(+el.dataset.cook);
   if(el.dataset.pr!=null){const st=myStall(),d=+el.dataset.pr;snd('ui',{v:.25,i:1});return act({k:'price',d,v:st.price[d]+(+el.dataset.dv)})}
   if(el.dataset.buy!=null)return act({k:'buy',g:+el.dataset.buy,n:+el.dataset.n});
   if(el.dataset.pick!=null)return openPicker(+el.dataset.pick,el)});
@@ -1340,8 +1398,15 @@ const TIPS={};function tip(k,t){if(TIPS[k])return;TIPS[k]=1;toast(t,3.4)}
 // ═══════════════════════════════ EVENTS ═══════════════════════════════
 function fxEvent(e,v){const k=e[0],quiet=v===DEMO;const st=e[1]!=null&&typeof e[1]==='number'?v.stalls[e[1]]:null;const mine=st&&st.seat===MY_SEAT&&!quiet;
   switch(k){
-    case 'cook':if(st){const A=sa(e[1]);A.toss=1;A.tossK=Math.max(0,st.burn.length-1);}if(!quiet){if(Math.random()<.6)sndSt('whoosh',e[1],{v:.55,r:rnd(.9,1.1)});if(e[2]===DISHI.tea)sndSt('pour',e[1],{v:.9});else sndSt('sizzle',e[1],{v:.85,r:rnd(.95,1.05)});if(mine&&Math.random()<.5)sndSt('chop',e[1],{v:.5,at:.05})}break;
-    case 'done':if(mine)snd('ding',{v:.55});break;
+    case 'cook':if(st){const A=sa(e[1]);A.toss=1;A.tossK=e[3]!=null?e[3]:Math.max(0,st.burn.length-1);}if(!quiet){if(Math.random()<.6)sndSt('whoosh',e[1],{v:.55,r:rnd(.9,1.1)});if(e[2]===DISHI.tea)sndSt('pour',e[1],{v:.9});else sndSt('sizzle',e[1],{v:.85,r:rnd(.95,1.05)});if(mine&&Math.random()<.5)sndSt('chop',e[1],{v:.5,at:.05})}break;
+    case 'done':if(mine){snd('ding',{v:.55});if(fpOn()&&inKitchen(v,st))tip('plate',TOUCH?'Food is ready! Tap the wok to plate it before it burns.':'Food is ready in the wok. Look at it and press E to plate it before it burns!')}break;
+    case 'toss':if(st){const A=sa(e[1]);A.toss=1;A.tossK=e[2]}if(!quiet){sndSt('whoosh',e[1],{v:.8,r:rnd(1.05,1.2)});if(mine){floatText(innerWidth/2,(G3.H||innerHeight)/2-40,'Nice toss!','#ffe066')}}break;
+    case 'plate':if(!quiet){sndSt('chop',e[1],{v:.55});if(mine&&e[4])floatText(innerWidth/2,(G3.H||innerHeight)/2-40,'Perfect batch! Better tips','#7dffb0')}break;
+    case 'burnt':if(!quiet){sndSt('trash',e[1],{v:.7});if(mine)toast(DISH[e[2]].em+' burnt in the wok! Plate food as soon as it is done.',2.6)}break;
+    case 'intrude':if(!quiet){const yd=v.stalls[e[2]],who=v.stalls[e[1]];if(yd&&yd.seat===MY_SEAT&&v!==DEMO){snd('gasp',{v:.7});toast('🚨 '+who.name+' snuck into your back yard!',2.6)}
+      else if(who&&who.seat===MY_SEAT&&v!==DEMO)tip('yard','You are in '+yd.name+"'s back yard. Each glowing spot is a different job: hold E there."+(yd.dog?' Careful, they have a dog!':''))}break;
+    case 'jobx':if(mine)toast('You stepped away, so the job stopped.',1.6);break;
+    case 'home':break;
     case 'sale':if(st){const A=sa(e[1]);A.serve=.5;A.serveD=e[2];flyCoins(v,e);{const p=SP(st,'mid');floatText(p[0],p[1],(e[5]?'GOLDEN! ':'')+'+$'+(+e[3]).toFixed(e[3]%1?1:0)+(e[6]?' tip!':''),e[5]?'#ffe066':e[4]?'#ffe9c7':'#9ad0ff')}if(e[5]&&!quiet){snd('chime',{v:mine?.9:.5});if(mine)banner('Golden customer!','paid triple',1.6)}if(!quiet){sndSt('coin',e[1],{v:mine?.8:.7,r:rnd(.95,1.08)});if(mine&&Math.random()<.18)snd('yum',{v:.5,at:.2})}
       if(mine&&!e[4])tip('stale','That one was stale. Stale food costs stars: cook closer to the line.')}break;
     case 'hmph':if(!quiet){sndSt('hmph',e[1],{v:.8});if(mine)tip('lost','Someone gave up waiting. Cook before the line builds, or lower the price.')}break;
@@ -1356,9 +1421,10 @@ function fxEvent(e,v){const k=e[0],quiet=v===DEMO;const st=e[1]!=null&&typeof e[
       else banner(t,'craze: '+D.em+' '+D.name)}break;
     case 'criticin':if(!quiet){banner('A food critic!','serve them fresh food for a big rating boost',2.6)}break;
     case 'critic':if(!quiet&&st){toast(st.name+(e[2]?' impressed the critic! ★':' let the critic down'),3);if(e[2])snd('cheer',{v:.6})}break;
-    case 'sneak':if(mine){snd('snicker',{v:.6});toast((e[3]==='monkey'?'Your monkey':'Your goon')+' is on the way to '+v.stalls[e[2]].name+'.')}else if(!quiet&&v.stalls[e[2]]&&v.stalls[e[2]].seat===MY_SEAT&&v!==DEMO){snd('snicker',{v:.4,r:.9});tip('goon','A goon is coming for your stall. Tap them before they get there!')}if(e[3]==='monkey'&&!quiet)sndSt('monkey',e[1],{v:.6});break;
-    case 'shoo':if(!quiet){sndSt('hmph',e[2],{v:.5,r:1.2});const vic=v.stalls[e[1]];if(vic&&vic.seat===MY_SEAT)toast('Chased them off! 💨',1.6);else if(st&&v.stalls[e[2]]&&v.stalls[e[2]].seat===MY_SEAT)toast(vic.name+' chased your goon off.',2)}break;
-    case 'dog':if(!quiet){sndSt('bark',e[1],{v:.9});const vic=v.stalls[e[1]];{const p=SP(vic,'front');floatText(p[0]+30,p[1]-6,'WOOF!','#ffe9c7')}if(v.stalls[e[2]]&&v.stalls[e[2]].seat===MY_SEAT)toast(vic.name+"'s dog chased your goon off.",2)}break;
+    case 'sneak':if(mine)snd('snicker',{v:.5});else if(!quiet&&v.stalls[e[2]]&&v.stalls[e[2]].seat===MY_SEAT&&v!==DEMO){snd('snicker',{v:.5,r:.9});toast('🚨 '+st.name+' is up to something in your back yard!',2.4)}break;
+    case 'shoo':if(!quiet){sndSt('hmph',e[2],{v:.7,r:1.2});const cat=v.stalls[e[1]],got=v.stalls[e[2]];if(cat&&cat.seat===MY_SEAT&&v!==DEMO){toast('Caught '+got.name+'! Chased them home. 💨',2.2);snd('cheer',{v:.4})}
+      else if(got&&got.seat===MY_SEAT&&v!==DEMO)banner('Caught!',cat.name+' chased you home',2.2)}break;
+    case 'dog':if(!quiet){sndSt('bark',e[1],{v:.9});const own=v.stalls[e[1]],got=v.stalls[e[2]];if(got&&got.seat===MY_SEAT&&v!==DEMO)banner('WOOF!',own.name+"'s guard dog chased you home",2.2);else if(own&&own.seat===MY_SEAT&&v!==DEMO)toast('Your dog chased '+got.name+' out of your yard! 🐕',2.2)}break;
     case 'fire':if(!quiet){sndSt('whoosh',e[1],{v:.8,r:1.2});const c=(v.cust||[]).find(q=>q.id===e[2]);if(c){const a=ca(c);a.fire=2.2}if(mine)tip('pepper','Ghost pepper! Bin your food (X) or keep scaring customers off.')}break;
     case 'monkey':if(!quiet){sndSt('monkey',e[1],{v:.9});if(mine)toast('A monkey ran off with '+e[2]+' of your portions!',2.4)}break;
     case 'pick':if(!quiet){const a2=v.stalls[e[1]],b2=v.stalls[e[2]];if(a2&&a2.seat===MY_SEAT){snd('coin',{v:.9});snd('snicker',{v:.5,at:.2});toast('👛 Lifted $'+e[3]+' from '+b2.name+'!',2.4)}else if(b2&&b2.seat===MY_SEAT){snd('gasp',{v:.7});toast('Your till is $'+e[3]+' lighter. Pickpocket!',2.4)}}break;
@@ -1369,10 +1435,10 @@ function fxEvent(e,v){const k=e[0],quiet=v===DEMO;const st=e[1]!=null&&typeof e[
     case 'deed':{const vic=v.stalls[e[2]];if(!vic||quiet)break;const me2=vic.seat===MY_SEAT;const O=OPS[e[3]];
       if(e[3]==='roach'&&!vic.cat)sndSt('scuttle',e[2],{v:me2?1:.8});if(e[3]==='stink'||e[3]==='gas')sndSt('hiss',e[2],{v:.8});if(e[3]==='cones')sndSt('clatter',e[2],{v:.9});if(e[3]==='scare'){sndSt('firecracker',e[2],{v:.8});const vs=v.stalls[e[2]],fp=SP(vs,'front');for(let k=0;k<20;k++)PART.push({x:fp[0]+rnd(-30,30),y:fp[1]+rnd(-10,20),vx:rnd(-90,90),vy:rnd(-140,-40),life:.6,max:.6,col:'spark'})}
       if(e[3]==='rumor'){sndSt('gasp',e[2],{v:.6});const vs=v.stalls[e[2]],fp=SP(vs,'front');['eww','gross!','I heard...','yuck'].forEach((w2,k)=>setTimeout(()=>floatText(fp[0]+rnd(-50,50),fp[1]+rnd(0,30),w2,'#c8f0a0'),k*250))}
-      if(me2){if(e[3]==='roach'&&!vic.cat)banner('Cockroaches!','stomp them before customers see (Space)',2.2);if(e[3]==='poison')toast('Something smells off at your counter...',3);if(e[3]==='tip')toast('Someone tipped off the health inspector about you!',3)}
+      if(me2){if(e[3]==='roach'&&!vic.cat)banner('Cockroaches!','stomp them before customers see ('+(fpOn()?'E in your kitchen':'Space')+')',2.2);if(e[3]==='poison')toast('Something smells off at your counter...',3);if(e[3]==='tip')toast('Someone tipped off the health inspector about you!',3)}
       else if(st&&st.seat===MY_SEAT)toast(O.em+' Done! '+vic.name+': '+O.name.toLowerCase()+'.',2.4)
       if(me2&&!['roach','poison','tip'].includes(e[3]))banner(O.em+' '+O.name+'!',{stink:'tap your stall to fan it away',pepper:'bin your food (X)',gas:'your woks are cold for a bit',cones:'nobody can reach your counter',clog:'fake customers block your line',monkey:'it ran off with your food',pick:'someone lifted cash from your till',scare:'your line ran off',rumor:'your stars took a hit'}[e[3]]||'',2)}break;
-    case 'caught':if(!quiet){snd('police',{v:.8});snd('shutter',{v:.7,at:.05});const a=v.stalls[e[1]],b=v.stalls[e[2]];banner('Caught!',b.name+"'s camera caught a goon from "+a.name,2.8)}break;
+    case 'caught':if(!quiet){snd('police',{v:.8});snd('shutter',{v:.7,at:.05});const a=v.stalls[e[1]],b=v.stalls[e[2]];banner('Caught on camera!',a.seat===MY_SEAT?b.name+"'s camera got you. Sent home":b.name+"'s camera caught "+a.name+' sneaking around',2.8)}break;
     case 'cat':if(!quiet){sndSt('meow',e[1],{v:1});if(mine)toast('Your cat ate the roaches before anyone saw. Good kitty.',2.6)}break;
     case 'cateat':if(mine&&Math.random()<.4)snd('meow',{v:.5});break;
     case 'squish':if(mine)snd('squish',{v:.8,r:rnd(.9,1.15)});break;
@@ -1400,9 +1466,9 @@ function startSolo(cpu,len,easy){if(easy==null)easy=SET.easy;netClose();MODE='so
   const me=stalls.shift();stalls.splice(Math.floor(stalls.length/2),0,me);
   S=makeSim({seed:newSeed(),hourLen:len,stalls,easy:!!easy});for(const st of S.stalls)if(st.cpu)botInit(S,st,'reader');beginGame()}
 function myNameOr(d){return ($('myname').value||'').trim().slice(0,12)||LS.get('name','')||d}
-function beginGame(){CASHD=START_CASH;ANIM.st={};ANIM.c.clear();ANIM.coins.length=0;PART.length=0;FLOAT.length=0;PAUSED=false;PSIG='';HUDSIG='';show(null);auWake();checkRotate();paintPanel(true);
-  setTimeout(()=>{const st=myStall();if(!SCR&&st)toast(st.helper?'Your helper cooks for you. Set prices, follow the craze, and try the Family (F) and Build (U).':'Press Cook (1, 2, 3) when people line up. Cook buys what it needs.',5)},800)}
-function summarize(v){const rows=v.stalls.filter(s=>!s.gone).map(s=>({seat:s.seat,name:s.name,col:s.col,cpu:s.cpu,profit:Math.round((worth(s)-START_CASH)*100)/100,tier:s.tier,out:s.out,strikes:s.strikes,bestStreak:s.bestStreak||0,goldServed:s.goldServed||0,tips:s.tips||0,jobs:s.jobs||0,camCatch:s.camCatch||0,served:s.served,lost:s.lost,wasted:s.wasted,rating:Math.round(s.rating*10)/10,
+function beginGame(){if(document.pointerLockElement)document.exitPointerLock();setTimeout(fpReset,0);CASHD=START_CASH;ANIM.st={};ANIM.c.clear();ANIM.coins.length=0;PART.length=0;FLOAT.length=0;PAUSED=false;PSIG='';HUDSIG='';show(null);auWake();checkRotate();paintPanel(true);
+  setTimeout(()=>{const st=myStall();if(!SCR&&st)toast(fpOn()?(TOUCH?'You are the chef! Tap a wok to cook. Your back door is behind you, on your left.':'You are the chef! Look at a wok and press E to cook. Your back door is behind you, on your left.'):st.helper?'Your helper cooks for you. Set prices, follow the craze, and try the Family (F) and Build (U).':'Press Cook (1, 2, 3) when people line up. Cook buys what it needs.',6)},800)}
+function summarize(v){const rows=v.stalls.filter(s=>!s.gone).map(s=>({seat:s.seat,name:s.name,col:s.col,cpu:s.cpu,profit:Math.round((worth(s)-START_CASH)*100)/100,tier:s.tier,out:s.out,strikes:s.strikes,bestStreak:s.bestStreak||0,goldServed:s.goldServed||0,tips:s.tips||0,jobs:s.jobs||0,camCatch:s.camCatch||0,caught:s.caught||0,tosses:s.tosses||0,burnt:s.burnt||0,served:s.served,lost:s.lost,wasted:s.wasted,rating:Math.round(s.rating*10)/10,
   shared:s.menu.filter(d=>d>=0&&v.stalls.some(o=>o!==s&&!o.gone&&o.menu.includes(d))).length,sold:s.sold?s.sold.slice():null}));rows.sort((a,b)=>b.profit-a.profit);return rows}
 const MEDALS=[
   {id:'winner',em:'🏆',name:'Best stall on the street',test:(r,i,n)=>i===0&&n>1},
@@ -1411,7 +1477,9 @@ const MEDALS=[
   {id:'golden',em:'👑',name:'Golden touch: served a golden customer',test:r=>r.goldServed>0},
   {id:'tips',em:'💰',name:'Tip magnet: $10 in tips',test:r=>r.tips>=10},
   {id:'kingpin',em:'🕴️',name:'Kingpin: ran 3 Family jobs',test:r=>r.jobs>=3},
-  {id:'eye',em:'📹',name:'Caught one: your camera nabbed a goon',test:r=>r.camCatch>0},
+  {id:'eye',em:'📹',name:'Caught one: your camera nabbed a sneak',test:r=>r.camCatch>0},
+  {id:'guard',em:'🫵',name:'Gotcha: caught a sneak in your back yard',test:r=>r.caught>0},
+  {id:'chef',em:'🍳',name:'Wok star: 10 perfect tosses',test:r=>r.tosses>=10},
   {id:'spotless',em:'✨',name:'Spotless: no strikes, almost no waste',test:r=>r.strikes===0&&r.wasted<=4&&r.served>=15},
   {id:'crowd',em:'🥢',name:'Crowd pleaser: 60 served',test:r=>r.served>=60}];
 function gameOver(rows){if(ENDED)return;ENDED=true;closePicker();const me=rows.find(r=>r.seat===MY_SEAT);const rank=rows.indexOf(me)+1;
@@ -1437,7 +1505,7 @@ $('rs-menu').onclick=()=>{if(MODE==='host'){S=null;net.send({t:'lob'});openLobby
 
 // ═══════════════════════════════ SCREENS ═══════════════════════════════
 const SCREENS=['s-title','s-solo','s-online','s-lobby','s-help','s-pause','s-result','s-family','s-build'];
-function show(id){SCR=id;if(id){$('toast').style.opacity=0;toastT=0;closePicker()}for(const s of SCREENS)$(s).classList.toggle('hidden',s!==id);const inGame=MODE!=='menu'&&(S||GV);
+function show(id){SCR=id;if(id){$('toast').style.opacity=0;toastT=0;closePicker();if(document.pointerLockElement)document.exitPointerLock();FP.keys={}}for(const s of SCREENS)$(s).classList.toggle('hidden',s!==id);const inGame=MODE!=='menu'&&(S||GV);
   $('hud').classList.toggle('hidden',!inGame||id==='s-result'||id==='s-lobby');$('panel').classList.toggle('hidden',!inGame||(!!id&&id!=='s-pause'));if(!inGame||(id&&id!=='s-pause'))$('alerts').innerHTML='';$('pausebtn').classList.toggle('hidden',!inGame||!!id);
   if(id==='s-title'){if(!DEMO)demoStart();paintShelf()}}
 let helpBack='s-title';
@@ -1501,25 +1569,32 @@ function guestGo(m){ENDED=false;const me=m.st.find(r=>r[2]===MY_CID);MY_SEAT=me?
   GV=makeSim({seed:m.seed,hourLen:m.len,easy:!!m.easy,stalls:m.st.map(r=>({seat:r[0],name:r[1],cid:r[2],cpu:r[3]}))});GV.cust=[];
   for(const st of GV.stalls){st.sn=DISH.map(()=>0);st.sa=DISH.map(()=>0)}LAST_SNAP=now();beginGame()}
 const OUTBOX=[];
-const CST={walk:0,go:1,queue:2,eat:3,leave:4},CSTN=Object.keys(CST);
+const CST={walk:0,go:1,queue:2,eat:3,leave:4},CSTN=Object.keys(CST),OPK=Object.keys(OPS);
 function packSnap(S){return {t:'s',tt:Math.round(S.t*10)/10,hr:S.hour,end:S.ending?1:0,pr:S.price.map(p=>Math.round(p*100)),
   st:S.stalls.map(st=>[Math.round(st.cash*100),Math.round(st.rating*100),st.menu,st.price.map(p=>p*2),DISH.map((d,i)=>stockN(st,i)),DISH.map((d,i)=>st.stock[i].length?Math.round((S.t-st.stock[i][0].born)):0),
-    st.burn.map(b=>[b.d,Math.round(b.left*10)]),st.pantry,Math.round(st.smell*100),Math.round((S.t-st.bell)*10),st.served,st.lost,st.wasted,st.queue.length,st.gone?1:0,
-    [st.tier,st.goons,st.busy,st.cam,st.cat,st.roach,st.spike,Math.round(Math.max(0,st.closedUntil-S.t)*10),st.strikes,st.out,Math.round(st.buildVal*100),st.hits,st.helper,st.streak,...[st.stinkU,st.gasU,st.conesU,st.clogU,st.juggleU].map(u=>Math.round(Math.max(0,u-S.t)*10)),st.bribed,st.dog],DISH.map((d,i)=>st.stock[i].some(b=>b.bad)?1:0)]),
+    st.burn.map(b=>[b.d,Math.round(Math.max(0,b.left)*10),b.w,(b.ready?1:0)|(b.toss?2:0)|(tossOpen(b)?4:0),Math.round(b.rt*10)]),st.pantry,Math.round(st.smell*100),Math.round((S.t-st.bell)*10),st.served,st.lost,st.wasted,st.queue.length,st.gone?1:0,
+    [st.tier,Math.round(Math.max(0,st.jobCD-S.t)*10),0,st.cam,st.cat,st.roach,st.spike,Math.round(Math.max(0,st.closedUntil-S.t)*10),st.strikes,st.out,Math.round(st.buildVal*100),st.hits,st.helper,st.streak,...[st.stinkU,st.gasU,st.conesU,st.clogU,st.juggleU].map(u=>Math.round(Math.max(0,u-S.t)*10)),st.bribed,st.dog],DISH.map((d,i)=>st.stock[i].some(b=>b.bad)?1:0),
+    // the chef: where they stand, which way they face, the jump counter, and the job they're on
+    [Math.round(st.ch.x*100),Math.round(st.ch.z*100),Math.round((st.ch.yaw||0)*100),st.ch.tp||0,st.job?OPK.indexOf(st.job.op):-1,st.job?st.job.to:-1,st.job?Math.round(st.job.t/st.job.dur*100):0,st.ch.auto?1:0]]),
   c:S.cust.map(c=>[c.id,Math.round(c.x),Math.round(c.y),CST[c.st],c.to,c.d,c.mood,c.critic?1:0,Math.round(c.pat),c.gold?1:0,c.dir]),
-  g:S.goons.map(g=>[g.id,g.from,g.to,g.op,Math.round(g.x),g.ph,g.shoo?1:0,g.loot||0]),q:S.insp.map(q=>[q.to,Math.round(q.x),q.done?1:0,q.id||0]),e:OUTBOX.splice(0)}}
+  q:S.insp.map(q=>[q.to,Math.round(q.x),q.done?1:0,q.id||0]),e:OUTBOX.splice(0)}}
 function guestSnap(m){const v=GV;if(!v)return;LAST_SNAP=now();v.t=m.tt;v.ending=!!m.end;if(m.hr!==v.hour){v.hour=m.hr;v.event=v.events[m.hr]}v.price=m.pr.map(p=>p/100);
   m.st.forEach((r,i)=>{const st=v.stalls[i];if(!st)return;st.cash=r[0]/100;st.rating=r[1]/100;
     if(st.seat!==MY_SEAT||!st.localEdit||now()-st.localEdit>800){st.menu=r[2];st.price=r[3].map(p=>p/2)}
-    st.sn=r[4];st.sa=r[5];st.burn=r[6].map(b=>({d:b[0],left:b[1]/10}));st.pantry=r[7];st.smell=r[8]/100;st.bell=v.t-r[9]/10;st.served=r[10];st.lost=r[11];st.wasted=r[12];st.qn=r[13];st.gone=!!r[14];
-    const x=r[15];if(x){st.tier=x[0];st.goons=x[1];st.busy=x[2];st.cam=x[3];st.cat=x[4];st.roach=x[5];st.spike=x[6];st.closedUntil=v.t+x[7]/10;st.strikes=x[8];st.out=x[9];st.buildVal=x[10]/100;st.hits=x[11];st.streak=x[13]||0;if(x.length>14){st.stinkU=v.t+x[14]/10;st.gasU=v.t+x[15]/10;st.conesU=v.t+x[16]/10;st.clogU=v.t+x[17]/10;st.juggleU=v.t+x[18]/10;st.bribed=x[19];st.dog=x[20]}if(st.seat!==MY_SEAT||!st.localEdit||now()-st.localEdit>800)st.helper=x[12]}
-    st.badD=(r[16]||[]).map((b,k)=>b?k:-1).filter(k=>k>=0)});
-  v.goons=(m.g||[]).map(r=>{const o=(v.goons||[]).find(q=>q.id===r[0]);return {id:r[0],from:r[1],to:r[2],op:r[3],x:o?o.x:r[4],nx:r[4],y:92,ph:r[5],shoo:r[6],loot:r[7]}});
+    st.sn=r[4];st.sa=r[5];st.burn=r[6].map((b,k)=>({d:b[0],left:b[1]/10,w:b[2]!=null?b[2]:k,ready:(b[3]&1)?1:0,toss:(b[3]&2)?1:0,tw:(b[3]&4)?1:0,rt:(b[4]||0)/10}));st.pantry=r[7];st.smell=r[8]/100;st.bell=v.t-r[9]/10;st.served=r[10];st.lost=r[11];st.wasted=r[12];st.qn=r[13];st.gone=!!r[14];
+    const x=r[15];if(x){st.tier=x[0];st.jobCD=v.t+x[1]/10;st.cam=x[3];st.cat=x[4];st.roach=x[5];st.spike=x[6];st.closedUntil=v.t+x[7]/10;st.strikes=x[8];st.out=x[9];st.buildVal=x[10]/100;st.hits=x[11];st.streak=x[13]||0;if(x.length>14){st.stinkU=v.t+x[14]/10;st.gasU=v.t+x[15]/10;st.conesU=v.t+x[16]/10;st.clogU=v.t+x[17]/10;st.juggleU=v.t+x[18]/10;st.bribed=x[19];st.dog=x[20]}if(st.seat!==MY_SEAT||!st.localEdit||now()-st.localEdit>800)st.helper=x[12]}
+    st.badD=(r[16]||[]).map((b,k)=>b?k:-1).filter(k=>k>=0);
+    const c=r[17];if(c){const ch=st.ch,jump=(ch.tp||0)!==c[3];
+      // your own chef moves on your screen; the host only moves you when you get sent home
+      if(st.seat===MY_SEAT){if(jump){ch.x=c[0]/100;ch.z=c[1]/100;ch.tp=c[3]}}
+      else{ch.nx=c[0]/100;ch.nz=c[1]/100;ch.nyaw=c[2]/100;if(jump||ch.seen==null){ch.x=ch.nx;ch.z=ch.nz;ch.yaw=ch.nyaw;ch.seen=1}ch.tp=c[3];ch.auto=c[7]}
+      st.job=c[4]>=0?{op:OPK[c[4]],to:c[5],t:c[6]/100,dur:1}:null}});
   const pq=v.insp||[];v.insp=(m.q||[]).map((r,k)=>{const o=r[3]?pq.find(z=>z.id===r[3]):(pq[k]&&pq[k].to===r[0]?pq[k]:null);return {id:r[3]||0,to:r[0],x:o?o.x:r[1],nx:r[1],y:80,done:r[2]}});
   const seen=new Map(v.cust.map(c=>[c.id,c]));v.cust=m.c.map(r=>{let c=seen.get(r[0]);if(!c){c={id:r[0],x:r[1],y:r[2]}}c.nx=r[1];c.ny=r[2];c.st=CSTN[r[3]];c.to=r[4];c.d=r[5];c.mood=r[6];c.critic=!!r[7];c.pat=r[8];c.gold=r[9];c.dir=r[10];return c});
   for(const e of m.e)fxEvent(e,v)}
-function guestTick(dt){const v=GV;if(!v)return;if(!v.ending)v.t+=dt;const k=Math.min(1,dt*9);for(const c of v.cust){c.x+=(c.nx-c.x)*k;c.y+=(c.ny-c.y)*k}for(const g of v.goons||[])g.x+=(g.nx-g.x)*k;for(const q of v.insp||[])q.x+=(q.nx-q.x)*k;
-  for(const st of v.stalls)for(const b of st.burn)b.left=Math.max(0,b.left-dt)}
+function guestTick(dt){const v=GV;if(!v)return;if(!v.ending)v.t+=dt;const k=Math.min(1,dt*9);for(const c of v.cust){c.x+=(c.nx-c.x)*k;c.y+=(c.ny-c.y)*k}for(const q of v.insp||[])q.x+=(q.nx-q.x)*k;
+  for(const st of v.stalls){for(const b of st.burn){if(b.ready)b.rt+=dt;else b.left=Math.max(0,b.left-dt)}
+    const ch=st.ch;if(st.seat!==MY_SEAT&&ch.nx!=null){const kk=Math.min(1,dt*12);ch.x+=(ch.nx-ch.x)*kk;ch.z+=(ch.nz-ch.z)*kk;ch.yaw+=((((ch.nyaw-ch.yaw)+Math.PI*3)%(Math.PI*2))-Math.PI)*kk}}}
 let HSEND=0;function hostSend(){if(MODE!=='host'||!S)return;const t=now();if(t-HSEND<125)return;HSEND=t;net.send(packSnap(S))}
 function handleNet(m){switch(m.t){
   case 'created':setStatus('');openLobby();bcRoster();startHB();break;
@@ -1532,6 +1607,8 @@ function handleNet(m){switch(m.t){
   case 'ros':if(MODE!=='guest')break;LAST_ROS=now();LOBBY.players=m.ps.map(r=>({seat:r[0],name:r[1],cid:r[2]}));LOBBY.cpu=m.cpu;LOBBY.len=m.len;LOBBY.easy=m.easy;if(SCR==='s-lobby')paintLobby();break;
   case 'go':if(MODE==='guest')guestGo(m);break;
   case 's':if(MODE==='guest'&&GV)guestSnap(m);break;
+  // a guest's chef walked: the host takes their word for where they are
+  case 'p':if(MODE==='host'&&S){const st=S.stalls.find(q=>q.cid===m.cid);const x=+m.x,z=+m.z,y=+m.y;if(st&&!st.bot&&isFinite(x)&&isFinite(z)&&(m.tp==null||(+m.tp)===(st.ch.tp||0))){st.seen=now();st.ch.x=clamp(x,-200,200);st.ch.z=clamp(z,-20,20);st.ch.yaw=isFinite(y)?y:0;st.ch.auto=m.a?1:0}}break;
   case 'a':if(MODE==='host'&&S&&m.a&&typeof m.a==='object'){const st=S.stalls.find(q=>q.cid===m.cid);if(st&&!st.bot){st.seen=now();doAction(S,st,m.a)}}break;
   case 'end':if(MODE==='guest'&&GV)gameOver(m.rows);break;
   case 'lob':if(MODE==='guest'){GV=null;openLobby()}break;
@@ -1571,6 +1648,7 @@ addEventListener('resize',checkRotate);addEventListener('orientationchange',chec
 // ═══════════════════════════════ MAIN LOOP ═══════════════════════════════
 let last=now(),acc=0,T=0,CASHD=START_CASH;
 function frame(){const t=now();let dt=Math.min(.1,(t-last)/1000);last=t;T+=dt;
+  if(MODE!=='menu'&&!ENDED&&(MODE!=='solo'||!PAUSED))fpTick(dt);
   if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0}
   if(bannerT>0){bannerT-=dt;if(bannerT<=0)$('banner').classList.remove('on')}
   if((MODE==='solo'||MODE==='host')&&S&&!PAUSED){acc+=dt;let n=0;while(acc>=1/30&&n<6){for(const st of S.stalls)if(st.bot)botStep(S,st,1/30);simStep(S,1/30);acc-=1/30;n++}if(acc>.3)acc=0;
@@ -1587,51 +1665,43 @@ let JOBTGT=-1,PTAB='jobs';
 function rivalsOf(st,v){return v.stalls.filter(o=>o!==st&&!o.gone&&!o.out)}
 function leaderOf(st,v){return rivalsOf(st,v).sort((a,b)=>worth(b)-worth(a))[0]}
 function jobTarget(st,v){const r=rivalsOf(st,v);if(!r.some(o=>o.i===JOBTGT)){const l=leaderOf(st,v);JOBTGT=l?l.i:-1}return JOBTGT}
-// the Jobs tab on your panel: pick a rival (the leader by default), one tap per job
-function paintJobs(st,v){const el=$('p-jobs');if(PTAB!=='jobs')return;const tg=jobTarget(st,v),free=st.goons-st.busy,lead=leaderOf(st,v);
-  $('p-goons').textContent='🕴️ '+free+' of '+st.goons+' free';
+// the Jobs tab on your panel: pick a rival (the leader by default) to show on your map; the jobs themselves happen in their back yard
+function paintJobs(st,v){const el=$('p-jobs');if(PTAB!=='jobs')return;const tg=jobTarget(st,v),lead=leaderOf(st,v);
+  const T=v.stalls[tg];$('p-goons').textContent=st.job?OPS[st.job.op].em+' on a job':v.t<st.jobCD?'🙈 lying low':'🕴️ sneak out back';
   const rv=rivalsOf(st,v);
   el.innerHTML='<div class="jt">hit:'+rv.map(o=>'<button data-tgt="'+o.i+'" class="'+(o.i===tg?'on':'')+'" style="color:'+o.col+'">'+(lead&&o.i===lead.i?'👑 ':'')+esc(o.name.slice(0,10))+'</button>').join('')+
-    (rv.length?'':'<span>no one left to hit</span>')+'</div><div class="jg">'+
-    Object.entries(OPS).map(([k,O])=>'<button class="jb" data-op="'+k+'" title="'+esc(O.name+': '+O.desc)+'"'+(tg<0||free<1||st.cash<O.cost?' disabled':'')+'><span>'+O.em+'</span>$'+O.cost+'</button>').join('')+
+    (rv.length?'':'<span>no one left to hit</span>')+'</div>'+
+    (fpOn()?'<div class="jhow">'+(T?'Out your back door, along the lane, into <b style="color:'+T.col+'">'+esc(T.name)+'</b>\'s yard'+(T.dog?' 🐕':'')+(T.cam?' 📹':'')+(T.cat?' 🐈':'')+'. Hold E at a spot:':'')+'</div>':'<div class="jhow">Sneaking around back yards needs the 3D street (Pause, Graphics).</div>')+
+    '<div class="jg">'+Object.entries(OPS).map(([k,O])=>'<span class="jb ji" title="'+esc(O.name+' at the '+O.prop+': '+O.desc)+'"><span>'+O.em+'</span>'+(O.cost?'$'+O.cost:'free')+'</span>').join('')+
     Object.entries(BOOSTS).map(([k,B])=>'<button class="jb boost" data-boost="'+k+'" title="'+esc(B.name+': '+B.desc)+'"'+(st.cash<B.cost||(k==='bribe'&&st.bribed)||(k==='juggler'&&v.t<st.juggleU)?' disabled':'')+'><span>'+B.em+'</span>$'+B.cost+'</button>').join('')+
-    (st.tier>=BOSS.minTier?'<button class="jb boss" data-boss title="'+esc(BOSS.name+': '+BOSS.desc)+'"'+(st.cash<BOSS.cost?' disabled':'')+'><span>'+BOSS.em+'</span>$'+BOSS.cost+'</button>':'')+
-    (free<1&&st.goons<TIERS[st.tier].goons?'<button class="jb boost" data-hire title="Hire a goon"'+(st.cash<GOON_COST?' disabled':'')+'><span>➕</span>$'+GOON_COST+'</button>':'')+'</div>'}
-document.getElementById('panel').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-tab],[data-tgt],[data-op],[data-boost],[data-boss],[data-hire]');if(!b||b.disabled||!b.closest('.whole'))return;e.preventDefault();e.stopPropagation();
+    (st.tier>=BOSS.minTier?'<button class="jb boss" data-boss title="'+esc(BOSS.name+': '+BOSS.desc)+'"'+(st.cash<BOSS.cost?' disabled':'')+'><span>'+BOSS.em+'</span>$'+BOSS.cost+'</button>':'')+'</div>'}
+document.getElementById('panel').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-tab],[data-tgt],[data-boost],[data-boss]');if(!b||b.disabled||!b.closest('.whole'))return;e.preventDefault();e.stopPropagation();
   if(b.dataset.tab){PTAB=b.dataset.tab;$('tab-jobs').classList.toggle('on',PTAB==='jobs');$('tab-shop').classList.toggle('on',PTAB==='shop');$('p-jobs').classList.toggle('hidden',PTAB!=='jobs');$('p-shop').classList.toggle('hidden',PTAB!=='shop');paintPanel(true);snd('ui',{v:.3});return}
   if(b.dataset.tgt){JOBTGT=+b.dataset.tgt;paintPanel(true);snd('ui',{v:.3});return}
   const st=myStall(),v=V();if(!st)return;
-  if(b.dataset.op)act({k:'op',op:b.dataset.op,to:jobTarget(st,v)});else if(b.dataset.boost)act({k:'boost',b:b.dataset.boost});else if(b.hasAttribute('data-boss'))act({k:'boss'});else act({k:'hire'});
+  if(b.dataset.boost)act({k:'boost',b:b.dataset.boost});else if(b.hasAttribute('data-boss'))act({k:'boss'});
   setTimeout(()=>paintPanel(true),80)},true);
 // the full Family sheet: same jobs with descriptions, boosts and defenses
 function paintSheet(){const st=myStall(),v=V();if(!st)return;
-  if(SCR==='s-family'){const cap=TIERS[st.tier].goons,free=st.goons-st.busy,tg=jobTarget(st,v),lead=leaderOf(st,v);
-    $('fm-goons').innerHTML=[...Array(cap)].map((_,k)=>k<st.goons?(k<st.busy?'<span title="out on a job">🏃</span>':'🕴️'):'<i>🕴️</i>').join('')+'<b>'+free+' free of '+st.goons+'</b>';
-    const h=$('fm-hire');h.textContent=st.goons>=cap?'Build bigger for more goons':'Hire a goon · $'+GOON_COST;h.disabled=st.goons>=cap||st.cash<GOON_COST;
+  if(SCR==='s-family'){const tg=jobTarget(st,v),lead=leaderOf(st,v);
+    $('fm-goons').innerHTML='<b>'+(st.job?'You are on a job right now.':v.t<st.jobCD?'You just got caught. Lie low for '+Math.ceil(st.jobCD-v.t)+'s.':'No goons: you do the dirty work yourself.')+'</b>';$('fm-hire').classList.add('hidden');
     $('fm-tgts').innerHTML=rivalsOf(st,v).map(o=>'<button data-tgt2="'+o.i+'" class="'+(o.i===tg?'on':'')+'"><span style="color:'+o.col+'">■</span> '+(lead&&o.i===lead.i?'👑 ':'')+esc(o.name)+'<small>'+TIERS[o.tier].name+' · worth '+money(Math.round(worth(o)-START_CASH))+(o.cam?' · 📹':'')+(o.dog?' · 🐕':'')+(o.cat?' · 🐈':'')+' · '+o.strikes+' strikes</small></button>').join('')||'<div class="note">Everyone else is shut down.</div>';
-    $('fm-jobs').innerHTML=Object.entries(OPS).map(([k,O])=>'<button class="jcard" data-op2="'+k+'"'+(tg<0||free<1||st.cash<O.cost?' disabled':'')+'><span class="e">'+O.em+'</span><span><b>'+esc(O.name)+'</b>'+esc(O.desc)+'</span><span class="c">$'+O.cost+'</span></button>').join('')+
-      '<button class="jcard boss" data-boss2'+(st.tier<BOSS.minTier||st.cash<BOSS.cost?' disabled':'')+'><span class="e">'+BOSS.em+'</span><span><b>'+esc(BOSS.name)+'</b>'+esc(BOSS.desc)+(st.tier<BOSS.minTier?' Needs a Restaurant.':'')+'</span><span class="c">$'+BOSS.cost+'</span></button>';
+    $('fm-jobs').innerHTML=Object.entries(OPS).map(([k,O])=>'<div class="jcard"><span class="e">'+O.em+'</span><span><b>'+esc(O.name)+' · the '+esc(O.prop)+'</b>'+esc(O.verb)+'. '+esc(O.desc)+'</span><span class="c">'+(O.cost?'$'+O.cost:'free')+'</span></div>').join('')+
+      '<button class="jcard boss" data-boss2'+(st.tier<BOSS.minTier||st.cash<BOSS.cost?' disabled':'')+'><span class="e">'+BOSS.em+'</span><span><b>'+esc(BOSS.name)+'</b>'+esc(BOSS.desc)+' One phone call, no sneaking.'+(st.tier<BOSS.minTier?' Needs a Restaurant.':'')+'</span><span class="c">$'+BOSS.cost+'</span></button>';
     $('fm-boosts').innerHTML=Object.entries(BOOSTS).map(([k,B])=>'<button class="jcard boost" data-boost2="'+k+'"'+(st.cash<B.cost||(k==='bribe'&&st.bribed)||(k==='juggler'&&v.t<st.juggleU)?' disabled':'')+'><span class="e">'+B.em+'</span><span><b>'+esc(B.name)+'</b>'+esc(B.desc)+(k==='bribe'&&st.bribed?' (paid up)':'')+'</span><span class="c">$'+B.cost+'</span></button>').join('');
-    const dd={cam:'Catches about half the goons who reach you, and tells everyone who sent them.',cat:'Eats cockroaches.',dog:'Chases off half the goons who reach you.'};
+    const dd={cam:'Catches about half the sneaks who finish a job in your yard, and tells everyone who it was.',cat:'Eats cockroaches.',dog:'Lives in your back yard and chases off half the sneaks.'};
     $('fm-defs').innerHTML=Object.entries(DEFS).map(([k,D])=>'<button class="jcard def" data-def="'+k+'"'+(st[k]||st.cash<D.cost?' disabled':'')+'><span class="e">'+D.em+'</span><span><b>'+esc(D.name)+'</b>'+dd[k]+'</span><span class="c">'+(st[k]?'yours':'$'+D.cost)+'</span></button>').join('');
-    $('fm-note').textContent='You have '+money(Math.floor(st.cash))+'. '+(MODE==='solo'?'The street waits while you plot. ':'The street keeps going while you plot. ')+'Tap a goon walking at your stall to chase them off.'}
-  if(SCR==='s-build'){$('bd-tiers').innerHTML=TIERS.map((T,k)=>'<div class="tier'+(k===st.tier?' cur':k<st.tier?' done':'')+'"><div class="tn">'+T.name+'</div><div class="tp">'+T.burners+' burners · '+T.slots+' dishes · serves in '+T.serve+'s · '+T.goons+' goons'+(T.appeal?' · pull +'+Math.round(T.appeal*4):'')+(k===BOSS.minTier?' · Boss favors':'')+'</div>'+
+    $('fm-note').textContent='You have '+money(Math.floor(st.cash))+'. '+(MODE==='solo'?'The street waits while you plot. ':'The street keeps going while you plot. ')+'Every job happens in a rival\'s back yard: go out your back door, along the lane, through their gate, and hold E at the spot. If the owner catches you there, you get chased home. Catch sneaks in your own yard the same way.'}
+  if(SCR==='s-build'){$('bd-tiers').innerHTML=TIERS.map((T,k)=>'<div class="tier'+(k===st.tier?' cur':k<st.tier?' done':'')+'"><div class="tn">'+T.name+'</div><div class="tp">'+T.burners+' burners · '+T.slots+' dishes · serves in '+T.serve+'s'+(T.appeal?' · pull +'+Math.round(T.appeal*4):'')+(k===BOSS.minTier?' · Boss favors':'')+'</div>'+
       (k===st.tier+1?'<button class="opb buy" data-up'+(st.cash<T.cost?' disabled':'')+'>Build · $'+T.cost+'</button>':k<=st.tier?'<span style="color:var(--teal);font-weight:800">✓</span>':'<span style="color:var(--mut);font-weight:800">$'+T.cost+'</span>')+'</div>').join('');
     $('bd-note').textContent='You have '+money(Math.floor(st.cash))+'. '+(MODE==='solo'?'The street waits while you build.':'The street keeps going while you build.')}}
-document.addEventListener('pointerdown',e=>{if(SCR!=='s-family'&&SCR!=='s-build')return;const b=e.target.closest('[data-tgt2],[data-op2],[data-boss2],[data-boost2],[data-def],[data-up],#fm-hire');if(!b||b.disabled)return;e.preventDefault();
+document.addEventListener('pointerdown',e=>{if(SCR!=='s-family'&&SCR!=='s-build')return;const b=e.target.closest('[data-tgt2],[data-boss2],[data-boost2],[data-def],[data-up]');if(!b||b.disabled)return;e.preventDefault();
   const st=myStall(),v=V();if(!st)return;
-  if(b.dataset.tgt2){JOBTGT=+b.dataset.tgt2}else if(b.id==='fm-hire')act({k:'hire'});else if(b.dataset.op2)act({k:'op',op:b.dataset.op2,to:jobTarget(st,v)});else if(b.hasAttribute('data-boss2'))act({k:'boss'});
+  if(b.dataset.tgt2){JOBTGT=+b.dataset.tgt2}else if(b.hasAttribute('data-boss2'))act({k:'boss'});
   else if(b.dataset.boost2)act({k:'boost',b:b.dataset.boost2});else if(b.dataset.def)act({k:'def',def:b.dataset.def});else act({k:'up'});
   setTimeout(paintSheet,60);setTimeout(paintSheet,400)});
-// ── tapping the street: shoo goons coming at you, squish roaches, fan away stink ──
-cv.addEventListener('pointerdown',e=>{if(SCR||MODE==='menu'||ENDED)return;const st=myStall(),v=V();if(!st||!v)return;const x=e.clientX,y=e.clientY;
-  let best=null,bd=38;for(const g of v.goons||[]){if(g.to!==st.i||g.ph!=='go')continue;const [gx,gy]=GP(g);const d=Math.hypot(gx-x,gy-y);if(d<bd){bd=d;best=g}}
-  if(best){act({k:'shoo',id:best.id});floatText(x,y-10,'Shoo!','#ffe9c7');return}
-  const R=stallRect(st);if(x>R[0]&&x<R[2]&&y>R[1]&&y<R[3]){
-    if(st.roach>0){act({k:'stomp'});PART.push({x,y,vx:0,vy:0,life:.3,max:.3,col:'spark'});return}
-    if(v.t<st.stinkU){act({k:'fan'});return}}});
 function precheck2(st,a,v){
-  if(a.k==='op'){if(st.goons-st.busy<1)return 'nogoon';if(st.cash<OPS[a.op].cost)return 'broke';if(a.to==null||a.to<0)return 'notarget'}
+  if(a.k==='op'){if(st.cash<OPS[a.op].cost)return 'broke';if(a.to==null||a.to<0)return 'notarget';if(v.t<st.jobCD)return 'busted';if(!nearOp(v,st.ch,v.stalls[a.to],a.op))return 'far'}
   if(a.k==='boost'){if(st.cash<BOOSTS[a.b].cost)return 'broke';if(a.b==='bribe'&&st.bribed)return 'have';if(a.b==='juggler'&&v.t<st.juggleU)return 'have'}
   if(a.k==='boss'){if(st.tier<BOSS.minTier)return 'bosstier';if(st.cash<BOSS.cost)return 'broke'}
   if(a.k==='cook'&&v.t<st.gasU)return 'gasoff';return ''}
@@ -1649,20 +1719,243 @@ function drawJobs(v,st,X,w,x0,top,yb,cy,ch,t){const s=clamp(VH/90,6,11);
     for(let k=0;k<3;k++){const ph=t*5+k*2.09;ctx.fillStyle=['#ffb547','#3ee0c5','#e2453c'][k];ctx.beginPath();ctx.arc(Math.cos(ph)*s*1.4,-s*4.4-Math.abs(Math.sin(ph))*s*2.4,s*.35,0,7);ctx.fill()}ctx.restore()}
   if(st.dog){ctx.font='18px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';const hop=Math.abs(Math.sin(t*2+st.i))*2;ctx.fillText('🐕',x0+w-10,yb+12-hop)}
   if(st.bribed){ctx.font='12px sans-serif';ctx.textAlign='center';ctx.fillText('🤝',x0+12,top+30)}}
-// goons: monkeys for monkey raids, a loot bag on the way home, a red "tap me" ring when they're coming for you
-function drawGoon(v,g,t){const X=WX(g.x),Y=WY(g.y),s=clamp(VH/90,6,11);const me=myStall();const forMe=me&&g.to===me.i&&g.ph==='go'&&v!==DEMO;
-  if(forMe){const r=s*3+Math.sin(t*10)*2;ctx.strokeStyle='rgba(255,80,60,.85)';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(X,Y-s*2,r,0,7);ctx.stroke();ctx.fillStyle='#ff6b5e';ctx.font='800 11px Karla';ctx.textAlign='center';ctx.fillText('TAP!',X,Y-s*2-r-6)}
-  if(g.op==='monkey'){const hop=Math.abs(Math.sin(t*12+g.id))*s*1.2;ctx.font=(s*2.6|0)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🐒',X,Y-s*1.4-hop);
-    if(g.ph==='back'&&g.loot)ctx.fillText('🥟',X+s*1.3,Y-s*3-hop);return}
-  const bob=g.ph==='do'?0:Math.abs(Math.sin(t*10+g.id))*s*.25;ctx.save();ctx.translate(X,Y-bob);
-  ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(0,bob+s*.2,s*.9,s*.3,0,0,7);ctx.fill();
-  const sw=g.ph==='do'?0:Math.sin(t*12+g.id)*s*.5;ctx.strokeStyle='#151217';ctx.lineWidth=s*.42;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-s*.3,-s*.9);ctx.lineTo(-s*.3+sw,0);ctx.moveTo(s*.3,-s*.9);ctx.lineTo(s*.3-sw,0);ctx.stroke();
-  ctx.fillStyle='#232029';ctx.fillRect(-s*.75,-s*2.4,s*1.5,s*1.6);ctx.fillStyle='#f6ead2';ctx.fillRect(-s*.15,-s*2.4,s*.3,s*1.2);ctx.fillStyle='#e9b48a';ctx.beginPath();ctx.arc(0,-s*3,s*.66,0,7);ctx.fill();
-  ctx.fillStyle='#000';ctx.fillRect(-s*.55,-s*3.15,s*1.1,s*.26);
-  ctx.fillStyle='#151217';ctx.fillRect(-s*1,-s*3.45,s*2,s*.24);ctx.fillRect(-s*.6,-s*4.1,s*1.2,s*.7);ctx.fillStyle=(v.stalls[g.from]||{}).col||'#e2453c';ctx.fillRect(-s*.6,-s*3.55,s*1.2,s*.14);
-  const O=OPS[g.op];if(g.ph==='do'&&O){ctx.font=(s*1.5|0)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(O.em,s*1.3,-s*4.2)}
-  if(g.ph==='back'){ctx.font=(s*1.2|0)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(g.shoo?'💨':g.op==='pick'&&g.loot?'💰':'😏',s*1.2,-s*3.8)}
-  ctx.restore()}
+
+// ═══════════════════════════════ FIRST PERSON ═══════════════════════════════
+// You are the chef. Walk your kitchen and cook at the woks yourself (toss at the right moment, plate it
+// before it burns), then slip out the back door, along the lane and into a rival's back yard to do the
+// dirty work in person. Their owner can catch you there. Everyone else walks the same street, so you
+// see the other players when you leave your stall.
+// Computer: click to grab the mouse, WASD + mouse, E or click to use, hold for jobs, Tab lets go.
+// Phone: left thumb walks, drag on the right to look, tap things (or the USE button) to use them.
+const FP={x:0,z:KZ,yaw:0,pitch:-.2,keys:{},locked:false,bob:0,walk:0,tgt:null,sendT:0,tp:-1,seat:-1,joy:null,look:null,holding:0,act:0,plate:0,plateD:-1,fade:0,said:{},W:null,wkey:'',hint:0,moved:0};
+const EYE=2.02,RAD=.26,WALK=4.4,RUN=6.2,REACH=3.3;
+// people more than a few metres behind the first-person camera aren't drawn (their shadows can't reach the view)
+function fpCull(x,z){if(!FP.on)return false;const dx=x-FP.x,dz=z-FP.z;return dx*Math.sin(FP.yaw)+dz*Math.cos(FP.yaw)<-3.2||dx*dx+dz*dz>4900}
+function fpOn(){return want3D()&&G3.ok&&MODE!=='menu'&&!ENDED&&!!myStall()&&V()!==DEMO&&!(myStall()||{}).gone}
+function wokTossable(b){return b.tw!=null?!!b.tw:(b.el!=null&&tossOpen(b))}
+// ── the walls: boxes [x0,z0,x1,z1,owner] (owner: only that stall's chef walks through it, the back door) ──
+function fpWorld(v){const key=v.seed+':'+v.stalls.length+':'+(G3.tables?G3.tables.length:0);if(FP.wkey===key&&FP.W)return FP.W;FP.wkey=key;
+  const B=[],C=[],box=(x0,z0,x1,z1,o)=>B.push([x0,z0,x1,z1,o==null?-1:o]);
+  for(const st of v.stalls){const X=stWX(v,st);
+    box(X-4.1,-1.47,X+4.1,.08);box(X-4.1,-3.5,X-3.84,-1.4);box(X+3.84,-3.5,X+4.1,-1.4);
+    box(X-3.9,-3.52,X+2.55,-3.32);box(X+3.65,-3.52,X+3.9,-3.32);box(X+2.55,-3.52,X+3.65,-3.32,st.i);box(X-3.65,-3.26,X+2.35,-2.64);
+    box(X-4.11,-9.1,X-3.99,-3.4);box(X+3.99,-9.1,X+4.11,-3.4);box(X-4.11,-9.11,X-.8,-8.99);box(X+.8,-9.11,X+4.11,-8.99);
+    box(X-3.65,-5.85,X-2.85,-4.15);box(X+3.15,-6.7,X+3.75,-5.45);box(X-3.85,-8,X-2.65,-7.3);box(X+2.88,-8.65,X+3.72,-7.4);box(X+.6,-4.1,X+1.3,-3.5)}
+  for(const tb of G3.tables||[])C.push([tb.x,tb.z,.78]);
+  const half=v.stalls.length*PITCH/2+12;FP.W={B,C,x0:-half,x1:half,z0:-15.6,z1:17.5};return FP.W}
+function fpCollide(W,me){for(let pass=0;pass<2;pass++){
+  for(const b of W.B){if(b[4]===me)continue;const cx=clamp(FP.x,b[0],b[2]),cz=clamp(FP.z,b[1],b[3]);let dx=FP.x-cx,dz=FP.z-cz;const d=Math.hypot(dx,dz);
+    if(d>=RAD)continue;if(d<1e-6){// inside the box: leave by the nearest side
+      const o=[[FP.x-b[0],-1,0],[b[2]-FP.x,1,0],[FP.z-b[1],0,-1],[b[3]-FP.z,0,1]].sort((p,q)=>p[0]-q[0])[0];FP.x+=o[1]*(o[0]+RAD);FP.z+=o[2]*(o[0]+RAD);continue}
+    FP.x=cx+dx/d*RAD;FP.z=cz+dz/d*RAD}
+  for(const c of W.C){const dx=FP.x-c[0],dz=FP.z-c[1],d=Math.hypot(dx,dz),r=c[2]+RAD;if(d<r&&d>1e-6){FP.x=c[0]+dx/d*r;FP.z=c[1]+dz/d*r}}
+  FP.x=clamp(FP.x,W.x0,W.x1);FP.z=clamp(FP.z,W.z0,W.z1)}}
+// you start (and land when chased home) at your first wok, looking over it at the street
+function fpHome(v,st){FP.x=stWX(v,st)-3.5+3.5/burnersOf(st);FP.z=KZ;FP.yaw=0;FP.pitch=-.28}
+function fpReset(){const st=myStall(),v=V();if(!st||!v)return;fpHome(v,st);FP.tp=st.ch.tp||0;FP.seat=MY_SEAT;FP.holding=0;FP.tgt=null;FP.keys={};FP.joy=null;FP.look=null;FP.W=null;FP.wkey='';FP.hint=9;FP.moved=0}
+// ── every frame, before the street moves ──
+function fpTick(dt){fpPanel();const st=myStall(),v=V();if(!st||!v)return;
+  if(!fpOn()){st.ch.auto=1;if(MODE==='guest'){FP.sendT-=dt;if(FP.sendT<=0){FP.sendT=1;net.send({t:'p',cid:MY_CID,x:Math.round(st.ch.x*100)/100,z:Math.round(st.ch.z*100)/100,y:0,a:1,tp:st.ch.tp||0})}}return}
+  st.ch.auto=0;
+  if(FP.seat!==MY_SEAT)fpReset();
+  // chased home (or a new night): jump to where the street says you are
+  if((st.ch.tp||0)!==FP.tp){FP.tp=st.ch.tp||0;fpHome(v,st);FP.fade=1;if(FP.holding)FP.holding=0}
+  FP.fade=Math.max(0,FP.fade-dt*1.4);FP.act=Math.max(0,FP.act-dt*3.2);FP.plate=Math.max(0,FP.plate-dt*2);if(FP.hint>0)FP.hint-=dt;
+  let mx=0,mz=0,turn=0;const K=FP.keys;
+  if(!SCR){if(K.KeyW||K.ArrowUp)mz+=1;if(K.KeyS||K.ArrowDown)mz-=1;if(K.KeyA)mx-=1;if(K.KeyD)mx+=1;if(K.ArrowLeft)turn+=1;if(K.ArrowRight)turn-=1;
+    if(FP.joy){mx+=clamp(FP.joy.dx/55,-1,1);mz-=clamp(FP.joy.dy/55,-1,1)}}
+  FP.yaw+=turn*2.4*dt;
+  const ml=Math.hypot(mx,mz);if(ml>1){mx/=ml;mz/=ml}
+  const spd=(K.ShiftLeft||K.ShiftRight||(FP.joy&&Math.hypot(FP.joy.dx,FP.joy.dy)>52))?RUN:WALK;
+  const fx=Math.sin(FP.yaw),fz=Math.cos(FP.yaw),rx=-Math.cos(FP.yaw),rz=Math.sin(FP.yaw);
+  let vx=(fx*mz+rx*mx)*spd,vz=(fz*mz+rz*mx)*spd;
+  // holding a job keeps you on the spot
+  if(st.job||FP.holding){vx*=.15;vz*=.15}
+  const W=fpWorld(v),dist=Math.hypot(vx,vz)*dt,n=Math.max(1,Math.ceil(dist/.09));
+  for(let k=0;k<n;k++){FP.x+=vx*dt/n;FP.z+=vz*dt/n;fpCollide(W,st.i)}
+  const moving=ml>.1&&!st.job;if(moving){FP.walk+=dt*spd*1.9;FP.moved+=dist}FP.bob=moving?Math.sin(FP.walk)*.045:FP.bob*.85;
+  st.ch.x=FP.x;st.ch.z=FP.z;st.ch.yaw=FP.yaw;
+  if(MODE==='guest'){FP.sendT-=dt;if(FP.sendT<=0){FP.sendT=.1;net.send({t:'p',cid:MY_CID,x:Math.round(FP.x*100)/100,z:Math.round(FP.z*100)/100,y:Math.round(FP.yaw*100)/100,tp:FP.tp})}}
+  FP.tgt=fpPick(v,st);
+  // let go of a job: stop when you leave the spot or let go of the button
+  if(FP.holding&&!fpHeld())fpUse(false)}
+function fpHeld(){return !!(FP.keys.KeyE||FP.keys.Space||FP.keys.Mouse||FP.keys.Touch)}
+// ── what you can use from here: aim at it, or stand right next to it ──
+function fpTargets(v,st){const T=[],X=stWX(v,st);
+  if(inKitchen(v,st)){const nb=burnersOf(st);for(let k=0;k<nb;k++)T.push({k:'wok',w:k,x:X-3.5+7*(k+.5)/nb,y:1.45,z:-.95,r:.62});
+    T.push({k:'bell',x:X+3.35,y:1.5,z:-.45,r:.38})}
+  for(const o of v.stalls){if(o===st||o.gone||!o.ch||!inYardOf(v,o.ch,st))continue;const d=Math.hypot(o.ch.x-FP.x,o.ch.z-FP.z);if(d<3.4)T.push({k:'shoo',who:o.i,x:o.ch.x,y:1.3,z:o.ch.z,r:.95,near:d<2.6,d})}
+  const y=v.stalls.find(o=>o!==st&&!o.gone&&inYardOf(v,st.ch,o));
+  if(y)for(const op in OPS){const p=opAt(v,y,op),d=Math.hypot(p[0]-FP.x,p[1]-FP.z);if(d<STATION_R+.2)T.push({k:'op',op,to:y.i,x:p[0],y:.9,z:p[1],r:.8,near:d<STATION_R,d})}
+  return T}
+function fpRay(sx,sy){const c=G3.cam,o=c.position,p=_t.pv.set(sx/G3.W*2-1,-(sy/G3.H*2-1),.5).unproject(c);const dx=p.x-o.x,dy=p.y-o.y,dz=p.z-o.z,l=Math.hypot(dx,dy,dz)||1;return [o.x,o.y,o.z,dx/l,dy/l,dz/l]}
+function fpPick(v,st,ray){const T=fpTargets(v,st);const R=ray||(G3.W?fpRay(G3.W/2,G3.H/2):null);let best=null,bp=1e9;
+  if(R)for(const g of T){const dx=g.x-R[0],dy=g.y-R[1],dz=g.z-R[2],pr=dx*R[3]+dy*R[4]+dz*R[5];if(pr<0||pr>REACH)continue;const perp=Math.sqrt(Math.max(0,dx*dx+dy*dy+dz*dz-pr*pr));if(perp<g.r&&pr<bp){bp=pr;best=g}}
+  if(best||ray)return best;
+  // nothing in the crosshair: whoever is sneaking around your yard, then the job spot you're standing at, then the kitchen chores
+  const sh=T.filter(g=>g.k==='shoo'&&g.near).sort((a,b)=>a.d-b.d)[0];if(sh)return sh;
+  const op=T.filter(g=>g.k==='op'&&g.near).sort((a,b)=>a.d-b.d)[0];if(op)return op;
+  if(inKitchen(v,st)){if(st.roach>0)return {k:'stomp'};if(badAny(st))return {k:'bin'};if(v.t<st.stinkU)return {k:'fan'};
+    const b=st.burn.find(q=>q.ready)||st.burn.find(q=>wokTossable(q));if(b)return T.find(g=>g.k==='wok'&&g.w===b.w)}
+  return null}
+// the dish to cook when you just hit a free wok: whatever the line wants most that isn't on its way, the craze breaks ties
+function sugDish(v,st){let best=-1,bv=-1e9;for(const d of st.menu){if(d<0)continue;const want=(v.cust||[]).filter(c=>c.to===st.i&&(c.st==='queue'||c.st==='go')&&c.d===d).length;
+    const s=want*3-sN(st,d)-cN(st,d)*DISH[d].yield+(v.event&&v.event.craze===d?1.5:0)-st.menu.indexOf(d)*.1;if(s>bv){bv=s;best=d}}return best}
+function fpCookSlot(slot){const st=myStall(),v=V();if(!st)return;const g=FP.tgt;const w=g&&g.k==='wok'&&!st.burn.some(b=>b.w===g.w)?g.w:-1;act({k:'cook',slot,w});FP.act=1}
+function fpUse(down,g){const st=myStall(),v=V();if(!st||!v||ENDED)return;
+  if(!down){if(FP.holding){FP.holding=0;if(st.job)act({k:'opx'})}return}
+  g=g||FP.tgt;if(!g){if(fpOn()&&!inKitchen(v,st)&&!TIPS.out)tip('out','Walk back through your back door to cook. Hold E at a spot in a rival\'s back yard to do a job there.');return}
+  FP.act=1;
+  if(g.k==='wok'){const b=st.burn.find(q=>q.w===g.w);if(!b){const d=sugDish(v,st);if(d<0)return toast(WHY.nomenu);act({k:'cook',d,w:g.w});return}
+    if(b.ready){act({k:'plate',w:g.w});FP.plate=1;FP.plateD=b.d;return}
+    if(wokTossable(b)){act({k:'toss',w:g.w});return}
+    toast(b.toss?'Tossed! It will be ready soon.':'Wait for the ❗ to toss it.',1.2);return}
+  if(g.k==='bell')return act({k:'bell'});
+  if(g.k==='shoo')return act({k:'shoo',who:g.who});
+  if(g.k==='stomp'||g.k==='bin'||g.k==='fan')return act({k:g.k});
+  if(g.k==='op'){act({k:'op',op:g.op,to:g.to});FP.holding=1}}
+// ── input ──
+const FPKEYS={KeyW:1,KeyA:1,KeyS:1,KeyD:1,ArrowUp:1,ArrowDown:1,ArrowLeft:1,ArrowRight:1,ShiftLeft:1,ShiftRight:1,KeyE:1,Space:1};
+addEventListener('keydown',e=>{if(!FPKEYS[e.code]||SCR||MODE==='menu'||(e.target&&e.target.tagName==='INPUT'))return;if(!fpOn())return;e.preventDefault();
+  if(FP.keys[e.code])return;FP.keys[e.code]=1;if(e.code==='KeyE'||e.code==='Space')fpUse(true)});
+addEventListener('keyup',e=>{if(!FPKEYS[e.code])return;FP.keys[e.code]=0;if((e.code==='KeyE'||e.code==='Space')&&!fpHeld())fpUse(false)});
+addEventListener('blur',()=>{FP.keys={};if(FP.holding)fpUse(false)});
+// asking for the mouse can be refused (straight after Esc, or by the browser): never let that throw
+function fpLock(){try{const p=cv.requestPointerLock&&cv.requestPointerLock();if(p&&p.catch)p.catch(()=>{FP.lockFail=now()})}catch(e){FP.lockFail=now()}}
+addEventListener('keydown',e=>{if(e.code==='Tab'&&fpOn()&&!SCR){e.preventDefault();if(FP.locked)document.exitPointerLock();else if(!TOUCH)fpLock()}});
+document.addEventListener('pointerlockchange',()=>{FP.locked=document.pointerLockElement===cv;if(!FP.locked){FP.keys.Mouse=0;if(FP.holding&&!fpHeld())fpUse(false)}});
+document.addEventListener('mousemove',e=>{if(!FP.locked||!fpOn())return;FP.yaw-=e.movementX*.0026;FP.pitch=clamp(FP.pitch-e.movementY*.0022,-1.25,1.1)});
+cv.addEventListener('pointerdown',e=>{if(SCR||MODE==='menu'||ENDED||!fpOn())return;
+  if(e.pointerType==='mouse'){if(e.button!==0)return;if(!FP.locked){fpLock();return}FP.keys.Mouse=1;fpUse(true);return}
+  // touch: left side is a thumbstick, the right side looks around; a quick tap on something uses it
+  e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(_){}
+  if(e.clientX<innerWidth*.42&&!FP.joy){FP.joy={id:e.pointerId,x0:e.clientX,y0:e.clientY,dx:0,dy:0};return}
+  if(!FP.look)FP.look={id:e.pointerId,x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,t0:now()}});
+cv.addEventListener('pointermove',e=>{if(FP.joy&&e.pointerId===FP.joy.id){FP.joy.dx=e.clientX-FP.joy.x0;FP.joy.dy=e.clientY-FP.joy.y0;return}
+  if(FP.look&&e.pointerId===FP.look.id){FP.yaw-=(e.clientX-FP.look.x)*.0062;FP.pitch=clamp(FP.pitch-(e.clientY-FP.look.y)*.005,-1.25,1.1);FP.look.x=e.clientX;FP.look.y=e.clientY}});
+function fpUp(e){if(e.pointerType==='mouse'){if(e.button===0&&FP.keys.Mouse){FP.keys.Mouse=0;if(!fpHeld())fpUse(false)}return}
+  if(FP.joy&&e.pointerId===FP.joy.id){FP.joy=null;return}
+  if(FP.look&&e.pointerId===FP.look.id){const L=FP.look;FP.look=null;
+    if(Math.hypot(e.clientX-L.x0,e.clientY-L.y0)<14&&now()-L.t0<350&&fpOn()){const st=myStall(),v=V();const g=fpPick(v,st,fpRay(e.clientX,e.clientY));if(g&&g.k!=='op')fpUse(true,g)}}}
+cv.addEventListener('pointerup',fpUp);cv.addEventListener('pointercancel',fpUp);
+// the USE button on touch screens: press and hold for jobs
+{const b=$('fpuse');const dn=e=>{e.preventDefault();e.stopPropagation();FP.keys.Touch=1;fpUse(true)},up=e=>{e.preventDefault();FP.keys.Touch=0;if(!fpHeld())fpUse(false)};
+  b.addEventListener('pointerdown',dn);b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('pointerleave',up)}
+// ── the camera and your own hands ──
+function fpCam(cam,W,H,dt){FP.on=1;cam.aspect=W/H;cam.near=.06;cam.fov=TOUCH?72:68;const y=EYE+FP.bob,cp=Math.cos(FP.pitch);
+  cam.position.set(FP.x,y,FP.z);cam.lookAt(FP.x+Math.sin(FP.yaw)*cp,y+Math.sin(FP.pitch),FP.z+Math.cos(FP.yaw)*cp);cam.updateProjectionMatrix();cam.updateMatrixWorld()}
+function fpHandsInit(){const T=T3,g=new T.Group();const skin=new T.MeshStandardMaterial({color:'#eab48c',roughness:.6,envMapIntensity:.6}),sl=new T.MeshStandardMaterial({color:'#fbf6ea',roughness:.7,envMapIntensity:.6});
+  const arm=new T.CylinderGeometry(.07,.085,.5,12);arm.rotateX(Math.PI/2);const hand=new T.SphereGeometry(.08,14,10);
+  for(const s of [-1,1]){const a=new T.Group();const m=new T.Mesh(arm,sl);m.position.z=.1;a.add(m);const h=new T.Mesh(hand,skin);h.position.z=-.17;h.scale.set(1,.85,1.15);a.add(h);a.userData.s=s;g.add(a)}
+  G3.cam.add(g);G3.fpH=g;if(!G3.cam.parent)G3.scene.add(G3.cam)}
+function fpHands3D(v,t,dt){if(!G3.fpH){if(!fpOn())return;fpHandsInit()}const on=fpOn();G3.fpH.visible=on;if(!on)return;const st=myStall();
+  const job=!!(st&&st.job),push=Math.sin(FP.act*Math.PI),tossing=FP.act>0&&FP.tgt&&FP.tgt.k==='wok';
+  for(const a of G3.fpH.children){const s=a.userData.s;const sway=Math.sin(FP.walk*.5+(s>0?0:Math.PI))*.03*(FP.bob?1:0);
+    a.position.set(s*(.27-push*.06)+sway,-.33+FP.bob*.6+(tossing?push*.12:0)+(job?Math.sin(t*22+s)*.02:0),-.42-push*.16-(job?.12:0));a.rotation.set(-.08+(job?.25:0),s*-.12,0)}
+  // the plate you just took off the wok, on its way to the counter
+  if(FP.plate>0&&FP.plateD>=0){const p=_t.pv.set(0,-.2+(1-FP.plate)*.1,-.62-(1-FP.plate)*.5).applyMatrix4(G3.cam.matrixWorld);bput('emo',p.x,p.y,p.z,.28,.28,emo(DISH[FP.plateD].em),FP.plate)}}
+// ── chefs: everyone stands where they really are ──
+function chef3D(v,st,A,t,dt,shut){const c=st.ch;if(!c)return;if(st.seat===MY_SEAT&&v!==DEMO&&fpOn())return;if(fpCull(c.x,c.z))return;
+  const X=stWX(v,st),a=am3('ch'+st.i);const x=c.x,z=c.z;const kit=Math.abs(x-X)<3.85&&z<-1.3&&z>-3.5;if(kit&&shut)return;
+  const dx=x-(a.px==null?x:a.px),dz=z-(a.pz==null?z:a.pz);a.px=x;a.pz=z;const mv=Math.hypot(dx,dz);a.w=(a.w||0)+mv*2.6;a.sp=(a.sp||0)*.8+(mv/Math.max(dt,1e-3))*.2;
+  const walking=a.sp>.5,job=st.job,panic=kit&&st.roach>0,cheer=A.cheer>0,bob=panic?Math.abs(Math.sin(t*16))*.25:cheer?Math.abs(Math.sin(t*10))*.3:0;
+  let aL=[-.3,.12],aR=[-.3,.12];
+  if(job){const w=Math.sin(t*14);aL=[-1.5-w*.3,.15];aR=[-1.5+w*.3,.15]}
+  else if(cheer||panic){const w=Math.sin(t*14)*.4;aL=[0,2.5+w];aR=[0,2.5-w]}
+  else if(kit&&A.toss>0){const p=Math.sin((1-A.toss)*Math.PI*2);aL=[-1.25-p*.35,.2];aR=[-1.25-p*.35,.2]}
+  else if(kit&&A.serve>0){const p=Math.sin((1-A.serve/.5)*Math.PI);aR=[-1.2-p*.5,0]}
+  else if(walking){aL=null;aR=null}
+  const human=!st.cpu&&!st.bot;
+  body({x,z,y:bob,yaw:c.yaw||0,shirt:'#fbf6ea',pants:'#3a3048',skin:human?'#e9b48a':'#eab48c',hair:'#2a1a10',hat:'chef',apron:st.col,armL:aL,armR:aR,swing:walking&&!job?Math.sin(a.w)*.62:0,mood:panic?-1:1,squint:cheer?1:0});
+  if(kit&&A.serve>0&&A.serveD>=0){const p=Math.sin((1-A.serve/.5)*Math.PI);bput('emo',x+.5,1.95+p*.25,z+.75+p*.9,.58,.58,emo(DISH[A.serveD].em),1)}
+  if(job&&OPS[job.op])bput('emo',x,3.3+Math.abs(Math.sin(t*6))*.1,z,.72,.72,emo(OPS[job.op].em),1);
+  if(panic&&chance(.12,dt))part({x:x+.4,y:2.6,z:z+.3,vy:-.6,s:.12,life:.5,cell:3,b:'puf',a:.8,col:col3('#8fd8ff')})}
+// name tags over chefs who are out and about (and over every friend), red over anyone sneaking around your yard
+function chefTags(v,t){if(!fpOn()&&v!==DEMO&&!G3.ok)return;const me=myStall();
+  for(const st of v.stalls){if(st.gone||!st.ch||(me&&st===me&&fpOn()))continue;const c=st.ch,X=stWX(v,st);const kit=Math.abs(c.x-X)<3.85&&c.z<-1.3&&c.z>-3.5;
+    const human=!st.cpu&&!st.bot,sneak=me&&inYardOf(v,c,me);if(kit&&!human)continue;if(v===DEMO)continue;
+    const d=fpOn()?Math.hypot(c.x-FP.x,c.z-FP.z):0;if(fpOn()&&d>34)continue;const [a,b,zz]=proj(c.x,3.05,c.z);if(zz>=1)continue;
+    const txt=(sneak?'🚨 ':'')+st.name+(st.job&&OPS[st.job.op]?' '+OPS[st.job.op].em:'');
+    pill(txt,a,b-8,'800 '+(d<10?13:11)+'px Karla',sneak?'#fff':'#1a1030',sneak?'rgba(214,52,44,.92)':mixC(st.col,'#ffffff',.55))}}
+// ── the back yards: built once per stall, baked with the booth ──
+function yardGeo(){const GG=G3.geo,T=T3;if(GG.yPad)return;
+  GG.yPad=new T.PlaneGeometry(8.1,5.6);GG.yFs=RBG(.1,1.2,5.6,.03,1);GG.yFb=RBG(3.25,1.2,.1,.03,1);GG.yPost=new T.CylinderGeometry(.09,.09,1.95,10);GG.yArch=RBG(1.9,.14,.14,.04,1);
+  GG.yBin=new T.CylinderGeometry(.36,.31,.9,16);GG.yLid=new T.CylinderGeometry(.385,.385,.08,16);GG.yVent=RBG(1,.8,.26,.05,2);GG.yGrill=RBG(.72,.56,.04,.02,1);GG.yPipe=new T.CylinderGeometry(.12,.12,2,10);
+  GG.yGas=new T.CylinderGeometry(.27,.27,1.05,16);GG.yCap=new T.SphereGeometry(.27,14,8,0,Math.PI*2,0,Math.PI/2);GG.yCool=RBG(1.15,.62,.68,.07,2);GG.yCoolL=RBG(1.2,.1,.72,.04,1);
+  GG.yCrate=RBG(.8,.55,.6,.03,1);GG.yBot=new T.CylinderGeometry(.06,.07,.32,8);GG.yTin=RBG(.42,.2,.28,.03,1);GG.yStep=RBG(.7,.5,.5,.03,1);
+  GG.yPhone=RBG(.5,.75,.28,.05,2);GG.yHand=RBG(.1,.36,.1,.03,1);GG.yDoor=RBG(1.04,2.42,.07,.02,2);GG.yBulb=new T.SphereGeometry(.1,10,8);
+  const M=G3.mats;M.yPad=new T.MeshStandardMaterial({color:'#3b3448',roughness:.95,envMapIntensity:.4});M.yFence=new T.MeshStandardMaterial({map:G3.tx.planks,color:'#8a5a3a',roughness:.9,envMapIntensity:.35});
+  M.yBin=new T.MeshStandardMaterial({color:'#2f5a3e',roughness:.55,metalness:.2});M.yBinL=new T.MeshStandardMaterial({color:'#24452f',roughness:.5,metalness:.2});
+  M.yGasA=new T.MeshStandardMaterial({color:'#e8742a',roughness:.4,metalness:.3});M.yGasB=new T.MeshStandardMaterial({color:'#3a7bd5',roughness:.4,metalness:.3});
+  M.yCool=new T.MeshStandardMaterial({color:'#e8eef4',roughness:.35});M.yCoolL=new T.MeshStandardMaterial({color:'#3a8ad5',roughness:.4});M.yRed=new T.MeshStandardMaterial({color:'#c2342c',roughness:.45});
+  M.yTin=new T.MeshStandardMaterial({color:'#3a8a5a',roughness:.35,metalness:.5});M.yBulb=new T.MeshBasicMaterial({color:new T.Color(3,2.2,1.2)})}
+function yardBuild(S3,A){yardGeo();const GG=G3.geo,M=G3.mats;
+  A(GG.yPad,M.yPad,0,.015,-6.25,-Math.PI/2);for(const x of [-4.05,4.05])A(GG.yFs,M.yFence,x,.6,-6.25);for(const x of [-2.425,2.425])A(GG.yFb,M.yFence,x,.6,-9.05);
+  for(const x of [-.85,.85])A(GG.yPost,M.darkwood,x,.97,-9.05);A(GG.yArch,M.darkwood,0,1.95,-9.05);
+  for(const z of [-4.55,-5.45]){A(GG.yBin,M.yBin,-3.25,.45,z);A(GG.yLid,M.yBinL,-3.25,.94,z)}
+  A(GG.yVent,M.steel,-1.4,2,-3.63);A(GG.yGrill,M.iron,-1.4,2,-3.77);A(GG.yPipe,M.steel,-1.4,3.4,-3.63);
+  A(GG.yGas,M.yGasA,3.45,.53,-5.75);A(GG.yCap,M.yGasA,3.45,1.05,-5.75);A(GG.yGas,M.yGasB,3.45,.53,-6.4);A(GG.yCap,M.yGasB,3.45,1.05,-6.4);
+  A(GG.yCool,M.yCool,-3.25,.31,-7.65);A(GG.yCoolL,M.yCoolL,-3.25,.66,-7.65);
+  A(GG.yCrate,M.lightwood,3.3,.28,-7.7);A(GG.yCrate,M.lightwood,3.3,.28,-8.33);A(GG.yCrate,M.lightwood,3.3,.83,-7.98);for(const x of [3.12,3.3,3.48])A(GG.yBot,M.yRed,x,1.27,-7.98);
+  A(GG.yStep,M.lightwood,.95,.25,-3.8);A(GG.yTin,M.yTin,.95,.6,-3.8);
+  A(GG.yPhone,M.yRed,-1.95,1.45,-8.93);A(GG.yHand,M.dark,-1.78,1.5,-8.76);A(GG.yBulb,M.yBulb,DOOR_X,2.78,-3.62)}
+function yardDoor(S3){const T=T3,g=new T.Group();g.position.set(DOOR_X-.55,0,-3.42);const m=new T.Mesh(G3.geo.yDoor,G3.mats.darkwood);m.position.set(.52,1.21,0);m.castShadow=true;g.add(m);S3.g.add(g);S3.door=g;S3.doorA=0}
+function yard3D(v,S3,t,dt){const st=S3.st,X=S3.g.position.x;
+  // the back door swings open for its owner
+  const c=st.ch;const near=c&&!c.auto&&Math.abs(c.x-(X+DOOR_X))<1.15&&Math.abs(c.z+3.42)<1.7;S3.doorA+=((near?1.55:0)-S3.doorA)*Math.min(1,dt*7);if(S3.door)S3.door.rotation.y=S3.doorA;
+  bput('glw',X+DOOR_X,2.78,-3.72,1.6,1.6,0,.75,hdr('#ffc070',1.4));ibW('pool',hdr('#ff9a50',.45),X+DOOR_X*.5,.02,-5.6,0,0,0,7,1,6);
+  bput('emo',X+3.35,1.5,-.45,.32,.32,emo('🔔'),1);
+  const sneak=v.stalls.find(o=>o!==st&&!o.gone&&o.ch&&inYardOf(v,o.ch,st));
+  if(st.dog){const a=am3('dog'+st.i);const tx=sneak?sneak.ch.x-X:Math.sin(t*.4+st.i)*2.2,tz=sneak?sneak.ch.z+.6:-6.4+Math.cos(t*.3+st.i)*1.6;a.x=a.x==null?tx:a.x+(tx-a.x)*Math.min(1,dt*(sneak?2.4:.8));a.z=a.z==null?tz:a.z+(tz-a.z)*Math.min(1,dt*(sneak?2.4:.8));
+    bput('emo',X+a.x,.55+Math.abs(Math.sin(t*(sneak?14:3)+st.i))*.15,a.z,1,1,emo('🐕'),1);if(sneak&&Math.sin(t*7)>.6)bput('emo',X+a.x+.4,1.35,a.z,.5,.5,emo('💢'),1)}
+  if(st.cat)bput('emo',X-3.25,1.35,-4.55,.8,.8,emo('🐈'),1);if(st.cam)bput('emo',X+3.75,3.25,-3.75,.6,.6,emo('📹'),1);
+  // job spots glow in a rival's yard when you're close by
+  const me=myStall();if(fpOn()&&me&&me!==st&&Math.abs(FP.x-X)<6&&FP.z<-2.5){const pulse=.55+.25*Math.sin(t*4);
+    for(const op in OPS){const p=OPS[op].at,hot=FP.tgt&&FP.tgt.k==='op'&&FP.tgt.op===op&&FP.tgt.to===st.i;bput('glw',X+p[0],1.3,p[1],hot?.85:.6,hot?.85:.6,0,hot?.9:pulse*.7,hdr(hot?'#ffe08a':'#ff7ab6',1.3));bput('emo',X+p[0],1.62+(hot?Math.sin(t*6)*.05:0),p[1],hot?.4:.3,hot?.4:.3,emo(OPS[op].em),hot?1:.85)}}}
+// ── on the 2D layer: crosshair, what you're aiming at, a job's progress, the map ──
+function fpLabel(v,st,g){if(!g)return '';const kb=!TOUCH;
+  if(g.k==='wok'){const b=st.burn.find(q=>q.w===g.w);if(!b){const d=sugDish(v,st);return d<0?'Pick a dish for your menu first':(kb?'E · ':'')+'Cook '+DISH[d].em+' '+DISH[d].name+(kb?'   (1 to '+slotsOf(st)+' picks a dish)':'')}
+    if(b.ready)return (kb?'E · ':'')+'Plate the '+DISH[b.d].name.toLowerCase()+'!'+(b.rt>BURN_T*.55?' It\'s burning!':'');
+    if(wokTossable(b))return (kb?'E · ':'')+'TOSS IT!';return DISH[b.d].em+' cooking · '+Math.ceil(Math.max(0,b.left))+'s'+(b.toss?' · tossed ✓':'')}
+  if(g.k==='bell'){const cd=BELL_CD-(v.t-st.bell);return cd>0?'Bell ready in '+Math.ceil(cd)+'s':(kb?'E · ':'')+'Ring the bell'}
+  if(g.k==='shoo')return (kb?'E · ':'')+'Catch '+v.stalls[g.who].name+' and chase them home!';
+  if(g.k==='stomp')return (kb?'E · ':'')+'Stomp the roaches! ('+st.roach+')';
+  if(g.k==='bin')return (kb?'E · ':'')+'Bin the bad food';
+  if(g.k==='fan')return (kb?'E · ':'')+'Fan the stink away';
+  if(g.k==='op'){const O=OPS[g.op],tg=v.stalls[g.to];const last=st.jobLast&&st.jobLast[g.op+g.to];if(last!=null&&v.t-last<REJOB_T)return O.em+' Done here. Try another spot';
+    return (kb?'Hold E · ':'Hold USE · ')+O.em+' '+O.verb+(O.cost?' ($'+O.cost+')':'')+(tg.dog?'  🐕':'')+(tg.cam?'  📹':'')}
+  return ''}
+// phones held sideways: while you play first person the panel folds down to one slim row; the button opens it fully
+function fpPanel(){const on=fpOn()&&TOUCH&&innerHeight<560;const full=!!(on&&FP.full);document.body.classList.toggle('fpmini',on&&!full);document.body.classList.toggle('pfull',full);
+  const b=$('p-more');const t=full?'▼ Back to the street':'🍜 Menu & prices ▲';if(b.textContent!==t)b.textContent=t}
+$('p-more').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();FP.full=!FP.full;fpPanel();paintPanel(true);snd('ui',{v:.3})});
+function fpOverlay(v,t){const st=myStall();const ub=$('fpuse');fpPanel();if(!fpOn()||!st){ub.classList.add('hidden');return}
+  const W=G3.W,H=G3.H,cx=W/2,cy=H/2,g=FP.tgt,lab=fpLabel(v,st,g);
+  if(FP.fade>0){ctx.fillStyle='rgba(10,6,20,'+FP.fade+')';ctx.fillRect(0,0,VW,H)}
+  // the crosshair: a dot, a ring when it's on something you can use
+  ctx.save();ctx.lineWidth=2;ctx.strokeStyle='rgba(14,11,29,.75)';ctx.fillStyle='#ffe9c7';ctx.beginPath();ctx.arc(cx,cy,2.6,0,7);ctx.fill();ctx.stroke();
+  if(g&&g.x!=null){ctx.strokeStyle=g.k==='op'||g.k==='shoo'?'#ff7ab6':'#ffb547';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(cx,cy,13+Math.sin(t*6)*1.5,0,7);ctx.stroke()}
+  // a job in progress, or a batch cooking in the wok you look at
+  const job=st.job;if(job){const u=clamp(job.t/job.dur,0,1);ctx.strokeStyle='rgba(14,11,29,.7)';ctx.lineWidth=8;ctx.beginPath();ctx.arc(cx,cy,26,0,7);ctx.stroke();ctx.strokeStyle='#ff7ab6';ctx.lineWidth=5;ctx.beginPath();ctx.arc(cx,cy,26,-Math.PI/2,-Math.PI/2+u*Math.PI*2);ctx.stroke()}
+  else if(g&&g.k==='wok'){const b=st.burn.find(q=>q.w===g.w);if(b){const D=DISH[b.d],u=b.ready?1-b.rt/BURN_T:clamp(1-b.left/D.cook,0,1);ctx.strokeStyle='rgba(14,11,29,.7)';ctx.lineWidth=7;ctx.beginPath();ctx.arc(cx,cy,24,0,7);ctx.stroke();
+    ctx.strokeStyle=b.ready?(u<.45?'#ff5a3a':'#7dffb0'):wokTossable(b)?'#ffe066':'#ffb547';ctx.lineWidth=4;ctx.beginPath();ctx.arc(cx,cy,24,-Math.PI/2,-Math.PI/2+u*Math.PI*2);ctx.stroke()}}
+  ctx.restore();
+  if(lab){const hot=g&&(g.k==='op'||g.k==='shoo'||g.k==='stomp'||(g.k==='wok'&&(lab.includes('TOSS')||lab.includes('Plate'))));pill(lab,cx,cy+48,'800 15px Karla',hot?'#1a1030':'#ffe9c7',hot?'rgba(255,222,140,.95)':'rgba(14,11,29,.82)')}
+  if(FP.hint>0&&!TOUCH){ctx.globalAlpha=Math.min(1,FP.hint);pill(FP.locked?'WASD walk · Shift run · E or click uses · Tab frees the mouse · F Family':'Click to look around with the mouse',cx,H-34,'700 13px Karla','#ffe9c7','rgba(14,11,29,.8)');ctx.globalAlpha=1}
+  else if(!FP.locked&&!TOUCH&&!SCR){pill(FP.lockFail&&now()-FP.lockFail<3000?'Click again to look around':'Click to look around · Tab',cx,H-30,'700 12px Karla','#ffe9c7','rgba(14,11,29,.7)')}
+  if(TOUCH&&FP.joy){ctx.strokeStyle='rgba(255,233,199,.5)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(FP.joy.x0,FP.joy.y0,55,0,7);ctx.stroke();ctx.fillStyle='rgba(255,233,199,.6)';ctx.beginPath();ctx.arc(FP.joy.x0+clamp(FP.joy.dx,-55,55),FP.joy.y0+clamp(FP.joy.dy,-55,55),20,0,7);ctx.fill()}
+  ub.classList.toggle('hidden',!TOUCH||!g);if(TOUCH&&g){const t2=g.k==='op'?'HOLD':g.k==='shoo'?'CATCH':g.k==='wok'?(lab.includes('TOSS')?'TOSS':lab.includes('Plate')?'PLATE':lab.includes('Cook')?'COOK':'WAIT'):'USE';if(ub.textContent!==t2)ub.textContent=t2;ub.style.bottom=(G3.ph+18)+'px'}
+  fpMap(v,st,t)}
+// the street from above, top right: kitchens, yards and the lane, where everybody is, and which way you face
+function fpMap(v,st,t){const N=v.stalls.length,wm=N*PITCH+10,W=TOUCH?Math.min(innerHeight<560?118:160,VW*.18):Math.min(230,VW*.3),sc=W/wm,H=33*sc,x0=TOUCH?14:VW-W-12,y0=TOUCH?50:62;const mx=x=>x0+(x+wm/2)*sc,mz=z=>y0+(z+15.8)*sc;
+  ctx.save();ctx.fillStyle='rgba(14,11,29,.78)';ctx.strokeStyle='rgba(255,181,71,.5)';ctx.lineWidth=1.5;ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x0-4,y0-4,W+8,H+8,8);else ctx.rect(x0-4,y0-4,W+8,H+8);ctx.fill();ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.05)';ctx.fillRect(x0,mz(0.1),W,mz(17)-mz(.1));
+  const tgt=typeof JOBTGT==='number'?JOBTGT:-1;
+  for(const o of v.stalls){if(o.gone)continue;const X=stWX(v,o);ctx.fillStyle=o.col;ctx.globalAlpha=o.out?.3:.9;ctx.fillRect(mx(X-4),mz(-3.45),8*sc,3.45*sc);
+    ctx.globalAlpha=.5;ctx.strokeStyle=o===st?'#ffe9c7':o.i===tgt?'#ff7ab6':'rgba(255,255,255,.35)';ctx.lineWidth=o.i===tgt||o===st?2:1;ctx.strokeRect(mx(X-4),mz(-9.05),8*sc,5.6*sc);ctx.globalAlpha=1}
+  for(const o of v.stalls){if(o.gone||o===st||!o.ch)continue;const c=o.ch,sn=inYardOf(v,c,st);if(sn&&Math.sin(t*10)<0)continue;ctx.fillStyle=sn?'#ff3b3b':o.col;ctx.strokeStyle='#0e0b1d';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(mx(c.x),mz(c.z),!o.cpu&&!o.bot?4.2:3.2,0,7);ctx.fill();ctx.stroke()}
+  const px=mx(FP.x),pz=mz(FP.z),fx=Math.sin(FP.yaw),fz=Math.cos(FP.yaw);ctx.fillStyle='#ffe9c7';ctx.strokeStyle='#0e0b1d';ctx.beginPath();ctx.moveTo(px+fx*8,pz+fz*8);ctx.lineTo(px-fz*4.5-fx*3,pz+fx*4.5-fz*3);ctx.lineTo(px+fz*4.5-fx*3,pz-fx*4.5-fz*3);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.font='800 9px Karla';ctx.fillStyle='rgba(255,233,199,.6)';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('LANE',x0+3,mz(-14.6));ctx.fillText('STREET',x0+3,mz(9));ctx.restore()}
 
 // ═══════════════════════════════ GRAPHICS ═══════════════════════════════
 // Everything on the street that moves for show: the sky turning from dusk to dawn, chefs who toss woks
@@ -1884,11 +2177,24 @@ function runSmoke(){const out=[];let pass=0,fail=0;const ok=(n,c,x)=>{if(c)pass+
     doAction(S,st,{k:'buy',g:INGI.pork,n:5});ok('cooking uses one of each ingredient',doAction(S,st,{k:'cook',slot:0})==='cook'&&st.pantry[INGI.pork]===4&&st.pantry[INGI.flour]===4);
     doAction(S,st,{k:'cook',slot:0});ok('only two burners',doAction(S,st,{k:'cook',slot:0})==='burners');
     ok('a dish with food on it cannot be swapped out',doAction(S,st,{k:'menu',slot:0,d:DISHI.tea})==='busy');
-    run(S,DISH[DISHI.dump].cook+.2);ok('a batch lands on the counter',stockN(st,DISHI.dump)===2*DISH[DISHI.dump].yield,stockN(st,DISHI.dump));
+    run(S,DISH[DISHI.dump].cook+.2);ok('a finished batch waits in the wok until you plate it',stockN(st,DISHI.dump)===0&&st.burn.length===2&&st.burn.every(b=>b.ready));
+    ok('plating puts it on the counter',doAction(S,st,{k:'plate',w:0})==='plate'&&doAction(S,st,{k:'plate',w:1})==='plate'&&stockN(st,DISHI.dump)===2*DISH[DISHI.dump].yield,stockN(st,DISHI.dump));
     doAction(S,st,{k:'price',d:DISHI.dump,v:999});ok('prices are capped at 3x fair',st.price[DISHI.dump]===DISH[DISHI.dump].fair*3);
     ok('the bell has a cooldown',doAction(S,st,{k:'bell'})==='bell'&&doAction(S,st,{k:'bell'})==='bellcd')}
   {const S=mk(1),st=S.stalls[0];S.t=1;st.menu[0]=DISHI.tea;st.stock[DISHI.tea].push({n:5,born:S.t});S.cust.length=0;S.spawnAcc=-1e9;
     run(S,STALE+2);ok('food left too long gets binned',stockN(st,DISHI.tea)===0&&st.wasted===5,st.wasted)}
+  // ── cooking by hand ──
+  {const S=mk(1),st=S.stalls[0];S.spawnAcc=-1e9;const d=st.menu[0],D=DISH[d];doAction(S,st,{k:'cook',slot:0,w:1});
+    ok('cooking goes in the wok you pick',st.burn.length===1&&st.burn[0].w===1);
+    ok('too early to toss',doAction(S,st,{k:'toss',w:1})==='early');run(S,D.cook*TOSS_AT+.2);const left=st.burn[0].left;
+    ok('tossing at the right moment speeds it up',doAction(S,st,{k:'toss',w:1})==='toss'&&st.burn[0].left<left-1&&doAction(S,st,{k:'toss',w:1})==='tossed');
+    run(S,left);ok('a tossed batch plates as a perfect one',doAction(S,st,{k:'plate'})==='plate'&&st.stock[d][0].good===1);
+    doAction(S,st,{k:'cook',slot:0});run(S,D.cook+BURN_T+.5);ok('forget it in the wok and it burns',st.burn.length===0&&st.burnt===1&&st.wasted===D.yield);
+    st.ch.z=-6;ok('you have to be in your kitchen to cook',doAction(S,st,{k:'cook',slot:0})==='away'&&doAction(S,st,{k:'bell'})==='away');st.ch.z=KZ;
+    ok('back in the kitchen, you can',doAction(S,st,{k:'cook',slot:0})==='cook')}
+  {const S=mk(1),st=S.stalls[0];S.spawnAcc=-1e9;const d=st.menu[0];st.stock[d].push({n:9,born:0,good:1});let tips=0;
+    for(let k=0;k<40;k++){const c=spawnCustomer(S);c.st='queue';c.to=0;c.d=d;c.pat=99;st.queue.push(c.id);st.stock[d][0].born=S.t;st.stock[d][0].n=9;run(S,SERVE_T+.05)}
+    ok('perfect batches earn more tips',st.tips>40*.25*1.3,st.tips)}
   // ── easier to play ──
   {const S=mk(4);const cz=S.events[0].craze;
     ok('every stall opens with three dishes, the craze first',S.stalls.every(st=>st.menu[0]===cz&&st.menu.slice(0,3).every(d=>d>=0)&&new Set(st.menu.slice(0,3)).size===3));
@@ -1896,10 +2202,11 @@ function runSmoke(){const out=[];let pass=0,fail=0;const ok=(n,c,x)=>{if(c)pass+
     const st=S.stalls[0];st.pantry=ING.map(()=>0);const c=st.cash;ok('Cook buys missing ingredients itself',doAction(S,st,{k:'cook',slot:0})==='cook'&&st.cash<c);
     st.pantry=ING.map(()=>0);st.cash=0;st.burn.length=0;ok('and only fails when you cannot pay for them',doAction(S,st,{k:'cook',slot:0})==='noing')}
   {const help=on=>{const S=makeSim({seed:9,hourLen:45,easy:true,stalls:[{seat:0,name:'me',cid:'a'}]});const st=S.stalls[0];st.helper=on;S.spawnAcc=-1e9;const d=st.menu[0];
-      const c=spawnCustomer(S);c.st='queue';c.to=0;c.d=d;st.queue.push(c.id);c.pat=99;run(S,DISH[d].cook+3);return st.served};
-    ok('the kitchen helper cooks for someone waiting',help(1)===1);ok('with the helper off, nobody cooks for you',help(0)===0);
-    const S=makeSim({seed:9,hourLen:45,easy:true,stalls:[{seat:0,name:'me',cid:'a'}]});const st=S.stalls[0];st.roach=4;st.stock[st.menu[0]].push({n:3,born:0,bad:1});S.spawnAcc=-1e9;run(S,12);
-    ok('the helper stomps roaches and bins bad food',st.roach===0&&!anyBad(st))}
+      const c=spawnCustomer(S);c.st='queue';c.to=0;c.d=d;st.queue.push(c.id);c.pat=99;st.ch.z=-6;run(S,DISH[d].cook+6);return st.served};
+    ok('while you are out, the kitchen helper cooks for someone waiting',help(1)===1);ok('with the helper off, nobody cooks while you are out',help(0)===0);
+    const S=makeSim({seed:9,hourLen:45,easy:true,stalls:[{seat:0,name:'me',cid:'a'}]});const st=S.stalls[0];st.roach=4;st.stock[st.menu[0]].push({n:3,born:0,bad:1});S.spawnAcc=-1e9;st.ch.z=-6;run(S,12);
+    ok('the helper stomps roaches and bins bad food',st.roach===0&&!anyBad(st));
+    st.ch.z=KZ;doAction(S,st,{k:'cook',slot:0});run(S,DISH[st.menu[0]].cook+5);ok('with you in the kitchen, the helper only saves food you forget',st.burn.length===0&&stockN(st,st.menu[0])>0&&st.burnt===0)}
   {const hits=easy=>{let h=0;for(const sd of [3,4]){const S=makeSim({seed:sd,hourLen:45,easy,stalls:[{seat:0,name:'a',cid:'a',cpu:1},{seat:1,name:'me',cid:'me'},{seat:2,name:'b',cid:'b',cpu:1}]});
       S.stalls.forEach(st=>{if(st.cpu){botInit(S,st,'reader');st.bot.aggro=1}});S.stalls[1].cash+=300;run(S,9999,true);h+=S.stalls[1].hits}return h};
     const he=hits(true),hn=hits(false);ok('on Easy the CPU stalls leave players alone (on Normal they do not)',he===0&&hn>0,he+' vs '+hn)}
@@ -1920,45 +2227,52 @@ function runSmoke(){const out=[];let pass=0,fail=0;const ok=(n,c,x)=>{if(c)pass+
     run(S,4);ok('nothing to sell: people give up and the stall loses a star point',st.lost===1&&st.rating<3,st.rating.toFixed(2));
     const c2=spawnCustomer(S);c2.st='queue';c2.to=0;c2.d=DISHI.dump;st.queue.push(c2.id);st.stock[DISHI.dump].push({n:3,born:S.t});const cash=st.cash;run(S,SERVE_T+.1);
     ok('the front of the line gets served and pays',st.served===1&&Math.abs(st.cash-cash-st.price[DISHI.dump])<1e-6)}
-  // ── the Family, the inspector, buildings ──
+  // ── the Family: you sneak into a rival's back yard and do it yourself ──
+  const goTo=(S,a,b,op)=>{const p=opAt(S,b,op);a.ch.x=p[0]+.3;a.ch.z=p[1]+(p[1]<-6.5?.5:-.5)};
   {const S=mk(3);const a=S.stalls[0],b=S.stalls[1],c=S.stalls[2];a.cash=b.cash=c.cash=500;S.spawnAcc=-1e9;
-    ok('every stall starts with two goons',a.goons===2);
-    ok('a food cart runs three goons at most',doAction(S,a,{k:'hire'})==='hire'&&doAction(S,a,{k:'hire'})==='goonmax');
-    ok('a job needs a free goon',doAction(S,a,{k:'op',op:'roach',to:1})==='op'&&doAction(S,a,{k:'op',op:'roach',to:1})==='op'&&doAction(S,a,{k:'op',op:'roach',to:1})==='op'&&doAction(S,a,{k:'op',op:'roach',to:1})==='nogoon');
-    ok('the goons walk over before anything happens',b.roach===0&&S.goons.length===3);
-    run(S,11);ok('cockroaches arrive',b.roach>=5,b.roach);ok('the goons come home',a.busy===0&&S.goons.length===0);
+    ok('every stall has a back yard behind its kitchen',S.stalls.every(st=>inKitchen(S,st))&&!inYardOf(S,a.ch,b));
+    ok('a job only works standing at that spot in their yard',doAction(S,a,{k:'op',op:'roach',to:1})==='far');
+    goTo(S,a,b,'roach');ok('...like their trash bins',inYardOf(S,a.ch,b)&&doAction(S,a,{k:'op',op:'roach',to:1})==='op'&&b.roach===0&&a.cash===500);
+    run(S,OPS.roach.hold+.2);ok('hold it until it is done: cockroaches',b.roach>=5&&a.jobs===1&&a.cash===500-OPS.roach.cost,b.roach);
+    ok('the same spot needs a breather',doAction(S,a,{k:'op',op:'roach',to:1})==='rejob');
+    goTo(S,a,b,'stink');doAction(S,a,{k:'op',op:'stink',to:1});run(S,.4);a.ch.z=-11;run(S,.3);ok('walking away stops the job, and costs nothing',!a.job&&S.t>=b.stinkU&&a.jobs===1);
     const u0=utility(S,{crave:DISH.map(()=>1),budget:1,x:b.x},b,DISHI.dump);b.roach=0;const u1=utility(S,{crave:DISH.map(()=>1),budget:1,x:b.x},b,DISHI.dump);b.roach=5;
     ok('customers avoid a stall with roaches',u0<u1-.8,(u1-u0).toFixed(2));
     const r0=b.roach;doAction(S,b,{k:'stomp'});ok('stomping kills a roach',b.roach===r0-1);
-    c.cat=1;doAction(S,a,{k:'op',op:'roach',to:2});run(S,10);ok('a stall cat stops cockroaches',c.roach===0)}
+    c.cat=1;a.jobLast={};goTo(S,a,c,'roach');doAction(S,a,{k:'op',op:'roach',to:2});run(S,3);ok('a stall cat stops cockroaches',c.roach===0&&c.hits===1)}
+  {const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.cash=500;S.spawnAcc=-1e9;goTo(S,a,b,'roach');doAction(S,a,{k:'op',op:'roach',to:1});run(S,.4);
+    ok('you can only catch someone in your own yard, up close',doAction(S,b,{k:'shoo',who:0})==='far');
+    b.ch.x=a.ch.x+1.2;b.ch.z=a.ch.z;const tp=a.ch.tp;ok('the owner catches a sneak in their yard',doAction(S,b,{k:'shoo',who:0})==='shoo');
+    ok('and chases them home, job undone',a.ch.tp===tp+1&&inKitchen(S,a)&&!a.job&&S.t<a.jobCD);run(S,3);ok('so nothing happens',b.roach===0&&a.cash===500);
+    ok('a caught sneak has to lie low for a bit',(goTo(S,a,b,'gas'),doAction(S,a,{k:'op',op:'gas',to:1}))==='busted')}
   // ── every dirty job, boost and defense does its thing ──
-  const job=(op,setup,check)=>{const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.cash=500;b.cash=200;S.spawnAcc=-1e9;if(setup)setup(S,a,b);const r=doAction(S,a,{k:'op',op,to:1});run(S,7);return r==='op'&&check(S,a,b)};
+  const job=(op,setup,check)=>{const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.cash=500;b.cash=200;S.spawnAcc=-1e9;if(setup)setup(S,a,b);goTo(S,a,b,op);const r=doAction(S,a,{k:'op',op,to:1});run(S,OPS[op].hold+.3);return r==='op'&&check(S,a,b)};
   const cu=(S,b,d)=>utility(S,{crave:DISH.map(()=>1),budget:1,x:b.x},b,d==null?b.menu[0]:d);
-  ok('stink bomb: customers keep away, fanning shortens it',job('stink',null,(S,a,b)=>{const u=cu(S,b);const u0=S.t;const t0=b.stinkU;doAction(S,b,{k:'fan'});return S.t<b.stinkU&&b.stinkU<t0&&u<-1}));
+  ok('stink bomb: customers keep away, fanning shortens it',job('stink',null,(S,a,b)=>{const u=cu(S,b);const t0=b.stinkU;doAction(S,b,{k:'fan'});return S.t<b.stinkU&&b.stinkU<t0&&u<-1}));
   ok('cut the gas: the burners stop and cooking waits',job('gas',(S,a,b)=>{doAction(S,b,{k:'cook',slot:0})},(S,a,b)=>{const left=b.burn[0]&&b.burn[0].left;run(S,2);return b.burn.length===1&&b.burn[0].left===left&&doAction(S,b,{k:'cook',slot:1})==='gasoff'}));
-  ok('roadwork: nobody can reach the counter',job('cones',null,(S,a,b)=>cu(S,b)===-9&&blocked(S,b)));
-  ok('line cloggers: the line stops moving',job('clog',null,(S,a,b)=>blocked(S,b)&&cu(S,b)<cu(S,a,a.menu[0])-1));
-  ok('monkey raid: food goes missing',job('monkey',(S,a,b)=>{b.stock[b.menu[0]].push({n:5,born:S.t})},(S,a,b)=>stockN(b,b.menu[0])===0));
-  ok('pickpocket: their cash ends up in your till',job('pick',null,(S,a,b)=>b.cash===160&&Math.abs(a.cash-(500-OPS.pick.cost+40))<1e-6));
-  ok('firecracker scare: the line scatters',job('scare',(S,a,b)=>{for(let k=0;k<3;k++){const c=spawnCustomer(S);c.st='queue';c.to=1;c.d=b.menu[0];c.pat=99;b.queue.push(c.id)}},(S,a,b)=>b.queue.length===0&&b.lost===0));
-  ok('a rumor knocks off half a star',job('rumor',null,(S,a,b)=>Math.abs(b.rating-2.5)<1e-6));
+  ok('pickpocket: their cash ends up in your pocket',job('pick',null,(S,a,b)=>b.cash===160&&Math.abs(a.cash-(500-OPS.pick.cost+40))<1e-6));
   ok('ghost pepper: people breathe fire and run without paying',job('pepper',(S,a,b)=>{b.stock[b.menu[0]].push({n:3,born:S.t})},(S,a,b)=>{const c=spawnCustomer(S);c.st='queue';c.to=1;c.d=b.menu[0];c.pat=99;b.queue.push(c.id);const cash=b.cash;run(S,2);return c.mood===-3&&b.cash===cash&&b.served===0}));
+  ok('the payphone sends the health inspector',job('tip',null,(S,a,b)=>S.insp.some(q=>q.to===1)));
   {const S=mk(3);const a=S.stalls[0];a.cash=999;ok("the Boss's favor needs a Restaurant",doAction(S,a,{k:'boss'})==='bosstier');a.tier=3;ok("the Boss's favor hits every rival",doAction(S,a,{k:'boss'})==='boss'&&S.stalls[1].roach>=5&&S.stalls[2].roach>=5)}
   {const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.cash=200;const u0=cu(S,a,a.menu[0]);doAction(S,a,{k:'boost',b:'juggler'});ok('a street juggler pulls a crowd',cu(S,a,a.menu[0])>u0+1);
     const n=S.cust.length;doAction(S,a,{k:'boost',b:'influencer'});const g=S.cust[S.cust.length-1];ok('an influencer sends a golden customer your way',S.cust.length===n+1&&g.gold&&g.to===0&&g.st==='go');
     doAction(S,a,{k:'boost',b:'bribe'});a.roach=3;S.spawnAcc=-1e9;sendInspector(S,a,'tip');run(S,20);ok('a bribed inspector looks the other way once',a.strikes===0&&a.bribed===0)}
-  {const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.cash=500;S.spawnAcc=-1e9;doAction(S,a,{k:'op',op:'roach',to:1});run(S,.5);const g=S.goons[0];
-    ok('tapping a goon on its way chases it off',doAction(S,b,{k:'shoo',id:g.id})==='shoo'&&g.ph==='back');run(S,10);ok('a shooed goon does nothing',b.roach===0&&a.busy===0)}
-  {const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.cash=900;b.dog=1;S.spawnAcc=-1e9;let stopped=0;for(let k=0;k<20;k++){a.busy=0;a.goons=3;doAction(S,a,{k:'op',op:'rumor',to:1});const r=b.rating;run(S,10);if(b.rating===r)stopped++;b.rating=3}
-    ok('a guard dog chases off about half the goons',stopped>=5&&stopped<=16,stopped+'/20')}
-  {const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.cash=900;b.cam=1;S.spawnAcc=-1e9;let caught=0;
-    for(let k=0;k<20;k++){a.goons=Math.max(a.goons,1);a.busy=0;doAction(S,a,{k:'op',op:'roach',to:1});const before=a.goons;run(S,10);if(a.goons<before)caught++;b.roach=0}
-    ok('a camera catches goons about half the time',caught>=5&&caught<=16,caught+'/20')}
+  {const tries=def=>{const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.cash=900;b[def]=1;S.spawnAcc=-1e9;let stopped=0;
+      for(let k=0;k<20;k++){a.jobLast={};a.jobCD=0;b.stinkU=0;goTo(S,a,b,'stink');doAction(S,a,{k:'op',op:'stink',to:1});run(S,OPS.stink.hold+.3);if(S.t>=b.stinkU)stopped++}return [stopped,b.camCatch]};
+    const [dg]=tries('dog'),[cm,cc]=tries('cam');ok('a guard dog chases off about half the sneaks',dg>=5&&dg<=16,dg+'/20');ok('a camera catches sneaks about half the time',cm>=5&&cm<=16&&cc===cm,cm+'/20')}
   {const S=mk(2);const a=S.stalls[0],b=S.stalls[1];a.cash=500;S.spawnAcc=-1e9;b.menu[0]=DISHI.dump;b.stock[DISHI.dump].push({n:4,born:S.t});
-    doAction(S,a,{k:'op',op:'poison',to:1});run(S,8);ok('poison turns the counter food bad',anyBad(b));
+    goTo(S,a,b,'poison');doAction(S,a,{k:'op',op:'poison',to:1});run(S,OPS.poison.hold+.3);ok('poison turns the counter food bad',anyBad(b));
     const c=spawnCustomer(S);c.st='queue';c.to=1;c.d=DISHI.dump;b.queue.push(c.id);const cash=b.cash,rt=b.rating;run(S,2);
     ok('bad food gives a tummy ache, no money, lost stars',b.sick===1&&b.cash===cash&&b.rating<rt-.2);
     ok('binning clears it',doAction(S,b,{k:'bin'})==='bin'&&!anyBad(b))}
+  // ── CPU chefs walk it too ──
+  {const S=mk(2);const a=S.stalls[0],b=S.stalls[1];botInit(S,a,'reader');a.cash=500;S.spawnAcc=-1e9;botTrip(S,a,b,'roach');let inY=0,k=0;
+    while(k++<30*30&&!(b.roach>0)){botStep(S,a,1/30);simStep(S,1/30);S.ev.length=0;if(inYardOf(S,a.ch,b))inY=1}
+    ok('a CPU chef walks out the back, along the lane and into your yard to do it',inY&&b.roach>0,(k/30).toFixed(1)+'s');
+    for(k=0;k<30*20&&a.bot.trip;k++){botStep(S,a,1/30);simStep(S,1/30);S.ev.length=0}ok('then walks home to the kitchen',!a.bot.trip&&inKitchen(S,a))}
+  {let got=0;for(const sd of [1,2,3]){const S=makeSim({seed:sd,hourLen:45,stalls:[{seat:0,name:'me',cid:'a'},{seat:1,name:'b',cid:'b',cpu:1}]});const a=S.stalls[0],b=S.stalls[1];botInit(S,b,'reader');S.spawnAcc=-1e9;
+      a.ch.x=stWX(S,b)-1;a.ch.z=-6.5;const tp=a.ch.tp;for(let k=0;k<30*15&&a.ch.tp===tp;k++){botStep(S,b,1/30);simStep(S,1/30);S.ev.length=0;if(a.ch.tp===tp){a.ch.x=stWX(S,b)-1;a.ch.z=-6.5}}if(a.ch.tp!==tp)got++}
+    ok('a CPU owner comes out and catches you hanging around their yard',got>=2,got+'/3')}
   {const S=mk(2);const b=S.stalls[1];S.spawnAcc=-1e9;b.roach=3;sendInspector(S,b,'tip');run(S,20);
     ok('the inspector boards up a dirty stall',b.strikes===1&&S.t<b.closedUntil);
     ok('a boarded-up stall gets no customers',utility(S,{crave:DISH.map(()=>1),budget:1,x:b.x},b,0)===-9);
@@ -1983,6 +2297,7 @@ function runSmoke(){const out=[];let pass=0,fail=0;const ok=(n,c,x)=>{if(c)pass+
     const gv=GV;GV=G;try{guestSnap(snap)}finally{GV=gv}
     S.stalls[1].roach=3;S.stalls[2].tier=2;const snap2=JSON.parse(JSON.stringify(packSnap(S)));GV=G;try{guestSnap(snap2)}finally{GV=gv}
     ok('a guest sees roaches and buildings',G.stalls[1].roach===3&&G.stalls[2].tier===2);
+    ok('a guest sees where every other chef is',S.stalls.every((st,i)=>st.seat===MY_SEAT||(Math.abs(G.stalls[i].ch.x-st.ch.x)<.02&&Math.abs(G.stalls[i].ch.z-st.ch.z)<.02)));
     ok('a guest sees every stall right',S.stalls.every((st,i)=>Math.abs(G.stalls[i].cash-st.cash)<.011&&G.stalls[i].menu.join()===st.menu.join()&&DISH.every((d,k)=>G.stalls[i].sn[k]===stockN(st,k))));
     ok('a guest sees every customer',G.cust.length===S.cust.length&&G.cust.every((c,i)=>Math.abs(c.nx-S.cust[i].x)<1));
     sendInspector(S,S.stalls[1],'tip');sendInspector(S,S.stalls[2],'tip');let s3=JSON.parse(JSON.stringify(packSnap(S)));GV=G;try{guestSnap(s3)}finally{GV=gv}
@@ -2004,7 +2319,7 @@ function runSmoke(){const out=[];let pass=0,fail=0;const ok=(n,c,x)=>{if(c)pass+
     else if(!try3D())ok('no WebGL here, so the 2D street takes over',G3.failed);
     else{const S0=S,M0=MODE;S=makeSim({seed:3,hourLen:45,stalls:[0,1,2,3].map(i=>({seat:i,name:'S'+i,cid:'c'+i,cpu:i?1:0,local:!i}))});MODE='solo';S.stalls.forEach(st=>{if(st.cpu)botInit(S,st,'reader')});run(S,70,true);
       S.stalls[1].tier=4;S.stalls[2].roach=3;S.stalls[2].conesU=S.t+9;S.stalls[3].clogU=S.t+9;S.stalls[3].juggleU=S.t+9;S.stalls[0].closedUntil=S.t+9;
-      S.goons.push({id:77,from:1,to:0,op:'roach',x:500,y:92,ph:'go',w:0});S.paradeAt=S.t-5;
+      S.paradeAt=S.t-5;const E0=ENDED;ENDED=true;
       $('panel').classList.remove('hidden');render(1/30,1);render(1/30,1.1);
       const bodies=G3.ib.torso.m.count;ok('the 3D street draws a frame with everyone in it',bodies>=S.cust.length+3&&G3.stalls.length===4,bodies+' bodies, '+S.cust.length+' customers');
       ok('a mega tower gets built in 3D',!!G3.stalls[1].tower&&!!G3.stalls[1].beacon);
@@ -2012,8 +2327,17 @@ function runSmoke(){const out=[];let pass=0,fail=0;const ok=(n,c,x)=>{if(c)pass+
       ok('roadwork cones and boards show up',G3.ib.tcone.m.count===5&&G3.ib.plank.m.count===2,G3.ib.tcone.m.count+' cones, '+G3.ib.plank.m.count+' planks');
       ok('the dragon dances in 3D',G3.dragon.on&&G3.ib.dseg.m.count===16);
       ok('emoji, glows and smoke are drawn in batches',G3.bb.emo.m.count>0&&G3.bb.glw.m.count>0,G3.bb.emo.m.count+' emoji, '+G3.bb.glw.m.count+' glows');
-      const p=SP(S.stalls[0],'sign'),gp=GP(S.goons[0]),r=stallRect(S.stalls[0]);
-      ok('labels and taps line up with the 3D street',p[0]>0&&p[0]<innerWidth&&p[1]>0&&p[1]<innerHeight&&gp[1]>p[1]&&r[2]>r[0]&&r[3]>r[1],p.map(Math.round).join(','));
+      const p=SP(S.stalls[0],'sign'),r=stallRect(S.stalls[0]);
+      ok('labels and taps line up with the 3D street',p[0]>0&&p[0]<innerWidth&&p[1]>0&&p[1]<innerHeight&&r[2]>r[0]&&r[3]>r[1],p.map(Math.round).join(','));
+      ok('every stall has a back door and a back yard',G3.stalls.every(s3=>s3.door&&s3.g.children.length>4));
+      // first person: the camera is your chef's eyes, your hands are in view, your own body is not drawn
+      ENDED=false;const me=S.stalls[0];fpReset();fpTick(.001);const b0=G3.ib.torso.m.count;render(1/30,1.2);render(1/30,1.25);const cp=G3.cam.position;
+      ok("first person: the camera is your chef's eyes",fpOn()&&Math.abs(cp.x-me.ch.x)<.01&&Math.abs(cp.z-me.ch.z)<.01&&inKitchen(S,me)&&Math.abs(cp.y-EYE)<.1&&G3.fpH&&G3.fpH.visible,cp.x.toFixed(2)+','+cp.y.toFixed(2)+','+cp.z.toFixed(2));
+      ok('and you look straight at your woks',(()=>{const g=fpPick(S,me);return g&&g.k==='wok'})());
+      // walls: your back door opens for you, not for anybody else
+      {const W=fpWorld(S);FP.x=stWX(S,me)+DOOR_X;FP.z=-2.9;for(let k=0;k<40;k++){FP.z-=.05;fpCollide(W,me.i)}const mine=FP.z<-3.6;
+        const o=S.stalls[1];FP.x=stWX(S,o)+DOOR_X;FP.z=-2.9;for(let k=0;k<40;k++){FP.z-=.05;fpCollide(W,me.i)}ok("your back door lets you out; a rival's does not",mine&&FP.z>-3.4,FP.z.toFixed(2))}
+      FP.x=me.ch.x;FP.z=me.ch.z;ENDED=E0;
       // memory: a fresh night must not leave the old stalls' textures and meshes behind
       const mem0=G3.r.info.memory;const g0=mem0.geometries,t0=mem0.textures;
       for(let n=0;n<3;n++){S=makeSim({seed:40+n,hourLen:45,stalls:[0,1,2,3].map(i=>({seat:i,name:'S'+i,cid:'c'+i,cpu:1}))});S.stalls[n].tier=4;render(1/30,2+n)}
@@ -2024,7 +2348,7 @@ function runSmoke(){const out=[];let pass=0,fail=0;const ok=(n,c,x)=>{if(c)pass+
         reset();for(let k=0;k<130;k++)autoQualityTick(1/30);for(let k=0;k<200;k++)autoQualityTick(1/60);const helped=[G3.qName,G3.qLock];
         ok('auto graphics only keeps a lower setting when it helps',capped[0]!==q0&&capped[1]===q0&&capped[2]===true&&helped[0]===capped[0]&&helped[1]===false,q0+' -> '+capped.join('/')+' | '+helped.join('/'));
         SET.gfx=sg;G3.builtAt=b0;G3.qLock=false;G3.trial=null;setQuality(q0)}
-      S.goons.length=0;$('panel').classList.add('hidden');S=S0;MODE=M0}}catch(e){ok('the 3D street draws a frame with everyone in it',false,e.message+' '+(e.stack||'').split('\n')[1])}
+      $('panel').classList.add('hidden');S=S0;MODE=M0}}catch(e){ok('the 3D street draws a frame with everyone in it',false,e.message+' '+(e.stack||'').split('\n')[1])}
   const box=document.createElement('pre');box.id='smokeout';box.style.cssText='position:fixed;inset:0;z-index:99;background:#fff;color:#000;overflow:auto;font:12px monospace;padding:10px';
   box.textContent=out.join('\n');document.body.appendChild(box);document.title='SMOKE '+(fail?'FAIL':'PASS')+' '+pass+'/'+(pass+fail)}
 
