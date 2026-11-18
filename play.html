@@ -97,6 +97,8 @@ body.expanded .float-bar {
 }
 body.expanded .float-bar:hover { opacity:1; }
 .float-bar .tool { background:rgba(8,11,20,0.92); backdrop-filter:blur(6px); }
+.float-bar .tool.sure { color:var(--pink); border-color:var(--pink); }
+body.expanded .float-bar:has(.sure) { opacity:1; }
 .expand-hint {
   position:fixed; top:56px; right:12px; z-index:70; display:none;
   background:rgba(8,11,20,0.94); border:1px solid rgba(0,245,255,0.3); color:var(--cyan);
@@ -396,6 +398,16 @@ function goFullscreen(){
 document.addEventListener('fullscreenchange', () => {
   if(document.fullscreenElement){ try{ frame.contentWindow.focus(); }catch(e){} }
 });
+
+// ══════════════════ QUIT ASKS FIRST ══════════════════
+// The floating Quit sits over the top right corner of the game, right where games keep their own
+// pause buttons. One click mid-game used to throw you out: now the first click asks, the second leaves.
+document.querySelectorAll('.float-bar .quit').forEach(a => a.addEventListener('click', e => {
+  if(a.dataset.sure === '1') return;
+  e.preventDefault(); a.dataset.sure = '1';
+  const was = a.innerHTML; a.innerHTML = '<span class="t-i">✕</span>Leave the game?'; a.classList.add('sure');
+  setTimeout(() => { a.dataset.sure = ''; a.innerHTML = was; a.classList.remove('sure'); }, 3000);
+}));
 
 // ══════════════════ EXPAND / MINIMIZE ══════════════════
 // Expanded, the frame fills the browser window and the page underneath is hidden.
