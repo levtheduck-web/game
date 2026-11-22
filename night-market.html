@@ -300,11 +300,11 @@ body.fp #banner{top:64px;font-size:clamp(20px,2.6vw,34px)}body.fp #banner small{
 <div id="hud" class="hidden"><div class="clock"><span class="tm" id="h-time">6:00 PM</span><span class="ev" id="h-ev">The market opens</span></div><button id="pausebtn" class="hidden" title="Pause (Esc)">II</button></div>
 
 <div id="panel" class="hidden">
-  <div class="pbox cashbox"><div class="cash" id="p-cash">$60</div><div class="pf" id="p-pf">profit $0</div><div class="stars" id="p-stars"></div><button class="helpb" id="p-help">🧑‍🍳 Helper</button>
-    <button class="bellb" id="p-bell">🔔 Ring the bell <span class="k">(B)</span><span class="cdbar" id="p-bellbar"></span></button>
-    <button class="morb" id="p-more">🍜 Menu &amp; prices ▲</button><div class="two"><button class="fam" id="p-fam">🕴️ Family</button><button class="fam bld" id="p-bld">🏗️ Build</button></div></div>
+  <div class="pbox cashbox"><div class="cash" id="p-cash">$60</div><div class="pf" id="p-pf">profit $0</div><div class="stars" id="p-stars"></div><button class="helpb" id="p-help">Helper</button>
+    <button class="bellb" id="p-bell">Ring the bell <span class="k">(B)</span><span class="cdbar" id="p-bellbar"></span></button>
+    <button class="morb" id="p-more">Menu &amp; prices ▲</button><div class="two"><button class="fam" id="p-fam">Family</button><button class="fam bld" id="p-bld">Build</button></div></div>
   <div class="slots" id="p-slots"></div>
-  <div class="pbox whole"><div class="tabs"><button data-tab="jobs" class="on" id="tab-jobs">🕴️ Jobs</button><button data-tab="shop" id="tab-shop">🛒 Wholesaler</button><span class="gn" id="p-goons"></span></div>
+  <div class="pbox whole"><div class="tabs"><button data-tab="jobs" class="on" id="tab-jobs">Jobs</button><button data-tab="shop" id="tab-shop">Wholesaler</button><span class="gn" id="p-goons"></span></div>
     <div id="p-jobs"></div><div id="p-shop" class="hidden"><div class="ings" id="p-ings"></div></div>
     <div class="burners" id="p-burn"></div></div>
 </div>
@@ -320,10 +320,10 @@ body.fp #banner{top:64px;font-size:clamp(20px,2.6vw,34px)}body.fp #banner small{
   <div class="lantern"></div>
   <h1 class="neon">Night<br>Market</h1>
   <div class="sub">Run a food stall on a busy street from 6 PM to midnight. Your friends run the stalls next door. Most money at sunrise wins.</div>
-  <button class="btn pri" id="b-online"><span class="ic">🏮</span><span>Play with friends<small>2 to 8 stalls on one street, online</small></span></button>
-  <button class="btn alt" id="b-solo"><span class="ic">🥟</span><span>Solo<small>you against CPU stalls</small></span></button>
-  <button class="btn" id="b-help"><span class="ic">📖</span><span>How to play<small>cook, price, read the street</small></span></button>
-  <button class="mini" id="b-sound">🔊 Sound on</button>
+  <button class="btn pri" id="b-online"><span>Play with friends<small>2 to 8 stalls on one street, online</small></span></button>
+  <button class="btn alt" id="b-solo"><span>Solo<small>you against CPU stalls</small></span></button>
+  <button class="btn" id="b-help"><span>How to play<small>cook, price, read the street</small></span></button>
+  <button class="mini" id="b-sound">Sound on</button>
   <div id="t-medals"></div>
 </div></div>
 
@@ -332,13 +332,13 @@ body.fp #banner{top:64px;font-size:clamp(20px,2.6vw,34px)}body.fp #banner small{
   <label class="lb">How hard</label><div id="solo-diff"></div>
   <label class="lb">CPU stalls on your street</label><div id="solo-cpu"></div>
   <label class="lb">Night length</label><div id="solo-len"></div>
-  <div class="row"><button class="btn" id="solo-back"><span class="ic">←</span><span>Back</span></button><button class="btn pri" id="solo-go"><span class="ic">🏮</span><span>Open the stall</span></button></div>
+  <div class="row"><button class="btn" id="solo-back"><span class="ic">←</span><span>Back</span></button><button class="btn pri" id="solo-go"><span>Open the stall</span></button></div>
 </div></div>
 
 <div class="scr hidden" id="s-online"><div class="card">
   <h2 class="neon">Play with friends</h2>
   <label class="lb">Your stall's name</label><input class="txt" id="myname" maxlength="12" placeholder="Night Owl">
-  <button class="btn pri" id="b-host"><span class="ic">🏮</span><span>Open a street<small>you get a 4-letter code to share</small></span></button>
+  <button class="btn pri" id="b-host"><span>Open a street<small>you get a 4-letter code to share</small></span></button>
   <label class="lb">Got a code?</label>
   <div class="row"><input class="txt code" id="joincode" maxlength="4" placeholder="ABCD" style="flex:1;min-width:150px"><button class="btn alt" id="b-join" style="flex:0 0 auto;width:auto;margin-top:6px"><span>Join</span></button></div>
   <div class="status" id="on-status"></div>
@@ -348,7 +348,7 @@ body.fp #banner{top:64px;font-size:clamp(20px,2.6vw,34px)}body.fp #banner small{
 <div class="scr hidden" id="s-lobby"><div class="card wide">
   <div style="display:flex;gap:22px;flex-wrap:wrap">
     <div style="flex:1;min-width:240px">
-      <label class="lb" style="margin-top:0">Street code</label><div class="code-big" id="lb-code">····</div><button class="mini hidden" id="lb-copy">🔗 Copy invite link</button>
+      <label class="lb" style="margin-top:0">Street code</label><div class="code-big" id="lb-code">····</div><button class="mini hidden" id="lb-copy">Copy invite link</button>
       <div class="note">Friends press "Play with friends" and type this code.</div>
       <label class="lb">Stalls</label><div id="lb-list"></div>
       <div id="lb-invite" class="hidden"><label class="lb">Invite a friend</label><div id="lb-friends"></div></div>
@@ -361,7 +361,7 @@ body.fp #banner{top:64px;font-size:clamp(20px,2.6vw,34px)}body.fp #banner small{
     </div>
   </div>
   <div class="status" id="lb-wait">Waiting for the host to open the market...</div>
-  <div class="row"><button class="btn" id="lb-leave"><span class="ic">←</span><span>Leave</span></button><button class="btn pri" id="lb-start"><span class="ic">🏮</span><span>Open the market</span></button></div>
+  <div class="row"><button class="btn" id="lb-leave"><span class="ic">←</span><span>Leave</span></button><button class="btn pri" id="lb-start"><span>Open the market</span></button></div>
 </div></div>
 
 <div class="scr hidden" id="s-family"><div class="card wide">
@@ -373,7 +373,7 @@ body.fp #banner{top:64px;font-size:clamp(20px,2.6vw,34px)}body.fp #banner small{
   <label class="lb">Favors for your stall</label><div class="jobs" id="fm-boosts"></div>
   <label class="lb">Protect your own stall</label><div class="jobs" id="fm-defs"></div>
   <div class="note" id="fm-note"></div>
-  <button class="btn pri" id="fm-close"><span class="ic">🏮</span><span>Back to the stall <small>F or Esc</small></span></button>
+  <button class="btn pri" id="fm-close"><span>Back to the stall <small>F or Esc</small></span></button>
 </div></div>
 
 <div class="scr hidden" id="s-build"><div class="card wide">
@@ -381,11 +381,11 @@ body.fp #banner{top:64px;font-size:clamp(20px,2.6vw,34px)}body.fp #banner small{
   <div class="sub" style="margin-bottom:2px">Grow your stall into a mega tower. Bigger buildings cook more, serve faster and pull in more people. Half of what you spend still counts toward your worth at sunrise.</div>
   <div class="tiers" id="bd-tiers"></div>
   <div class="note" id="bd-note"></div>
-  <button class="btn pri" id="bd-close"><span class="ic">🏮</span><span>Back to the stall <small>U or Esc</small></span></button>
+  <button class="btn pri" id="bd-close"><span>Back to the stall <small>U or Esc</small></span></button>
 </div></div>
 
 <div class="scr hidden" id="s-pc"><div class="pcbez"><div class="pcscr">
-  <div class="pcbar"><span class="os">🏮 Market OS</span><span class="v" id="pc-who"></span><span class="sp"></span><span class="v" id="pc-cash"></span><span class="v" id="pc-time"></span></div>
+  <div class="pcbar"><span class="os">Market OS</span><span class="v" id="pc-who"></span><span class="sp"></span><span class="v" id="pc-cash"></span><span class="v" id="pc-time"></span></div>
   <div class="pclive hidden" id="pc-live"><i></i><span>LIVE: the street keeps going while you are at the computer. Watch the clock up here.</span></div>
   <div class="pcbody"><div class="pcside" id="pc-side"></div><div class="pcapp" id="pc-app"></div></div></div>
   <div class="pcfoot"><span class="led"></span><span>NM-95</span><span class="sp"></span><button id="pc-back" class="hidden">◀ Desktop</button><button id="pc-off">⏻ Log off <small>Esc</small></button></div>
@@ -393,14 +393,14 @@ body.fp #banner{top:64px;font-size:clamp(20px,2.6vw,34px)}body.fp #banner small{
 <div class="scr hidden" id="s-help"><div class="card wide help">
   <h2 class="neon">How to play</h2>
   <div class="hscroll"><div class="hgrid">
-  <div class="hcard"><h4>🎮 Moving around</h4><p><b>Computer:</b> click to look with the mouse, <span class="nw"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span> walk, <kbd>Shift</kbd> run, <kbd>Space</kbd> jump, <kbd>E</kbd> use, <kbd>Tab</kbd> frees the mouse.</p><p><b>Phone:</b> left thumb walks, drag on the right to look, tap things to use them, JUMP to jump.</p></div>
-  <div class="hcard"><h4>🍳 Cooking</h4><p>Look at a free wok and press <kbd>E</kbd>, or <span class="nw"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></span> for a dish.</p><p>When the ❗ pops up, <b>toss it</b> <kbd>E</kbd>: faster, better tips. When it's done, <b>plate it</b> before it burns.</p></div>
-  <div class="hcard"><h4>🔔 Selling</h4><p>Plated food sells from your counter by itself. Fresh food earns stars, stale food loses them.</p><p>Ring the <b>bell</b> on your counter (look at it, <kbd>E</kbd>) to pull in walkers.</p></div>
-  <div class="hcard"><h4>🖥️ Your computer</h4><p>On the desk beside your back door. Press <kbd>E</kbd> on it for your menu and prices, the wholesaler, Family jobs, building up and the street watch.</p></div>
-  <div class="hcard"><h4>💲 Prices and crowds</h4><p>Everyone wants one dish most; the hourly <b>craze</b> is the most wanted. Cheaper pulls a rival's line to you, but a long line sends people next door.</p><p>The wholesaler is shared: every pack anyone buys pushes that price up.</p></div>
-  <div class="hcard"><h4>🕶️ Sneaking out</h4><p>Out your back door, through your gate, along the lane and into a rival's back yard. Hold <kbd>E</kbd> at a glowing spot:</p><p class="ops">🪳 bins · 💨 vent · 🔌 gas · ☠️ ice chest · 🌶️ sauce · 👛 cash tin · 🕵️ payphone</p></div>
-  <div class="hcard"><h4>🚨 Getting caught</h4><p>An owner (<kbd>E</kbd> on you), a 🐕 dog or a 📹 camera sends you home. When the map flashes red, someone is in <i>your</i> yard: go catch them.</p><p>Stomp roaches, bin bad food: three inspector strikes shuts a stall for the night.</p></div>
-  <div class="hcard"><h4>🏗️ Build up</h4><p>Cart, stall, shop, restaurant, mega tower: more woks, a fourth dish, faster service, bigger crowds.</p><p><b>Easy</b> gives you a helper who cooks while you're out, and the CPU stalls leave you alone.</p></div>
+  <div class="hcard"><h4>Moving around</h4><p><b>Computer:</b> click to look with the mouse, <span class="nw"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span> walk, <kbd>Shift</kbd> run, <kbd>Space</kbd> jump, <kbd>E</kbd> use, <kbd>Tab</kbd> frees the mouse.</p><p><b>Phone:</b> left thumb walks, drag on the right to look, tap things to use them, JUMP to jump.</p></div>
+  <div class="hcard"><h4>Cooking</h4><p>Look at a free wok and press <kbd>E</kbd>, or <span class="nw"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></span> for a dish.</p><p>When the pops up, <b>toss it</b> <kbd>E</kbd>: faster, better tips. When it's done, <b>plate it</b> before it burns.</p></div>
+  <div class="hcard"><h4>Selling</h4><p>Plated food sells from your counter by itself. Fresh food earns stars, stale food loses them.</p><p>Ring the <b>bell</b> on your counter (look at it, <kbd>E</kbd>) to pull in walkers.</p></div>
+  <div class="hcard"><h4>Your computer</h4><p>On the desk beside your back door. Press <kbd>E</kbd> on it for your menu and prices, the wholesaler, Family jobs, building up and the street watch.</p></div>
+  <div class="hcard"><h4>Prices and crowds</h4><p>Everyone wants one dish most; the hourly <b>craze</b> is the most wanted. Cheaper pulls a rival's line to you, but a long line sends people next door.</p><p>The wholesaler is shared: every pack anyone buys pushes that price up.</p></div>
+  <div class="hcard"><h4>Sneaking out</h4><p>Out your back door, through your gate, along the lane and into a rival's back yard. Hold <kbd>E</kbd> at a glowing spot:</p><p class="ops">bins · vent · gas · ice chest · sauce · cash tin · payphone</p></div>
+  <div class="hcard"><h4>Getting caught</h4><p>An owner (<kbd>E</kbd> on you), a dog or a camera sends you home. When the map flashes red, someone is in <i>your</i> yard: go catch them.</p><p>Stomp roaches, bin bad food: three inspector strikes shuts a stall for the night.</p></div>
+  <div class="hcard"><h4>Build up</h4><p>Cart, stall, shop, restaurant, mega tower: more woks, a fourth dish, faster service, bigger crowds.</p><p><b>Easy</b> gives you a helper who cooks while you're out, and the CPU stalls leave you alone.</p></div>
   </div></div>
   <button class="btn" id="help-back"><span class="ic">←</span><span>Back</span></button>
 </div></div>
@@ -409,8 +409,8 @@ body.fp #banner{top:64px;font-size:clamp(20px,2.6vw,34px)}body.fp #banner small{
   <h2 class="neon">Paused</h2>
   <div class="note" id="pa-note"></div>
   <button class="btn pri" id="pa-resume"><span class="ic">▶</span><span>Back to the stall</span></button>
-  <button class="btn" id="pa-help"><span class="ic">📖</span><span>How to play</span></button>
-  <button class="btn" id="pa-sound"><span class="ic">🔊</span><span>Sound on</span></button>
+  <button class="btn" id="pa-help"><span>How to play</span></button>
+  <button class="btn" id="pa-sound"><span>Sound on</span></button>
   <div class="setgrid gfxrow"><div class="rg">Graphics <span class="seg" id="pa-gfx"></span></div></div>
   <div class="setgrid">
     <label class="rg">Look speed <input type="range" id="st-sens" min="0.3" max="3" step="0.1"><b id="st-sens-v"></b></label>
@@ -419,7 +419,7 @@ body.fp #banner{top:64px;font-size:clamp(20px,2.6vw,34px)}body.fp #banner small{
     <label class="ck"><input type="checkbox" id="st-bob"> Head bob when walking</label>
     <div class="rg">Text size <span class="seg" id="st-text"></span></div>
   </div>
-  <button class="btn" id="pa-quit"><span class="ic">🏠</span><span>Close up and leave</span></button>
+  <button class="btn" id="pa-quit"><span>Close up and leave</span></button>
 </div></div>
 
 <div class="scr hidden" id="s-result"><div class="card wide">
@@ -428,7 +428,7 @@ body.fp #banner{top:64px;font-size:clamp(20px,2.6vw,34px)}body.fp #banner small{
   <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap"><div class="big-n" id="rs-n">#1</div><div class="lines" id="rs-sub"></div></div>
   <table class="board" id="rs-board"></table>
   <div class="lines" id="rs-lines"></div>
-  <div class="row"><button class="btn" id="rs-menu"><span class="ic">←</span><span id="rs-menu-t">Menu</span></button><button class="btn pri" id="rs-again"><span class="ic">🏮</span><span id="rs-again-t">Another night</span></button></div>
+  <div class="row"><button class="btn" id="rs-menu"><span class="ic">←</span><span id="rs-menu-t">Menu</span></button><button class="btn pri" id="rs-again"><span id="rs-again-t">Another night</span></button></div>
 </div></div>
 
 <div id="rotate" class="hidden"><div class="rotphone">📱</div><div class="neon">Turn your phone</div>The market needs a sideways screen. Solo nights pause until then.</div>
@@ -1422,9 +1422,9 @@ function pill(text,x,y,font,fg,bg){ctx.font=font;const w=ctx.measureText(text).w
 function overlay3D(v,dt,t){const me=myStall();
   for(const S3 of G3.stalls){const st=S3.st;if(st.gone)continue;const X=S3.g.position.x;
     const [sx,sy,sz]=proj(X,.2,.7);if(sz<1&&(!fpOn()||(FP.z>0&&Math.abs(X-FP.x)<16))){ctx.font='700 13px Karla';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='rgba(10,6,20,.7)';ctx.strokeText(stars(st.rating),sx,sy+12);ctx.fillStyle='#ffc45c';ctx.fillText(stars(st.rating),sx,sy+12);
-      if((st.streak||0)>=3){ctx.font='800 13px Karla';ctx.strokeText('🔥x'+st.streak,sx+50,sy+12);ctx.fillStyle=st.streak>=10?'#ffdd55':'#ff9a4d';ctx.fillText('🔥x'+st.streak,sx+50,sy+12)}}
+      if((st.streak||0)>=3){ctx.font='800 13px Karla';ctx.strokeText('x'+st.streak,sx+50,sy+12);ctx.fillStyle=st.streak>=10?'#ffdd55':'#ff9a4d';ctx.fillText('x'+st.streak,sx+50,sy+12)}}
     if(st.strikes){const [a,b,c]=proj(X-3.7,7.15,.3);if(c<1)ctx.font='800 14px Karla';ctx.fillStyle='#ff6b5e';ctx.textAlign='left';ctx.fillText('✖'.repeat(st.strikes),a,b)}
-    const lab=st.out?'SHUT DOWN':v.t<st.closedUntil?'CLOSED '+Math.ceil(st.closedUntil-v.t)+'s':v.t<st.gasU?'🔌 GAS OFF '+Math.ceil(st.gasU-v.t)+'s':v.t<st.conesU?'🚧 ROADWORK':v.t<st.clogU?'🕶️ CLOGGED':'';
+    const lab=st.out?'SHUT DOWN':v.t<st.closedUntil?'CLOSED '+Math.ceil(st.closedUntil-v.t)+'s':v.t<st.gasU?'GAS OFF '+Math.ceil(st.gasU-v.t)+'s':v.t<st.conesU?'ROADWORK':v.t<st.clogU?'CLOGGED':'';
     if(lab){const [a,b,c]=proj(X,2.75,.5);if(c<1)pill(lab,a,b,"400 14px Bungee",'#c2342c','rgba(246,234,210,.94)')}}
   if(me&&!ENDED&&!fpOn()){const S3=G3.stalls[me.i];if(S3){const top=me.tier?6.95+[0,1,2,3,6][me.tier]*2.2+.4:7.35;const [a,b]=proj(S3.g.position.x,Math.min(top,12.5),.2);const y=Math.max(76,b)-6+Math.sin(t*4)*3;
       ctx.font="400 13px Bungee";const tw=ctx.measureText('YOU').width+18;ctx.fillStyle='rgba(18,10,32,.85)';ctx.beginPath();if(ctx.roundRect)ctx.roundRect(a-tw/2,y-23,tw,21,10);else ctx.rect(a-tw/2,y-23,tw,21);ctx.fill();
@@ -1500,7 +1500,7 @@ const badAny=st=>st.badD?(st.badD.length>0||!!st.spike):anyBad(st);
 
 // ═══════════════════════════════ ACTIONS ═══════════════════════════════
 const WHY={dup:'That dish is already on your menu.',busy:'Sell what is on the counter first, then swap the dish.',broke:'Not enough cash for that.',
-  nomenu:'Pick a dish for that slot first.',burners:'Every wok is busy.',away:'Get back in your kitchen first (through your back door).',far:'Get closer.',busyjob:'Finish the job you are on first.',busted:'You just got caught. Lie low for a few seconds.',rejob:'You just did that one. Try another spot.',notyet:'Not ready yet.',early:'Not yet! Toss it when the ❗ pops up.',tossed:'Already tossed.',noing:'Not enough cash to buy the ingredients.',bellcd:'The bell needs a moment.',maxed:'Already as big as it gets.',have:'You already have that.',closed:'The inspector boarded you up. Wait it out.',locked:'A Corner shop unlocks a fourth dish.',notarget:'Pick a rival to hit first.',bosstier:'The Boss only does favors for a Restaurant or bigger.',gasoff:'Your gas is cut off! It comes back in a few seconds.'};
+  nomenu:'Pick a dish for that slot first.',burners:'Every wok is busy.',away:'Get back in your kitchen first (through your back door).',far:'Get closer.',busyjob:'Finish the job you are on first.',busted:'You just got caught. Lie low for a few seconds.',rejob:'You just did that one. Try another spot.',notyet:'Not ready yet.',early:'Not yet! Toss it when the pops up.',tossed:'Already tossed.',noing:'Not enough cash to buy the ingredients.',bellcd:'The bell needs a moment.',maxed:'Already as big as it gets.',have:'You already have that.',closed:'The inspector boarded you up. Wait it out.',locked:'A Corner shop unlocks a fourth dish.',notarget:'Pick a rival to hit first.',bosstier:'The Boss only does favors for a Restaurant or bigger.',gasoff:'Your gas is cut off! It comes back in a few seconds.'};
 function act(a){const st=myStall();if(!st||ENDED)return;
   // check it here first so a guest hears "why not" straight away; the host checks again for real
   const pre=precheck(st,a);if(pre){toast(WHY[pre]||pre);snd('ui',{v:.3});return}
@@ -1528,7 +1528,7 @@ addEventListener('keydown',e=>{if(e.repeat)return;
   if(e.code==='Space'&&!fpOn()){const st=myStall();if(st&&st.roach>0)act({k:'stomp'});e.preventDefault()}
   if(e.code==='KeyB'&&!fpOn()){act({k:'bell'});e.preventDefault()}   // 2D only: in first person you ring the real bell
   if(e.code==='KeyX'){const st=myStall();if(st&&badAny(st))act({k:'bin'});e.preventDefault()}
-  if(e.code==='KeyF'||e.code==='KeyU'){e.preventDefault();if(fpOn()){toast('That lives on your computer 🖥️. Walk to the desk in your stall and press E.',2.6);return}openSheet(e.code==='KeyF'?'s-family':'s-build')}
+  if(e.code==='KeyF'||e.code==='KeyU'){e.preventDefault();if(fpOn()){toast('That lives on your computer. Walk to the desk in your stall and press E.',2.6);return}openSheet(e.code==='KeyF'?'s-family':'s-build')}
   if(e.code==='KeyM'){SET.sound=!SET.sound;saveSet();auVol();syncSoundBtns();toast(SET.sound?'Sound on':'Sound off')}});
 
 // ═══════════════════════════════ LAYOUT ═══════════════════════════════
@@ -1619,29 +1619,29 @@ function paintPanel(force){const st=myStall(),v=V();if(!st||!v)return;
     st.burn.map(b=>b.d+':'+b.w+':'+(b.ready?'r':Math.round(b.left*4))).join(),Math.ceil(Math.max(0,BELL_CD-(v.t-st.bell))),st.tier,st.roach,badAny(st)?1:0,Math.ceil(Math.max(0,st.closedUntil-v.t)),st.out,st.job?st.job.op:'',st.helper,fpOn()?1:0,v.stalls.map(o=>o!==st&&o.ch&&inYardOf(v,o.ch,st)?o.i:'').join(''),st.burn.map(b=>b.ready&&b.rt>BURN_T*.5?1:0).join(''),JOBTGT,PTAB,st.bribed,v.t<st.juggleU,v.stalls.filter(o=>!o.out).length,Math.round(worth(st)/20)].join('|');
   if(sig===PSIG&&!force)return;PSIG=sig;const fp=fpOn();
 const pf=worth(st)-START_CASH;$('p-pf').textContent='worth '+money(Math.round(pf))+(st.tier?' · '+TIERS[st.tier].name:'');$('p-pf').className='pf '+(pf>=0?'up':'dn');
-  $('p-stars').innerHTML=stars(st.rating).replace(/☆/g,'<i>★</i>');$('p-help').textContent='🧑‍🍳 Helper '+(st.helper?'on':'off');$('p-help').classList.toggle('on',!!st.helper);
+  $('p-stars').innerHTML=stars(st.rating).replace(/☆/g,'<i>★</i>');$('p-help').textContent='Helper '+(st.helper?'on':'off');$('p-help').classList.toggle('on',!!st.helper);
   const bl=BELL_CD-(v.t-st.bell);$('p-bell').disabled=bl>0;$('p-bellbar').style.width=(bl>0?100-bl/BELL_CD*100:100)+'%';
   const need=new Set();st.menu.forEach(d=>{if(d>=0)DISH[d].ing.forEach(id=>need.add(INGI[id]))});
   $('p-slots').innerHTML=st.menu.map((d,k)=>{if(k>=slotsOf(st))return k===3?'<div class="pbox slot empty" style="opacity:.5"><div class="top"><div class="em">🔒</div><div class="nm">4th dish<small>Corner shop</small></div></div></div>':'';if(d<0)return '<div class="pbox slot empty"><div class="top"><div class="em" data-pick="'+k+'">+</div><div class="nm" data-pick="'+k+'">Pick a dish<small>slot '+(k+1)+'</small></div></div><div class="note" style="margin:0">Tap + to put a dish on your menu.</div></div>';
     const D=DISH[d],n=sN(st,d),stale=n&&sAge(st,d,v.t)>FRESH,b=st.burn.find(x=>x.d===d);const craze=v.event&&v.event.craze===d;
     const ing=D.ing.map(id=>'<span class="ing'+(st.pantry[INGI[id]]<1?' miss':'')+'">'+ING[INGI[id]].em+'</span>').join('');
-    return '<div class="pbox slot"><div class="top"><div class="em" data-pick="'+k+'" title="Change dish">'+D.em+'</div><div class="nm" data-pick="'+k+'">'+esc(D.name)+(craze?' 🔥':'')+'<small>fair price $'+D.fair+'</small></div>'+
-      '<div class="stk'+(stale||badD(st,d)?' cold':'')+'"'+(badD(st,d)?' style="color:#7dff8a"':'')+'>'+n+'<small>'+(badD(st,d)?'☠️ bad!':stale?'going stale':'ready')+'</small></div></div>'+
+    return '<div class="pbox slot"><div class="top"><div class="em" data-pick="'+k+'" title="Change dish">'+D.em+'</div><div class="nm" data-pick="'+k+'">'+esc(D.name)+(craze?' (craze)':'')+'<small>fair price $'+D.fair+'</small></div>'+
+      '<div class="stk'+(stale||badD(st,d)?' cold':'')+'"'+(badD(st,d)?' style="color:#7dff8a"':'')+'>'+n+'<small>'+(badD(st,d)?'bad!':stale?'going stale':'ready')+'</small></div></div>'+
       '<div class="prc"><button data-pr="'+d+'" data-dv="-0.5">−</button><span class="pv">'+money(st.price[d])+'<small>'+(st.price[d]<D.fair?'cheap':st.price[d]>D.fair?'pricey':'fair')+'</small></span><button data-pr="'+d+'" data-dv="0.5">+</button></div>'+
       (()=>{const mc=D.ing.filter(id=>st.pantry[INGI[id]]<1).reduce((t,id)=>t+v.price[INGI[id]],0);return '<button class="cookb" data-cook="'+k+'"><span class="k">'+(k+1)+'</span>'+(fp?'Cook ':'Cook '+D.yield+' ')+ing+(mc?' <span style="font-size:10.5px;opacity:.85">+$'+Math.ceil(mc)+'</span>':'')})()+(b?'<span class="bar" style="width:'+((1-b.left/D.cook)*100)+'%"></span>':'')+'</button></div>'}).join('');
   $('p-ings').innerHTML=ING.map((g,i)=>{const p=v.price[i],r=p/g.base;return '<div class="ingr'+(need.has(i)?' need':'')+'"><span class="e">'+g.em+'</span><span class="inm">'+esc(g.name)+'</span><span class="n">'+st.pantry[i]+'</span><span class="p'+(r>1.25?' hi':r<1.05?' lo':'')+'">$'+p.toFixed(2)+'</span><button data-buy="'+i+'" data-n="1">+1</button><button data-buy="'+i+'" data-n="5">+5</button></div>'}).join('');
   paintAlerts(st,v);paintJobs(st,v);
   $('p-burn').innerHTML=[...Array(burnersOf(st))].map((_,k)=>{const b=st.burn.find(q=>q.w===k);return '<div class="burner'+(b&&b.ready?' rdy':'')+'">'+(b?(b.ready?'<span>'+DISH[b.d].em+' plate it!</span>':'<i style="width:'+((1-b.left/DISH[b.d].cook)*100)+'%"></i><span>'+DISH[b.d].em+' '+Math.ceil(b.left)+'s</span>'):'<span style="color:var(--mut)">'+(k+1)+' free</span>')+'</div>'}).join('')}
 function paintAlerts(st,v){const A=[];
-  if(st.out)A.push('<div class="alert">🚫 Shut down for the night. Your Family can still get even (F).</div>');
-  else if(v.t<st.closedUntil)A.push('<div class="alert">🪧 Boarded up by the inspector: '+Math.ceil(st.closedUntil-v.t)+'s · strike '+st.strikes+' of '+STRIKES_OUT+'</div>');
-  if(st.roach>0)A.push('<div class="alert">🪳 '+st.roach+' roaches! <button data-stomp>Stomp ('+(fpOn()?'E':'Space')+')</button></div>');
-  if(badAny(st))A.push('<div class="alert">☠️ Your food smells off! <button data-bin>Bin it (X)</button></div>');
-  {const sn=v.stalls.filter(o=>o!==st&&!o.gone&&o.ch&&inYardOf(v,o.ch,st));if(sn.length)A.push('<div class="alert hot">🚨 '+esc(sn.map(o=>o.name).join(' and '))+(sn.length>1?' are':' is')+' in your back yard!'+(fpOn()?'':sn.map(o=>' <button data-catch="'+o.i+'">Catch '+esc(o.name)+'</button>').join(''))+'</div>')}
-  {const rb=st.burn.filter(b=>b.ready&&b.rt>BURN_T*.5);if(rb.length)A.push('<div class="alert">🔥 Food is burning in your wok! Plate it.</div>')}
-  if(v.t<st.stinkU)A.push('<div class="alert">💨 Stink bomb! Fan it away (E in your kitchen)</div>');
-  if(v.t<st.gasU)A.push('<div class="alert">🔌 Your gas is cut: '+Math.ceil(st.gasU-v.t)+'s</div>');
-  if((v.insp||[]).some(q=>q.to===st.i&&!q.done))A.push('<div class="alert">🕵️ The health inspector is coming to your stall!</div>');
+  if(st.out)A.push('<div class="alert">Shut down for the night. Your Family can still get even (F).</div>');
+  else if(v.t<st.closedUntil)A.push('<div class="alert">Boarded up by the inspector: '+Math.ceil(st.closedUntil-v.t)+'s · strike '+st.strikes+' of '+STRIKES_OUT+'</div>');
+  if(st.roach>0)A.push('<div class="alert">'+st.roach+' roaches! <button data-stomp>Stomp ('+(fpOn()?'E':'Space')+')</button></div>');
+  if(badAny(st))A.push('<div class="alert">Your food smells off! <button data-bin>Bin it (X)</button></div>');
+  {const sn=v.stalls.filter(o=>o!==st&&!o.gone&&o.ch&&inYardOf(v,o.ch,st));if(sn.length)A.push('<div class="alert hot">'+esc(sn.map(o=>o.name).join(' and '))+(sn.length>1?' are':' is')+' in your back yard!'+(fpOn()?'':sn.map(o=>' <button data-catch="'+o.i+'">Catch '+esc(o.name)+'</button>').join(''))+'</div>')}
+  {const rb=st.burn.filter(b=>b.ready&&b.rt>BURN_T*.5);if(rb.length)A.push('<div class="alert">Food is burning in your wok! Plate it.</div>')}
+  if(v.t<st.stinkU)A.push('<div class="alert">Stink bomb! Fan it away (E in your kitchen)</div>');
+  if(v.t<st.gasU)A.push('<div class="alert">Your gas is cut: '+Math.ceil(st.gasU-v.t)+'s</div>');
+  if((v.insp||[]).some(q=>q.to===st.i&&!q.done))A.push('<div class="alert">The health inspector is coming to your stall!</div>');
   const el=$('alerts');el.innerHTML=A.join('');el.style.bottom=(hudBottom()+8)+'px';clearOfButtons(el)}
 $('alerts').addEventListener('pointerdown',e=>{const c=e.target.closest('[data-catch]');if(c){e.preventDefault();act({k:'shoo',who:+c.dataset.catch});snd('ui',{v:.5});return}if(e.target.closest('[data-stomp]')){e.preventDefault();act({k:'stomp'})}if(e.target.closest('[data-bin]')){e.preventDefault();act({k:'bin'})}});
 function openSheet(id){const st=myStall();if(!st||MODE==='menu'||ENDED)return;if(document.pointerLockElement)document.exitPointerLock();if(MODE==='solo')PAUSED='sheet';show(id);paintSheet();snd('ui',{v:.4})}
@@ -1684,7 +1684,7 @@ function fxEvent(e,v){const k=e[0],quiet=v===DEMO;const st=e[1]!=null&&typeof e[
     case 'toss':if(st){const A=sa(e[1]);A.toss=1;A.tossK=e[2]}if(!quiet){sndSt('whoosh',e[1],{v:.8,r:rnd(1.05,1.2)});if(mine){floatText(innerWidth/2,(G3.H||innerHeight)/2-40,'Nice toss!','#ffe066')}}break;
     case 'plate':if(!quiet){sndSt('chop',e[1],{v:.55});if(mine&&e[4])floatText(innerWidth/2,(G3.H||innerHeight)/2-40,'Perfect batch! Better tips','#7dffb0')}break;
     case 'burnt':if(!quiet){sndSt('trash',e[1],{v:.7});if(mine)toast(DISH[e[2]].em+' burnt in the wok! Plate food as soon as it is done.',2.6)}break;
-    case 'intrude':if(!quiet){const yd=v.stalls[e[2]],who=v.stalls[e[1]];if(yd&&yd.seat===MY_SEAT&&v!==DEMO){snd('gasp',{v:.7});toast('🚨 '+who.name+' snuck into your back yard!',2.6)}
+    case 'intrude':if(!quiet){const yd=v.stalls[e[2]],who=v.stalls[e[1]];if(yd&&yd.seat===MY_SEAT&&v!==DEMO){snd('gasp',{v:.7});toast(''+who.name+' snuck into your back yard!',2.6)}
       else if(who&&who.seat===MY_SEAT&&v!==DEMO)tip('yard','You are in '+yd.name+"'s back yard. Each glowing spot is a different job: hold E there."+(yd.dog?' Careful, they have a dog!':''))}break;
     case 'jobx':if(mine)toast('You stepped away, so the job stopped.',1.6);break;
     case 'home':break;
@@ -1702,16 +1702,16 @@ function fxEvent(e,v){const k=e[0],quiet=v===DEMO;const st=e[1]!=null&&typeof e[
       else if(e[1]===0)banner('The market is open','Craze: '+D.em+' '+D.name);else banner('New craze!',t+' · '+D.em+' '+D.name)}break;
     case 'criticin':if(!quiet){banner('A food critic!','serve them fresh food for a big rating boost',2.6)}break;
     case 'critic':if(!quiet&&st){toast(st.name+(e[2]?' impressed the critic! ★':' let the critic down'),3);if(e[2])snd('cheer',{v:.6})}break;
-    case 'sneak':if(mine)snd('snicker',{v:.5});else if(!quiet&&v.stalls[e[2]]&&v.stalls[e[2]].seat===MY_SEAT&&v!==DEMO){snd('snicker',{v:.5,r:.9});toast('🚨 '+st.name+' is up to something in your back yard!',2.4)}break;
-    case 'shoo':if(!quiet){sndSt('hmph',e[2],{v:.7,r:1.2});const cat=v.stalls[e[1]],got=v.stalls[e[2]];if(cat&&cat.seat===MY_SEAT&&v!==DEMO){toast('Caught '+got.name+'! Chased them home. 💨',2.2);snd('cheer',{v:.4})}
+    case 'sneak':if(mine)snd('snicker',{v:.5});else if(!quiet&&v.stalls[e[2]]&&v.stalls[e[2]].seat===MY_SEAT&&v!==DEMO){snd('snicker',{v:.5,r:.9});toast(''+st.name+' is up to something in your back yard!',2.4)}break;
+    case 'shoo':if(!quiet){sndSt('hmph',e[2],{v:.7,r:1.2});const cat=v.stalls[e[1]],got=v.stalls[e[2]];if(cat&&cat.seat===MY_SEAT&&v!==DEMO){toast('Caught '+got.name+'! Chased them home.',2.2);snd('cheer',{v:.4})}
       else if(got&&got.seat===MY_SEAT&&v!==DEMO)banner('Caught!',cat.name+' chased you home',2.2)}break;
-    case 'dog':if(!quiet){sndSt('bark',e[1],{v:.9});const own=v.stalls[e[1]],got=v.stalls[e[2]];if(got&&got.seat===MY_SEAT&&v!==DEMO)banner('WOOF!',own.name+"'s guard dog chased you home",2.2);else if(own&&own.seat===MY_SEAT&&v!==DEMO)toast('Your dog chased '+got.name+' out of your yard! 🐕',2.2)}break;
+    case 'dog':if(!quiet){sndSt('bark',e[1],{v:.9});const own=v.stalls[e[1]],got=v.stalls[e[2]];if(got&&got.seat===MY_SEAT&&v!==DEMO)banner('WOOF!',own.name+"'s guard dog chased you home",2.2);else if(own&&own.seat===MY_SEAT&&v!==DEMO)toast('Your dog chased '+got.name+' out of your yard!',2.2)}break;
     case 'fire':if(!quiet){sndSt('whoosh',e[1],{v:.8,r:1.2});const c=(v.cust||[]).find(q=>q.id===e[2]);if(c){const a=ca(c);a.fire=2.2}if(mine)tip('pepper','Ghost pepper! Bin your food (X) or keep scaring customers off.')}break;
     case 'monkey':if(!quiet){sndSt('monkey',e[1],{v:.9});if(mine)toast('A monkey ran off with '+e[2]+' of your portions!',2.4)}break;
-    case 'pick':if(!quiet){const a2=v.stalls[e[1]],b2=v.stalls[e[2]];if(a2&&a2.seat===MY_SEAT){snd('coin',{v:.9});snd('snicker',{v:.5,at:.2});toast('👛 Lifted $'+e[3]+' from '+b2.name+'!',2.4)}else if(b2&&b2.seat===MY_SEAT){snd('gasp',{v:.7});toast('Your till is $'+e[3]+' lighter. Pickpocket!',2.4)}}break;
+    case 'pick':if(!quiet){const a2=v.stalls[e[1]],b2=v.stalls[e[2]];if(a2&&a2.seat===MY_SEAT){snd('coin',{v:.9});snd('snicker',{v:.5,at:.2});toast('Lifted $'+e[3]+' from '+b2.name+'!',2.4)}else if(b2&&b2.seat===MY_SEAT){snd('gasp',{v:.7});toast('Your till is $'+e[3]+' lighter. Pickpocket!',2.4)}}break;
     case 'boss':if(!quiet){banner('The Boss called in a favor','cockroaches for everyone but '+st.name,2.6);sndSt('scuttle',e[1],{v:1});snd('gasp',{v:.7,at:.3})}break;
     case 'boost':if(mine&&!quiet){const B=BOOSTS[e[2]];snd(e[2]==='juggler'?'cheer':'chime',{v:.6});toast(B.em+' '+B.name+(e[2]==='influencer'?': a golden customer is on the way!':e[2]==='bribe'?': the inspector will look the other way once.':': the crowd loves it!'),2.6)}break;
-    case 'bribed':if(!quiet){sndSt('stamp',e[1],{v:.7});if(mine)toast('The inspector took the bribe and looked the other way. 🤝',2.6)}break;
+    case 'bribed':if(!quiet){sndSt('stamp',e[1],{v:.7});if(mine)toast('The inspector took the bribe and looked the other way.',2.6)}break;
     case 'fan':if(mine)snd('hiss',{v:.4,r:1.3});break;
     case 'deed':{const vic=v.stalls[e[2]];if(!vic||quiet)break;const me2=vic.seat===MY_SEAT;const O=OPS[e[3]];
       if(e[3]==='roach'&&!vic.cat)sndSt('scuttle',e[2],{v:me2?1:.8});if(e[3]==='stink'||e[3]==='gas')sndSt('hiss',e[2],{v:.8});if(e[3]==='cones')sndSt('clatter',e[2],{v:.9});if(e[3]==='scare'){sndSt('firecracker',e[2],{v:.8});const vs=v.stalls[e[2]],fp=SP(vs,'front');for(let k=0;k<20;k++)PART.push({x:fp[0]+rnd(-30,30),y:fp[1]+rnd(-10,20),vx:rnd(-90,90),vy:rnd(-140,-40),life:.6,max:.6,col:'spark'})}
@@ -1732,7 +1732,7 @@ function fxEvent(e,v){const k=e[0],quiet=v===DEMO;const st=e[1]!=null&&typeof e[
     case 'build':{const A=sa(e[1]);A.build=1.6;A.cheer=1.6;}if(!quiet){sndSt('build',e[1],{v:mine?1:.7});if(mine)banner(TIERS[e[2]].name+'!',e[2]>=4?'the tallest thing on the street':'bigger, faster, busier',2.2);else if(e[2]>=3)toast(st.name+' built a '+TIERS[e[2]].name+'!',2.4)}break;
     case 'hire':if(mine)snd('snicker',{v:.5});break;
     case 'def':if(mine){if(e[2]==='cat')snd('meow',{v:.8});else snd('shutter',{v:.8})}break;
-    case 'streak':if(st){if(mine||!fpOn()){const p=SP(st,'sign');if(onScreen(p))floatText(p[0],p[1]+30,'🔥 '+e[2]+' in a row! +'+money(+e[3]),'#ffb547')}if(mine&&!quiet){snd('cheer',{v:.45});snd('chime',{v:.5})}}break;
+    case 'streak':if(st){if(mine||!fpOn()){const p=SP(st,'sign');if(onScreen(p))floatText(p[0],p[1]+30,''+e[2]+' in a row! +'+money(+e[3]),'#ffb547')}if(mine&&!quiet){snd('cheer',{v:.45});snd('chime',{v:.5})}}break;
     case 'parade':if(!quiet){banner('Dragon dance!','a parade is bringing a crowd down the street',2.6);snd('drums',{v:.9});launchFirework(3)}break;
     case 'close':if(!quiet){banner('Midnight','the market is closing',2);snd('gong',{v:.8});launchFirework(5)}break;
     case 'sunrise':if(!quiet)snd('rooster',{v:.8});break;
@@ -1771,14 +1771,14 @@ function gameOver(rows){if(ENDED)return;ENDED=true;closePicker();const me=rows.f
 let NEWMED=[],GOTMED=[];
 function showResult(rows,me,rank){$('rs-title').textContent=rank===1?'You ran the best stall':'Sunrise';$('rs-n').textContent='#'+(rank||'-');
   $('rs-sub').innerHTML=me?('profit <b style="color:#ffe9c7">'+money(me.profit)+'</b> out of '+rows.length+' stalls<br>Best night: '+money(PROG.best)):'';
-  $('rs-board').innerHTML='<tr><th></th><th>Stall</th><th>Profit</th><th>Served</th><th>Walked off</th><th>Binned</th><th>Stars</th><th>Building</th></tr>'+rows.map((r,i)=>'<tr'+(r.seat===MY_SEAT?' class="me"':'')+'><td class="rk">'+(i+1)+'</td><td><span class="sw" style="background:'+r.col+'"></span>'+esc(r.name)+(r.cpu?' <small style="color:var(--mut)">CPU</small>':'')+'</td><td>'+money(r.profit)+'</td><td>'+r.served+'</td><td>'+r.lost+'</td><td>'+r.wasted+'</td><td>'+r.rating.toFixed(1)+'</td><td style="font-size:13px">'+(r.out?'🚫 shut down':TIERS[r.tier].name)+'</td></tr>').join('');
+  $('rs-board').innerHTML='<tr><th></th><th>Stall</th><th>Profit</th><th>Served</th><th>Walked off</th><th>Binned</th><th>Stars</th><th>Building</th></tr>'+rows.map((r,i)=>'<tr'+(r.seat===MY_SEAT?' class="me"':'')+'><td class="rk">'+(i+1)+'</td><td><span class="sw" style="background:'+r.col+'"></span>'+esc(r.name)+(r.cpu?' <small style="color:var(--mut)">CPU</small>':'')+'</td><td>'+money(r.profit)+'</td><td>'+r.served+'</td><td>'+r.lost+'</td><td>'+r.wasted+'</td><td>'+r.rating.toFixed(1)+'</td><td style="font-size:13px">'+(r.out?'shut down':TIERS[r.tier].name)+'</td></tr>').join('');
   const L=[];if(me){if(me.wasted>=12)L.push('You binned '+me.wasted+' portions. Cook a batch when the line needs it, not whenever a burner is free.');
     if(me.lost>=4)L.push(me.lost+' people walked off your line. Keep a batch ready for your busiest dish.');
     if(me.shared>=2)L.push('Two of your dishes were sold by other stalls too. A dish nobody else sells cannot be undercut.');
     if(me.served<12)L.push('Not many sales. Watch the craze each hour and price near fair.');
     if(!L.length)L.push('Tidy night: little waste, short lines.');
     const best=rows[0];if(best.seat!==MY_SEAT){const gap=best.profit-me.profit;L.push(gap>0?'You were '+money(Math.round(gap*100)/100)+' behind '+esc(best.name)+'. '+(best.served>me.served?'They served '+(best.served-me.served)+' more plates.':'They charged more per plate.'):'')}}
-  $('rs-lines').innerHTML=(GOTMED.length?'<div class="medals">'+GOTMED.map(M=>'<span class="medal'+(NEWMED.includes(M.id)?' new':'')+'" title="'+esc(M.name)+'">'+M.em+' '+esc(M.name)+(NEWMED.includes(M.id)?' <b>NEW</b>':'')+'</span>').join('')+'</div>':'')+L.map(l=>'<div>'+l+'</div>').join('');if(NEWMED.length)setTimeout(()=>snd('chime',{v:.7}),400);
+  $('rs-lines').innerHTML=(GOTMED.length?'<div class="medals">'+GOTMED.map(M=>'<span class="medal'+(NEWMED.includes(M.id)?' new':'')+'" title="'+esc(M.name)+'">'+esc(M.name)+(NEWMED.includes(M.id)?' <b>NEW</b>':'')+'</span>').join('')+'</div>':'')+L.map(l=>'<div>'+l+'</div>').join('');if(NEWMED.length)setTimeout(()=>snd('chime',{v:.7}),400);
   const guest=MODE==='guest';$('rs-again').classList.toggle('hidden',guest);$('rs-again-t').textContent=MODE==='host'?'Another night':'Another night';$('rs-menu-t').textContent=MODE==='host'?'Back to the lobby':guest?'Leave':'Menu';
   if(guest)$('rs-lines').insertAdjacentHTML('beforeend','<div class="note">Waiting for the host to open another night...</div>');show('s-result')}
 $('rs-again').onclick=()=>{if(MODE==='host')hostGo();else startSolo(SET.cpu,SET.len,SET.easy)};
@@ -1797,7 +1797,7 @@ function quitGame(){sayBye();if(MODE==='host'||MODE==='guest')netClose();MODE='m
 let QUITSURE=0;function askQuit(){const b=$('pa-quit'),t=b.querySelector('span:last-child');
   if(!QUITSURE){QUITSURE=1;t.textContent=MODE==='solo'?'Close up now? Tap again to see your results':MODE==='host'?'Close the market for everyone? Tap again':'Leave this street? Tap again';b.classList.add('sure');setTimeout(()=>{QUITSURE=0;t.textContent='Close up and leave';b.classList.remove('sure')},3500);return}
   QUITSURE=0;t.textContent='Close up and leave';b.classList.remove('sure');if(MODE==='solo'&&S&&!ENDED){PAUSED=false;S.over=true;gameOver(summarize(S));return}quitGame()}
-function syncSoundBtns(){$('b-sound').textContent=SET.sound?'🔊 Sound on':'🔈 Sound off';$('pa-sound').querySelector('span:last-child').textContent=SET.sound?'Sound on':'Sound off';$('b-sound').classList.toggle('on',SET.sound)}
+function syncSoundBtns(){$('b-sound').textContent=SET.sound?'Sound on':'Sound off';$('pa-sound').querySelector('span:last-child').textContent=SET.sound?'Sound on':'Sound off';$('b-sound').classList.toggle('on',SET.sound)}
 function chips(el,opts,cur,pick){el.innerHTML=opts.map(o=>'<button class="mini'+(o[0]===cur?' on':'')+'" data-v="'+o[0]+'">'+o[1]+'</button>').join('');el.querySelectorAll('.mini').forEach(b=>b.onclick=()=>{snd('ui',{v:.4});pick(+b.dataset.v)})}
 const LENS=[[30,'Quick (3 min)'],[45,'Full night (4.5 min)'],[60,'Long (6 min)']];
 function openSolo(){show('s-solo');chips($('solo-diff'),[[1,'Easy<small>a helper cooks, CPUs leave you alone</small>'],[0,'Normal<small>you cook, everyone plays dirty</small>']],SET.easy?1:0,v=>{SET.easy=v;saveSet();openSolo()});chips($('solo-cpu'),[[1,'1'],[2,'2'],[3,'3'],[4,'4'],[5,'5'],[6,'6'],[7,'7']],SET.cpu,v=>{SET.cpu=v;saveSet();openSolo()});chips($('solo-len'),LENS,SET.len,v=>{SET.len=v;saveSet();openSolo()})}
@@ -1860,7 +1860,7 @@ function paintLobby(){$('lb-code').textContent=net.code||'····';const host=M
   $('lb-wait').classList.toggle('hidden',host);$('lb-wait').textContent=LOBBY.ing?'A night is already running on this street. You will get a stall when the next one starts.':'Waiting for the host to open the market...';$('lb-start').classList.toggle('hidden',!host);
   const lonely=LOBBY.players.length<2&&cpu<1;$('lb-start').querySelector('span:last-child').textContent='Open the market';$('lb-start').disabled=lonely&&!DEBUG;if(lonely)$('lb-note').textContent='Wait for a friend, or add a CPU stall to start now.';
   $('lb-copy').classList.toggle('hidden',!net.code)}
-$('lb-copy').onclick=()=>{const url=location.href.split('#')[0]+'#room='+net.code;const done=()=>{$('lb-copy').textContent='✅ Link copied';setTimeout(()=>$('lb-copy').textContent='🔗 Copy invite link',1800)};
+$('lb-copy').onclick=()=>{const url=location.href.split('#')[0]+'#room='+net.code;const done=()=>{$('lb-copy').textContent='Link copied';setTimeout(()=>$('lb-copy').textContent='Copy invite link',1800)};
   try{navigator.clipboard.writeText(url).then(done,()=>{prompt('Send this link to a friend:',url)})}catch(e){prompt('Send this link to a friend:',url)}}
 let LASTGO=null;
 function hostGo(){if(MODE!=='host')return;ENDED=false;{const t=now();LOBBY.players=LOBBY.players.filter(p=>p.cid===MY_CID||t-(p.seen||0)<9000)}const cpu=Math.min(LOBBY.cpu,MAXP-LOBBY.players.length);
@@ -1990,11 +1990,11 @@ function leaderOf(st,v){return rivalsOf(st,v).sort((a,b)=>worth(b)-worth(a))[0]}
 function jobTarget(st,v){const r=rivalsOf(st,v);if(!r.some(o=>o.i===JOBTGT)){const l=leaderOf(st,v);JOBTGT=l?l.i:-1}return JOBTGT}
 // the Jobs tab on your panel: pick a rival (the leader by default) to show on your map; the jobs themselves happen in their back yard
 function paintJobs(st,v){const el=$('p-jobs');if(PTAB!=='jobs')return;const tg=jobTarget(st,v),lead=leaderOf(st,v);
-  const T=v.stalls[tg];$('p-goons').textContent=st.job?OPS[st.job.op].em+' on a job':v.t<st.jobCD?'🙈 lying low':'🕴️ sneak out back';
+  const T=v.stalls[tg];$('p-goons').textContent=st.job?'on a job':v.t<st.jobCD?'lying low':'sneak out back';
   const rv=rivalsOf(st,v);
-  el.innerHTML='<div class="jt">hit:'+rv.map(o=>'<button data-tgt="'+o.i+'" class="'+(o.i===tg?'on':'')+'" style="color:'+o.col+'">'+(lead&&o.i===lead.i?'👑 ':'')+esc(o.name.slice(0,10))+'</button>').join('')+
+  el.innerHTML='<div class="jt">hit:'+rv.map(o=>'<button data-tgt="'+o.i+'" class="'+(o.i===tg?'on':'')+'" style="color:'+o.col+'">'+(lead&&o.i===lead.i?'':'')+esc(o.name.slice(0,10))+'</button>').join('')+
     (rv.length?'':'<span>no one left to hit</span>')+'</div>'+
-    (fpOn()?'<div class="jhow">'+(T?'Out your back door, along the lane, into <b style="color:'+T.col+'">'+esc(T.name)+'</b>\'s yard'+(T.dog?' 🐕':'')+(T.cam?' 📹':'')+(T.cat?' 🐈':'')+'. Hold E at a spot:':'')+'</div>':'<div class="jhow">Sneaking around back yards needs the 3D street (Pause, Graphics).</div>')+
+    (fpOn()?'<div class="jhow">'+(T?'Out your back door, along the lane, into <b style="color:'+T.col+'">'+esc(T.name)+'</b>\'s yard'+(T.dog?' (dog)':'')+(T.cam?' (camera)':'')+(T.cat?' (cat)':'')+'. Hold E at a spot:':'')+'</div>':'<div class="jhow">Sneaking around back yards needs the 3D street (Pause, Graphics).</div>')+
     '<div class="jg">'+Object.entries(OPS).map(([k,O])=>'<span class="jb ji" title="'+esc(O.name+' at the '+O.prop+': '+O.desc)+'"><span>'+O.em+'</span>'+(O.cost?'$'+O.cost:'free')+'</span>').join('')+
     Object.entries(BOOSTS).map(([k,B])=>'<button class="jb boost" data-boost="'+k+'" title="'+esc(B.name+': '+B.desc)+'"'+(st.cash<B.cost||(k==='bribe'&&st.bribed)||(k==='juggler'&&v.t<st.juggleU)?' disabled':'')+'><span>'+B.em+'</span>$'+B.cost+'</button>').join('')+
     (st.tier>=BOSS.minTier?'<button class="jb boss" data-boss title="'+esc(BOSS.name+': '+BOSS.desc)+'"'+(st.cash<BOSS.cost?' disabled':'')+'><span>'+BOSS.em+'</span>$'+BOSS.cost+'</button>':'')+'</div>'}
@@ -2008,7 +2008,7 @@ document.getElementById('panel').addEventListener('pointerdown',e=>{const b=e.ta
 function paintSheet(){const st=myStall(),v=V();if(!st)return;
   if(SCR==='s-family'){const tg=jobTarget(st,v),lead=leaderOf(st,v);
     $('fm-goons').innerHTML='<b>'+(st.job?'You are on a job right now.':v.t<st.jobCD?'You just got caught. Lie low for '+Math.ceil(st.jobCD-v.t)+'s.':'Ready when you are.')+'</b>';$('fm-hire').classList.add('hidden');
-    $('fm-tgts').innerHTML=rivalsOf(st,v).map(o=>'<button data-tgt2="'+o.i+'" class="'+(o.i===tg?'on':'')+'"><span style="color:'+o.col+'">■</span> '+(lead&&o.i===lead.i?'👑 ':'')+esc(o.name)+'<small>'+TIERS[o.tier].name+' · worth '+money(Math.round(worth(o)-START_CASH))+(o.cam?' · 📹':'')+(o.dog?' · 🐕':'')+(o.cat?' · 🐈':'')+' · '+o.strikes+' strikes</small></button>').join('')||'<div class="note">Everyone else is shut down.</div>';
+    $('fm-tgts').innerHTML=rivalsOf(st,v).map(o=>'<button data-tgt2="'+o.i+'" class="'+(o.i===tg?'on':'')+'"><span style="color:'+o.col+'">■</span> '+(lead&&o.i===lead.i?'':'')+esc(o.name)+'<small>'+TIERS[o.tier].name+' · worth '+money(Math.round(worth(o)-START_CASH))+(o.cam?' ·':'')+(o.dog?' ·':'')+(o.cat?' ·':'')+' · '+o.strikes+' strikes</small></button>').join('')||'<div class="note">Everyone else is shut down.</div>';
     $('fm-jobs').innerHTML=Object.entries(OPS).map(([k,O])=>'<div class="jcard"><span class="e">'+O.em+'</span><span><b>'+esc(O.name)+' · the '+esc(O.prop)+'</b>'+esc(O.verb)+'. '+esc(O.desc)+'</span><span class="c">'+(O.cost?'$'+O.cost:'free')+'</span></div>').join('')+
       '<button class="jcard boss" data-boss2'+(st.tier<BOSS.minTier||st.cash<BOSS.cost?' disabled':'')+'><span class="e">'+BOSS.em+'</span><span><b>'+esc(BOSS.name)+'</b>'+esc(BOSS.desc)+' One phone call, no sneaking.'+(st.tier<BOSS.minTier?' Needs a Restaurant.':'')+'</span><span class="c">$'+BOSS.cost+'</span></button>';
     $('fm-boosts').innerHTML=Object.entries(BOOSTS).map(([k,B])=>'<button class="jcard boost" data-boost2="'+k+'"'+(st.cash<B.cost||(k==='bribe'&&st.bribed)||(k==='juggler'&&v.t<st.juggleU)?' disabled':'')+'><span class="e">'+B.em+'</span><span><b>'+esc(B.name)+'</b>'+esc(B.desc)+(k==='bribe'&&st.bribed?' (paid up)':'')+'</span><span class="c">$'+B.cost+'</span></button>').join('');
@@ -2238,7 +2238,7 @@ function chefTags(v,t){if(!fpOn()&&v!==DEMO&&!G3.ok)return;const me=myStall();
   for(const st of v.stalls){if(st.gone||!st.ch||(me&&st===me&&fpOn()))continue;const c=st.ch,X=stWX(v,st);const kit=!c.auto&&inKitchen(v,st);
     const human=!st.cpu&&!st.bot,sneak=me&&inYardOf(v,c,me);if(kit&&!human)continue;if(v===DEMO)continue;
     const d=fpOn()?Math.hypot(c.x-FP.x,c.z-FP.z):0;if(fpOn()&&(d>24||!fpSees(c.x,c.z)))continue;const [a,b,zz]=proj(c.x,3.05+(c.y||0),c.z);if(zz>=1)continue;
-    const txt=(sneak?'🚨 ':'')+st.name+(st.job&&OPS[st.job.op]?' '+OPS[st.job.op].em:'');
+    const txt=(sneak?'':'')+st.name;
     pill(txt,a,b-8,'800 '+(d<10?13:11)+'px Karla',sneak?'#fff':'#1a1030',sneak?'rgba(214,52,44,.92)':mixC(st.col,'#ffffff',.55))}}
 // ── the back yards: built once per stall from LAYOUT, baked with the booth ──
 function yardGeo(){const GG=G3.geo,T=T3;if(GG.yBin)return;
@@ -2338,7 +2338,7 @@ function lane3D(v,t,dt){const Ln=G3.lane;if(!Ln)return;const L=LAYOUT,zk=L.lane.
 function fpLabel(v,st,g){if(!g)return '';const kb=!TOUCH;
   if(g.k==='wok'){const b=st.burn.find(q=>q.w===g.w);if(!b){const d=sugDish(v,st);return d<0?'Pick a dish for your menu first':(kb?'E · ':'')+'Cook '+DISH[d].em+' '+DISH[d].name+(kb?'   (1 to '+slotsOf(st)+' picks a dish)':'')}
     const D=DISH[b.d],tea=D.id==='tea';if(b.ready)return (kb?'E · ':'')+(tea?'Pour the bubble tea!':'Plate the '+D.name.toLowerCase()+'!')+(b.rt>BURN_T*.55?(tea?' It\'s boiling over!':' It\'s burning!'):'');
-    if(wokTossable(b))return (kb?'E · ':'')+(tea?'STIR IT!':D.id==='dump'?'CHECK THE LID!':'TOSS IT!');return D.em+' '+(tea?'brewing':D.id==='dump'?'steaming':'cooking')+' · '+Math.ceil(Math.max(0,b.left))+'s'+(b.toss?' · '+(tea?'stirred':'tossed')+' ✓':'')}
+    if(wokTossable(b))return (kb?'E · ':'')+(tea?'STIR IT!':D.id==='dump'?'CHECK THE LID!':'TOSS IT!');return (tea?'brewing':D.id==='dump'?'steaming':'cooking')+' · '+Math.ceil(Math.max(0,b.left))+'s'+(b.toss?' · '+(tea?'stirred':'tossed')+' ✓':'')}
   if(g.k==='bell'){const cd=BELL_CD-(v.t-st.bell);return cd>0?'Bell ready in '+Math.ceil(cd)+'s':(kb?'E · ':'')+'Ring the bell'}
   if(g.k==='use'){try{return (kb?'E · ':'')+g.u.label(v,st)}catch(e){return ''}}
   if(g.k==='shoo')return (kb?'E · ':'')+'Catch '+v.stalls[g.who].name+' and chase them home!';
@@ -2346,7 +2346,7 @@ function fpLabel(v,st,g){if(!g)return '';const kb=!TOUCH;
   if(g.k==='bin')return (kb?'E · ':'')+'Bin the bad food';
   if(g.k==='fan')return (kb?'E · ':'')+'Fan the stink away';
   if(g.k==='op'){const O=OPS[g.op],tg=v.stalls[g.to];const last=st.jobLast&&st.jobLast[g.op+g.to];if(last!=null&&v.t-last<REJOB_T)return O.em+' Done here. Try another spot';
-    return (kb?'Hold E · ':'Hold USE · ')+O.em+' '+O.verb+(O.cost?' ($'+O.cost+')':'')+(tg.dog?'  🐕':'')+(tg.cam?'  📹':'')}
+    return (kb?'Hold E · ':'Hold USE · ')+O.verb+(O.cost?' ($'+O.cost+')':'')+(tg.dog?' (dog)':'')+(tg.cam?' (camera)':'')}
   return ''}
 // where the touch buttons go: above the bottom bar, smaller on short screens; banners can stay clear of fpButtonsRect()
 function fpButtons(jb,ub){const hud=$('fphud'),hb=hud&&!hud.classList.contains('hidden')?innerHeight-hud.getBoundingClientRect().top:0,short=innerHeight<450,u=short?70:92,j=short?52:64,b=Math.max(G3.ph||0,hb)+12;
@@ -2364,7 +2364,7 @@ function fpOverlay(v,t){const st=myStall();const ub=$('fpuse');if(!fpOn()||!st){
   else if(g&&g.k==='wok'){const b=st.burn.find(q=>q.w===g.w);if(b){const D=DISH[b.d],u=b.ready?1-b.rt/BURN_T:clamp(1-b.left/D.cook,0,1);ctx.strokeStyle='rgba(14,11,29,.7)';ctx.lineWidth=7;ctx.beginPath();ctx.arc(cx,cy,24,0,7);ctx.stroke();
     ctx.strokeStyle=b.ready?(u<.45?'#ff5a3a':'#7dffb0'):wokTossable(b)?'#ffe066':'#ffb547';ctx.lineWidth=4;ctx.beginPath();ctx.arc(cx,cy,24,-Math.PI/2,-Math.PI/2+u*Math.PI*2);ctx.stroke()}}
   ctx.restore();
-  if(inKitchen(v,st)&&!(g&&g.k==='wok')){const tw=st.burn.find(q=>wokTossable(q)||q.ready);if(tw){const tossy=wokTossable(tw);pill((tossy?'❗ Toss':'✅ Plate')+' wok '+(tw.w+1)+(tw.w<burnersOf(st)/2-.5?' →':tw.w>burnersOf(st)/2-.5?' ←':''),cx,cy-46,'800 15px Karla','#1a1030',tossy?'rgba(255,224,102,.95)':'rgba(125,255,176,.95)')}}
+  if(inKitchen(v,st)&&!(g&&g.k==='wok')){const tw=st.burn.find(q=>wokTossable(q)||q.ready);if(tw){const tossy=wokTossable(tw);pill((tossy?'Toss':'Plate')+' wok '+(tw.w+1)+(tw.w<burnersOf(st)/2-.5?' →':tw.w>burnersOf(st)/2-.5?' ←':''),cx,cy-46,'800 15px Karla','#1a1030',tossy?'rgba(255,224,102,.95)':'rgba(125,255,176,.95)')}}
   if(lab){const hot=g&&(g.k==='op'||g.k==='shoo'||g.k==='stomp'||(g.k==='wok'&&(lab.includes('TOSS')||lab.includes('Plate'))));pill(lab,cx,cy+Math.max(60,H*.2),'800 15px Karla',hot?'#1a1030':'#ffe9c7',hot?'rgba(255,222,140,.95)':'rgba(14,11,29,.82)')}
   if(FP.hint>0&&!TOUCH){ctx.globalAlpha=Math.min(1,FP.hint);pill(FP.locked?'WASD walk · Shift run · Space jump · E or click uses · Tab frees the mouse':'Click to look around with the mouse',cx,H-34,'700 13px Karla','#ffe9c7','rgba(14,11,29,.8)');ctx.globalAlpha=1}
   else if(!FP.locked&&!TOUCH&&!SCR){pill(FP.lockFail&&now()-FP.lockFail<3000?'Click again to look around':'Click to look around · Tab',cx,H-30,'700 12px Karla','#ffe9c7','rgba(14,11,29,.7)')}
@@ -2393,7 +2393,7 @@ const PC={open:false,app:'desk',moved:[],t:0,hud:'',hudT:0,scrT:0,scrKey:''};
 const PC_APPS=[['desk','🖥️','Desktop'],['menu','🍜','Menu & prices'],['shop','🛒','Wholesaler'],['family','🕴️','Family'],['build','🏗️','Build'],['watch','📈','Street watch']];
 const PC_DESC={menu:'swap dishes, set prices',shop:'buy ingredients',family:'dirty jobs, favors, guards',build:'grow into a mega tower',watch:'how every stall is doing'};
 if(typeof FP_USE!=='undefined')FP_USE.push({id:'pc',when:(v,st)=>!!st&&!st.out&&inKitchen(v,st),pos:(v,st)=>[stWX(v,st)+LAYOUT.pc.x-.2,LAYOUT.pc.y,LAYOUT.pc.z],r:.8,
-  label:()=>'🖥️ Use the computer',use:()=>pcOpen()});
+  label:()=>'Use the computer',use:()=>pcOpen()});
 function pcOpen(){const st=myStall();if(!st||ENDED||MODE==='menu'||PC.open)return;if(typeof fpRelease==='function')fpRelease();
   PC.open=true;if(MODE==='solo')PAUSED='sheet';show('s-pc');$('pc-live').classList.toggle('hidden',MODE==='solo');$('pc-off').innerHTML=TOUCH?'⏻ Log off':'⏻ Log off <small>Esc</small>';pcApp('desk');snd('ui',{v:.45})}
 // put every borrowed panel part back where it came from (last moved first)
@@ -2405,16 +2405,16 @@ function pcEsc(){if(PC.app!=='desk')pcApp('desk');else pcClose()}
 function pcApp(name){pcRestore();PC.app=name;SCR='s-pc';const A=$('pc-app'),st=myStall(),v=V();A.innerHTML='';A.scrollTop=0;$('pc-back').classList.toggle('hidden',name==='desk');
   $('pc-side').innerHTML=PC_APPS.map(([k,em,nm])=>'<button data-app="'+k+'"'+(k===name?' class="on"':'')+'><span>'+em+'</span>'+nm+'</button>').join('');
   if(name==='desk'){const nm=st&&st.name&&!/^your stall$/i.test(st.name)?st.name:'chef';A.innerHTML='<h3>Good evening, '+esc(nm)+'</h3><p class="note2">Pick an app. Esc or Log off takes you back to the woks.'+(MODE!=='solo'?' The street keeps going while you are at the desk.':'')+'</p><div class="pcdesk">'+
-      PC_APPS.slice(1).map(([k,em,nm])=>'<button data-app="'+k+'"><span>'+em+'</span>'+nm+'<small>'+PC_DESC[k]+'</small></button>').join('')+'</div><div class="pchelp" id="pc-helprow">🧑‍🍳 <span>A kitchen helper keeps cooking while you are out the back.</span></div>';
+      PC_APPS.slice(1).map(([k,em,nm])=>'<button data-app="'+k+'"><span>'+em+'</span>'+nm+'<small>'+PC_DESC[k]+'</small></button>').join('')+'</div><div class="pchelp" id="pc-helprow"><span>A kitchen helper keeps cooking while you are out the back.</span></div>';
     pcMove($('p-help'),$('pc-helprow'))}
-  else if(name==='menu'){A.innerHTML='<h3>Menu &amp; prices</h3><p class="note2">Tap a dish to swap it. Cheaper pulls the crowd from next door, pricier earns more per plate. The craze 🔥 is what most people want this hour.</p>';pcMove($('p-slots'),A)}
-  else if(name==='shop'){A.innerHTML='<h3>Wholesaler</h3><p class="note2">The whole street shares this wholesaler: every pack anyone buys pushes that price up for a while. Cooking buys what is missing by itself, at today\'s price.</p><div class="legend"><span><i class="lo">$</i> cheap right now</span><span><i>$</i> normal</span><span><i class="hi">$</i> pricey right now</span><span>🟡 glow: on your menu</span><span>the number is how many you have</span></div>';pcMove($('p-shop'),A)}
+  else if(name==='menu'){A.innerHTML='<h3>Menu &amp; prices</h3><p class="note2">Tap a dish to swap it. Cheaper pulls the crowd from next door, pricier earns more per plate. The craze is what most people want this hour.</p>';pcMove($('p-slots'),A)}
+  else if(name==='shop'){A.innerHTML='<h3>Wholesaler</h3><p class="note2">The whole street shares this wholesaler: every pack anyone buys pushes that price up for a while. Cooking buys what is missing by itself, at today\'s price.</p><div class="legend"><span><i class="lo">$</i> cheap right now</span><span><i>$</i> normal</span><span><i class="hi">$</i> pricey right now</span><span>glow: on your menu</span><span>the number is how many you have</span></div>';pcMove($('p-shop'),A)}
   else if(name==='family'||name==='build'){const id=name==='family'?'s-family':'s-build';pcMove($(id).firstElementChild,A);SCR=id;paintSheet()}
   else if(name==='watch'){A.innerHTML='<h3>Street watch</h3><p class="note2">Who is winning tonight, and who is out of their kitchen right now.</p><div id="pc-watch"></div>';pcWatch()}
   if(v)paintPanel(true)}
 function pcWatch(){const el=$('pc-watch'),v=V(),me=myStall();if(!el||!v)return;
   const rows=v.stalls.filter(s=>!s.gone).map(s=>({s,w:worth(s)})).sort((a,b)=>b.w-a.w);
-  const where=s=>s.out?'🚫 shut down':v.t<s.closedUntil?'🪧 boarded up':!s.ch||s.ch.auto||inKitchen(v,s)?'🍳 cooking':me&&s!==me&&inYardOf(v,s.ch,me)?'🚨 in YOUR yard':v.stalls.some(o=>o!==s&&inYardOf(v,s.ch,o))?'🕶️ in a back yard':'🚶 out and about';
+  const where=s=>s.out?'shut down':v.t<s.closedUntil?'boarded up':!s.ch||s.ch.auto||inKitchen(v,s)?'cooking':me&&s!==me&&inYardOf(v,s.ch,me)?'in YOUR yard':v.stalls.some(o=>o!==s&&inYardOf(v,s.ch,o))?'in a back yard':'out and about';
   el.innerHTML='<table class="pcwatch"><tr><th>#</th><th>Stall</th><th>Cash</th><th>Worth</th><th>Stars</th><th>Building</th><th>Served</th><th>Right now</th></tr>'+
     rows.map((r,k)=>{const s=r.s;return '<tr'+(s===me?' class="me"':'')+'><td>'+(k+1)+'</td><td><span class="sw" style="background:'+s.col+'"></span>'+esc(s.name)+(s===me?' (you)':'')+'</td><td>'+money(Math.round(s.cash*100)/100)+'</td><td>'+money(Math.round((r.w-START_CASH)*100)/100)+'</td><td>'+stars(s.rating)+'</td><td>'+TIERS[s.tier].name+'</td><td>'+s.served+'</td><td>'+where(s)+'</td></tr>'}).join('')+'</table>'}
 $('s-pc').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-app],#pc-off,#pc-back');if(!b)return;e.preventDefault();
@@ -2429,7 +2429,7 @@ function pcTick(dt){const fp=fpOn(),inGame=MODE!=='menu'&&!!myStall()&&!ENDED;do
 function pcHud(){const st=myStall(),v=V();if(!st||!v)return;const craze=v.event&&v.event.craze;
   const dishes=st.menu.map((d,k)=>d<0||k>=slotsOf(st)?'':'<button class="dish'+(craze===d?' hot':'')+'" data-cook="'+k+'"><span class="k">'+(k+1)+'</span><span class="e">'+DISH[d].em+'</span><span class="n">'+sN(st,d)+'</span></button>').join('');
   const woks=[...Array(burnersOf(st))].map((_,k)=>{const b=st.burn.find(q=>q.w===k);return '<i class="'+(b&&b.ready?'r':'')+'">'+(b&&!b.ready?'<b style="height:'+Math.round((1-b.left/DISH[b.d].cook)*100)+'%"></b>':'')+'</i>'}).join('');
-  const where=inKitchen(v,st)?'🖥️ PC by the back door · 🔔 bell on the counter':'🚪 home: your back door';
+  const where=inKitchen(v,st)?'PC by the back door · bell on the counter':'home: your back door';
   const h='<span class="cash">'+money(Math.round(st.cash*100)/100)+'</span><span class="st">'+stars(st.rating).replace(/☆/g,'<i>★</i>')+'</span><span class="sep"></span>'+dishes+'<span class="sep"></span><span class="wk" title="your woks">'+woks+'</span><span class="pc">'+where+'</span>';
   if(h!==PC.hud){PC.hud=h;$('fphud').innerHTML=h}}
 $('fphud').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-cook]');e.preventDefault();e.stopPropagation();if(b)fpCookSlot(+b.dataset.cook)});
@@ -2564,7 +2564,7 @@ function drawStall(v,st,t){const N=v.stalls.length,X=WX(st.x),w=Math.min(VW/N*.9
     if(b){const tot=DISH[b.d].cook,f=1-b.left/tot;ctx.strokeStyle='#ffb547';ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.arc(wx,wy-20,7,-Math.PI/2,-Math.PI/2+f*Math.PI*2);ctx.stroke();if(Math.random()<.35)steam(st,wx,wy-6)}}
   // stars, streak fire
   ctx.font='700 '+Math.max(10,Math.min(13,w/13|0))+'px Karla';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#ffb547';ctx.fillText(stars(st.rating),X,yb+9);
-  if((st.streak||0)>=3&&!shut){const s2=st.streak;ctx.font='800 13px Karla';ctx.fillStyle=s2>=10?'#ffdd55':'#ff9a4d';ctx.shadowColor='#ff6a00';ctx.shadowBlur=10;ctx.fillText('🔥x'+s2,x0+w-16,yb+9);ctx.shadowBlur=0}
+  if((st.streak||0)>=3&&!shut){const s2=st.streak;ctx.font='800 13px Karla';ctx.fillStyle=s2>=10?'#ffdd55':'#ff9a4d';ctx.shadowColor='#ff6a00';ctx.shadowBlur=10;ctx.fillText('x'+s2,x0+w-16,yb+9);ctx.shadowBlur=0}
   // the sign, awning and lanterns go on last so the chef stands under them
   for(let k=0;k<8;k++){ctx.fillStyle=k%2?'#f6ead2':st.col;ctx.fillRect(x0+k*w/8,aw,w/8+.5,ah)}
   for(let k=0;k<8;k++){ctx.fillStyle=k%2?'#f6ead2':st.col;ctx.beginPath();ctx.arc(x0+(k+.5)*w/8,aw+ah,w/16,0,Math.PI);ctx.fill()}
